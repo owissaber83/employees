@@ -1,0 +1,125 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp
+  email: String
+  photoUrl: String
+}
+
+type Movie @table {
+  title: String!
+  year: Int!
+  createdAt: Timestamp
+  summary: String
+  genres: [String]
+  runtime: Int
+}
+
+type Watch @table {
+  user: User!
+  movie: Movie!
+  createdAt: Timestamp!
+  watchDate: Date!
+  location: String
+}
+
+type Review @table {
+  movie: Movie!
+  user: User!
+  watch: Watch!
+  rating: Int!
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  isPublic: Boolean!
+  reviewText: String
+  privateShareLink: UUID
+}
+
+type MovieList @table {
+  user: User!
+  name: String!
+  isPublic: Boolean!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  description: String
+  privateShareLink: UUID
+}
+
+type MovieListItem @table(key: ["movieList", "movie"]) {
+  movieList: MovieList!
+  movie: Movie!
+  position: Int!
+  note: String
+}
+
+# ══ PROJECTS SECTION ══
+
+type Employee @table {
+  name: String!
+  jobTitle: String!
+  department: String
+  email: String
+  phone: String
+  hireDate: Date
+  salary: Float
+  status: String
+  createdAt: Timestamp
+  notes: String
+}
+
+type Project @table {
+  name: String!
+  description: String
+  status: String
+  startDate: Date
+  endDate: Date
+  budget: Float
+  manager: String
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+type ProjectEmployee @table(key: ["project", "employee"]) {
+  project: Project!
+  employee: Employee!
+  role: String
+  assignedDate: Date
+  hoursAllocated: Float
+  notes: String
+}
+
+# Materials and Requests
+type Material @table {
+  name: String!
+  sku: String
+  unit: String
+  unitCost: Float
+  createdAt: Timestamp
+}
+
+type ProjectMaterialRequest @table(key: ["project", "material", "requester"]) {
+  project: Project!
+  material: Material!
+  requester: Employee!
+  requestedQty: Float!
+  requestedUnitPrice: Float
+  status: String
+  managerDecisionBy: String
+  managerDecisionAt: Timestamp
+  approvedQty: Float
+  approvedUnitPrice: Float
+  notes: String
+  createdAt: Timestamp
+}
+
+type ProjectMaterialPurchase @table {
+  project: Project!
+  material: Material!
+  purchasedQty: Float!
+  purchasedUnitPrice: Float!
+  purchasedBy: Employee
+  relatedRequestProject: Project
+  relatedRequestMaterial: Material
+  relatedRequestRequester: Employee
+  notes: String
+  createdAt: Timestamp!
+}

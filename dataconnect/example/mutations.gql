@@ -1,0 +1,174 @@
+# Example mutations for a simple movie app
+
+# Create a movie based on user input
+mutation CreateMovie($title: String!, $year: Int!)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Any email verified users can create a new movie.") {
+  movie_insert(data: { title: $title, year: $year })
+}
+
+# Upsert (update or insert) a user's displayName based on their auth.uid
+mutation UpsertUser($displayName: String!) @auth(level: USER) {
+  # The "auth.uid" server value ensures that users can only register their own user.
+  user_upsert(data: { id_expr: "auth.uid", displayName: $displayName })
+}
+
+# Add a review for a movie
+mutation AddReview($watchId: UUID!, $movieId: UUID!, $rating: Int!, $reviewText: String!)
+@auth(level: USER) {
+  review_insert(
+    data: {
+      watch: { id: $watchId }
+      movie: { id: $movieId }
+      userId_expr: "auth.uid"
+      rating: $rating
+      reviewText: $reviewText
+      isPublic: true
+    }
+  )
+}
+
+# Logged in user can delete their review
+mutation DeleteReview($reviewId: UUID!) @auth(level: USER) {
+  # Users can only delete reviews where they are the author
+  review_delete(key: { id: $reviewId })
+}
+# ══ PROJECT MUTATIONS ══
+
+# Create a new project
+mutation CreateProject($name: String!, $description: String, $status: String, $startDate: Date, $endDate: Date, $budget: Float, $manager: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can create projects.") {
+  project_insert(
+    data: {
+      name: $name
+      description: $description
+      status: $status
+      startDate: $startDate
+      endDate: $endDate
+      budget: $budget
+      manager: $manager
+    }
+  )
+}
+
+# Update project details
+mutation UpdateProject($projectId: UUID!, $name: String, $description: String, $status: String, $startDate: Date, $endDate: Date, $budget: Float, $manager: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can update projects.") {
+  project_update(
+    key: { id: $projectId }
+    data: {
+      name: $name
+      description: $description
+      status: $status
+      startDate: $startDate
+      endDate: $endDate
+      budget: $budget
+      manager: $manager
+    }
+  )
+}
+
+# Delete a project
+mutation DeleteProject($projectId: UUID!)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can delete projects.") {
+  project_delete(key: { id: $projectId })
+}
+
+# Assign employee to project
+mutation AssignEmployeeToProject($projectId: UUID!, $employeeId: UUID!, $role: String, $hoursAllocated: Float, $notes: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can assign employees.") {
+  projectEmployee_insert(
+    data: {
+      project: { id: $projectId }
+      employee: { id: $employeeId }
+      role: $role
+      hoursAllocated: $hoursAllocated
+      notes: $notes
+    }
+  )
+}
+
+# Update employee assignment to project
+mutation UpdateProjectEmployeeAssignment($projectId: UUID!, $employeeId: UUID!, $role: String, $hoursAllocated: Float, $notes: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can update assignments.") {
+  projectEmployee_update(
+    key: { projectId: $projectId, employeeId: $employeeId }
+    data: {
+      role: $role
+      hoursAllocated: $hoursAllocated
+      notes: $notes
+    }
+  )
+}
+
+# Remove employee from project
+mutation RemoveEmployeeFromProject($projectId: UUID!, $employeeId: UUID!)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can remove employees from projects.") {
+  projectEmployee_delete(key: { projectId: $projectId, employeeId: $employeeId })
+}
+
+# Create or update employee
+mutation UpsertEmployee($employeeId: UUID, $name: String!, $jobTitle: String!, $department: String, $email: String, $phone: String, $hireDate: Date, $salary: Float, $status: String, $notes: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can manage employees.") {
+  employee_upsert(
+    data: {
+      id: $employeeId
+      name: $name
+      jobTitle: $jobTitle
+      department: $department
+      email: $email
+      phone: $phone
+      hireDate: $hireDate
+      salary: $salary
+      status: $status
+      notes: $notes
+      createdAt_expr: "request.time"
+    }
+  )
+}
+
+# Materials & Requests Mutations
+mutation CreateMaterial($name: String!, $sku: String, $unit: String, $unitCost: Float)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Email verified users can add materials.") {
+  material_insert(data: { name: $name, sku: $sku, unit: $unit, unitCost: $unitCost })
+}
+
+mutation RequestMaterial($projectId: UUID!, $materialId: UUID!, $requesterId: UUID!, $requestedQty: Float!, $requestedUnitPrice: Float, $notes: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Engineers can request materials.") {
+  projectMaterialRequest_insert(
+    data: {
+      project: { id: $projectId }
+      material: { id: $materialId }
+      requester: { id: $requesterId }
+      requestedQty: $requestedQty
+      requestedUnitPrice: $requestedUnitPrice
+      status: "pending"
+      notes: $notes
+    }
+  )
+}
+
+mutation ApproveMaterialRequest($projectId: UUID!, $materialId: UUID!, $requesterId: UUID!, $approvedQty: Float, $approvedUnitPrice: Float, $approver: String, $status: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Project managers can approve requests.") {
+  projectMaterialRequest_update(
+    key: { projectId: $projectId, materialId: $materialId, requesterId: $requesterId }
+    data: { approvedQty: $approvedQty, approvedUnitPrice: $approvedUnitPrice, managerDecisionBy: $approver, managerDecisionAt_expr: "request.time", status: $status }
+  )
+}
+
+mutation RecordMaterialPurchase($projectId: UUID!, $materialId: UUID!, $purchasedQty: Float!, $purchasedUnitPrice: Float!, $purchasedById: UUID, $relatedRequestProjectId: UUID, $relatedRequestMaterialId: UUID, $relatedRequestRequesterId: UUID, $notes: String)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Users can record purchases.") {
+  projectMaterialPurchase_insert(
+    data: {
+      project: { id: $projectId }
+      material: { id: $materialId }
+      purchasedQty: $purchasedQty
+      purchasedUnitPrice: $purchasedUnitPrice
+      purchasedBy: { id: $purchasedById }
+      relatedRequestProject: { id: $relatedRequestProjectId }
+      relatedRequestMaterial: { id: $relatedRequestMaterialId }
+      relatedRequestRequester: { id: $relatedRequestRequesterId }
+      notes: $notes
+      createdAt_expr: "request.time"
+    }
+  )
+}

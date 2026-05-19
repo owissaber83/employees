@@ -1,0 +1,70 @@
+mutation CreateDemoData @transaction @auth(level: PUBLIC, insecureReason: "This operation is for populating seed data and is safe to expose to the public.") {
+  user1: user_insert(data: {
+    id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    displayName: "Alice Smith",
+    createdAt: "2023-01-01T10:00:00Z",
+    email: "alice@example.com"
+  })
+  user2: user_insert(data: {
+    id: "f1e2d3c4-b5a6-0987-6543-210fedcba987",
+    displayName: "Bob Johnson",
+    createdAt: "2023-01-02T11:00:00Z",
+    email: "bob@example.com"
+  })
+  movie1: movie_insert(data: {
+    id: "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+    title: "Inception",
+    year: 2010,
+    createdAt: "2023-01-03T12:00:00Z",
+    summary: "A thief who steals corporate secrets through use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
+    genres: ["Sci-Fi", "Action"],
+    runtime: 148
+  })
+  movie2: movie_insert(data: {
+    id: "9f8e7d6c-5b4a-3210-fedc-ba9876543210",
+    title: "The Matrix",
+    year: 1999,
+    createdAt: "2023-01-04T13:00:00Z",
+    summary: "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",
+    genres: ["Sci-Fi", "Action"],
+    runtime: 136
+  })
+  watch1: watch_insert(data: {
+    id: "11223344-5566-7788-99aa-bbccddeeff00",
+    userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    movieId: "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+    createdAt: "2023-01-05T14:00:00Z",
+    watchDate: "2023-01-05",
+    location: "Home"
+  })
+  review1: review_insert(data: {
+    id: "aabbccdd-eeff-1122-3344-556677889900",
+    userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    movieId: "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+    watchId: "11223344-5566-7788-99aa-bbccddeeff00",
+    rating: 5,
+    createdAt: "2023-01-05T15:00:00Z",
+    updatedAt: "2023-01-05T15:00:00Z",
+    isPublic: true,
+    reviewText: "Absolutely mind-blowing movie! The plot was incredibly intricate."
+  })
+  movieList1: movieList_insert(data: {
+    id: "feedbeef-0123-4567-89ab-cdef01234567",
+    userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    name: "My Favorite Sci-Fi",
+    isPublic: true,
+    createdAt: "2023-01-06T16:00:00Z",
+    updatedAt: "2023-01-06T16:00:00Z",
+    description: "A list of my top science fiction films."
+  })
+  movieListItem1: movieListItem_insert(data: {
+    movieListId: "feedbeef-0123-4567-89ab-cdef01234567",
+    movieId: "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+    position: 1
+  })
+  movieListItem2: movieListItem_insert(data: {
+    movieListId: "feedbeef-0123-4567-89ab-cdef01234567",
+    movieId: "9f8e7d6c-5b4a-3210-fedc-ba9876543210",
+    position: 2
+  })
+}

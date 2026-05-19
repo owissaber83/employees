@@ -1,0 +1,219 @@
+# Example queries for a simple movie app.
+
+# @auth() directives control who can call each operation.
+# Anyone should be able to list all movies, so the auth level is set to PUBLIC
+query ListMovies @auth(level: PUBLIC, insecureReason: "Anyone can list all movies.") {
+  movies {
+    id
+    title
+    genres
+    year
+  }
+}
+
+# List all users, only admins should be able to list all users, so we use NO_ACCESS
+query ListUsers @auth(level: NO_ACCESS) {
+  users {
+    id
+    displayName
+  }
+}
+
+# Logged in users can list all their reviews and movie titles associated with the review
+# Since the query uses the uid of the current authenticated user, we set auth level to USER
+query ListUserReviews @auth(level: USER) {
+  user(key: { id_expr: "auth.uid" }) {
+    id
+    displayName
+    # <field>_on_<foreign_key_field> makes it easy to grab info from another table
+    # Here, we use it to grab all the reviews written by the user.
+    reviews: reviews_on_user {
+      rating
+      createdAt
+      reviewText
+      movie {
+        id
+        title
+      }
+    }
+  }
+}
+
+# Get movie by id
+query GetMovieById($id: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can get a movie by id.") {
+  movie(id: $id) {
+    id
+    title
+    genres
+    year
+    summary
+    reviews: reviews_on_movie {
+      reviewText
+      createdAt
+      rating
+      user {
+        id
+        displayName
+      }
+    }
+  }
+}
+
+# Search for movies, actors, and reviews
+query SearchMovie($titleInput: String) @auth(level: PUBLIC, insecureReason: "Anyone can search for movies.") {
+  movies(
+    where: {
+      title: { contains: $titleInput }
+    }
+  ) {
+    id
+    title
+    genres
+    year
+  }
+}
+# ══ PROJECT QUERIES ══
+
+# List all projects
+query ListProjects @auth(level: PUBLIC, insecureReason: "Anyone can list projects.") {
+  projects(orderBy: [{createdAt: DESC}]) {
+    id
+    name
+    description
+    status
+    startDate
+    endDate
+    budget
+    manager
+    createdAt
+  }
+}
+
+# Get project details with assigned employees
+query GetProjectWithEmployees($projectId: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can view project details.") {
+  project(id: $projectId) {
+    id
+    name
+    description
+    status
+    startDate
+    endDate
+    budget
+    manager
+    createdAt
+    updatedAt
+    # Get all employees assigned to this project
+    employees: projectEmployees_on_project {
+      role
+      assignedDate
+      hoursAllocated
+      notes
+      employee {
+        id
+        name
+        jobTitle
+        department
+        email
+        phone
+      }
+    }
+  }
+}
+
+# Search projects by name
+query SearchProjects($searchTerm: String) @auth(level: PUBLIC, insecureReason: "Anyone can search projects.") {
+  projects(
+    where: {
+      name: { contains: $searchTerm }
+    }
+    orderBy: [{createdAt: DESC}]
+  ) {
+    id
+    name
+    description
+    status
+    budget
+    manager
+    createdAt
+  }
+}
+
+# Get employee's projects
+query GetEmployeeProjects($employeeId: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can view employee projects.") {
+  employee(id: $employeeId) {
+    id
+    name
+    jobTitle
+    department
+    projects: projectEmployees_on_employee {
+      role
+      assignedDate
+      hoursAllocated
+      project {
+        id
+        name
+        status
+        startDate
+        endDate
+        manager
+      }
+    }
+  }
+}
+
+# List all employees
+query ListEmployees @auth(level: PUBLIC, insecureReason: "Anyone can list employees.") {
+  employees(orderBy: [{name: ASC}]) {
+    id
+    name
+    jobTitle
+    department
+    email
+    phone
+    hireDate
+    status
+    createdAt
+  }
+}
+
+# Materials & Requests
+query ListMaterials @auth(level: PUBLIC, insecureReason: "Anyone can list materials.") {
+  materials(orderBy: [{name: ASC}]) {
+    id
+    name
+    sku
+    unit
+    unitCost
+    createdAt
+  }
+}
+
+query GetProjectMaterialRequests($projectId: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can view project material requests.") {
+  project(id: $projectId) {
+    id
+    name
+    materialRequests: projectMaterialRequests_on_project {
+      _id
+      material {
+        id
+        name
+        unit
+      }
+      requester { id name }
+      requestedQty
+      requestedUnitPrice
+      status
+      approvedQty
+      approvedUnitPrice
+      createdAt
+      managerDecisionAt
+    }
+    purchases: projectMaterialPurchases_on_project {
+      id
+      material { id name }
+      purchasedQty
+      purchasedUnitPrice
+      createdAt
+    }
+  }
+}
