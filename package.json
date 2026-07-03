@@ -1,5 +1,12 @@
 {
   "dependencies": {
     "firebase": "^12.13.0"
+  },
+  "devDependencies": {
+    "terser": "^5.48.0"
+  },
+  "scripts": {
+    "build": "bash build.sh",
+    "deploy": "bash build.sh && firebase deploy --only hosting"
   }
 }

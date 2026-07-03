@@ -1,0 +1,131 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "operators": {
+      ".write": false,
+      "$opUid": {
+        ".read": "auth != null && auth.uid === $opUid"
+      }
+    },
+
+    "userIndex": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && ((!data.exists() && newData.exists() && (auth.uid === $uid || root.child('tenants').child(newData.child('tenantId').val()).child('ledger/users').child(auth.uid).child('role').val() === 'admin')) || (!newData.exists() && data.exists() && root.child('tenants').child(data.child('tenantId').val()).child('ledger/users').child(auth.uid).child('role').val() === 'admin'))"
+      }
+    },
+
+    "tenants": {
+      ".read": "auth != null && root.child('operators').child(auth.uid).val() === true",
+
+      "$tid": {
+
+        "meta": {
+          ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() || root.child('operators').child(auth.uid).val() === true)",
+          ".write": "auth != null && !data.exists() && newData.child('createdBy').val() === auth.uid",
+          "subscription": {
+            ".write": "auth != null && root.child('operators').child(auth.uid).val() === true"
+          },
+          "accessUntil": {
+            ".write": "auth != null && root.child('operators').child(auth.uid).val() === true"
+          }
+        },
+
+        "ledger": {
+
+          "users": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin'",
+            "$uid": {
+              ".read": "auth != null && (auth.uid === $uid || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin')",
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && newData.child('role').val() === 'admin' && !root.child('tenants').child($tid).child('ledger/users').exists()))"
+            }
+          },
+
+          "auditLog": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin'",
+            "$entryId": {
+              ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && !data.exists()"
+            }
+          },
+
+          "payrolls": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
+          "employees": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin_officer' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'project_manager' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'executive_director')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
+          "loans": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
+          "empCustody": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
+          "chartOfAccounts": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "journalEntries": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "costCenters": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "bankRec": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "bankRecSessions": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "bankStatements": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "vatReturns": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "incomeTaxReturns": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "yearClosings": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",
+            ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "periodLocks": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "fsBudgets": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
+          "settings": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
+          "$other": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          }
+        }
+      }
+    }
+  }
+}

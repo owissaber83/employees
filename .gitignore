@@ -67,3 +67,11 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# نسخة الإنتاج المشوّشة (تُولّد بـ npm run build)
+dist/
+
+# macOS + Claude local
+.DS_Store
+**/.DS_Store
+.claude/
