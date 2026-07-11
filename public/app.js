@@ -267,6 +267,7 @@ function buildRefs() {
     submittals: ref(db, 'ledger/submittals'),  // 📋 المستندات الفنية { projectId: { key:{ number, title, subType, discipline, status, revision, specSection, submittedTo, submittedDate, dueDate, reviewer, returnedDate, reviewNotes, fileUrl } } }
     subcontracts: ref(db, 'ledger/subcontracts'), // 🤝 عقود الباطن على مستوى المشروع { projectId: { key:{ subId, subName, scope, contractValue, retentionPct, advanceAmount, startDate, endDate, status, changeOrders:[{desc,amount,date}], certificates:[{no,date,periodValue,retentionAmt,advanceRecovery,netPayable,status,notes}] } } }
     meetings: ref(db, 'ledger/meetings'),      // 📝 الاجتماعات والمحاضر { projectId: { key:{ number, title, meetingType, meetingDate, location, attendees, discussion, nextMeetingDate, status, actions:[{text,owner,dueDate,done}] } } }
+    tenders: ref(db, 'ledger/tenders'),        // 📢 المناقصات والعطاءات { projectId: { key:{ number, title, category, budget, issueDate, dueDate, scope, status, notes, bids:[{bidder,amount,date,notes,selected}] } } }
     pact: ref(db, 'ledger/projectActivityLog'), // { projectId: { logKey: { date, icon, text, user } } } سجل نشاط المشروع
     pdocs: ref(db, 'ledger/projectDocuments'), // { projectId: { docKey: { name, category, fileName, storagePath, url, size, uploadedAt, uploadedBy } } }
     psitereports: ref(db, 'ledger/projectSiteReports'), // { projectId: { reportKey: { date, type, weather, manpower, workDone, issues, ... } } }
@@ -2888,6 +2889,10 @@ function startListeners() {
     onValue(R.meetings, sn => {
         window.meetings = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'meetings' && typeof pdRenderTab === 'function') pdRenderTab('meetings');
+    });
+    onValue(R.tenders, sn => {
+        window.tenders = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'tenders' && typeof pdRenderTab === 'function') pdRenderTab('tenders');
     });
     // 📜 سجل نشاط المشروع
     onValue(R.pact, sn => {

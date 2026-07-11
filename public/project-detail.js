@@ -224,6 +224,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('qhse',      `🦺 الجودة والسلامة${(() => { const n = Object.values((window.qhse || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('submittals',`📋 المستندات الفنية${(() => { const n = Object.values((window.submittals || {})[projectId] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('meetings',  `📝 الاجتماعات والمحاضر${(() => { const n = Object.values((window.meetings || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('tenders',   `📢 المناقصات${(() => { const n = Object.values((window.tenders || {})[projectId] || {}).filter(r => ['open', 'evaluating'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
         ${pdTabBtn('docs',      '📁 المستندات والتقارير')}
         ${pdTabBtn('activity',  '📜 سجل النشاط')}
@@ -249,6 +250,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-meetings"  class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-tenders"   class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-docs"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-activity"  class="pd-tab-pane" style="display:none"></div>
@@ -311,6 +313,7 @@ function pdRenderTab(tab) {
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'meetings')  pdRenderMeetings(pid);
+    if (tab === 'tenders')   pdRenderTenders(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
     if (tab === 'docs')      pdRenderDocsAndReports(pid);
     if (tab === 'activity')  pdRenderActivityLog(pid);
@@ -2979,6 +2982,200 @@ window.pdCloseMtg = function (pid, key) {
 window.pdDeleteMtg = function (pid, key) {
     cf2('حذف محضر الاجتماع نهائياً؟', async () => {
         try { await remove(ref(db, `ledger/meetings/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('meetings'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 📢 المناقصات والعطاءات (Bidding / Tenders)                          ║
+// ║   طرح مناقصة + عروض مقاولين للمقارنة + الترسية — بيانات فقط.                  ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_BID_STATUS = { draft: ['⚪ مسودة', '#7f8c8d', '#f4f6f7'], open: ['🟠 مطروحة', '#e67e22', '#fef5e7'], evaluating: ['🔵 تحت التقييم', '#2980b9', '#eaf2fb'], awarded: ['🟢 مُرساة', '#27ae60', '#eafaf1'], cancelled: ['🔴 ملغاة', '#c0392b', '#fdecea'] };
+const PD_BID_CATS = { subcontract: 'مقاولة باطن', supply: 'توريد مواد', services: 'خدمات', equipment: 'معدّات', other: 'أخرى' };
+const pdMny = v => (+v || 0).toLocaleString('en-US');
+
+window._pdBidFilter = window._pdBidFilter || 'all';
+window.pdSetBidFilter = function (f) { window._pdBidFilter = f; pdRenderTenders(window._pd.projectId); };
+
+// مناقصة "متأخّرة" = مطروحة وتجاوزت آخر موعد للعروض
+function pdBidIsOv(r) {
+    const today = new Date().toISOString().slice(0, 10);
+    return r.status === 'open' && r.dueDate && r.dueDate < today;
+}
+function pdBidAward(r) {  // العرض المُرسى عليه
+    const bids = Array.isArray(r.bids) ? r.bids : [];
+    return bids.find(b => b && b.selected) || null;
+}
+
+function pdRenderTenders(pid) {
+    const pane = document.getElementById('pd-tab-tenders'); if (!pane) return;
+    const all = Object.entries((window.tenders || {})[pid] || {}).sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    let cOpen = 0, cOv = 0, cAward = 0;
+    all.forEach(([, r]) => { if (['open', 'evaluating'].includes(r.status)) cOpen++; if (pdBidIsOv(r)) cOv++; if (r.status === 'awarded') cAward++; });
+    const flt = window._pdBidFilter;
+    const shown = all.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? pdBidIsOv(r) : flt === 'active' ? ['open', 'evaluating'].includes(r.status) : r.status === flt);
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">📢 المناقصات والعطاءات</div>
+            <button class="btn b-g" onclick="pdOpenBidForm('${pid}')">➕ مناقصة جديدة</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('الإجمالي', all.length, '#2d6a9f')}${pdFiStat('نشطة', cOpen, '#e67e22')}${pdFiStat('متأخرة', cOv, '#c0392b')}${pdFiStat('مُرساة', cAward, '#27ae60')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetBidFilter')}${pdFiltChip(flt, 'active', 'نشطة', 'pdSetBidFilter')}${pdFiltChip(flt, 'open', 'مطروحة', 'pdSetBidFilter')}${pdFiltChip(flt, 'evaluating', 'تحت التقييم', 'pdSetBidFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetBidFilter')}${pdFiltChip(flt, 'awarded', 'مُرساة', 'pdSetBidFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">📢</div><p>لا توجد مناقصات في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_BID_STATUS[r.status] || PD_BID_STATUS.draft;
+        const ov = pdBidIsOv(r);
+        const bids = Array.isArray(r.bids) ? r.bids : [];
+        const amounts = bids.map(b => +b.amount || 0).filter(a => a > 0);
+        const low = amounts.length ? Math.min(...amounts) : 0;
+        const award = pdBidAward(r);
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        ${r.category ? `<span style="background:#eef3f8;color:#2d6a9f;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_BID_CATS[r.category] || r.category}</span>` : ''}
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ انتهى موعد العروض</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenBidForm('${pid}','${k}')">✏️ تعديل</button>
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteBid('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.budget ? `<span>💰 الميزانية التقديرية: ${pdMny(r.budget)}</span>` : ''}${r.issueDate ? `<span>📤 الطرح: ${r.issueDate}</span>` : ''}${r.dueDate ? `<span style="color:${ov ? '#c0392b' : '#888'}">📅 آخر موعد: ${r.dueDate}</span>` : ''}<span>📨 عروض: ${bids.length}</span>${low ? `<span>⬇️ أقل عرض: ${pdMny(low)}</span>` : ''}
+                </div>
+                ${r.scope ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.scope.replace(/\n/g, '<br>')}</div>` : ''}
+                ${bids.length ? `<div style="margin-top:10px;border-top:1px dashed #e0e6ec;padding-top:8px">
+                    <div style="font-size:11px;font-weight:800;color:#2d6a9f;margin-bottom:6px">📨 العروض المستلمة (${bids.length})</div>
+                    ${bids.slice().sort((a, b) => (+a.amount || 0) - (+b.amount || 0)).map(b => { const win = b.selected; const isLow = (+b.amount || 0) === low && low > 0; return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0;${win ? 'background:#eafaf1;border-radius:6px;padding:4px 6px' : ''}"><span>${win ? '🏆' : (isLow ? '⬇️' : '•')}</span><span style="flex:1;font-weight:${win ? '800' : '600'};color:#333">${b.bidder || '—'}</span><span style="font-weight:800;color:#1a3a5c">${pdMny(b.amount)}</span>${b.date ? `<span style="color:#888">📅 ${b.date}</span>` : ''}</div>`; }).join('')}
+                    ${award ? `<div style="font-size:11.5px;color:#1e8449;font-weight:800;margin-top:6px">🏆 تمّت الترسية على: ${award.bidder || '—'} بمبلغ ${pdMny(award.amount)}</div>` : ''}
+                </div>` : ''}
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdBidFormHtml(pid)}`;
+}
+
+// ── عروض المقاولين: قائمة ديناميكية داخل النموذج ─────────────────────
+window._pdBids = window._pdBids || [];
+function pdBidRowsHtml() {
+    const bids = window._pdBids || [];
+    if (!bids.length) return '<div style="font-size:11px;color:#aaa;padding:6px 0">لا توجد عروض بعد — اضغط «➕ عرض مقاول».</div>';
+    return bids.map((b, i) => `<div class="bid-row" style="display:grid;grid-template-columns:1fr 130px 130px 30px 34px;gap:6px;margin-bottom:6px;align-items:center">
+        <input class="bid-name" value="${(b.bidder || '').replace(/"/g, '&quot;')}" placeholder="اسم المقاول" style="${inputStyle()}">
+        <input type="number" class="bid-amt" value="${b.amount != null && b.amount !== '' ? b.amount : ''}" placeholder="قيمة العرض" style="${inputStyle()}">
+        <input type="date" class="bid-date" value="${b.date || ''}" style="${inputStyle()}">
+        <label style="display:flex;align-items:center;justify-content:center;cursor:pointer" title="المُرسى عليه"><input type="checkbox" class="bid-sel" ${b.selected ? 'checked' : ''}></label>
+        <button class="btn b-r" style="padding:4px 6px;font-size:11px" onclick="pdBidDelRow(${i})">🗑️</button>
+    </div>`).join('');
+}
+function pdBidReadRows() {
+    const arr = [];
+    document.querySelectorAll('#pd-bid-bids .bid-row').forEach(row => {
+        arr.push({
+            bidder: (row.querySelector('.bid-name')?.value || '').trim(),
+            amount: +(row.querySelector('.bid-amt')?.value || 0) || 0,
+            date: row.querySelector('.bid-date')?.value || '',
+            selected: !!row.querySelector('.bid-sel')?.checked
+        });
+    });
+    return arr;
+}
+window.pdBidAddRow = function () {
+    window._pdBids = pdBidReadRows();
+    window._pdBids.push({ bidder: '', amount: '', date: '', selected: false });
+    const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml();
+};
+window.pdBidDelRow = function (i) {
+    window._pdBids = pdBidReadRows();
+    window._pdBids.splice(i, 1);
+    const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml();
+};
+
+function pdBidFormHtml(pid) {
+    return `<div id="pd-bid-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #2d6a9f">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-bid-form-title">📢 مناقصة جديدة</div>
+        <input type="hidden" id="pd-bid-key">
+        <div style="display:grid;grid-template-columns:1fr 160px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">اسم المناقصة *</label><input id="bid-title" placeholder="مثال: توريد وتركيب أعمال التكييف" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التصنيف</label><select id="bid-cat" style="${inputStyle()}">${Object.entries(PD_BID_CATS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+            <div><label style="${lblStyle()}">الميزانية التقديرية</label><input type="number" id="bid-budget" placeholder="0" style="${inputStyle()}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 170px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">تاريخ الطرح</label><input type="date" id="bid-issue" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">آخر موعد للعروض</label><input type="date" id="bid-due" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الحالة</label><select id="bid-status" style="${inputStyle()}"><option value="draft">⚪ مسودة</option><option value="open">🟠 مطروحة</option><option value="evaluating">🔵 تحت التقييم</option><option value="awarded">🟢 مُرساة</option><option value="cancelled">🔴 ملغاة</option></select></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">نطاق العمل</label><textarea id="bid-scope" rows="2" placeholder="وصف نطاق الأعمال المطلوبة..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="border-top:1px dashed #d0d7e0;padding-top:12px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:800;color:#2d6a9f">📨 عروض المقاولين (حدّد ☑️ المُرسى عليه)</div>
+                <button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdBidAddRow()">➕ عرض مقاول</button>
+            </div>
+            <div id="pd-bid-bids"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveBid('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-bid-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+
+window.pdOpenBidForm = function (pid, key = null) {
+    const form = document.getElementById('pd-bid-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-bid-key').value = key || '';
+    document.getElementById('pd-bid-form-title').textContent = key ? '✏️ تعديل المناقصة' : '📢 مناقصة جديدة';
+    const r = key ? ((window.tenders || {})[pid] || {})[key] : null;
+    document.getElementById('bid-title').value = r?.title || '';
+    document.getElementById('bid-cat').value = r?.category || 'subcontract';
+    document.getElementById('bid-budget').value = r?.budget != null ? r.budget : '';
+    document.getElementById('bid-issue').value = r?.issueDate || new Date().toISOString().slice(0, 10);
+    document.getElementById('bid-due').value = r?.dueDate || '';
+    document.getElementById('bid-status').value = r?.status || 'open';
+    document.getElementById('bid-scope').value = r?.scope || '';
+    window._pdBids = Array.isArray(r?.bids) ? r.bids.map(b => ({ ...b })) : [];
+    const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.pdSaveBid = async function (pid) {
+    const title = document.getElementById('bid-title')?.value.trim();
+    if (!title) { toast('أدخل اسم المناقصة', 'er'); return; }
+    const key = document.getElementById('pd-bid-key')?.value;
+    let bids = pdBidReadRows().filter(b => b.bidder || b.amount);
+    // ترسية واحدة فقط: أبقِ أول عرض مُحدَّد فقط
+    let seen = false;
+    bids = bids.map(b => { if (b.selected && !seen) { seen = true; return b; } return { ...b, selected: false }; });
+    const data = {
+        title, category: document.getElementById('bid-cat')?.value || 'subcontract',
+        budget: +(document.getElementById('bid-budget')?.value || 0) || 0,
+        issueDate: document.getElementById('bid-issue')?.value || '',
+        dueDate: document.getElementById('bid-due')?.value || '',
+        status: document.getElementById('bid-status')?.value || 'open',
+        scope: document.getElementById('bid-scope')?.value.trim() || '',
+        bids, updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/tenders/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('BID', (window.tenders || {})[pid]);
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/tenders/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-bid-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('tenders'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdDeleteBid = function (pid, key) {
+    cf2('حذف هذه المناقصة نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/tenders/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('tenders'), 300); }
         catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
 };
