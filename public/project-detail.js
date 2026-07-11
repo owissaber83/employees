@@ -223,6 +223,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('punch',     `🔧 قوائم النواقص${(() => { const n = Object.values((window.punchItems || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('qhse',      `🦺 الجودة والسلامة${(() => { const n = Object.values((window.qhse || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('submittals',`📋 المستندات الفنية${(() => { const n = Object.values((window.submittals || {})[projectId] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('meetings',  `📝 الاجتماعات والمحاضر${(() => { const n = Object.values((window.meetings || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
         ${pdTabBtn('docs',      '📁 المستندات والتقارير')}
         ${pdTabBtn('activity',  '📜 سجل النشاط')}
@@ -247,6 +248,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-meetings"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-docs"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-activity"  class="pd-tab-pane" style="display:none"></div>
@@ -308,6 +310,7 @@ function pdRenderTab(tab) {
     if (tab === 'punch')     pdRenderPunch(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
+    if (tab === 'meetings')  pdRenderMeetings(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
     if (tab === 'docs')      pdRenderDocsAndReports(pid);
     if (tab === 'activity')  pdRenderActivityLog(pid);
@@ -2779,6 +2782,203 @@ window.pdCloseRfi = function (pid, key) {
 window.pdDeleteRfi = function (pid, key) {
     cf2('حذف طلب المعلومات نهائياً؟', async () => {
         try { await remove(ref(db, `ledger/rfis/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('rfis'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 📝 الاجتماعات والمحاضر (Meetings & Minutes)                         ║
+// ║   محاضر بترقيم MIN-001 + بنود قرارات (مسؤول/مهلة/إنجاز) + تنبيه تأخّر.        ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_MTG_STATUS = { open: ['🟠 متابعة مفتوحة', '#e67e22', '#fef5e7'], closed: ['🟢 مغلق', '#27ae60', '#eafaf1'] };
+const PD_MTG_TYPES = { kickoff: 'اجتماع افتتاحي', progress: 'اجتماع تقدّم', coordination: 'اجتماع تنسيق', site: 'اجتماع موقع', client: 'اجتماع مع العميل', other: 'أخرى' };
+
+window._pdMtgFilter = window._pdMtgFilter || 'all';
+window.pdSetMtgFilter = function (f) { window._pdMtgFilter = f; pdRenderMeetings(window._pd.projectId); };
+
+// اجتماع "متأخّر" = فيه بند قرار غير منجز تجاوز مهلته
+function pdMtgIsOv(r) {
+    const today = new Date().toISOString().slice(0, 10);
+    return r.status !== 'closed' && Array.isArray(r.actions) && r.actions.some(a => a && !a.done && a.dueDate && a.dueDate < today);
+}
+
+function pdRenderMeetings(pid) {
+    const pane = document.getElementById('pd-tab-meetings'); if (!pane) return;
+    const all = Object.entries((window.meetings || {})[pid] || {}).sort((a, b) => (b[1].meetingDate || b[1].createdAt || '').localeCompare(a[1].meetingDate || a[1].createdAt || ''));
+    const today = new Date().toISOString().slice(0, 10);
+    let cOpen = 0, cOv = 0, cAct = 0;
+    all.forEach(([, r]) => {
+        if (r.status !== 'closed') cOpen++;
+        if (pdMtgIsOv(r)) cOv++;
+        if (Array.isArray(r.actions)) cAct += r.actions.filter(a => a && !a.done).length;
+    });
+    const flt = window._pdMtgFilter;
+    const shown = all.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? pdMtgIsOv(r) : flt === 'open' ? r.status !== 'closed' : r.status === flt);
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">📝 الاجتماعات والمحاضر</div>
+            <button class="btn b-g" onclick="pdOpenMtgForm('${pid}')">➕ محضر اجتماع جديد</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('الإجمالي', all.length, '#2d6a9f')}${pdFiStat('متابعة مفتوحة', cOpen, '#e67e22')}${pdFiStat('بنود متأخرة', cOv, '#c0392b')}${pdFiStat('قرارات معلّقة', cAct, '#8e44ad')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetMtgFilter')}${pdFiltChip(flt, 'open', 'متابعة مفتوحة', 'pdSetMtgFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetMtgFilter')}${pdFiltChip(flt, 'closed', 'مغلقة', 'pdSetMtgFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">📝</div><p>لا توجد محاضر اجتماعات في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_MTG_STATUS[r.status] || PD_MTG_STATUS.open;
+        const ov = pdMtgIsOv(r);
+        const acts = Array.isArray(r.actions) ? r.actions : [];
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        ${r.meetingType ? `<span style="background:#eef3f8;color:#2d6a9f;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_MTG_TYPES[r.meetingType] || r.meetingType}</span>` : ''}
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ بند متأخر</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenMtgForm('${pid}','${k}')">${r.status !== 'closed' ? '✏️ تعديل' : '👁️'}</button>
+                        ${r.status !== 'closed' ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdCloseMtg('${pid}','${k}')">✅ إغلاق</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteMtg('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.meetingDate ? `<span>📅 ${r.meetingDate}</span>` : ''}${r.location ? `<span>📍 ${r.location}</span>` : ''}${r.attendees ? `<span>👥 ${r.attendees}</span>` : ''}${r.nextMeetingDate ? `<span>🔜 القادم: ${r.nextMeetingDate}</span>` : ''}
+                </div>
+                ${r.discussion ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.discussion.replace(/\n/g, '<br>')}</div>` : ''}
+                ${acts.length ? `<div style="margin-top:10px;border-top:1px dashed #e0e6ec;padding-top:8px">
+                    <div style="font-size:11px;font-weight:800;color:#8e44ad;margin-bottom:6px">✅ بنود القرارات والمتابعة (${acts.filter(a => a && a.done).length}/${acts.length})</div>
+                    ${acts.map(a => { const aov = a && !a.done && a.dueDate && a.dueDate < today; return `<div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;padding:3px 0"><span>${a.done ? '✅' : (aov ? '🔴' : '⬜')}</span><span style="flex:1;color:${a.done ? '#999' : '#333'};${a.done ? 'text-decoration:line-through' : ''}">${a.text || '—'}</span>${a.owner ? `<span style="color:#2980b9;font-weight:700">👤 ${a.owner}</span>` : ''}${a.dueDate ? `<span style="color:${aov ? '#c0392b' : '#888'}">📅 ${a.dueDate}</span>` : ''}</div>`; }).join('')}
+                </div>` : ''}
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdMtgFormHtml(pid)}`;
+}
+
+// ── بنود القرارات: قائمة ديناميكية داخل النموذج ──────────────────────
+window._pdMtgActions = window._pdMtgActions || [];
+function pdMtgActionRowsHtml() {
+    const acts = window._pdMtgActions || [];
+    if (!acts.length) return '<div style="font-size:11px;color:#aaa;padding:6px 0">لا توجد بنود بعد — اضغط «➕ بند قرار».</div>';
+    return acts.map((a, i) => `<div class="mtg-action-row" style="display:grid;grid-template-columns:1fr 140px 140px 30px 34px;gap:6px;margin-bottom:6px;align-items:center">
+        <input class="mtg-a-text" value="${(a.text || '').replace(/"/g, '&quot;')}" placeholder="نص القرار / الإجراء" style="${inputStyle()}">
+        <input class="mtg-a-owner" value="${(a.owner || '').replace(/"/g, '&quot;')}" placeholder="المسؤول" style="${inputStyle()}">
+        <input type="date" class="mtg-a-due" value="${a.dueDate || ''}" style="${inputStyle()}">
+        <label style="display:flex;align-items:center;justify-content:center;cursor:pointer" title="منجز"><input type="checkbox" class="mtg-a-done" ${a.done ? 'checked' : ''}></label>
+        <button class="btn b-r" style="padding:4px 6px;font-size:11px" onclick="pdMtgDelAction(${i})">🗑️</button>
+    </div>`).join('');
+}
+function pdMtgReadActions() {
+    const arr = [];
+    document.querySelectorAll('#pd-mtg-actions .mtg-action-row').forEach(row => {
+        arr.push({
+            text: (row.querySelector('.mtg-a-text')?.value || '').trim(),
+            owner: (row.querySelector('.mtg-a-owner')?.value || '').trim(),
+            dueDate: row.querySelector('.mtg-a-due')?.value || '',
+            done: !!row.querySelector('.mtg-a-done')?.checked
+        });
+    });
+    return arr;
+}
+window.pdMtgAddAction = function () {
+    window._pdMtgActions = pdMtgReadActions();
+    window._pdMtgActions.push({ text: '', owner: '', dueDate: '', done: false });
+    const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml();
+};
+window.pdMtgDelAction = function (i) {
+    window._pdMtgActions = pdMtgReadActions();
+    window._pdMtgActions.splice(i, 1);
+    const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml();
+};
+
+function pdMtgFormHtml(pid) {
+    return `<div id="pd-mtg-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #2d6a9f">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-mtg-form-title">📝 محضر اجتماع جديد</div>
+        <input type="hidden" id="pd-mtg-key">
+        <div style="display:grid;grid-template-columns:1fr 160px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">عنوان الاجتماع *</label><input id="mtg-title" placeholder="مثال: اجتماع تنسيق أسبوعي" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">نوع الاجتماع</label><select id="mtg-type" style="${inputStyle()}">${Object.entries(PD_MTG_TYPES).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+            <div><label style="${lblStyle()}">تاريخ الاجتماع</label><input type="date" id="mtg-date" style="${inputStyle()}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 180px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">المكان</label><input id="mtg-location" placeholder="الموقع / قاعة الاجتماعات / عن بُعد" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الاجتماع القادم</label><input type="date" id="mtg-next" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">الحضور</label><input id="mtg-attendees" placeholder="أسماء الحاضرين، مفصولة بفواصل" style="${inputStyle()}"></div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">جدول الأعمال / المناقشات</label><textarea id="mtg-discussion" rows="3" placeholder="أبرز نقاط النقاش..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="border-top:1px dashed #d0d7e0;padding-top:12px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:800;color:#8e44ad">✅ بنود القرارات والمتابعة</div>
+                <button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdMtgAddAction()">➕ بند قرار</button>
+            </div>
+            <div id="pd-mtg-actions"></div>
+        </div>
+        <div style="width:200px;margin-bottom:12px"><label style="${lblStyle()}">حالة المتابعة</label><select id="mtg-status" style="${inputStyle()}"><option value="open">🟠 متابعة مفتوحة</option><option value="closed">🟢 مغلق</option></select></div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveMtg('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-mtg-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+
+window.pdOpenMtgForm = function (pid, key = null) {
+    const form = document.getElementById('pd-mtg-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-mtg-key').value = key || '';
+    document.getElementById('pd-mtg-form-title').textContent = key ? '✏️ تعديل محضر الاجتماع' : '📝 محضر اجتماع جديد';
+    const r = key ? ((window.meetings || {})[pid] || {})[key] : null;
+    document.getElementById('mtg-title').value = r?.title || '';
+    document.getElementById('mtg-type').value = r?.meetingType || 'progress';
+    document.getElementById('mtg-date').value = r?.meetingDate || new Date().toISOString().slice(0, 10);
+    document.getElementById('mtg-location').value = r?.location || '';
+    document.getElementById('mtg-next').value = r?.nextMeetingDate || '';
+    document.getElementById('mtg-attendees').value = r?.attendees || '';
+    document.getElementById('mtg-discussion').value = r?.discussion || '';
+    document.getElementById('mtg-status').value = r?.status || 'open';
+    window._pdMtgActions = Array.isArray(r?.actions) ? r.actions.map(a => ({ ...a })) : [];
+    const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.pdSaveMtg = async function (pid) {
+    const title = document.getElementById('mtg-title')?.value.trim();
+    if (!title) { toast('أدخل عنوان الاجتماع', 'er'); return; }
+    const key = document.getElementById('pd-mtg-key')?.value;
+    const actions = pdMtgReadActions().filter(a => a.text || a.owner || a.dueDate);
+    const data = {
+        title, meetingType: document.getElementById('mtg-type')?.value || 'progress',
+        meetingDate: document.getElementById('mtg-date')?.value || '',
+        location: document.getElementById('mtg-location')?.value.trim() || '',
+        nextMeetingDate: document.getElementById('mtg-next')?.value || '',
+        attendees: document.getElementById('mtg-attendees')?.value.trim() || '',
+        discussion: document.getElementById('mtg-discussion')?.value.trim() || '',
+        status: document.getElementById('mtg-status')?.value || 'open',
+        actions, updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/meetings/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('MIN', (window.meetings || {})[pid]);
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/meetings/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-mtg-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('meetings'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdCloseMtg = function (pid, key) {
+    cf2('إغلاق متابعة هذا الاجتماع؟', async () => {
+        try { await update(ref(db, `ledger/meetings/${pid}/${key}`), { status: 'closed', updatedAt: new Date().toISOString() }); toast('تم الإغلاق', 'ok'); setTimeout(() => pdRenderTab('meetings'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.pdDeleteMtg = function (pid, key) {
+    cf2('حذف محضر الاجتماع نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/meetings/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('meetings'), 300); }
         catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
 };
