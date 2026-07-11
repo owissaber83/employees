@@ -5198,7 +5198,7 @@ window.pdDeleteSiteReport = function (pid, repKey) {
 
 // ── مساعدات الستايل ────────────────────────────────────────────────
 function inputStyle(extra = '') {
-    return `width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;${extra}`;
+    return `width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;background:#fff;${extra}`;
 }
 function lblStyle() {
     return `font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px`;

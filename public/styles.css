@@ -2061,3 +2061,20 @@ body * {
     padding: 12px
 }
 }
+
+/* ── ضبط حقول الإدخال في ملف المشروع (منع تداخل الحقول) ── */
+#pg-projectdetail input,
+#pg-projectdetail select,
+#pg-projectdetail textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+#pg-projectdetail textarea {
+    resize: vertical;
+}
+/* على الشاشات الضيّقة: اجعل شبكات النماذج عمودًا واحدًا حتى لا تتزاحم */
+@media (max-width: 640px) {
+    #pg-projectdetail [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+}
