@@ -3,10 +3,10 @@
     "firebase": "^12.13.0"
   },
   "devDependencies": {
-    "terser": "^5.48.0"
+    "@firebase/rules-unit-testing": "^4.0.1"
   },
   "scripts": {
-    "build": "bash build.sh",
-    "deploy": "bash build.sh && firebase deploy --only hosting"
+    "deploy": "firebase deploy --only hosting",
+    "test:rules": "firebase emulators:exec --only database --project demo-gbr-rules \"node tests/rules.test.mjs\""
   }
 }

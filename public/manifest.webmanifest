@@ -1,0 +1,17 @@
+{
+  "name": "بنيان للمقاولات — منصّة إدارة المقاولات",
+  "short_name": "بُنيان",
+  "description": "نظام ERP لإدارة المقاولات: المحاسبة والمشاريع والموارد البشرية والمشتريات.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a3a5c",
+  "theme_color": "#1a3a5c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

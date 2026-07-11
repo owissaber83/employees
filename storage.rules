@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 🏢 ملفات كل شركة معزولة تحت tenants/{tid}/... — يصل إليها أعضاء تلك الشركة فقط
+    //    العزل عبر custom claim (tenantId) الذي تضبطه دالة syncTenantClaim.
+    match /tenants/{tid}/{allPaths=**} {
+      allow read:  if request.auth != null && request.auth.token.tenantId == tid;
+      allow write: if request.auth != null && request.auth.token.tenantId == tid
+                   && request.resource.size < 25 * 1024 * 1024;   // حد 25 ميغابايت للملف
+    }
+
+    // 🔒 النسخ الاحتياطية — لا وصول من العملاء إطلاقاً (عبر لوحة Firebase أو الخادم فقط)
+    match /backups/{f} { allow read, write: if false; }
+  }
+}

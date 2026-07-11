@@ -75,3 +75,6 @@ dist/
 .DS_Store
 **/.DS_Store
 .claude/
+*-debug.log
+*.jar
+functions/node_modules/

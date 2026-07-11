@@ -4,19 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"نظام حساب الأستاذ — GBR": an Arabic (RTL) ERP web app for GBR Contracting covering accounting, HR/payroll, projects, and procurement. It is a single-page app written in vanilla JS with **no framework, no build step, no bundler, no tests, and no linter** — the files in `public/` are served as-is by Firebase Hosting.
+"نظام حساب الأستاذ — GBR": an Arabic (RTL) ERP web app for GBR Contracting covering accounting, HR/payroll, projects, and procurement. It is a single-page app written in vanilla JS with **no framework, no build step, no bundler, no tests, and no linter** — the files in **`public/`** are served as-is by Firebase Hosting (`firebase.json` → `"public": "public"`). Editing a file in `public/` takes effect immediately on `firebase serve` (hard-refresh) or after `firebase deploy`.
+
+> Note: there used to be a `build.sh` that copied `public/` → a minified `dist/` and Hosting served `dist/`. That was removed (July 2026) because edits to `public/` silently didn't reach the served app. There is now **no `dist/`, no minification, no build** — do not reintroduce them.
 
 All UI text, comments, and section headers are in Arabic. The HTML root is `<html lang="ar" dir="rtl">` — keep new UI RTL-aware and in Arabic.
 
 ## Commands
 
 ```bash
-firebase serve                    # run locally (or: firebase emulators:start --only hosting)
-firebase deploy --only hosting    # deploy to live (project: emplyeeapp-1dc64)
+firebase serve                    # run locally (serves public/) — hard-refresh the browser to see edits
+firebase deploy --only hosting    # deploy public/ to live (project: emplyeeapp-1dc64) — same as: npm run deploy
 ./verify-features.sh              # grep-based sanity check of attendance features
 ```
 
-Pushing to `main` also auto-deploys via GitHub Actions (`.github/workflows/firebase-hosting-merge.yml`). Note the workflow runs `npm run build`, but `package.json` has no scripts — deploys are normally done with the Firebase CLI.
+Pushing to `main` also auto-deploys via GitHub Actions (`.github/workflows/firebase-hosting-merge.yml`) — it just checks out and deploys `public/` (no build).
 
 ## Architecture
 

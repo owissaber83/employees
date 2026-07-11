@@ -156,6 +156,7 @@ window.renderProjectDetail = function () {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn" onclick="bcNav('projects')" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.3);padding:8px 14px;font-size:12px">← قائمة المشاريع</button>
+            <button class="btn" onclick="pdClientPortal('${projectId}')" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.3);padding:8px 14px;font-size:12px" title="تقرير حالة نظيف للعميل — للطباعة أو المشاركة PDF">🌐 بوابة العميل</button>
             <button class="btn b-o" onclick="openPrjM('${projectId}')" style="padding:8px 14px;font-size:12px">✏️ تعديل المشروع</button>
         </div>
     </div>
@@ -210,12 +211,18 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('tasks',     `✅ المهام${(() => { const n = Object.values((window.projectTasks || {})[projectId] || {}).filter(t => t.status !== 'done').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('billings',  '📑 المستخلصات')}
         ${pdTabBtn('evm',       '📐 الأداء (EVM)')}
+        ${pdTabBtn('cashflow',  '💧 التدفق النقدي')}
         ${pdTabBtn('invoices',  '🧾 فواتير المبيعات')}
         ${pdTabBtn('expenses',  '💸 المصروفات')}
         ${pdTabBtn('suppliers', '🚚 الموردون والتوريدات')}
+        ${pdTabBtn('subcontracts', `🤝 عقود الباطن${(() => { const n = Object.values((window.subcontracts || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('pmc',       `📦 تكاليف التنفيذ${pmcRecords.length ? ` (${pmcRecords.length})` : ''}`)}
         ${pdTabBtn('timesheets','⏱️ الأوقات')}
         ${pdTabBtn('payroll',   '💵 الرواتب')}
+        ${pdTabBtn('rfis',      `📨 طلبات المعلومات${(() => { const n = Object.values((window.rfis || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('punch',     `🔧 قوائم النواقص${(() => { const n = Object.values((window.punchItems || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('qhse',      `🦺 الجودة والسلامة${(() => { const n = Object.values((window.qhse || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('submittals',`📋 المستندات الفنية${(() => { const n = Object.values((window.submittals || {})[projectId] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
         ${pdTabBtn('docs',      '📁 المستندات والتقارير')}
         ${pdTabBtn('activity',  '📜 سجل النشاط')}
@@ -228,12 +235,18 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-tasks"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-billings"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-evm"       class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-cashflow"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-invoices"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-expenses"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-suppliers" class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-subcontracts" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-pmc"       class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-timesheets" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-payroll"   class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-rfis"      class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-docs"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-activity"  class="pd-tab-pane" style="display:none"></div>
@@ -283,12 +296,18 @@ function pdRenderTab(tab) {
     if (tab === 'tasks')     pdRenderTasks(pid);
     if (tab === 'billings')  pdRenderBillings(pid);
     if (tab === 'evm')       pdRenderEVM(pid);
+    if (tab === 'cashflow')  pdRenderCashflow(pid);
     if (tab === 'invoices')  pdRenderProjectInvoices(pid);
     if (tab === 'expenses')  pdRenderExpenses(pid);
     if (tab === 'suppliers') pdRenderSuppliers(pid);
+    if (tab === 'subcontracts') pdRenderSubcontracts(pid);
     if (tab === 'pmc')       pdRenderPMC(pid);
     if (tab === 'timesheets' && typeof pdRenderTimesheets === 'function') pdRenderTimesheets(pid);
     if (tab === 'payroll')   pdRenderPayroll(pid);
+    if (tab === 'rfis')      pdRenderRFIs(pid);
+    if (tab === 'punch')     pdRenderPunch(pid);
+    if (tab === 'qhse')      pdRenderQHSE(pid);
+    if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
     if (tab === 'docs')      pdRenderDocsAndReports(pid);
     if (tab === 'activity')  pdRenderActivityLog(pid);
@@ -2596,6 +2615,1298 @@ window.pdDeleteNote = function (pid, noteKey) {
 };
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 📨 طلبات المعلومات (RFIs) + 🔧 قوائم النواقص (Punch Lists)          ║
+// ║   تعاون ميداني بأسلوب Procore — بيانات فقط (روابط، بلا رفع ملفات).          ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_PRIORITY = { low: ['منخفضة', '#7f8c8d'], normal: ['عادية', '#2980b9'], high: ['عالية', '#e67e22'], urgent: ['عاجلة', '#c0392b'] };
+const PD_RFI_STATUS = { open: ['🟠 مفتوح', '#e67e22', '#fef5e7'], answered: ['🔵 تمّت الإجابة', '#2980b9', '#eaf2fb'], closed: ['🟢 مغلق', '#27ae60', '#eafaf1'] };
+const PD_PUNCH_STATUS = { open: ['🔴 مفتوح', '#c0392b', '#fdecea'], in_progress: ['🟠 قيد المعالجة', '#e67e22', '#fef5e7'], ready: ['🔵 جاهز للفحص', '#2980b9', '#eaf2fb'], closed: ['🟢 مغلق', '#27ae60', '#eafaf1'] };
+
+// ترقيم تلقائي متسلسل (RFI-001 / PL-001) من أعلى رقم موجود
+function pdNextNum(prefix, obj) {
+    let mx = 0;
+    Object.values(obj || {}).forEach(x => { const m = /(\d+)\s*$/.exec(x.number || ''); if (m) mx = Math.max(mx, +m[1]); });
+    return `${prefix}-${String(mx + 1).padStart(3, '0')}`;
+}
+function pdFiStat(label, val, color) {
+    return `<div style="flex:1;min-width:104px;background:white;border-radius:10px;padding:12px 14px;box-shadow:0 2px 6px rgba(0,0,0,.05);border-bottom:3px solid ${color}"><div style="font-size:22px;font-weight:900;color:${color}">${val}</div><div style="font-size:11px;color:#888;font-weight:600;margin-top:2px">${label}</div></div>`;
+}
+function pdFiltChip(cur, val, label, fn) {
+    const a = cur === val;
+    return `<button onclick="${fn}('${val}')" style="padding:6px 12px;border:1px solid ${a ? '#2d6a9f' : '#d0d7e0'};background:${a ? '#2d6a9f' : '#fff'};color:${a ? '#fff' : '#555'};border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${label}</button>`;
+}
+
+// ── 📨 طلبات المعلومات ─────────────────────────────────────────────
+window._pdRfiFilter = window._pdRfiFilter || 'all';
+window.pdSetRfiFilter = function (f) { window._pdRfiFilter = f; pdRenderRFIs(window._pd.projectId); };
+
+function pdRenderRFIs(pid) {
+    const pane = document.getElementById('pd-tab-rfis'); if (!pane) return;
+    const all = Object.entries((window.rfis || {})[pid] || {}).sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    const today = new Date().toISOString().slice(0, 10);
+    const isOv = r => r.status === 'open' && r.dueDate && r.dueDate < today;
+    let cOpen = 0, cOv = 0, cAns = 0;
+    all.forEach(([, r]) => { if (r.status === 'open') cOpen++; if (isOv(r)) cOv++; if (r.status === 'answered') cAns++; });
+    const flt = window._pdRfiFilter;
+    const shown = all.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? isOv(r) : r.status === flt);
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">📨 طلبات المعلومات (RFIs)</div>
+            <button class="btn b-g" onclick="pdOpenRfiForm('${pid}')">➕ طلب معلومات جديد</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('الإجمالي', all.length, '#2d6a9f')}${pdFiStat('مفتوحة', cOpen, '#e67e22')}${pdFiStat('متأخرة', cOv, '#c0392b')}${pdFiStat('تمّت الإجابة', cAns, '#27ae60')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetRfiFilter')}${pdFiltChip(flt, 'open', 'مفتوحة', 'pdSetRfiFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetRfiFilter')}${pdFiltChip(flt, 'answered', 'تمّت الإجابة', 'pdSetRfiFilter')}${pdFiltChip(flt, 'closed', 'مغلقة', 'pdSetRfiFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">📨</div><p>لا توجد طلبات معلومات في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_RFI_STATUS[r.status] || PD_RFI_STATUS.open;
+        const [pl, pc] = PD_PRIORITY[r.priority] || PD_PRIORITY.normal;
+        const ov = isOv(r);
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.subject || '—'}</span>
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ متأخر</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        ${r.status !== 'closed' ? `<button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenRfiForm('${pid}','${k}')">✏️ رد/تعديل</button>` : `<button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenRfiForm('${pid}','${k}')">👁️</button>`}
+                        ${r.status !== 'closed' ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdCloseRfi('${pid}','${k}')">✅ إغلاق</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteRfi('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                ${r.question ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.question.replace(/\n/g, '<br>')}</div>` : ''}
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.discipline ? `<span>🏷️ ${r.discipline}</span>` : ''}${r.submittedTo ? `<span>👤 موجّه إلى: ${r.submittedTo}</span>` : ''}${r.dueDate ? `<span style="color:${ov ? '#c0392b' : '#888'}">📅 الاستحقاق: ${r.dueDate}</span>` : ''}
+                </div>
+                ${r.answer ? `<div style="background:#f2f8fd;border-radius:8px;padding:10px;margin-top:10px;border-right:3px solid #2980b9"><div style="font-size:11px;font-weight:800;color:#2980b9;margin-bottom:3px">💬 الرد${r.answeredBy ? ` — ${r.answeredBy}` : ''}${r.answeredDate ? ` (${r.answeredDate})` : ''}</div><div style="font-size:12.5px;color:#333;line-height:1.7">${r.answer.replace(/\n/g, '<br>')}</div></div>` : ''}
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdRfiFormHtml(pid)}`;
+}
+
+function pdRfiFormHtml(pid) {
+    const disc = ['معماري', 'إنشائي', 'كهرباء', 'ميكانيكا', 'صحي', 'تكييف', 'مدني', 'أخرى'];
+    return `<div id="pd-rfi-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #2d6a9f">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-rfi-form-title">📨 طلب معلومات جديد</div>
+        <input type="hidden" id="pd-rfi-key">
+        <div style="display:grid;grid-template-columns:1fr 150px 140px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الموضوع *</label><input id="rfi-subject" placeholder="موضوع الاستفسار" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التخصص</label><select id="rfi-discipline" style="${inputStyle()}">${disc.map(d => `<option>${d}</option>`).join('')}</select></div>
+            <div><label style="${lblStyle()}">الأولوية</label><select id="rfi-priority" style="${inputStyle()}"><option value="normal">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 200px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">مُوجّه إلى</label><input id="rfi-to" placeholder="الاستشاري / المالك / ..." style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">تاريخ الاستحقاق</label><input type="date" id="rfi-due" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">تفاصيل الاستفسار</label><textarea id="rfi-question" rows="3" placeholder="اشرح الاستفسار بالتفصيل..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="border-top:1px dashed #d0d7e0;padding-top:12px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:800;color:#2980b9;margin-bottom:8px">💬 الرد والحالة</div>
+            <div style="display:grid;grid-template-columns:150px 1fr 150px;gap:10px;margin-bottom:10px">
+                <div><label style="${lblStyle()}">الحالة</label><select id="rfi-status" style="${inputStyle()}"><option value="open">🟠 مفتوح</option><option value="answered">🔵 تمّت الإجابة</option><option value="closed">🟢 مغلق</option></select></div>
+                <div><label style="${lblStyle()}">المُجيب</label><input id="rfi-answeredby" placeholder="اسم من ردّ" style="${inputStyle()}"></div>
+                <div><label style="${lblStyle()}">تاريخ الرد</label><input type="date" id="rfi-answereddate" style="${inputStyle()}"></div>
+            </div>
+            <div><label style="${lblStyle()}">نص الرد</label><textarea id="rfi-answer" rows="2" placeholder="الرد على الاستفسار..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveRfi('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-rfi-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+
+window.pdOpenRfiForm = function (pid, key = null) {
+    const form = document.getElementById('pd-rfi-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-rfi-key').value = key || '';
+    document.getElementById('pd-rfi-form-title').textContent = key ? '✏️ تعديل / رد على الطلب' : '📨 طلب معلومات جديد';
+    const r = key ? ((window.rfis || {})[pid] || {})[key] : null;
+    document.getElementById('rfi-subject').value = r?.subject || '';
+    document.getElementById('rfi-discipline').value = r?.discipline || 'معماري';
+    document.getElementById('rfi-priority').value = r?.priority || 'normal';
+    document.getElementById('rfi-to').value = r?.submittedTo || '';
+    document.getElementById('rfi-due').value = r?.dueDate || '';
+    document.getElementById('rfi-question').value = r?.question || '';
+    document.getElementById('rfi-status').value = r?.status || 'open';
+    document.getElementById('rfi-answeredby').value = r?.answeredBy || '';
+    document.getElementById('rfi-answereddate').value = r?.answeredDate || '';
+    document.getElementById('rfi-answer').value = r?.answer || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.pdSaveRfi = async function (pid) {
+    const subject = document.getElementById('rfi-subject')?.value.trim();
+    if (!subject) { toast('أدخل موضوع الطلب', 'er'); return; }
+    const key = document.getElementById('pd-rfi-key')?.value;
+    const status = document.getElementById('rfi-status')?.value || 'open';
+    const answer = document.getElementById('rfi-answer')?.value.trim();
+    let answeredDate = document.getElementById('rfi-answereddate')?.value || '';
+    if ((status === 'answered' || status === 'closed') && answer && !answeredDate) answeredDate = new Date().toISOString().slice(0, 10);
+    const data = {
+        subject, discipline: document.getElementById('rfi-discipline')?.value || '',
+        priority: document.getElementById('rfi-priority')?.value || 'normal',
+        submittedTo: document.getElementById('rfi-to')?.value.trim() || '',
+        dueDate: document.getElementById('rfi-due')?.value || '',
+        question: document.getElementById('rfi-question')?.value.trim() || '',
+        status, answer: answer || '',
+        answeredBy: document.getElementById('rfi-answeredby')?.value.trim() || '',
+        answeredDate, updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/rfis/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('RFI', (window.rfis || {})[pid]);
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/rfis/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-rfi-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('rfis'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdCloseRfi = function (pid, key) {
+    cf2('إغلاق طلب المعلومات هذا؟', async () => {
+        try { await update(ref(db, `ledger/rfis/${pid}/${key}`), { status: 'closed', updatedAt: new Date().toISOString() }); toast('تم الإغلاق', 'ok'); setTimeout(() => pdRenderTab('rfis'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.pdDeleteRfi = function (pid, key) {
+    cf2('حذف طلب المعلومات نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/rfis/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('rfis'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ── 🔧 قوائم النواقص (Punch / Snag Lists) ──────────────────────────
+window._pdPunchFilter = window._pdPunchFilter || 'all';
+window.pdSetPunchFilter = function (f) { window._pdPunchFilter = f; pdRenderPunch(window._pd.projectId); };
+
+function pdRenderPunch(pid) {
+    const pane = document.getElementById('pd-tab-punch'); if (!pane) return;
+    const all = Object.entries((window.punchItems || {})[pid] || {}).sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    const today = new Date().toISOString().slice(0, 10);
+    const isOv = r => r.status !== 'closed' && r.dueDate && r.dueDate < today;
+    let cOpen = 0, cOv = 0, cClosed = 0;
+    all.forEach(([, r]) => { if (r.status !== 'closed') cOpen++; if (isOv(r)) cOv++; if (r.status === 'closed') cClosed++; });
+    const flt = window._pdPunchFilter;
+    const shown = all.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? isOv(r) : r.status === flt);
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">🔧 قوائم النواقص (Punch List)</div>
+            <button class="btn b-g" onclick="pdOpenPunchForm('${pid}')">➕ بند نواقص جديد</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('الإجمالي', all.length, '#2d6a9f')}${pdFiStat('غير مغلقة', cOpen, '#e67e22')}${pdFiStat('متأخرة', cOv, '#c0392b')}${pdFiStat('مغلقة', cClosed, '#27ae60')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetPunchFilter')}${pdFiltChip(flt, 'open', 'مفتوحة', 'pdSetPunchFilter')}${pdFiltChip(flt, 'in_progress', 'قيد المعالجة', 'pdSetPunchFilter')}${pdFiltChip(flt, 'ready', 'جاهز للفحص', 'pdSetPunchFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetPunchFilter')}${pdFiltChip(flt, 'closed', 'مغلقة', 'pdSetPunchFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">🔧</div><p>لا توجد بنود نواقص في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_PUNCH_STATUS[r.status] || PD_PUNCH_STATUS.open;
+        const [pl, pc] = PD_PRIORITY[r.priority] || PD_PRIORITY.normal;
+        const ov = isOv(r);
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ متأخر</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenPunchForm('${pid}','${k}')">✏️</button>
+                        ${r.status !== 'closed' ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdClosePunch('${pid}','${k}')">✅ إغلاق</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeletePunch('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                ${r.description ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.description.replace(/\n/g, '<br>')}</div>` : ''}
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.location ? `<span>📍 ${r.location}</span>` : ''}${r.trade ? `<span>🏷️ ${r.trade}</span>` : ''}${r.assignee ? `<span>👷 ${r.assignee}</span>` : ''}${r.dueDate ? `<span style="color:${ov ? '#c0392b' : '#888'}">📅 ${r.dueDate}</span>` : ''}${r.photoUrl ? `<a href="${r.photoUrl}" target="_blank" style="color:#2980b9;font-weight:700">🖼️ صورة</a>` : ''}
+                </div>
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdPunchFormHtml(pid)}`;
+}
+
+function pdPunchFormHtml(pid) {
+    const trades = ['أعمال مدنية', 'دهانات', 'كهرباء', 'سباكة', 'نجارة', 'بلاط/سيراميك', 'جبس', 'ألمنيوم', 'عزل', 'تكييف', 'أخرى'];
+    return `<div id="pd-punch-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #e67e22">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-punch-form-title">🔧 بند نواقص جديد</div>
+        <input type="hidden" id="pd-punch-key">
+        <div style="display:grid;grid-template-columns:1fr 150px 140px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">العنوان *</label><input id="pn2-title" placeholder="وصف مختصر للنقص" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التخصص</label><select id="pn2-trade" style="${inputStyle()}">${trades.map(d => `<option>${d}</option>`).join('')}</select></div>
+            <div><label style="${lblStyle()}">الأولوية</label><select id="pn2-priority" style="${inputStyle()}"><option value="normal">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الموقع</label><input id="pn2-location" placeholder="الدور / الغرفة / المحور" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">المسؤول عن المعالجة</label><input id="pn2-assignee" placeholder="مقاول الباطن / الفني" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">تاريخ الاستحقاق</label><input type="date" id="pn2-due" style="${inputStyle()}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الحالة</label><select id="pn2-status" style="${inputStyle()}"><option value="open">🔴 مفتوح</option><option value="in_progress">🟠 قيد المعالجة</option><option value="ready">🔵 جاهز للفحص</option><option value="closed">🟢 مغلق</option></select></div>
+            <div><label style="${lblStyle()}">رابط صورة (اختياري)</label><input id="pn2-photo" placeholder="https://... رابط صورة النقص" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">التفاصيل</label><textarea id="pn2-desc" rows="3" placeholder="وصف النقص والإجراء المطلوب..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSavePunch('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-punch-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+
+window.pdOpenPunchForm = function (pid, key = null) {
+    const form = document.getElementById('pd-punch-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-punch-key').value = key || '';
+    document.getElementById('pd-punch-form-title').textContent = key ? '✏️ تعديل بند النواقص' : '🔧 بند نواقص جديد';
+    const r = key ? ((window.punchItems || {})[pid] || {})[key] : null;
+    document.getElementById('pn2-title').value = r?.title || '';
+    document.getElementById('pn2-trade').value = r?.trade || 'أعمال مدنية';
+    document.getElementById('pn2-priority').value = r?.priority || 'normal';
+    document.getElementById('pn2-location').value = r?.location || '';
+    document.getElementById('pn2-assignee').value = r?.assignee || '';
+    document.getElementById('pn2-due').value = r?.dueDate || '';
+    document.getElementById('pn2-status').value = r?.status || 'open';
+    document.getElementById('pn2-photo').value = r?.photoUrl || '';
+    document.getElementById('pn2-desc').value = r?.description || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.pdSavePunch = async function (pid) {
+    const title = document.getElementById('pn2-title')?.value.trim();
+    if (!title) { toast('أدخل عنوان النقص', 'er'); return; }
+    const key = document.getElementById('pd-punch-key')?.value;
+    const status = document.getElementById('pn2-status')?.value || 'open';
+    const data = {
+        title, trade: document.getElementById('pn2-trade')?.value || '',
+        priority: document.getElementById('pn2-priority')?.value || 'normal',
+        location: document.getElementById('pn2-location')?.value.trim() || '',
+        assignee: document.getElementById('pn2-assignee')?.value.trim() || '',
+        dueDate: document.getElementById('pn2-due')?.value || '',
+        status, photoUrl: document.getElementById('pn2-photo')?.value.trim() || '',
+        description: document.getElementById('pn2-desc')?.value.trim() || '',
+        closedDate: status === 'closed' ? (new Date().toISOString().slice(0, 10)) : '',
+        updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/punchItems/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('PL', (window.punchItems || {})[pid]);
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/punchItems/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-punch-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('punch'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdClosePunch = function (pid, key) {
+    cf2('إغلاق بند النواقص هذا؟', async () => {
+        try { await update(ref(db, `ledger/punchItems/${pid}/${key}`), { status: 'closed', closedDate: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() }); toast('تم الإغلاق', 'ok'); setTimeout(() => pdRenderTab('punch'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.pdDeletePunch = function (pid, key) {
+    cf2('حذف بند النواقص نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/punchItems/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('punch'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 🦺 الجودة والسلامة (QHSE): تفتيش/ITP + ملاحظات ومخالفات + حوادث      ║
+// ║   تُخزَّن كلها في ledger/qhse مع حقل kind للتمييز. بيانات فقط (روابط صور).    ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_INS_RESULT = { pending: ['⚪ قيد الفحص', '#7f8c8d', '#f1f3f5'], pass: ['🟢 ناجح', '#27ae60', '#eafaf1'], conditional: ['🟠 مشروط', '#e67e22', '#fef5e7'], fail: ['🔴 راسب', '#c0392b', '#fdecea'] };
+const PD_OBS_STATUS = { open: ['🔴 مفتوح', '#c0392b', '#fdecea'], in_progress: ['🟠 قيد المعالجة', '#e67e22', '#fef5e7'], closed: ['🟢 مغلق', '#27ae60', '#eafaf1'] };
+const PD_INC_STATUS = { open: ['🔴 مفتوح', '#c0392b', '#fdecea'], investigating: ['🟠 تحت التحقيق', '#e67e22', '#fef5e7'], closed: ['🟢 مغلق', '#27ae60', '#eafaf1'] };
+const PD_INC_TYPE = { near_miss: 'وشيك الحدوث', first_aid: 'إسعاف أولي', injury: 'إصابة', property: 'أضرار ممتلكات', environmental: 'بيئي' };
+
+window._pdQhseSub = window._pdQhseSub || 'inspection';
+window._pdQhseFilter = window._pdQhseFilter || 'all';
+window.pdSetQhseSub = function (s) { window._pdQhseSub = s; window._pdQhseFilter = 'all'; pdRenderQHSE(window._pd.projectId); };
+window.pdSetQhseFilter = function (f) { window._pdQhseFilter = f; pdRenderQHSE(window._pd.projectId); };
+
+function pdRenderQHSE(pid) {
+    const pane = document.getElementById('pd-tab-qhse'); if (!pane) return;
+    const sub = window._pdQhseSub;
+    const all = Object.entries((window.qhse || {})[pid] || {});
+    const openN = k => all.filter(([, r]) => r.kind === k && r.status !== 'closed').length;
+    const subBtn = (id, label, n) => `<button onclick="pdSetQhseSub('${id}')" style="padding:8px 14px;border-radius:8px;border:none;background:${sub === id ? '#c0392b' : '#f8fafc'};color:${sub === id ? '#fff' : '#1a3a5c'};font-weight:${sub === id ? '800' : '600'};cursor:pointer;font-size:12px;font-family:inherit">${label}${n ? ` (${n})` : ''}</button>`;
+    pane.innerHTML = `
+    <div class="card">
+        <div class="c-tl" style="margin:0 0 12px;border:none;padding:0">🦺 الجودة والسلامة (QHSE)</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+            ${subBtn('inspection', '🔍 التفتيش وقوائم الفحص', openN('inspection'))}
+            ${subBtn('observation', '⚠️ الملاحظات والمخالفات', openN('observation'))}
+            ${subBtn('incident', '🚨 الحوادث والإصابات', openN('incident'))}
+        </div>
+        <div id="pd-qhse-sub"></div>
+    </div>
+    <div id="pd-qhse-formwrap"></div>`;
+    if (sub === 'observation') pdRenderObservations(pid);
+    else if (sub === 'incident') pdRenderIncidents(pid);
+    else pdRenderInspections(pid);
+}
+
+// ── 🔍 التفتيش وقوائم الفحص (Inspections / ITP) ──
+window._pdInsChk = window._pdInsChk || [];
+function pdInsChkHtml() {
+    const rows = window._pdInsChk;
+    if (!rows.length) return '<div style="color:#aaa;font-size:12px;padding:6px">لا توجد بنود فحص — أضف بنداً.</div>';
+    return rows.map((c, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <input type="checkbox" ${c.ok ? 'checked' : ''} onchange="window._pdInsChk[${i}].ok=this.checked" style="width:18px;height:18px;flex:0 0 auto">
+        <input value="${(c.text || '').replace(/"/g, '&quot;')}" placeholder="بند الفحص" oninput="window._pdInsChk[${i}].text=this.value" style="flex:1;${inputStyle()}">
+        <button class="btn b-r" style="padding:4px 9px" onclick="window._pdInsChk.splice(${i},1);document.getElementById('pd-ins-chk').innerHTML=pdInsChkHtml()">🗑️</button>
+    </div>`).join('');
+}
+window.pdInsAddChk = function () { window._pdInsChk.push({ text: '', ok: false }); document.getElementById('pd-ins-chk').innerHTML = pdInsChkHtml(); };
+
+function pdRenderInspections(pid) {
+    const host = document.getElementById('pd-qhse-sub'), fh = document.getElementById('pd-qhse-formwrap'); if (!host) return;
+    const items = Object.entries((window.qhse || {})[pid] || {}).filter(([, r]) => r.kind === 'inspection').sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    let cPass = 0, cFail = 0, cCond = 0;
+    items.forEach(([, r]) => { if (r.result === 'pass') cPass++; else if (r.result === 'fail') cFail++; else if (r.result === 'conditional') cCond++; });
+    const flt = window._pdQhseFilter;
+    const shown = items.filter(([, r]) => flt === 'all' ? true : r.result === flt);
+    host.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn b-g" onclick="pdOpenInsForm('${pid}')">➕ فحص جديد</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            ${pdFiStat('إجمالي الفحوصات', items.length, '#2d6a9f')}${pdFiStat('ناجحة', cPass, '#27ae60')}${pdFiStat('مشروطة', cCond, '#e67e22')}${pdFiStat('راسبة', cFail, '#c0392b')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetQhseFilter')}${pdFiltChip(flt, 'pass', 'ناجحة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'conditional', 'مشروطة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'fail', 'راسبة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'pending', 'قيد الفحص', 'pdSetQhseFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">🔍</div><p>لا توجد فحوصات في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        ${shown.map(([k, r]) => {
+        const [rl, rc, rbg] = PD_INS_RESULT[r.result] || PD_INS_RESULT.pending;
+        const chk = Array.isArray(r.checklist) ? r.checklist : [];
+        const okN = chk.filter(c => c.ok).length;
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${rc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="background:${rbg};color:${rc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${rl}</span>
+                        ${chk.length ? `<span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">☑️ ${okN}/${chk.length}</span>` : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenInsForm('${pid}','${k}')">✏️</button>
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteQhse('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.discipline ? `<span>🏷️ ${r.discipline}</span>` : ''}${r.location ? `<span>📍 ${r.location}</span>` : ''}${r.inspector ? `<span>👤 ${r.inspector}</span>` : ''}${r.date ? `<span>📅 ${r.date}</span>` : ''}
+                </div>
+                ${chk.length ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">${chk.map(c => `<div style="font-size:12px;color:${c.ok ? '#1e8449' : '#c0392b'}">${c.ok ? '✅' : '⬜'} ${c.text || ''}</div>`).join('')}</div>` : ''}
+                ${r.notes ? `<div style="font-size:12px;color:#555;margin-top:8px;line-height:1.6">${r.notes.replace(/\n/g, '<br>')}</div>` : ''}
+            </div>`;
+    }).join('')}
+        </div>`}`;
+    if (fh) fh.innerHTML = pdInsFormHtml(pid);
+}
+
+function pdInsFormHtml(pid) {
+    const disc = ['أعمال مدنية', 'خرسانة', 'حديد تسليح', 'دهانات', 'كهرباء', 'سباكة', 'عزل', 'تشطيبات', 'سلامة', 'أخرى'];
+    return `<div id="pd-ins-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #27ae60">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-ins-form-title">🔍 فحص جديد</div>
+        <input type="hidden" id="pd-ins-key">
+        <div style="display:grid;grid-template-columns:1fr 160px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">عنوان الفحص *</label><input id="ins-title" placeholder="مثال: فحص صب سقف الدور الأول" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التخصص</label><select id="ins-disc" style="${inputStyle()}">${disc.map(d => `<option>${d}</option>`).join('')}</select></div>
+            <div><label style="${lblStyle()}">النتيجة</label><select id="ins-result" style="${inputStyle()}"><option value="pending">⚪ قيد الفحص</option><option value="pass">🟢 ناجح</option><option value="conditional">🟠 مشروط</option><option value="fail">🔴 راسب</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الموقع</label><input id="ins-loc" placeholder="الدور / المحور" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">المفتّش</label><input id="ins-inspector" placeholder="اسم المفتّش" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="ins-date" style="${inputStyle()}"></div>
+        </div>
+        <div style="border-top:1px dashed #d0d7e0;padding-top:12px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="${lblStyle()};margin:0">☑️ بنود الفحص (ITP)</label><button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdInsAddChk()">➕ بند</button></div>
+            <div id="pd-ins-chk"></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">ملاحظات</label><textarea id="ins-notes" rows="2" placeholder="ملاحظات الفحص..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveIns('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-ins-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdOpenInsForm = function (pid, key = null) {
+    const form = document.getElementById('pd-ins-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-ins-key').value = key || '';
+    document.getElementById('pd-ins-form-title').textContent = key ? '✏️ تعديل الفحص' : '🔍 فحص جديد';
+    const r = key ? ((window.qhse || {})[pid] || {})[key] : null;
+    document.getElementById('ins-title').value = r?.title || '';
+    document.getElementById('ins-disc').value = r?.discipline || 'أعمال مدنية';
+    document.getElementById('ins-result').value = r?.result || 'pending';
+    document.getElementById('ins-loc').value = r?.location || '';
+    document.getElementById('ins-inspector').value = r?.inspector || '';
+    document.getElementById('ins-date').value = r?.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('ins-notes').value = r?.notes || '';
+    window._pdInsChk = (r && Array.isArray(r.checklist)) ? r.checklist.map(c => ({ text: c.text || '', ok: !!c.ok })) : [];
+    document.getElementById('pd-ins-chk').innerHTML = pdInsChkHtml();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSaveIns = async function (pid) {
+    const title = document.getElementById('ins-title')?.value.trim();
+    if (!title) { toast('أدخل عنوان الفحص', 'er'); return; }
+    const key = document.getElementById('pd-ins-key')?.value;
+    const result = document.getElementById('ins-result')?.value || 'pending';
+    const checklist = (window._pdInsChk || []).filter(c => c.text && c.text.trim()).map(c => ({ text: c.text.trim(), ok: !!c.ok }));
+    const data = {
+        kind: 'inspection', title, discipline: document.getElementById('ins-disc')?.value || '', result,
+        location: document.getElementById('ins-loc')?.value.trim() || '', inspector: document.getElementById('ins-inspector')?.value.trim() || '',
+        date: document.getElementById('ins-date')?.value || '', notes: document.getElementById('ins-notes')?.value.trim() || '',
+        checklist, status: (result === 'pass' ? 'closed' : 'open'), updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/qhse/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('INS', Object.fromEntries(Object.entries((window.qhse || {})[pid] || {}).filter(([, r]) => r.kind === 'inspection')));
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/qhse/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-ins-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('qhse'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+// ── ⚠️ الملاحظات والمخالفات (Observations) ──
+function pdRenderObservations(pid) {
+    const host = document.getElementById('pd-qhse-sub'), fh = document.getElementById('pd-qhse-formwrap'); if (!host) return;
+    const items = Object.entries((window.qhse || {})[pid] || {}).filter(([, r]) => r.kind === 'observation').sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    const today = new Date().toISOString().slice(0, 10);
+    const isOv = r => r.status !== 'closed' && r.dueDate && r.dueDate < today;
+    let cOpen = 0, cSafety = 0, cOv = 0;
+    items.forEach(([, r]) => { if (r.status !== 'closed') cOpen++; if (r.category === 'safety') cSafety++; if (isOv(r)) cOv++; });
+    const flt = window._pdQhseFilter;
+    const shown = items.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? isOv(r) : (flt === 'safety' || flt === 'quality') ? r.category === flt : r.status === flt);
+    host.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn b-g" onclick="pdOpenObsForm('${pid}')">➕ ملاحظة/مخالفة</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            ${pdFiStat('الإجمالي', items.length, '#2d6a9f')}${pdFiStat('غير مغلقة', cOpen, '#e67e22')}${pdFiStat('سلامة', cSafety, '#c0392b')}${pdFiStat('متأخرة', cOv, '#c0392b')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetQhseFilter')}${pdFiltChip(flt, 'open', 'مفتوحة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'safety', '🦺 سلامة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'quality', '🎯 جودة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'closed', 'مغلقة', 'pdSetQhseFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">⚠️</div><p>لا توجد ملاحظات في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_OBS_STATUS[r.status] || PD_OBS_STATUS.open;
+        const [pl, pc] = PD_PRIORITY[r.priority] || PD_PRIORITY.normal;
+        const cat = r.category === 'safety' ? ['🦺 سلامة', '#c0392b'] : ['🎯 جودة', '#8e44ad'];
+        const ov = isOv(r);
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="background:${cat[1]}18;color:${cat[1]};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${cat[0]}</span>
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ متأخر</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenObsForm('${pid}','${k}')">✏️</button>
+                        ${r.status !== 'closed' ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdCloseQhse('${pid}','${k}')">✅ إغلاق</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteQhse('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                ${r.description ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.description.replace(/\n/g, '<br>')}</div>` : ''}
+                ${r.correctiveAction ? `<div style="background:#f6f9f2;border-radius:8px;padding:8px 10px;margin-top:8px;border-right:3px solid #27ae60;font-size:12px;color:#333"><b style="color:#1e8449">الإجراء التصحيحي:</b> ${r.correctiveAction.replace(/\n/g, '<br>')}</div>` : ''}
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.location ? `<span>📍 ${r.location}</span>` : ''}${r.observedBy ? `<span>👁️ ${r.observedBy}</span>` : ''}${r.assignee ? `<span>👷 ${r.assignee}</span>` : ''}${r.dueDate ? `<span style="color:${ov ? '#c0392b' : '#888'}">📅 ${r.dueDate}</span>` : ''}${r.photoUrl ? `<a href="${r.photoUrl}" target="_blank" style="color:#2980b9;font-weight:700">🖼️ صورة</a>` : ''}
+                </div>
+            </div>`;
+    }).join('')}
+        </div>`}`;
+    if (fh) fh.innerHTML = pdObsFormHtml(pid);
+}
+function pdObsFormHtml(pid) {
+    return `<div id="pd-obs-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #8e44ad">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-obs-form-title">⚠️ ملاحظة / مخالفة جديدة</div>
+        <input type="hidden" id="pd-obs-key">
+        <div style="display:grid;grid-template-columns:1fr 150px 140px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">العنوان *</label><input id="obs-title" placeholder="وصف مختصر للملاحظة" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التصنيف</label><select id="obs-cat" style="${inputStyle()}"><option value="safety">🦺 سلامة</option><option value="quality">🎯 جودة</option></select></div>
+            <div><label style="${lblStyle()}">الخطورة</label><select id="obs-priority" style="${inputStyle()}"><option value="normal">عادية</option><option value="high">عالية</option><option value="urgent">حرجة</option><option value="low">منخفضة</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الموقع</label><input id="obs-loc" placeholder="الدور / المنطقة" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">لاحظها</label><input id="obs-by" placeholder="اسم الملاحِظ" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="obs-date" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">التفاصيل</label><textarea id="obs-desc" rows="2" placeholder="وصف الملاحظة/المخالفة..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">الإجراء التصحيحي المطلوب</label><textarea id="obs-action" rows="2" placeholder="ما يجب فعله لمعالجتها..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 150px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">المسؤول عن المعالجة</label><input id="obs-assignee" placeholder="مقاول الباطن / الفني" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">تاريخ الاستحقاق</label><input type="date" id="obs-due" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الحالة</label><select id="obs-status" style="${inputStyle()}"><option value="open">🔴 مفتوح</option><option value="in_progress">🟠 قيد المعالجة</option><option value="closed">🟢 مغلق</option></select></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">رابط صورة (اختياري)</label><input id="obs-photo" placeholder="https://..." style="${inputStyle()}"></div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveObs('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-obs-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdOpenObsForm = function (pid, key = null) {
+    const form = document.getElementById('pd-obs-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-obs-key').value = key || '';
+    document.getElementById('pd-obs-form-title').textContent = key ? '✏️ تعديل الملاحظة' : '⚠️ ملاحظة / مخالفة جديدة';
+    const r = key ? ((window.qhse || {})[pid] || {})[key] : null;
+    document.getElementById('obs-title').value = r?.title || '';
+    document.getElementById('obs-cat').value = r?.category || 'safety';
+    document.getElementById('obs-priority').value = r?.priority || 'normal';
+    document.getElementById('obs-loc').value = r?.location || '';
+    document.getElementById('obs-by').value = r?.observedBy || '';
+    document.getElementById('obs-date').value = r?.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('obs-desc').value = r?.description || '';
+    document.getElementById('obs-action').value = r?.correctiveAction || '';
+    document.getElementById('obs-assignee').value = r?.assignee || '';
+    document.getElementById('obs-due').value = r?.dueDate || '';
+    document.getElementById('obs-status').value = r?.status || 'open';
+    document.getElementById('obs-photo').value = r?.photoUrl || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSaveObs = async function (pid) {
+    const title = document.getElementById('obs-title')?.value.trim();
+    if (!title) { toast('أدخل عنوان الملاحظة', 'er'); return; }
+    const key = document.getElementById('pd-obs-key')?.value;
+    const data = {
+        kind: 'observation', title, category: document.getElementById('obs-cat')?.value || 'safety',
+        priority: document.getElementById('obs-priority')?.value || 'normal',
+        location: document.getElementById('obs-loc')?.value.trim() || '', observedBy: document.getElementById('obs-by')?.value.trim() || '',
+        date: document.getElementById('obs-date')?.value || '', description: document.getElementById('obs-desc')?.value.trim() || '',
+        correctiveAction: document.getElementById('obs-action')?.value.trim() || '', assignee: document.getElementById('obs-assignee')?.value.trim() || '',
+        dueDate: document.getElementById('obs-due')?.value || '', status: document.getElementById('obs-status')?.value || 'open',
+        photoUrl: document.getElementById('obs-photo')?.value.trim() || '', updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/qhse/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('OBS', Object.fromEntries(Object.entries((window.qhse || {})[pid] || {}).filter(([, r]) => r.kind === 'observation')));
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/qhse/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-obs-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('qhse'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+// ── 🚨 الحوادث والإصابات (HSE Incidents) ──
+function pdRenderIncidents(pid) {
+    const host = document.getElementById('pd-qhse-sub'), fh = document.getElementById('pd-qhse-formwrap'); if (!host) return;
+    const items = Object.entries((window.qhse || {})[pid] || {}).filter(([, r]) => r.kind === 'incident').sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
+    let cOpen = 0, cInjury = 0, cInvest = 0;
+    items.forEach(([, r]) => { if (r.status !== 'closed') cOpen++; if (r.itype === 'injury') cInjury++; if (r.status === 'investigating') cInvest++; });
+    const flt = window._pdQhseFilter;
+    const shown = items.filter(([, r]) => flt === 'all' ? true : r.status === flt);
+    host.innerHTML = `
+        <div style="background:#fdecea;border:1px solid #f5b7b1;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#922b21">🚨 سجّل كل حادث أو إصابة أو حالة وشيكة (Near Miss) فور وقوعها — سجل السلامة مطلب تعاقدي في المشاريع الكبرى.</div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn b-r" onclick="pdOpenIncForm('${pid}')">➕ تسجيل حادث</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            ${pdFiStat('الإجمالي', items.length, '#2d6a9f')}${pdFiStat('غير مغلقة', cOpen, '#e67e22')}${pdFiStat('تحت التحقيق', cInvest, '#e67e22')}${pdFiStat('إصابات', cInjury, '#c0392b')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetQhseFilter')}${pdFiltChip(flt, 'open', 'مفتوحة', 'pdSetQhseFilter')}${pdFiltChip(flt, 'investigating', 'تحت التحقيق', 'pdSetQhseFilter')}${pdFiltChip(flt, 'closed', 'مغلقة', 'pdSetQhseFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">🚨</div><p>لا حوادث مسجّلة — نتمنّى بقاءها صفراً ✅</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_INC_STATUS[r.status] || PD_INC_STATUS.open;
+        const [pl, pc] = PD_PRIORITY[r.priority] || PD_PRIORITY.normal;
+        const tp = PD_INC_TYPE[r.itype] || r.itype || '';
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        ${tp ? `<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${tp}</span>` : ''}
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenIncForm('${pid}','${k}')">✏️</button>
+                        ${r.status !== 'closed' ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdCloseQhse('${pid}','${k}')">✅ إغلاق</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteQhse('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                ${r.description ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.description.replace(/\n/g, '<br>')}</div>` : ''}
+                ${r.rootCause ? `<div style="font-size:12px;color:#555;margin-top:6px"><b>السبب الجذري:</b> ${r.rootCause}</div>` : ''}
+                ${r.correctiveAction ? `<div style="background:#f6f9f2;border-radius:8px;padding:8px 10px;margin-top:8px;border-right:3px solid #27ae60;font-size:12px;color:#333"><b style="color:#1e8449">الإجراء التصحيحي:</b> ${r.correctiveAction.replace(/\n/g, '<br>')}</div>` : ''}
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.location ? `<span>📍 ${r.location}</span>` : ''}${r.date ? `<span>📅 ${r.date}${r.time ? ` ${r.time}` : ''}</span>` : ''}${r.injuredPerson ? `<span>🤕 ${r.injuredPerson}</span>` : ''}${r.reportedBy ? `<span>📝 ${r.reportedBy}</span>` : ''}${r.photoUrl ? `<a href="${r.photoUrl}" target="_blank" style="color:#2980b9;font-weight:700">🖼️ صورة</a>` : ''}
+                </div>
+            </div>`;
+    }).join('')}
+        </div>`}`;
+    if (fh) fh.innerHTML = pdIncFormHtml(pid);
+}
+function pdIncFormHtml(pid) {
+    return `<div id="pd-inc-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #c0392b">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-inc-form-title">🚨 تسجيل حادث</div>
+        <input type="hidden" id="pd-inc-key">
+        <div style="display:grid;grid-template-columns:1fr 160px 140px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">عنوان الحادث *</label><input id="inc-title" placeholder="وصف مختصر" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">النوع</label><select id="inc-type" style="${inputStyle()}"><option value="near_miss">وشيك الحدوث</option><option value="first_aid">إسعاف أولي</option><option value="injury">إصابة</option><option value="property">أضرار ممتلكات</option><option value="environmental">بيئي</option></select></div>
+            <div><label style="${lblStyle()}">الخطورة</label><select id="inc-priority" style="${inputStyle()}"><option value="normal">متوسطة</option><option value="high">عالية</option><option value="urgent">حرجة</option><option value="low">بسيطة</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 130px 110px 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الموقع</label><input id="inc-loc" placeholder="مكان الحادث" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="inc-date" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الوقت</label><input type="time" id="inc-time" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">المصاب (إن وُجد)</label><input id="inc-injured" placeholder="اسم المصاب" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">وصف الحادث</label><textarea id="inc-desc" rows="2" placeholder="ماذا حدث بالتفصيل..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">السبب الجذري</label><input id="inc-root" placeholder="تحليل سبب الحادث" style="${inputStyle()}"></div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">الإجراء التصحيحي/الوقائي</label><textarea id="inc-action" rows="2" placeholder="لمنع التكرار..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 160px 1fr;gap:10px;margin-bottom:12px">
+            <div><label style="${lblStyle()}">مُبلِّغ الحادث</label><input id="inc-by" placeholder="اسم المُبلِّغ" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الحالة</label><select id="inc-status" style="${inputStyle()}"><option value="open">🔴 مفتوح</option><option value="investigating">🟠 تحت التحقيق</option><option value="closed">🟢 مغلق</option></select></div>
+            <div><label style="${lblStyle()}">رابط صورة (اختياري)</label><input id="inc-photo" placeholder="https://..." style="${inputStyle()}"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveInc('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-inc-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdOpenIncForm = function (pid, key = null) {
+    const form = document.getElementById('pd-inc-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-inc-key').value = key || '';
+    document.getElementById('pd-inc-form-title').textContent = key ? '✏️ تعديل الحادث' : '🚨 تسجيل حادث';
+    const r = key ? ((window.qhse || {})[pid] || {})[key] : null;
+    document.getElementById('inc-title').value = r?.title || '';
+    document.getElementById('inc-type').value = r?.itype || 'near_miss';
+    document.getElementById('inc-priority').value = r?.priority || 'normal';
+    document.getElementById('inc-loc').value = r?.location || '';
+    document.getElementById('inc-date').value = r?.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('inc-time').value = r?.time || '';
+    document.getElementById('inc-injured').value = r?.injuredPerson || '';
+    document.getElementById('inc-desc').value = r?.description || '';
+    document.getElementById('inc-root').value = r?.rootCause || '';
+    document.getElementById('inc-action').value = r?.correctiveAction || '';
+    document.getElementById('inc-by').value = r?.reportedBy || '';
+    document.getElementById('inc-status').value = r?.status || 'open';
+    document.getElementById('inc-photo').value = r?.photoUrl || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSaveInc = async function (pid) {
+    const title = document.getElementById('inc-title')?.value.trim();
+    if (!title) { toast('أدخل عنوان الحادث', 'er'); return; }
+    const key = document.getElementById('pd-inc-key')?.value;
+    const data = {
+        kind: 'incident', title, itype: document.getElementById('inc-type')?.value || 'near_miss',
+        priority: document.getElementById('inc-priority')?.value || 'normal',
+        location: document.getElementById('inc-loc')?.value.trim() || '', date: document.getElementById('inc-date')?.value || '',
+        time: document.getElementById('inc-time')?.value || '', injuredPerson: document.getElementById('inc-injured')?.value.trim() || '',
+        description: document.getElementById('inc-desc')?.value.trim() || '', rootCause: document.getElementById('inc-root')?.value.trim() || '',
+        correctiveAction: document.getElementById('inc-action')?.value.trim() || '', reportedBy: document.getElementById('inc-by')?.value.trim() || '',
+        status: document.getElementById('inc-status')?.value || 'open', photoUrl: document.getElementById('inc-photo')?.value.trim() || '',
+        updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/qhse/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('INC', Object.fromEntries(Object.entries((window.qhse || {})[pid] || {}).filter(([, r]) => r.kind === 'incident')));
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/qhse/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-inc-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('qhse'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+// إغلاق/حذف موحّد لسجلات QHSE
+window.pdCloseQhse = function (pid, key) {
+    cf2('إغلاق هذا السجل؟', async () => {
+        try { await update(ref(db, `ledger/qhse/${pid}/${key}`), { status: 'closed', updatedAt: new Date().toISOString() }); toast('تم الإغلاق', 'ok'); setTimeout(() => pdRenderTab('qhse'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.pdDeleteQhse = function (pid, key) {
+    cf2('حذف هذا السجل نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/qhse/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('qhse'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 📋 المستندات الفنية (Submittals): شوب دروينج · اعتماد مواد · عينات   ║
+// ║   دورة تقديم/مراجعة/اعتماد بترقيم ومراجعات ومهل — بيانات فقط (روابط ملفات).  ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_SUB_STATUS = {
+    draft: ['📝 مسودة', '#7f8c8d', '#f1f3f5'],
+    submitted: ['📤 مُقدَّم', '#2980b9', '#eaf2fb'],
+    under_review: ['🔍 قيد المراجعة', '#e67e22', '#fef5e7'],
+    approved: ['✅ معتمد', '#27ae60', '#eafaf1'],
+    approved_noted: ['🟢 معتمد مع ملاحظات', '#16a085', '#e8f8f5'],
+    rejected: ['❌ مرفوض', '#c0392b', '#fdecea'],
+    resubmit: ['🔄 إعادة تقديم', '#8e44ad', '#f4ecf7'],
+};
+const PD_SUB_TYPE = { shop_drawing: 'شوب دروينج', material: 'اعتماد مواد', sample: 'عينة', method: 'طريقة عمل', other: 'أخرى' };
+const pdSubSettled = r => r.status === 'approved' || r.status === 'approved_noted';
+
+window._pdSubFilter = window._pdSubFilter || 'all';
+window.pdSetSubFilter = function (f) { window._pdSubFilter = f; pdRenderSubmittals(window._pd.projectId); };
+
+function pdRenderSubmittals(pid) {
+    const pane = document.getElementById('pd-tab-submittals'); if (!pane) return;
+    const all = Object.entries((window.submittals || {})[pid] || {}).sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    const today = new Date().toISOString().slice(0, 10);
+    const isOv = r => !pdSubSettled(r) && r.status !== 'draft' && r.status !== 'rejected' && r.dueDate && r.dueDate < today;
+    let cReview = 0, cAppr = 0, cOv = 0;
+    all.forEach(([, r]) => { if (r.status === 'submitted' || r.status === 'under_review' || r.status === 'resubmit') cReview++; if (pdSubSettled(r)) cAppr++; if (isOv(r)) cOv++; });
+    const flt = window._pdSubFilter;
+    const shown = all.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? isOv(r) : flt === 'approved' ? pdSubSettled(r) : flt === 'review' ? (r.status === 'submitted' || r.status === 'under_review' || r.status === 'resubmit') : r.status === flt);
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">📋 المستندات الفنية (Submittals)</div>
+            <button class="btn b-g" onclick="pdOpenSubForm('${pid}')">➕ مستند فني جديد</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('الإجمالي', all.length, '#2d6a9f')}${pdFiStat('قيد المراجعة', cReview, '#e67e22')}${pdFiStat('متأخرة', cOv, '#c0392b')}${pdFiStat('معتمدة', cAppr, '#27ae60')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetSubFilter')}${pdFiltChip(flt, 'review', 'قيد المراجعة', 'pdSetSubFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetSubFilter')}${pdFiltChip(flt, 'approved', 'معتمدة', 'pdSetSubFilter')}${pdFiltChip(flt, 'rejected', 'مرفوضة', 'pdSetSubFilter')}${pdFiltChip(flt, 'draft', 'مسودّات', 'pdSetSubFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">📋</div><p>لا توجد مستندات فنية في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_SUB_STATUS[r.status] || PD_SUB_STATUS.draft;
+        const [pl, pc] = PD_PRIORITY[r.priority] || PD_PRIORITY.normal;
+        const ov = isOv(r);
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}${r.revision ? ` · ${r.revision}` : ''}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        ${r.subType ? `<span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_SUB_TYPE[r.subType] || r.subType}</span>` : ''}
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ متأخر</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenSubForm('${pid}','${k}')">✏️ مراجعة/تعديل</button>
+                        ${!pdSubSettled(r) ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdApproveSub('${pid}','${k}')">✅ اعتماد</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteSub('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.specSection ? `<span>📑 بند: ${r.specSection}</span>` : ''}${r.discipline ? `<span>🏷️ ${r.discipline}</span>` : ''}${r.submittedTo ? `<span>👤 للمراجعة: ${r.submittedTo}</span>` : ''}${r.submittedDate ? `<span>📤 قُدّم: ${r.submittedDate}</span>` : ''}${r.dueDate ? `<span style="color:${ov ? '#c0392b' : '#888'}">📅 المهلة: ${r.dueDate}</span>` : ''}${r.fileUrl ? `<a href="${r.fileUrl}" target="_blank" style="color:#2980b9;font-weight:700">📎 الملف/المخطط</a>` : ''}
+                </div>
+                ${r.reviewNotes ? `<div style="background:#f8f9fb;border-radius:8px;padding:10px;margin-top:10px;border-right:3px solid ${sc}"><div style="font-size:11px;font-weight:800;color:${sc};margin-bottom:3px">🗒️ ملاحظات المراجعة${r.reviewer ? ` — ${r.reviewer}` : ''}${r.returnedDate ? ` (${r.returnedDate})` : ''}</div><div style="font-size:12.5px;color:#333;line-height:1.7">${r.reviewNotes.replace(/\n/g, '<br>')}</div></div>` : ''}
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdSubFormHtml(pid)}`;
+}
+
+function pdSubFormHtml(pid) {
+    const disc = ['معماري', 'إنشائي', 'كهرباء', 'ميكانيكا', 'صحي', 'تكييف', 'مدني', 'أخرى'];
+    return `<div id="pd-sub-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #8e44ad">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-sub-form-title">📋 مستند فني جديد</div>
+        <input type="hidden" id="pd-sub-key">
+        <div style="display:grid;grid-template-columns:1fr 150px 140px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">العنوان *</label><input id="sub-title" placeholder="مثال: مخطط تسليح الأساسات" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">النوع</label><select id="sub-type" style="${inputStyle()}"><option value="shop_drawing">شوب دروينج</option><option value="material">اعتماد مواد</option><option value="sample">عينة</option><option value="method">طريقة عمل</option><option value="other">أخرى</option></select></div>
+            <div><label style="${lblStyle()}">الأولوية</label><select id="sub-priority" style="${inputStyle()}"><option value="normal">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">التخصص</label><select id="sub-disc" style="${inputStyle()}">${disc.map(d => `<option>${d}</option>`).join('')}</select></div>
+            <div><label style="${lblStyle()}">بند المواصفات (Spec)</label><input id="sub-spec" placeholder="مثال: 03 30 00" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">المراجعة</label><input id="sub-rev" placeholder="Rev 0" style="${inputStyle()}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 150px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">مُقدَّم إلى (المُراجِع)</label><input id="sub-to" placeholder="الاستشاري / المكتب الهندسي" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">تاريخ التقديم</label><input type="date" id="sub-subdate" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">مهلة الرد</label><input type="date" id="sub-due" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">رابط الملف/المخطط (اختياري)</label><input id="sub-file" placeholder="https://... رابط ملف PDF أو المخطط" style="${inputStyle()}"></div>
+        <div style="border-top:1px dashed #d0d7e0;padding-top:12px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:800;color:#8e44ad;margin-bottom:8px">🗒️ المراجعة والحالة</div>
+            <div style="display:grid;grid-template-columns:180px 1fr 150px;gap:10px;margin-bottom:10px">
+                <div><label style="${lblStyle()}">الحالة</label><select id="sub-status" style="${inputStyle()}"><option value="draft">📝 مسودة</option><option value="submitted">📤 مُقدَّم</option><option value="under_review">🔍 قيد المراجعة</option><option value="approved">✅ معتمد</option><option value="approved_noted">🟢 معتمد مع ملاحظات</option><option value="rejected">❌ مرفوض</option><option value="resubmit">🔄 إعادة تقديم</option></select></div>
+                <div><label style="${lblStyle()}">المُراجِع (من ردّ)</label><input id="sub-reviewer" placeholder="اسم المُراجِع" style="${inputStyle()}"></div>
+                <div><label style="${lblStyle()}">تاريخ الإعادة</label><input type="date" id="sub-retdate" style="${inputStyle()}"></div>
+            </div>
+            <div><label style="${lblStyle()}">ملاحظات المراجعة</label><textarea id="sub-notes" rows="2" placeholder="ملاحظات المُراجِع على المستند..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveSub('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-sub-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+
+window.pdOpenSubForm = function (pid, key = null) {
+    const form = document.getElementById('pd-sub-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-sub-key').value = key || '';
+    document.getElementById('pd-sub-form-title').textContent = key ? '✏️ مراجعة / تعديل المستند' : '📋 مستند فني جديد';
+    const r = key ? ((window.submittals || {})[pid] || {})[key] : null;
+    document.getElementById('sub-title').value = r?.title || '';
+    document.getElementById('sub-type').value = r?.subType || 'shop_drawing';
+    document.getElementById('sub-priority').value = r?.priority || 'normal';
+    document.getElementById('sub-disc').value = r?.discipline || 'معماري';
+    document.getElementById('sub-spec').value = r?.specSection || '';
+    document.getElementById('sub-rev').value = r?.revision || 'Rev 0';
+    document.getElementById('sub-to').value = r?.submittedTo || '';
+    document.getElementById('sub-subdate').value = r?.submittedDate || '';
+    document.getElementById('sub-due').value = r?.dueDate || '';
+    document.getElementById('sub-file').value = r?.fileUrl || '';
+    document.getElementById('sub-status').value = r?.status || 'draft';
+    document.getElementById('sub-reviewer').value = r?.reviewer || '';
+    document.getElementById('sub-retdate').value = r?.returnedDate || '';
+    document.getElementById('sub-notes').value = r?.reviewNotes || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.pdSaveSub = async function (pid) {
+    const title = document.getElementById('sub-title')?.value.trim();
+    if (!title) { toast('أدخل عنوان المستند', 'er'); return; }
+    const key = document.getElementById('pd-sub-key')?.value;
+    const status = document.getElementById('sub-status')?.value || 'draft';
+    const reviewNotes = document.getElementById('sub-notes')?.value.trim() || '';
+    let returnedDate = document.getElementById('sub-retdate')?.value || '';
+    const terminal = ['approved', 'approved_noted', 'rejected', 'resubmit'];
+    if (terminal.includes(status) && !returnedDate) returnedDate = new Date().toISOString().slice(0, 10);
+    const data = {
+        title, subType: document.getElementById('sub-type')?.value || 'shop_drawing',
+        priority: document.getElementById('sub-priority')?.value || 'normal',
+        discipline: document.getElementById('sub-disc')?.value || '',
+        specSection: document.getElementById('sub-spec')?.value.trim() || '',
+        revision: document.getElementById('sub-rev')?.value.trim() || 'Rev 0',
+        submittedTo: document.getElementById('sub-to')?.value.trim() || '',
+        submittedDate: document.getElementById('sub-subdate')?.value || '',
+        dueDate: document.getElementById('sub-due')?.value || '',
+        fileUrl: document.getElementById('sub-file')?.value.trim() || '',
+        status, reviewer: document.getElementById('sub-reviewer')?.value.trim() || '',
+        returnedDate, reviewNotes, updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/submittals/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            data.number = pdNextNum('SUB', (window.submittals || {})[pid]);
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/submittals/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-sub-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('submittals'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdApproveSub = function (pid, key) {
+    cf2('اعتماد هذا المستند الفني؟', async () => {
+        try { await update(ref(db, `ledger/submittals/${pid}/${key}`), { status: 'approved', returnedDate: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() }); toast('تم الاعتماد ✓', 'ok'); setTimeout(() => pdRenderTab('submittals'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.pdDeleteSub = function (pid, key) {
+    cf2('حذف المستند الفني نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/submittals/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('submittals'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 🤝 عقود الباطن (Subcontracts / Commitments)                        ║
+// ║   قيمة عقد + أوامر تغيير + مستخلصات باطن (شهادات دفع) بالضمان واسترداد الدفعة ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_SUBC_STATUS = { active: ['🟢 ساري', '#27ae60', '#eafaf1'], completed: ['🔵 منجز', '#2980b9', '#eaf2fb'], terminated: ['🔴 مفسوخ', '#c0392b', '#fdecea'] };
+const PD_CERT_STATUS = { submitted: ['📤 مُقدَّم', '#e67e22'], approved: ['✅ معتمد', '#2980b9'], paid: ['💰 مدفوع', '#27ae60'] };
+window._pdSubcCO = window._pdSubcCO || [];
+window._pdCertPct = 10;
+
+function pdSubcMini(l, v, color) { return `<div style="background:#f8fafc;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#888">${l}</div><div style="font-size:14px;font-weight:800;color:${color || '#1a3a5c'};font-variant-numeric:tabular-nums">${v}</div></div>`; }
+function pdSubcCoRows() {
+    const rows = window._pdSubcCO || [];
+    if (!rows.length) return '<div style="color:#aaa;font-size:12px;padding:4px 0">— لا أوامر تغيير —</div>';
+    return rows.map((c, i) => `<div style="display:flex;gap:6px;margin-bottom:5px">
+        <input value="${(c.desc || '').replace(/"/g, '&quot;')}" placeholder="وصف أمر التغيير" oninput="window._pdSubcCO[${i}].desc=this.value" style="flex:1;padding:8px;border:1.5px solid #d0d7e0;border-radius:7px;font-family:inherit;font-size:12.5px">
+        <input type="number" value="${c.amount ?? ''}" placeholder="القيمة (±)" oninput="window._pdSubcCO[${i}].amount=this.value" style="flex:0 0 120px;padding:8px;border:1.5px solid #d0d7e0;border-radius:7px;font-family:inherit;font-size:12.5px">
+        <input type="date" value="${c.date || ''}" oninput="window._pdSubcCO[${i}].date=this.value" style="flex:0 0 140px;padding:8px;border:1.5px solid #d0d7e0;border-radius:7px;font-family:inherit;font-size:12.5px">
+        <button class="btn b-r" style="padding:4px 9px" onclick="window._pdSubcCO.splice(${i},1);document.getElementById('pd-subc-co').innerHTML=pdSubcCoRows()">🗑️</button>
+    </div>`).join('');
+}
+window.pdSubcCoAdd = function () { window._pdSubcCO.push({}); document.getElementById('pd-subc-co').innerHTML = pdSubcCoRows(); };
+
+function pdRenderSubcontracts(pid) {
+    const pane = document.getElementById('pd-tab-subcontracts'); if (!pane) return;
+    window._pdSubcCO = [];
+    const contracts = Object.entries((window.subcontracts || {})[pid] || {}).sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    const subs = window.subcontractors || {};
+    const nameOf = c => c.subName || subs[c.subId]?.name || subs[c.subId]?.nameAr || 'مقاول';
+    let tAdj = 0, tCert = 0, tRet = 0, tNet = 0;
+    contracts.forEach(([, c]) => {
+        const coNet = (c.changeOrders || []).reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
+        const certs = c.certificates || [];
+        tAdj += (parseFloat(c.contractValue) || 0) + coNet;
+        tCert += certs.reduce((s, x) => s + (parseFloat(x.periodValue) || 0), 0);
+        tRet += certs.reduce((s, x) => s + (parseFloat(x.retentionAmt) || 0), 0);
+        tNet += certs.reduce((s, x) => s + (parseFloat(x.netPayable) || 0), 0);
+    });
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">🤝 عقود الباطن (Subcontracts)</div>
+            <button class="btn b-g" onclick="pdOpenSubcForm('${pid}')">➕ عقد باطن جديد</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('عدد العقود', contracts.length, '#2d6a9f')}${pdFiStat('القيمة المعدّلة', fmt(tAdj), '#1a3a5c')}${pdFiStat('المعتمد (مستخلصات)', fmt(tCert), '#e67e22')}${pdFiStat('محتجز ضمان', fmt(tRet), '#8e44ad')}${pdFiStat('صافي مستحق', fmt(tNet), '#27ae60')}
+        </div>
+        ${contracts.length === 0 ? '<div class="empty"><div class="ei">🤝</div><p>لا عقود باطن — أضف أول عقد</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
+        ${contracts.map(([k, c]) => {
+        const [sl, sc, sbg] = PD_SUBC_STATUS[c.status] || PD_SUBC_STATUS.active;
+        const coNet = (c.changeOrders || []).reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
+        const adj = (parseFloat(c.contractValue) || 0) + coNet;
+        const certs = Array.isArray(c.certificates) ? c.certificates : [];
+        const certd = certs.reduce((s, x) => s + (parseFloat(x.periodValue) || 0), 0);
+        const ret = certs.reduce((s, x) => s + (parseFloat(x.retentionAmt) || 0), 0);
+        const net = certs.reduce((s, x) => s + (parseFloat(x.netPayable) || 0), 0);
+        const pct = adj ? Math.min(100, Math.round(certd / adj * 100)) : 0;
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:12px;padding:16px;border-right:4px solid ${sc}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:15px;font-weight:900;color:#1a3a5c">🤝 ${nameOf(c)}</span><span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span></div>
+                        ${c.scope ? `<div style="font-size:12px;color:#666;margin-top:3px">${c.scope}</div>` : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:4px 9px;font-size:11px" onclick="pdOpenSubcForm('${pid}','${k}')">✏️ العقد</button>
+                        <button class="btn" style="padding:4px 9px;font-size:11px;background:#eaf2fb;color:#2980b9;border:1px solid #aed6f1" onclick="pdOpenCertForm('${pid}','${k}')">➕ مستخلص</button>
+                        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="pdDeleteSubc('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin-top:12px">
+                    ${pdSubcMini('قيمة العقد', fmt(parseFloat(c.contractValue) || 0))}
+                    ${coNet ? pdSubcMini('أوامر التغيير', (coNet >= 0 ? '+' : '') + fmt(coNet), coNet >= 0 ? '#0e6655' : '#c0392b') : ''}
+                    ${pdSubcMini('القيمة المعدّلة', fmt(adj), '#1a3a5c')}
+                    ${pdSubcMini('المعتمد', fmt(certd), '#e67e22')}
+                    ${pdSubcMini('محتجز ضمان', fmt(ret), '#8e44ad')}
+                    ${pdSubcMini('صافي مستحق', fmt(net), '#27ae60')}
+                    ${pdSubcMini('المتبقي', fmt(adj - certd), '#555')}
+                </div>
+                <div style="margin-top:10px"><div style="background:#e8f0f7;border-radius:20px;height:8px;overflow:hidden"><div style="width:${pct}%;background:${pct > 90 ? '#e74c3c' : '#27ae60'};height:100%"></div></div><div style="font-size:11px;color:#888;margin-top:3px">الإنجاز المالي: ${pct}% (${fmt(certd)} من ${fmt(adj)}) · نسبة الضمان ${c.retentionPct ?? 10}%${c.advanceAmount ? ` · دفعة مقدمة ${fmt(parseFloat(c.advanceAmount) || 0)}` : ''}</div></div>
+                ${certs.length ? `<div style="margin-top:12px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px">
+                    <thead><tr style="background:#f4f7fb;color:#555"><th style="padding:6px;text-align:right">المستخلص</th><th style="padding:6px">التاريخ</th><th style="padding:6px;text-align:left">قيمة الأعمال</th><th style="padding:6px;text-align:left">الضمان</th><th style="padding:6px;text-align:left">استرداد الدفعة</th><th style="padding:6px;text-align:left">الصافي</th><th style="padding:6px">الحالة</th><th style="padding:6px"></th></tr></thead>
+                    <tbody>${certs.map((ct, ci) => { const [cl, cc] = PD_CERT_STATUS[ct.status] || PD_CERT_STATUS.submitted; return `<tr style="border-top:1px solid #eee">
+                        <td style="padding:6px;font-weight:700;color:#1a3a5c">${ct.no || ('IPC-' + (ci + 1))}</td>
+                        <td style="padding:6px;text-align:center;color:#666">${ct.date || ''}</td>
+                        <td style="padding:6px;text-align:left">${fmt(parseFloat(ct.periodValue) || 0)}</td>
+                        <td style="padding:6px;text-align:left;color:#8e44ad">(${fmt(parseFloat(ct.retentionAmt) || 0)})</td>
+                        <td style="padding:6px;text-align:left;color:#c0392b">${ct.advanceRecovery ? '(' + fmt(parseFloat(ct.advanceRecovery) || 0) + ')' : '-'}</td>
+                        <td style="padding:6px;text-align:left;font-weight:800;color:#27ae60">${fmt(parseFloat(ct.netPayable) || 0)}</td>
+                        <td style="padding:6px;text-align:center"><span style="color:${cc};font-weight:700;font-size:11px">${cl}</span></td>
+                        <td style="padding:6px;text-align:center;white-space:nowrap"><button class="btn b-b" style="padding:2px 6px;font-size:10px" onclick="pdOpenCertForm('${pid}','${k}',${ci})">✏️</button> <button class="btn b-r" style="padding:2px 6px;font-size:10px" onclick="pdDeleteCert('${pid}','${k}',${ci})">🗑️</button></td>
+                    </tr>`; }).join('')}</tbody></table></div>` : ''}
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdSubcFormHtml(pid)}
+    ${pdCertFormHtml(pid)}`;
+    const co = document.getElementById('pd-subc-co'); if (co) co.innerHTML = pdSubcCoRows();
+}
+
+function pdSubcFormHtml(pid) {
+    const subs = window.subcontractors || {};
+    const opts = Object.entries(subs).map(([k, s]) => `<option value="${k}">${s.name || s.nameAr || k}</option>`).join('');
+    return `<div id="pd-subc-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #16a085">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-subc-form-title">🤝 عقد باطن جديد</div>
+        <input type="hidden" id="pd-subc-key">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">مقاول الباطن (من السجل)</label><select id="subc-party" style="${inputStyle()}"><option value="">— اختر أو أدخل يدوياً —</option>${opts}</select></div>
+            <div><label style="${lblStyle()}">أو اسم يدوي</label><input id="subc-name" placeholder="اسم المقاول إن لم يكن مسجّلاً" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">نطاق العمل *</label><input id="subc-scope" placeholder="مثال: أعمال الكهرباء الكاملة" style="${inputStyle()}"></div>
+        <div style="display:grid;grid-template-columns:1fr 120px 140px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">قيمة العقد *</label><input type="number" id="subc-value" placeholder="0.00" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الضمان %</label><input type="number" id="subc-ret" value="10" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الدفعة المقدمة</label><input type="number" id="subc-adv" placeholder="0" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الحالة</label><select id="subc-status" style="${inputStyle()}"><option value="active">🟢 ساري</option><option value="completed">🔵 منجز</option><option value="terminated">🔴 مفسوخ</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">تاريخ البدء</label><input type="date" id="subc-start" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">تاريخ الانتهاء</label><input type="date" id="subc-end" style="${inputStyle()}"></div>
+        </div>
+        <div style="border-top:1px dashed #d0d7e0;padding-top:12px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="${lblStyle()};margin:0">🔄 أوامر التغيير على العقد</label><button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdSubcCoAdd()">➕ أمر تغيير</button></div>
+            <div id="pd-subc-co"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveSubc('${pid}')">💾 حفظ العقد</button>
+            <button class="btn" onclick="document.getElementById('pd-subc-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdOpenSubcForm = function (pid, key = null) {
+    const form = document.getElementById('pd-subc-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-subc-key').value = key || '';
+    document.getElementById('pd-subc-form-title').textContent = key ? '✏️ تعديل عقد الباطن' : '🤝 عقد باطن جديد';
+    const c = key ? ((window.subcontracts || {})[pid] || {})[key] : null;
+    document.getElementById('subc-party').value = c?.subId || '';
+    document.getElementById('subc-name').value = c?.subName || '';
+    document.getElementById('subc-scope').value = c?.scope || '';
+    document.getElementById('subc-value').value = c?.contractValue || '';
+    document.getElementById('subc-ret').value = c?.retentionPct ?? 10;
+    document.getElementById('subc-adv').value = c?.advanceAmount || '';
+    document.getElementById('subc-status').value = c?.status || 'active';
+    document.getElementById('subc-start').value = c?.startDate || '';
+    document.getElementById('subc-end').value = c?.endDate || '';
+    window._pdSubcCO = (c && Array.isArray(c.changeOrders)) ? c.changeOrders.map(x => ({ ...x })) : [];
+    document.getElementById('pd-subc-co').innerHTML = pdSubcCoRows();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSaveSubc = async function (pid) {
+    const scope = document.getElementById('subc-scope')?.value.trim();
+    const contractValue = parseFloat(document.getElementById('subc-value')?.value) || 0;
+    const subId = document.getElementById('subc-party')?.value || '';
+    const manual = document.getElementById('subc-name')?.value.trim() || '';
+    const subName = manual || (window.subcontractors || {})[subId]?.name || (window.subcontractors || {})[subId]?.nameAr || '';
+    if (!scope) { toast('أدخل نطاق العمل', 'er'); return; }
+    if (!subId && !subName) { toast('اختر مقاول الباطن أو أدخل اسماً', 'er'); return; }
+    if (!contractValue) { toast('أدخل قيمة العقد', 'er'); return; }
+    const changeOrders = (window._pdSubcCO || []).filter(x => x.desc || x.amount).map(x => ({ desc: (x.desc || '').trim(), amount: parseFloat(x.amount) || 0, date: x.date || '' }));
+    const data = {
+        subId, subName, scope, contractValue,
+        retentionPct: parseFloat(document.getElementById('subc-ret')?.value) || 0,
+        advanceAmount: parseFloat(document.getElementById('subc-adv')?.value) || 0,
+        status: document.getElementById('subc-status')?.value || 'active',
+        startDate: document.getElementById('subc-start')?.value || '',
+        endDate: document.getElementById('subc-end')?.value || '',
+        changeOrders, updatedAt: new Date().toISOString()
+    };
+    const key = document.getElementById('pd-subc-key')?.value;
+    try {
+        if (key) { await update(ref(db, `ledger/subcontracts/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else { data.certificates = []; data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || ''; await push(ref(db, `ledger/subcontracts/${pid}`), data); toast('تم حفظ العقد ✓', 'ok'); }
+        document.getElementById('pd-subc-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('subcontracts'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdDeleteSubc = function (pid, key) {
+    cf2('حذف عقد الباطن وكل مستخلصاته نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/subcontracts/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('subcontracts'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ── مستخلصات الباطن (شهادات الدفع) ──
+function pdCertFormHtml(pid) {
+    return `<div id="pd-cert-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #2980b9">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-cert-form-title">➕ مستخلص باطن</div>
+        <input type="hidden" id="pd-cert-contract"><input type="hidden" id="pd-cert-idx">
+        <div style="display:grid;grid-template-columns:130px 150px 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">رقم المستخلص</label><input id="cert-no" placeholder="IPC-1" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="cert-date" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">قيمة أعمال الفترة *</label><input type="number" id="cert-value" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الضمان المحتجز <button type="button" onclick="pdCertAutoRet()" style="border:0;background:#eef3f8;color:#2980b9;border-radius:5px;padding:1px 7px;cursor:pointer;font-size:10px;font-weight:700">⟳ احسب</button></label><input type="number" id="cert-ret" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">استرداد الدفعة المقدمة</label><input type="number" id="cert-adv" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
+        </div>
+        <div style="background:#eafaf1;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:700;color:#1e8449">💰 الصافي المستحق للدفع</span>
+            <span id="pd-cert-net" style="font-size:20px;font-weight:900;color:#27ae60;font-variant-numeric:tabular-nums">0.00</span>
+        </div>
+        <div style="display:grid;grid-template-columns:180px 1fr;gap:10px;margin-bottom:12px">
+            <div><label style="${lblStyle()}">الحالة</label><select id="cert-status" style="${inputStyle()}"><option value="submitted">📤 مُقدَّم</option><option value="approved">✅ معتمد</option><option value="paid">💰 مدفوع</option></select></div>
+            <div><label style="${lblStyle()}">ملاحظات</label><input id="cert-notes" placeholder="ملاحظات على المستخلص" style="${inputStyle()}"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveCert('${pid}')">💾 حفظ المستخلص</button>
+            <button class="btn" onclick="document.getElementById('pd-cert-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdCertCalc = function () {
+    const v = parseFloat(document.getElementById('cert-value')?.value) || 0;
+    const r = parseFloat(document.getElementById('cert-ret')?.value) || 0;
+    const a = parseFloat(document.getElementById('cert-adv')?.value) || 0;
+    const net = Math.round((v - r - a) * 100) / 100;
+    const el = document.getElementById('pd-cert-net'); if (el) el.textContent = fmt(net);
+};
+window.pdCertAutoRet = function () {
+    const v = parseFloat(document.getElementById('cert-value')?.value) || 0;
+    document.getElementById('cert-ret').value = Math.round(v * (window._pdCertPct || 0) / 100 * 100) / 100;
+    pdCertCalc();
+};
+window.pdOpenCertForm = function (pid, ck, idx = null) {
+    const form = document.getElementById('pd-cert-form'); if (!form) return;
+    const contract = ((window.subcontracts || {})[pid] || {})[ck]; if (!contract) { toast('العقد غير موجود', 'er'); return; }
+    window._pdCertPct = contract.retentionPct ?? 10;
+    const certs = Array.isArray(contract.certificates) ? contract.certificates : [];
+    const ct = (idx !== null && idx !== '') ? certs[idx] : null;
+    form.style.display = '';
+    document.getElementById('pd-cert-contract').value = ck;
+    document.getElementById('pd-cert-idx').value = (idx !== null && idx !== '') ? idx : '';
+    document.getElementById('pd-cert-form-title').textContent = ct ? '✏️ تعديل مستخلص' : `➕ مستخلص باطن — ${contract.subName || 'مقاول'}`;
+    document.getElementById('cert-no').value = ct?.no || ('IPC-' + (certs.length + 1));
+    document.getElementById('cert-date').value = ct?.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('cert-value').value = ct?.periodValue || '';
+    document.getElementById('cert-ret').value = ct?.retentionAmt || '';
+    document.getElementById('cert-adv').value = ct?.advanceRecovery || '';
+    document.getElementById('cert-status').value = ct?.status || 'submitted';
+    document.getElementById('cert-notes').value = ct?.notes || '';
+    pdCertCalc();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSaveCert = async function (pid) {
+    const ck = document.getElementById('pd-cert-contract')?.value;
+    const idxRaw = document.getElementById('pd-cert-idx')?.value;
+    const contract = ((window.subcontracts || {})[pid] || {})[ck]; if (!contract) { toast('العقد غير موجود', 'er'); return; }
+    const periodValue = parseFloat(document.getElementById('cert-value')?.value) || 0;
+    if (!periodValue) { toast('أدخل قيمة أعمال الفترة', 'er'); return; }
+    const retentionAmt = parseFloat(document.getElementById('cert-ret')?.value) || 0;
+    const advanceRecovery = parseFloat(document.getElementById('cert-adv')?.value) || 0;
+    const cert = {
+        no: document.getElementById('cert-no')?.value.trim() || '', date: document.getElementById('cert-date')?.value || '',
+        periodValue, retentionAmt, advanceRecovery, netPayable: Math.round((periodValue - retentionAmt - advanceRecovery) * 100) / 100,
+        status: document.getElementById('cert-status')?.value || 'submitted', notes: document.getElementById('cert-notes')?.value.trim() || ''
+    };
+    const certs = Array.isArray(contract.certificates) ? contract.certificates.map(x => ({ ...x })) : [];
+    if (idxRaw !== '' && idxRaw !== null && idxRaw !== undefined) certs[+idxRaw] = cert; else certs.push(cert);
+    try {
+        await update(ref(db, `ledger/subcontracts/${pid}/${ck}`), { certificates: certs, updatedAt: new Date().toISOString() });
+        toast('تم حفظ المستخلص ✓', 'ok');
+        document.getElementById('pd-cert-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('subcontracts'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdDeleteCert = function (pid, ck, idx) {
+    cf2('حذف هذا المستخلص؟', async () => {
+        const contract = ((window.subcontracts || {})[pid] || {})[ck]; if (!contract) return;
+        const certs = (Array.isArray(contract.certificates) ? contract.certificates : []).filter((_, i) => i !== idx);
+        try { await update(ref(db, `ledger/subcontracts/${pid}/${ck}`), { certificates: certs, updatedAt: new Date().toISOString() }); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('subcontracts'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 💧 التدفق النقدي للمشروع (Cash Flow S-Curve)                        ║
+// ║   منحنى تراكمي: المخطط · الإيراد الفعلي (مستخلصات العميل) · التكلفة الفعلية.  ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+function pdMonthBuckets(startYM, endYM) {
+    const b = []; let y = +startYM.slice(0, 4), m = +startYM.slice(5, 7);
+    const ey = +endYM.slice(0, 4), em = +endYM.slice(5, 7); let g = 0;
+    while ((y < ey || (y === ey && m <= em)) && g++ < 120) { b.push(`${y}-${String(m).padStart(2, '0')}`); m++; if (m > 12) { m = 1; y++; } }
+    return b;
+}
+function pdKfmt(v) { const a = Math.abs(v); if (a >= 1e6) return (v / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'م'; if (a >= 1000) return Math.round(v / 1000) + 'ألف'; return Math.round(v).toString(); }
+const PD_MON_AR = ['', 'ينا', 'فبر', 'مار', 'أبر', 'مايو', 'يون', 'يول', 'أغس', 'سبت', 'أكت', 'نوف', 'ديس'];
+function pdMonLabel(ym) { return `${PD_MON_AR[+ym.slice(5, 7)]} ${ym.slice(2, 4)}`; }
+
+// رسم SVG خطي متعدد السلاسل (بلا مكتبات)
+function pdLineChart(xLabels, series) {
+    const n = xLabels.length; if (!n) return '';
+    const W = Math.max(600, n * 56), H = 300, pad = { l: 64, r: 14, t: 14, b: 52 };
+    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const maxY = Math.max(1, ...series.flatMap(s => s.points)); const top = maxY * 1.12;
+    const X = i => pad.l + (n <= 1 ? iw / 2 : iw * i / (n - 1));
+    const Y = v => pad.t + ih - (v / top) * ih;
+    let grid = '';
+    for (let g = 0; g <= 4; g++) { const gy = pad.t + ih * g / 4; const val = top * (4 - g) / 4; grid += `<line x1="${pad.l}" y1="${gy}" x2="${W - pad.r}" y2="${gy}" stroke="#e6ebf0" stroke-width="1"/><text x="${pad.l - 8}" y="${gy + 4}" text-anchor="end" font-size="10" fill="#999">${pdKfmt(val)}</text>`; }
+    const step = Math.ceil(n / 12);
+    let xlab = '';
+    xLabels.forEach((lb, i) => { if (i % step === 0 || i === n - 1) xlab += `<text x="${X(i)}" y="${H - pad.b + 18}" text-anchor="middle" font-size="10" fill="#888">${lb}</text>`; });
+    const paths = series.map(s => {
+        const d = s.points.map((v, i) => `${i === 0 ? 'M' : 'L'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+        const dots = s.points.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.5" fill="${s.color}"/>`).join('');
+        return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" ${s.dash ? 'stroke-dasharray="6 4"' : ''}/>${dots}`;
+    }).join('');
+    const legend = series.map(s => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#555"><span style="width:16px;height:3px;background:${s.color};border-radius:2px;${s.dash ? 'background:repeating-linear-gradient(90deg,' + s.color + ' 0 5px,transparent 5px 8px)' : ''}"></span>${s.label}</span>`).join('');
+    return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;min-width:${Math.min(W, 600)}px">${grid}${xlab}${paths}</svg></div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:8px">${legend}</div>`;
+}
+
+function pdRenderCashflow(pid) {
+    const pane = document.getElementById('pd-tab-cashflow'); if (!pane) return;
+    const p = (window.projects || {})[pid]; if (!p) { pane.innerHTML = '<div class="card"><div class="empty"><div class="ei">💧</div><p>المشروع غير موجود</p></div></div>'; return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const plannedTotal = (typeof pdAdjustedContract === 'function' ? pdAdjustedContract(pid) : (parseFloat(p.contractValue) || 0));
+
+    // مصادر مؤرّخة: إيراد (مستخلصات العميل) · تكلفة (فواتير موردين + مستخلصات باطن)
+    const inflow = [];   // {date, amount}
+    Object.values(window.progressBillings || {}).forEach(b => { if (b.projectId === pid && b.status !== 'cancelled') inflow.push({ date: (b.billingDate || b.date || '').slice(0, 10), amount: parseFloat(b.currentAmount) || 0 }); });
+    const outflow = [];
+    Object.values(window.supplierInvoices || {}).forEach(inv => { if (inv.projectId === pid) outflow.push({ date: (inv.invoiceDate || inv.date || '').slice(0, 10), amount: parseFloat(inv.totalAmount) || parseFloat(inv.grandTotal) || 0 }); });
+    Object.values((window.subcontracts || {})[pid] || {}).forEach(c => { (c.certificates || []).forEach(ct => outflow.push({ date: (ct.date || '').slice(0, 10), amount: parseFloat(ct.periodValue) || 0 })); });
+
+    const allDates = [...inflow, ...outflow].map(x => x.date).filter(Boolean);
+    let startYM = (p.startDate || '').slice(0, 7) || (allDates.length ? allDates.slice().sort()[0].slice(0, 7) : today.slice(0, 7));
+    let endYM = today.slice(0, 7);
+    [p.endDate, ...allDates].filter(Boolean).forEach(d => { const ym = d.slice(0, 7); if (ym > endYM) endYM = ym; });
+    if (startYM > endYM) endYM = startYM;
+    const buckets = pdMonthBuckets(startYM, endYM);
+    const idxOf = ym => { let bi = 0; for (let i = 0; i < buckets.length; i++) if (buckets[i] <= ym) bi = i; return bi; };
+
+    const inMonthly = new Array(buckets.length).fill(0), outMonthly = new Array(buckets.length).fill(0);
+    inflow.forEach(x => { if (x.date) inMonthly[idxOf(x.date.slice(0, 7))] += x.amount; });
+    outflow.forEach(x => { if (x.date) outMonthly[idxOf(x.date.slice(0, 7))] += x.amount; });
+    const inCum = [], outCum = [], netCum = [], planCum = [];
+    let ai = 0, ao = 0;
+    // توزيع المخطط خطياً على أشهر مدة المشروع
+    const pStart = (p.startDate || '').slice(0, 7) || buckets[0];
+    const pEnd = (p.endDate || '').slice(0, 7) || buckets[buckets.length - 1];
+    let sIdx = buckets.indexOf(pStart); if (sIdx < 0) sIdx = 0;
+    let eIdx = buckets.indexOf(pEnd); if (eIdx < 0) eIdx = buckets.length - 1;
+    const span = Math.max(1, eIdx - sIdx + 1);
+    buckets.forEach((_, i) => {
+        ai += inMonthly[i]; ao += outMonthly[i];
+        inCum.push(Math.round(ai)); outCum.push(Math.round(ao)); netCum.push(Math.round(ai - ao));
+        planCum.push(Math.round(plannedTotal * Math.min(1, Math.max(0, (i - sIdx + 1) / span))));
+    });
+
+    const totalIn = ai, totalOut = ao, net = ai - ao;
+    const billedPct = plannedTotal ? Math.round(totalIn / plannedTotal * 100) : 0;
+    const planToDate = planCum[buckets.length - 1] || 0;
+    const scheduleVar = totalIn - planToDate; // فعلي − مخطط حتى تاريخه
+
+    const kpi = (l, v, c, sub) => `<div style="flex:1;min-width:130px;background:white;border-radius:10px;padding:13px 15px;box-shadow:0 2px 6px rgba(0,0,0,.05);border-bottom:3px solid ${c}"><div style="font-size:11px;color:#888;font-weight:600">${l}</div><div style="font-size:19px;font-weight:900;color:${c};font-variant-numeric:tabular-nums;margin-top:2px">${v}</div>${sub ? `<div style="font-size:10px;color:#aaa;margin-top:2px">${sub}</div>` : ''}</div>`;
+    const hasData = totalIn > 0 || totalOut > 0;
+
+    pane.innerHTML = `
+    <div class="card">
+        <div class="c-tl" style="margin:0 0 6px;border:none;padding:0">💧 التدفق النقدي للمشروع — منحنى S</div>
+        <div style="font-size:11px;color:#888;margin-bottom:14px">تراكمي شهري: المخطط (توزيع قيمة العقد) · الإيراد الفعلي (مستخلصات العميل) · التكلفة الفعلية (فواتير موردين + مستخلصات الباطن).</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+            ${kpi('إجمالي الإيراد (مستخلصات)', fmt(totalIn), '#27ae60', `${billedPct}% من قيمة العقد`)}
+            ${kpi('إجمالي التكلفة الفعلية', fmt(totalOut), '#e67e22', 'فواتير + باطن')}
+            ${kpi(net >= 0 ? 'صافي التدفق (فائض)' : 'صافي التدفق (عجز)', fmt(Math.abs(net)), net >= 0 ? '#2d6a9f' : '#c0392b', 'إيراد − تكلفة')}
+            ${kpi('الانحراف عن المخطط', (scheduleVar >= 0 ? '+' : '') + fmt(scheduleVar), scheduleVar >= 0 ? '#1e8449' : '#c0392b', `المخطط حتى تاريخه ${fmt(planToDate)}`)}
+        </div>
+        ${!hasData ? '<div class="empty"><div class="ei">💧</div><p>لا توجد مستخلصات أو تكاليف مؤرّخة بعد لرسم المنحنى</p></div>' : `
+        ${pdLineChart(buckets.map(pdMonLabel), [
+        { label: 'المخطط (Planned)', color: '#95a5a6', points: planCum, dash: true },
+        { label: 'الإيراد الفعلي (مستخلصات)', color: '#27ae60', points: inCum },
+        { label: 'التكلفة الفعلية', color: '#e67e22', points: outCum },
+    ])}
+        <div style="overflow-x:auto;margin-top:16px">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">
+                <thead><tr style="background:#1a3a5c;color:#fff"><th style="padding:8px;text-align:right">الشهر</th><th style="padding:8px;text-align:left">المخطط التراكمي</th><th style="padding:8px;text-align:left">الإيراد التراكمي</th><th style="padding:8px;text-align:left">التكلفة التراكمية</th><th style="padding:8px;text-align:left">صافي التدفق التراكمي</th></tr></thead>
+                <tbody>${buckets.map((ym, i) => `<tr style="border-top:1px solid #eee">
+                    <td style="padding:7px;font-weight:700;color:#1a3a5c">${pdMonLabel(ym)}</td>
+                    <td style="padding:7px;text-align:left;color:#7f8c8d">${fmt(planCum[i])}</td>
+                    <td style="padding:7px;text-align:left;color:#1e8449">${fmt(inCum[i])}</td>
+                    <td style="padding:7px;text-align:left;color:#af601a">${fmt(outCum[i])}</td>
+                    <td style="padding:7px;text-align:left;font-weight:700;color:${netCum[i] >= 0 ? '#2d6a9f' : '#c0392b'}">${fmt(netCum[i])}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:#7d4e00;background:#fef9e7;border:1px dashed #f0c419;border-radius:8px;padding:9px 12px;line-height:1.7">💡 «الإيراد» = مستخلصات العميل غير الملغاة بتاريخها · «التكلفة» = فواتير الموردين ومستخلصات مقاولي الباطن بتاريخها · «المخطط» = توزيع قيمة العقد (شاملة أوامر التغيير) خطياً على مدة المشروع. لعرض أدق للتدفق، سجّل تواريخ المستخلصات والفواتير بدقة.</div>`}
+    </div>`;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
 // ║   TAB — المهام (Tasks Kanban)                                             ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 const PD_TASK_COLS = [
@@ -3465,8 +4776,27 @@ window.pdDeleteDocument = function (pid, docKey) {
 };
 
 // ── تقارير الموقع اليومية/الأسبوعية ──────────────────────────────
+// 🏗️ تقرير الموقع الاحترافي — جداول ديناميكية (عمالة/معدّات/مواد)
+window._pdSr = window._pdSr || { labor: [], equip: [], mat: [] };
+const PD_SR_DEFS = {
+    labor: { fields: [{ k: 'trade', ph: 'التخصص (نجار/حداد/كهربائي...)', grow: true }, { k: 'count', ph: 'العدد', type: 'number', w: '90px' }], add: '➕ تخصص' },
+    equip: { fields: [{ k: 'name', ph: 'المعدّة (حفّار/رافعة...)', grow: true }, { k: 'count', ph: 'عدد', type: 'number', w: '80px' }, { k: 'hours', ph: 'ساعات', type: 'number', w: '80px' }], add: '➕ معدّة' },
+    mat: { fields: [{ k: 'material', ph: 'المادة المستلمة', grow: true }, { k: 'qty', ph: 'الكمية', type: 'number', w: '90px' }, { k: 'unit', ph: 'الوحدة', w: '90px' }], add: '➕ مادة' },
+};
+function pdSrRows(sk) {
+    const rows = window._pdSr[sk] || [], def = PD_SR_DEFS[sk];
+    if (!rows.length) return '<div style="color:#aaa;font-size:12px;padding:4px 0">— لا شيء —</div>';
+    return rows.map((r, i) => `<div style="display:flex;gap:6px;margin-bottom:5px">
+        ${def.fields.map(f => `<input ${f.type ? `type="${f.type}"` : ''} value="${(r[f.k] ?? '').toString().replace(/"/g, '&quot;')}" placeholder="${f.ph}" oninput="window._pdSr['${sk}'][${i}]['${f.k}']=this.value" style="${f.grow ? 'flex:1' : 'flex:0 0 ' + f.w};padding:8px;border:1.5px solid #d0d7e0;border-radius:7px;font-family:inherit;font-size:12.5px">`).join('')}
+        <button class="btn b-r" style="padding:4px 9px" onclick="window._pdSr['${sk}'].splice(${i},1);document.getElementById('pd-sr-${sk}').innerHTML=pdSrRows('${sk}')">🗑️</button>
+    </div>`).join('');
+}
+window.pdSrAdd = function (sk) { window._pdSr[sk].push({}); document.getElementById('pd-sr-' + sk).innerHTML = pdSrRows(sk); };
+function pdSrTotalLabor() { return (window._pdSr.labor || []).reduce((s, r) => s + (parseInt(r.count) || 0), 0); }
+
 function pdRenderSiteReports(pid) {
     const sub = document.getElementById('pd-docs-sub'); if (!sub) return;
+    window._pdSr = { labor: [], equip: [], mat: [] }; // نموذج جديد فارغ (يُعاد ملؤه عند التعديل عبر pdOpenReportForm)
     const reports = Object.entries((window.projectSiteReports || {})[pid] || {})
         .sort((a, b) => new Date(b[1].date || 0) - new Date(a[1].date || 0));
 
@@ -3474,9 +4804,9 @@ function pdRenderSiteReports(pid) {
 
     sub.innerHTML = `
     <div class="card">
-        <div class="c-tl" style="margin:0 0 12px;border:none;padding:0" id="pd-rep-form-title">📋 إضافة تقرير موقع</div>
+        <div class="c-tl" style="margin:0 0 12px;border:none;padding:0" id="pd-rep-form-title">🏗️ إضافة تقرير موقع</div>
         <input type="hidden" id="pd-rep-key">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
             <div>
                 <label style="${lblStyle()}">التاريخ</label>
                 <input type="date" id="pd-rep-date" value="${new Date().toISOString().slice(0, 10)}" style="${inputStyle()}">
@@ -3490,20 +4820,46 @@ function pdRenderSiteReports(pid) {
             </div>
             <div>
                 <label style="${lblStyle()}">حالة الطقس</label>
-                <input type="text" id="pd-rep-weather" placeholder="مثال: مشمس" style="${inputStyle()}">
+                <select id="pd-rep-weathercond" style="${inputStyle()}">
+                    <option value="">—</option><option value="مشمس">☀️ مشمس</option><option value="غائم جزئياً">⛅ غائم جزئياً</option><option value="غائم">☁️ غائم</option><option value="ممطر">🌧️ ممطر</option><option value="عاصف">💨 عاصف</option><option value="حار">🔥 حار شديد</option><option value="غبار">🌫️ غبار</option>
+                </select>
             </div>
             <div>
-                <label style="${lblStyle()}">عدد العمالة بالموقع</label>
-                <input type="number" id="pd-rep-manpower" min="0" style="${inputStyle()}">
+                <label style="${lblStyle()}">الحرارة °م</label>
+                <input type="number" id="pd-rep-temp" placeholder="مثال: 42" style="${inputStyle()}">
+            </div>
+            <div>
+                <label style="${lblStyle()}">ساعات العمل</label>
+                <input type="number" id="pd-rep-hours" min="0" step="0.5" placeholder="مثال: 8" style="${inputStyle()}">
             </div>
         </div>
-        <div style="margin-top:10px">
+        <input type="hidden" id="pd-rep-weather">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px">
+            <div style="background:#f8fafc;border-radius:10px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="${lblStyle()};margin:0">👷 العمالة حسب التخصص</label><button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdSrAdd('labor')">➕ تخصص</button></div>
+                <div id="pd-sr-labor"></div>
+            </div>
+            <div style="background:#f8fafc;border-radius:10px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="${lblStyle()};margin:0">🚜 المعدّات وساعات التشغيل</label><button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdSrAdd('equip')">➕ معدّة</button></div>
+                <div id="pd-sr-equip"></div>
+            </div>
+            <div style="background:#f8fafc;border-radius:10px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><label style="${lblStyle()};margin:0">📦 المواد المستلمة</label><button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="pdSrAdd('mat')">➕ مادة</button></div>
+                <div id="pd-sr-mat"></div>
+            </div>
+        </div>
+        <div style="margin-top:12px">
             <label style="${lblStyle()}">الأعمال المنجزة</label>
             <textarea id="pd-rep-work" rows="3" placeholder="وصف الأعمال المنفذة خلال الفترة..." style="${inputStyle('resize:vertical')}"></textarea>
         </div>
-        <div style="margin-top:10px">
-            <label style="${lblStyle()}">ملاحظات / معوقات</label>
-            <textarea id="pd-rep-issues" rows="2" placeholder="أي مشاكل أو معوقات واجهت العمل..." style="${inputStyle('resize:vertical')}"></textarea>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+            <div><label style="${lblStyle()}">التأخيرات والمعوقات (وأثر الطقس)</label><textarea id="pd-rep-issues" rows="2" placeholder="أي تأخير أو معوق وأثره على الجدول..." style="${inputStyle('resize:vertical')}"></textarea></div>
+            <div><label style="${lblStyle()}">ملاحظات السلامة</label><textarea id="pd-rep-safety" rows="2" placeholder="ملاحظات HSE، تصاريح عمل، حوادث..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+            <div><label style="${lblStyle()}">زوّار الموقع</label><input id="pd-rep-visitors" placeholder="الاستشاري، المالك، جهات..." style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">روابط الصور (رابط بكل سطر)</label><textarea id="pd-rep-photos" rows="2" placeholder="https://...
+https://..." style="${inputStyle('resize:vertical')}"></textarea></div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px">
             <button class="btn b-g" onclick="pdSaveSiteReport('${pid}')">💾 حفظ التقرير</button>
@@ -3517,13 +4873,20 @@ function pdRenderSiteReports(pid) {
         <div style="display:flex;flex-direction:column;gap:10px">
         ${reports.map(([rk, r]) => {
             const [tl, tbg, tcl] = typeMap[r.type] || typeMap.daily;
+            const labor = Array.isArray(r.labor) ? r.labor.filter(x => x.trade || x.count) : [];
+            const equip = Array.isArray(r.equipment) ? r.equipment.filter(x => x.name) : [];
+            const mat = Array.isArray(r.materials) ? r.materials.filter(x => x.material) : [];
+            const totMan = labor.reduce((s, x) => s + (parseInt(x.count) || 0), 0) || r.manpower || 0;
+            const photos = Array.isArray(r.photos) ? r.photos.filter(Boolean) : [];
+            const chip = (t) => `<span style="background:#eef3f8;color:#445;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">${t}</span>`;
             return `<div style="background:${tbg};border:1px solid ${tcl}44;border-radius:10px;padding:14px;border-right:4px solid ${tcl}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap;gap:6px">
-                    <div style="display:flex;align-items:center;gap:8px">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="background:${tcl}22;color:${tcl};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${tl}</span>
                         <span style="font-size:13px;font-weight:800;color:#1a3a5c">${r.date || '-'}</span>
-                        ${r.weather ? `<span style="font-size:11px;color:#666">🌤️ ${r.weather}</span>` : ''}
-                        ${r.manpower ? `<span style="font-size:11px;color:#666">👷 ${r.manpower} عامل</span>` : ''}
+                        ${(r.weatherCond || r.weather) ? `<span style="font-size:11px;color:#666">🌤️ ${r.weatherCond || r.weather}${r.temperature ? ` · ${r.temperature}°م` : ''}</span>` : ''}
+                        ${totMan ? `<span style="font-size:11px;color:#666">👷 ${totMan} عامل</span>` : ''}
+                        ${r.workHours ? `<span style="font-size:11px;color:#666">⏱️ ${r.workHours} س</span>` : ''}
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
                         <button class="btn b-b" style="padding:3px 7px;font-size:11px" onclick="pdOpenReportForm('${pid}','${rk}')">✏️</button>
@@ -3531,19 +4894,31 @@ function pdRenderSiteReports(pid) {
                     </div>
                 </div>
                 <div style="font-size:13px;color:#333;line-height:1.7"><strong>الأعمال المنجزة:</strong> ${(r.workDone || '-').replace(/\n/g, '<br>')}</div>
-                ${r.issues ? `<div style="font-size:12px;color:#922b21;margin-top:6px"><strong>ملاحظات:</strong> ${r.issues.replace(/\n/g, '<br>')}</div>` : ''}
+                ${labor.length ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">👷 ${labor.map(x => chip(`${x.trade || 'عمالة'}: ${x.count || 0}`)).join('')}</div>` : ''}
+                ${equip.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">🚜 ${equip.map(x => chip(`${x.name}${x.count ? ' ×' + x.count : ''}${x.hours ? ' · ' + x.hours + 'س' : ''}`)).join('')}</div>` : ''}
+                ${mat.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">📦 ${mat.map(x => chip(`${x.material}: ${x.qty || ''} ${x.unit || ''}`)).join('')}</div>` : ''}
+                ${r.issues ? `<div style="font-size:12px;color:#922b21;margin-top:6px"><strong>التأخيرات/المعوقات:</strong> ${r.issues.replace(/\n/g, '<br>')}</div>` : ''}
+                ${r.safetyNotes ? `<div style="font-size:12px;color:#7d4e00;margin-top:6px"><strong>🦺 السلامة:</strong> ${r.safetyNotes.replace(/\n/g, '<br>')}</div>` : ''}
+                ${r.visitors ? `<div style="font-size:11px;color:#555;margin-top:6px">🚶 الزوّار: ${r.visitors}</div>` : ''}
+                ${photos.length ? `<div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">${photos.map((u, i) => `<a href="${u}" target="_blank" style="color:#2980b9;font-weight:700;font-size:11px">🖼️ صورة ${i + 1}</a>`).join('')}</div>` : ''}
                 ${r.reportedBy ? `<div style="font-size:11px;color:#888;margin-top:6px">👤 ${r.reportedBy}</div>` : ''}
             </div>`;
         }).join('')}
         </div>`}
     </div>`;
+    // تعبئة الجداول الديناميكية (لا تُنفَّذ من innerHTML)
+    const _l = document.getElementById('pd-sr-labor'); if (_l) _l.innerHTML = pdSrRows('labor');
+    const _e = document.getElementById('pd-sr-equip'); if (_e) _e.innerHTML = pdSrRows('equip');
+    const _m = document.getElementById('pd-sr-mat'); if (_m) _m.innerHTML = pdSrRows('mat');
 }
 
 window.pdResetReportForm = function () {
-    ['pd-rep-key', 'pd-rep-weather', 'pd-rep-manpower', 'pd-rep-work', 'pd-rep-issues'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['pd-rep-key', 'pd-rep-weather', 'pd-rep-weathercond', 'pd-rep-temp', 'pd-rep-hours', 'pd-rep-work', 'pd-rep-issues', 'pd-rep-safety', 'pd-rep-visitors', 'pd-rep-photos'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const dateEl = document.getElementById('pd-rep-date'); if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
     const typeEl = document.getElementById('pd-rep-type'); if (typeEl) typeEl.value = 'daily';
-    const titleEl = document.getElementById('pd-rep-form-title'); if (titleEl) titleEl.textContent = '📋 إضافة تقرير موقع';
+    window._pdSr = { labor: [], equip: [], mat: [] };
+    ['labor', 'equip', 'mat'].forEach(sk => { const el = document.getElementById('pd-sr-' + sk); if (el) el.innerHTML = pdSrRows(sk); });
+    const titleEl = document.getElementById('pd-rep-form-title'); if (titleEl) titleEl.textContent = '🏗️ إضافة تقرير موقع';
 };
 
 window.pdOpenReportForm = function (pid, repKey) {
@@ -3554,10 +4929,20 @@ window.pdOpenReportForm = function (pid, repKey) {
         document.getElementById('pd-rep-key').value = repKey;
         document.getElementById('pd-rep-date').value = r.date || '';
         document.getElementById('pd-rep-type').value = r.type || 'daily';
-        document.getElementById('pd-rep-weather').value = r.weather || '';
-        document.getElementById('pd-rep-manpower').value = r.manpower || '';
+        const wc = document.getElementById('pd-rep-weathercond'); if (wc) wc.value = r.weatherCond || r.weather || '';
+        const tp = document.getElementById('pd-rep-temp'); if (tp) tp.value = r.temperature || '';
+        const hr = document.getElementById('pd-rep-hours'); if (hr) hr.value = r.workHours || '';
         document.getElementById('pd-rep-work').value = r.workDone || '';
         document.getElementById('pd-rep-issues').value = r.issues || '';
+        const sf = document.getElementById('pd-rep-safety'); if (sf) sf.value = r.safetyNotes || '';
+        const vs = document.getElementById('pd-rep-visitors'); if (vs) vs.value = r.visitors || '';
+        const ph = document.getElementById('pd-rep-photos'); if (ph) ph.value = (Array.isArray(r.photos) ? r.photos.join('\n') : '');
+        window._pdSr = {
+            labor: Array.isArray(r.labor) ? r.labor.map(x => ({ ...x })) : [],
+            equip: Array.isArray(r.equipment) ? r.equipment.map(x => ({ ...x })) : [],
+            mat: Array.isArray(r.materials) ? r.materials.map(x => ({ ...x })) : [],
+        };
+        ['labor', 'equip', 'mat'].forEach(sk => { const el = document.getElementById('pd-sr-' + sk); if (el) el.innerHTML = pdSrRows(sk); });
         document.getElementById('pd-rep-form-title').textContent = '✏️ تعديل تقرير الموقع';
     }, 50);
 };
@@ -3565,13 +4950,21 @@ window.pdOpenReportForm = function (pid, repKey) {
 window.pdSaveSiteReport = async function (pid) {
     const date = document.getElementById('pd-rep-date')?.value;
     const type = document.getElementById('pd-rep-type')?.value || 'daily';
-    const weather = document.getElementById('pd-rep-weather')?.value.trim();
-    const manpower = parseInt(document.getElementById('pd-rep-manpower')?.value) || 0;
+    const weatherCond = document.getElementById('pd-rep-weathercond')?.value || '';
+    const temperature = document.getElementById('pd-rep-temp')?.value || '';
+    const workHours = document.getElementById('pd-rep-hours')?.value || '';
     const workDone = document.getElementById('pd-rep-work')?.value.trim();
     const issues = document.getElementById('pd-rep-issues')?.value.trim();
+    const safetyNotes = document.getElementById('pd-rep-safety')?.value.trim() || '';
+    const visitors = document.getElementById('pd-rep-visitors')?.value.trim() || '';
+    const photos = (document.getElementById('pd-rep-photos')?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const labor = (window._pdSr.labor || []).filter(x => x.trade || x.count).map(x => ({ trade: (x.trade || '').trim(), count: parseInt(x.count) || 0 }));
+    const equipment = (window._pdSr.equip || []).filter(x => x.name).map(x => ({ name: (x.name || '').trim(), count: parseInt(x.count) || 0, hours: parseFloat(x.hours) || 0 }));
+    const materials = (window._pdSr.mat || []).filter(x => x.material).map(x => ({ material: (x.material || '').trim(), qty: x.qty || '', unit: (x.unit || '').trim() }));
+    const manpower = labor.reduce((s, x) => s + (x.count || 0), 0);
     if (!date) { toast('اختر التاريخ', 'er'); return; }
     if (!workDone) { toast('أدخل وصف الأعمال المنجزة', 'er'); return; }
-    const data = { date, type, weather, manpower, workDone, issues, updatedAt: new Date().toISOString() };
+    const data = { date, type, weatherCond, weather: weatherCond, temperature, workHours, workDone, issues, safetyNotes, visitors, photos, labor, equipment, materials, manpower, updatedAt: new Date().toISOString() };
     const repKey = document.getElementById('pd-rep-key')?.value;
     const typeLabel = type === 'daily' ? 'يومي' : 'أسبوعي';
     try {
@@ -4028,8 +5421,8 @@ function pdRenderEVM(pid) {
     const pct = (window.calcProjectProgress(pid) || 0) / 100;               // نسبة الإنجاز الفعلي
     const ac  = (window.calcProjectActualCosts(pid) || {}).total || 0;      // التكلفة الفعلية
 
-    // خط الأساس المحفوظ (إن وُجد)
-    const base = (window.projectBaselines || {})[pid] || null;
+    // خط الأساس النشط (يدعم خطوطاً متعددة — يُختار النشط منها)
+    const base = pdActiveBaseline(pid);
     const plannedStart = (base && base.plannedStart) || p.startDate || '';
     const plannedEnd   = (base && base.plannedEnd)   || p.endDate   || '';
 
@@ -4085,14 +5478,15 @@ function pdRenderEVM(pid) {
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
             <div class="c-tl" style="margin:0">📐 تحليل الأداء بطريقة القيمة المكتسبة (EVM)</div>
             <div style="display:flex;gap:8px">
-                <button class="btn" onclick="pdSaveBaseline('${pid}')" style="background:#1a3a5c;color:#fff;font-size:12px">💾 ${base ? 'تحديث' : 'حفظ'} خط الأساس</button>
+                <button class="btn" onclick="pdSaveBaseline('${pid}')" style="background:#1a3a5c;color:#fff;font-size:12px">📌 حفظ خط أساس جديد</button>
             </div>
         </div>
         <p style="font-size:12px;color:#666;line-height:1.8;margin:8px 0 0">
             يقيس EVM أداء المشروع بمقارنة <strong>القيمة المخططة (PV)</strong> و<strong>المكتسبة (EV)</strong> و<strong>التكلفة الفعلية (AC)</strong> — ليجيب فورًا: هل المشروع متأخر؟ متجاوز للميزانية؟
-            ${base ? `<br>📌 خط الأساس محفوظ بتاريخ <strong>${base.date || '—'}</strong> (الميزانية المرجعية: ${f(base.bac)} ريال).` : '<br>⚠️ لم يُحفظ خط أساس بعد — تُحسب القيمة المخططة من تواريخ المشروع الحالية.'}
+            ${base ? `<br>📌 خط الأساس النشط: <strong>${base.name || 'خط الأساس'}</strong> (${base.date || '—'}) — الميزانية المرجعية ${f(base.bac)} ريال.` : '<br>⚠️ لم يُحفظ خط أساس بعد — تُحسب القيمة المخططة من تواريخ المشروع الحالية.'}
         </p>
     </div>
+    ${pdBaselinesPanel(pid, bac, p)}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px">
         ${kpi('💰 الميزانية الكلية (BAC)', f(bac) + ' ريال', neu, 'Budget At Completion')}
@@ -4138,24 +5532,196 @@ function pdRenderEVM(pid) {
     </div>`;
 }
 
-// ── حفظ/تحديث خط الأساس ─────────────────────────────────────────────────
+// ── خطوط الأساس المتعددة (Multiple Baselines) ────────────────────────────
+// يدعم الشكل القديم (كائن واحد فيه bac) والشكل الجديد (خريطة خطوط أساس مُسمّاة).
+window.pdActiveBaseline = function (pid) {
+    const raw = (window.projectBaselines || {})[pid]; if (!raw) return null;
+    if (raw.bac !== undefined) return { ...raw, key: '_legacy', name: raw.name || 'خط الأساس' };
+    const entries = Object.entries(raw).filter(([, v]) => v && typeof v === 'object');
+    if (!entries.length) return null;
+    const act = entries.find(([, v]) => v.active) || entries.slice().sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''))[0];
+    return { ...act[1], key: act[0] };
+};
+window.pdBaselineEntries = function (pid) {
+    const raw = (window.projectBaselines || {})[pid]; if (!raw) return [];
+    if (raw.bac !== undefined) return [['_legacy', { ...raw, name: raw.name || 'خط الأساس', active: true }]];
+    return Object.entries(raw).filter(([, v]) => v && typeof v === 'object').sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+};
+
+// لوحة خطوط الأساس والمقارنة (تُعرض داخل تبويب EVM)
+function pdBaselinesPanel(pid, curBac, p) {
+    const entries = pdBaselineEntries(pid);
+    const active = pdActiveBaseline(pid);
+    const curEnd = p.endDate || '';
+    const dayDiff = (a, b) => (!a || !b) ? null : Math.round((new Date(b) - new Date(a)) / 86400000);
+    if (!entries.length) return '';
+    return `<div class="card" style="margin-bottom:14px">
+        <div class="c-tl" style="font-size:14px;margin:0 0 4px">📌 خطوط الأساس والمقارنة (${entries.length})</div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px">اختر خط الأساس النشط لاحتساب EVM، وقارن الميزانية والجدول الحاليين بكل خط أساس محفوظ.</div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:660px">
+            <thead><tr style="background:#1a3a5c;color:#fff"><th style="padding:8px">النشط</th><th style="padding:8px;text-align:right">الاسم</th><th style="padding:8px">التاريخ</th><th style="padding:8px;text-align:left">الميزانية (BAC)</th><th style="padding:8px;text-align:left">Δ الميزانية</th><th style="padding:8px">نهاية مخططة</th><th style="padding:8px;text-align:left">انزياح النهاية</th><th style="padding:8px"></th></tr></thead>
+            <tbody>${entries.map(([k, b]) => {
+        const isAct = active && active.key === k;
+        const dBac = Math.round(curBac - (parseFloat(b.bac) || 0));
+        const drift = dayDiff(b.plannedEnd, curEnd);
+        return `<tr style="border-top:1px solid #eee;background:${isAct ? '#eef6ff' : '#fff'}">
+                <td style="padding:7px;text-align:center">${k === '_legacy' ? '✅' : `<input type="radio" name="pdBl_${pid}" ${isAct ? 'checked' : ''} onchange="pdSetActiveBaseline('${pid}','${k}')" style="width:16px;height:16px;cursor:pointer">`}</td>
+                <td style="padding:7px;font-weight:700;color:#1a3a5c">${b.name || 'خط الأساس'}${isAct ? ' <span style="font-size:10px;color:#2980b9">(نشط)</span>' : ''}</td>
+                <td style="padding:7px;text-align:center;color:#666">${b.date || '—'}</td>
+                <td style="padding:7px;text-align:left">${fmt(parseFloat(b.bac) || 0)}</td>
+                <td style="padding:7px;text-align:left;font-weight:700;color:${dBac > 0 ? '#c0392b' : dBac < 0 ? '#1e8449' : '#888'}">${dBac > 0 ? '+' : ''}${fmt(dBac)}</td>
+                <td style="padding:7px;text-align:center;color:#666">${b.plannedEnd || '—'}</td>
+                <td style="padding:7px;text-align:left;font-weight:700;color:${drift > 0 ? '#c0392b' : drift < 0 ? '#1e8449' : '#888'}">${drift == null ? '—' : (drift > 0 ? '+' + drift + ' يوم' : drift < 0 ? drift + ' يوم' : 'بلا انزياح')}</td>
+                <td style="padding:7px;text-align:center">${k === '_legacy' ? '' : `<button class="btn b-r" style="padding:2px 7px;font-size:10px" onclick="pdDeleteBaseline('${pid}','${k}')">🗑️</button>`}</td>
+            </tr>`;
+    }).join('')}</tbody>
+        </table></div>
+        <div style="font-size:11px;color:#999;margin-top:8px">💡 «Δ الميزانية» = الميزانية الحالية − ميزانية خط الأساس (موجب = تجاوز). «انزياح النهاية» = فرق تاريخ النهاية الحالي عن المخطط (موجب = تأخّر).</div>
+    </div>`;
+}
+
 window.pdSaveBaseline = function (pid) {
     const p = (window.projects || {})[pid]; if (!p) return;
     const bac = (window.calcProjectBudget(pid) || {}).totalBudget || 0;
     const progress = window.calcProjectProgress(pid) || 0;
-    cf2('📌 حفظ خط الأساس الحالي كمرجع للمقارنة المستقبلية؟ سيشمل الميزانية الحالية (' + fmt(Math.round(bac)) + ' ريال) وتواريخ المشروع.', async () => {
+    const name = (prompt('اسم خط الأساس (مثال: الأساس التعاقدي · إعادة الجدولة 1):', 'خط الأساس ' + (pdBaselineEntries(pid).length + 1)) || '').trim();
+    if (!name) return;
+    (async () => {
         try {
-            const data = {
-                date: new Date().toISOString().slice(0, 10),
-                bac, progress,
-                plannedStart: p.startDate || '',
-                plannedEnd: p.endDate || '',
-                by: (typeof curU !== 'undefined' && curU) ? (curU.email || curU.uid || '') : ''
-            };
-            await set(ref(db, 'ledger/projectBaselines/' + pid), data);
-            if (typeof logAudit === 'function') logAudit('baseline_save', 'projects', 'حفظ خط أساس للمشروع: ' + (p.name || pid), { bac });
-            toast('تم حفظ خط الأساس', 'ok');
+            const raw = (window.projectBaselines || {})[pid];
+            const snap = {};
+            Object.entries((window.projectTasks || {})[pid] || {}).forEach(([tk, t]) => { snap[tk] = { start: t.startDate || '', due: t.dueDate || '' }; });
+            const newKey = push(ref(db, 'ledger/projectBaselines/' + pid)).key;
+            const data = { name, date: new Date().toISOString().slice(0, 10), bac, progress, plannedStart: p.startDate || '', plannedEnd: p.endDate || '', tasksSnapshot: snap, active: true, by: (typeof curU !== 'undefined' && curU) ? (curU.email || curU.uid || '') : '' };
+            const map = {};
+            if (raw && raw.bac !== undefined) map['bl_legacy'] = { ...raw, name: raw.name || 'خط الأساس (سابق)', active: false };
+            else if (raw) Object.entries(raw).forEach(([k, v]) => { if (v && typeof v === 'object') map[k] = { ...v, active: false }; });
+            map[newKey] = data;
+            await set(ref(db, 'ledger/projectBaselines/' + pid), map);
+            if (typeof logAudit === 'function') logAudit('baseline_save', 'projects', 'حفظ خط أساس «' + name + '» للمشروع: ' + (p.name || pid), { bac });
+            toast('تم حفظ خط الأساس ✓', 'ok');
             setTimeout(() => pdRenderEVM(pid), 300);
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    })();
+};
+window.pdSetActiveBaseline = async function (pid, key) {
+    const raw = (window.projectBaselines || {})[pid]; if (!raw || raw.bac !== undefined) return;
+    const updates = {};
+    Object.keys(raw).forEach(k => { updates[k + '/active'] = (k === key); });
+    try { await update(ref(db, 'ledger/projectBaselines/' + pid), updates); toast('تم تعيين خط الأساس النشط', 'ok'); setTimeout(() => pdRenderEVM(pid), 200); }
+    catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdDeleteBaseline = function (pid, key) {
+    cf2('حذف خط الأساس هذا؟', async () => {
+        try { await remove(ref(db, 'ledger/projectBaselines/' + pid + '/' + key)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderEVM(pid), 200); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   🌐 بوابة العميل — تقرير حالة نظيف للمشروع (للطباعة/المشاركة PDF)          ║
+// ║   عرض اطّلاع للأطراف الخارجية دون كشف التكاليف الداخلية أو الأرباح.          ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+window.pdClientPortal = function (pid) {
+    const p = (window.projects || {})[pid]; if (!p) { toast('المشروع غير موجود', 'er'); return; }
+    const f = v => fmt(Math.round(v || 0));
+    const contractValue = (typeof pdAdjustedContract === 'function') ? pdAdjustedContract(pid) : (parseFloat(p.contractValue) || 0);
+    const progress = Math.round((typeof window.calcProjectProgress === 'function') ? window.calcProjectProgress(pid) : 0);
+    const bills = Object.values(window.progressBillings || {}).filter(b => b.projectId === pid && b.status !== 'cancelled');
+    const billed = bills.reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+    const paid = bills.filter(b => b.status === 'paid').reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+    const retention = bills.reduce((s, b) => s + (parseFloat(b.retentionAmount) || 0), 0);
+    const remaining = Math.max(0, contractValue - billed);
+    let timePct = 0, daysLeft = null;
+    if (p.startDate && p.endDate) {
+        const s = new Date(p.startDate), e = new Date(p.endDate), n = new Date();
+        const tot = Math.max(1, e - s); timePct = Math.max(0, Math.min(100, Math.round((n - s) / tot * 100)));
+        daysLeft = Math.round((e - n) / 86400000);
+    }
+    const rfiOpen = Object.values((window.rfis || {})[pid] || {}).filter(r => r.status !== 'closed').length;
+    const subOpen = Object.values((window.submittals || {})[pid] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length;
+    const punchOpen = Object.values((window.punchItems || {})[pid] || {}).filter(r => r.status !== 'closed').length;
+    const qhse = Object.values((window.qhse || {})[pid] || {});
+    const incidents = qhse.filter(r => r.kind === 'incident').length;
+    const inspections = qhse.filter(r => r.kind === 'inspection').length;
+    const statusMap = { planning: 'في التخطيط', active: 'قيد التنفيذ', completed: 'مكتمل', 'on-hold': 'موقوف' };
+    const company = (typeof custCoName === 'function' ? custCoName() : (window.cfg?.companyAr || 'بُنيان للمقاولات'));
+    const client = p.client || p.owner || p.customer || '';
+
+    const card = (label, value, color, sub) => `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:12px;padding:16px;border-top:4px solid ${color}"><div style="font-size:12px;color:#888">${label}</div><div style="font-size:22px;font-weight:900;color:${color};margin-top:4px">${value}</div>${sub ? `<div style="font-size:11px;color:#aaa;margin-top:3px">${sub}</div>` : ''}</div>`;
+    const barRow = (label, pct, color) => `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="font-weight:700;color:#1a3a5c">${label}</span><span style="font-weight:800;color:${color}">${pct}%</span></div><div style="background:#eef1f5;border-radius:20px;height:12px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:20px"></div></div></div>`;
+
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>حالة المشروع — ${p.name || ''}</title>
+    <style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
+    body{font-family:"Segoe UI",Tahoma,sans-serif;margin:0;background:#f4f6f8;color:#1a3a5c;direction:rtl}
+    .wrap{max-width:900px;margin:0 auto;padding:20px}
+    .head{background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff;border-radius:16px;padding:26px 28px;margin-bottom:16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+    .sec{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+    .sec h3{margin:0 0 14px;font-size:16px;color:#1a3a5c}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    td{padding:9px 4px;border-bottom:1px solid #eef1f5}
+    .no-print{margin:0 0 14px}
+    @media print{.no-print{display:none}body{background:#fff}.wrap{padding:0}}
+    @page{size:A4;margin:1.2cm}</style></head><body>
+    <div class="wrap">
+      <div class="no-print" style="display:flex;gap:8px">
+        <button onclick="window.print()" style="background:#1a3a5c;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨️ طباعة / حفظ PDF</button>
+        <button onclick="window.close()" style="background:#ecf0f1;color:#555;border:0;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit">إغلاق</button>
+      </div>
+      <div class="head">
+        <div style="font-size:12px;opacity:.85;letter-spacing:.05em">${company} · تقرير حالة المشروع</div>
+        <div style="font-size:26px;font-weight:900;margin:6px 0">${p.name || '—'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;opacity:.92">
+          ${client ? `<span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:8px">👤 العميل: ${client}</span>` : ''}
+          <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:8px">📌 ${statusMap[p.status] || p.status || ''}</span>
+          ${p.contractNo ? `<span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:8px">📄 ${p.contractNo}</span>` : ''}
+          <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:8px">📅 ${new Date().toLocaleDateString('ar-SA')}</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        ${card('قيمة العقد', f(contractValue) + ' ﷼', '#2d6a9f', 'شاملة أوامر التغيير')}
+        ${card('نسبة الإنجاز', progress + '%', '#27ae60', 'الإنجاز الفعلي للأعمال')}
+        ${card('إجمالي المُستخلَص', f(billed) + ' ﷼', '#e67e22', `${contractValue ? Math.round(billed / contractValue * 100) : 0}% من العقد`)}
+        ${card('المتبقي على العقد', f(remaining) + ' ﷼', '#8e44ad', 'لم يُستخلَص بعد')}
+      </div>
+
+      <div class="sec">
+        <h3>📊 التقدّم</h3>
+        ${barRow('الإنجاز الفعلي للأعمال', progress, '#27ae60')}
+        ${p.startDate && p.endDate ? barRow('التقدّم الزمني', timePct, timePct > progress + 5 ? '#e67e22' : '#2980b9') : ''}
+        ${p.startDate && p.endDate ? `<div style="font-size:12px;color:#666;margin-top:6px">المدة: ${p.startDate} ← ${p.endDate}${daysLeft != null ? ` · ${daysLeft >= 0 ? 'المتبقّي ' + daysLeft + ' يوم' : 'تجاوز الموعد بـ ' + Math.abs(daysLeft) + ' يوم'}` : ''}</div>` : ''}
+      </div>
+
+      <div class="sec">
+        <h3>💰 الموقف المالي</h3>
+        <table>
+          <tr><td>قيمة العقد (شاملة أوامر التغيير)</td><td style="text-align:left;font-weight:700">${f(contractValue)} ﷼</td></tr>
+          <tr><td>إجمالي المستخلصات المُقدَّمة</td><td style="text-align:left;font-weight:700">${f(billed)} ﷼</td></tr>
+          <tr><td>المُحصَّل (المدفوع)</td><td style="text-align:left;font-weight:700;color:#27ae60">${f(paid)} ﷼</td></tr>
+          <tr><td>المحتجز (ضمان الأعمال)</td><td style="text-align:left;font-weight:700;color:#8e44ad">${f(retention)} ﷼</td></tr>
+          <tr><td>المتبقّي على قيمة العقد</td><td style="text-align:left;font-weight:700">${f(remaining)} ﷼</td></tr>
+        </table>
+      </div>
+
+      <div class="sec">
+        <h3>🏗️ الحالة الميدانية والفنية</h3>
+        <div class="grid" style="margin:0">
+          ${card('طلبات معلومات مفتوحة', rfiOpen, rfiOpen ? '#e67e22' : '#27ae60', 'RFIs')}
+          ${card('مستندات فنية قيد المراجعة', subOpen, subOpen ? '#2980b9' : '#27ae60', 'Submittals')}
+          ${card('نواقص مفتوحة', punchOpen, punchOpen ? '#c0392b' : '#27ae60', 'Punch List')}
+          ${card('عمليات تفتيش الجودة', inspections, '#16a085', `حوادث مسجّلة: ${incidents}`)}
+        </div>
+      </div>
+
+      <div style="text-align:center;font-size:11px;color:#999;padding:14px;line-height:1.8">
+        تقرير حالة استرشادي صادر آلياً من ${company} بتاريخ ${new Date().toLocaleString('ar-EG')}.<br>الأرقام المالية تمثّل قيمة العقد والمستخلصات فقط، ولا تتضمن التكاليف أو الأرباح الداخلية للمقاول.
+      </div>
+    </div>
+    </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { toast('⚠️ يرجى السماح بالنوافذ المنبثقة لعرض بوابة العميل', 'er'); return; }
+    w.document.write(html); w.document.close();
 };

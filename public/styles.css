@@ -15,7 +15,7 @@
 }
 
  * 🎨 GBR System — Stylesheet
- * نظام حساب الأستاذ — التنسيقات
+ * بنيان للمقاولات — التنسيقات
  * ════════════════════════════════════════════════════════ */
 
 * {
@@ -1884,6 +1884,18 @@ margin-top: 18px;
 padding-top: 13px;
 border-top: 1px solid #eee
 }
+
+/* 📊 جدول سطور القيد — أعمدة قابلة لتغيير العرض + تنسيق أنظف */
+#mJrnTable th { position: relative; white-space: nowrap; font-weight: 800; color: #1a3a5c; border-left: 1px solid #cdd6e4 }
+#mJrnTable td { overflow: hidden; border-bottom: 1px solid #eef2f7; border-left: 1px solid #edf1f7; vertical-align: middle }
+#mJrnTable th:last-child, #mJrnTable td:last-child { border-left: 0 }
+#mJrnTable tbody tr:hover td { background-color: rgba(45, 106, 159, .04) }
+#mJrnTable input:not([type="checkbox"]), #mJrnTable select { box-sizing: border-box; height: 32px }
+/* مقبض سحب ظاهر على حدّ كل عمود */
+.jcr { position: absolute; top: 0; left: -5px; width: 11px; height: 100%; cursor: col-resize; z-index: 7; user-select: none; touch-action: none; display: flex; align-items: center; justify-content: center }
+.jcr::after { content: ""; width: 3px; height: 52%; border-radius: 2px; background: #9aabc4; transition: background .12s ease, height .12s ease }
+.jcr:hover, .jcr.drag { background: rgba(45, 106, 159, .12) }
+.jcr:hover::after, .jcr.drag::after { background: #2d6a9f; height: 80% }
 
 .fgr {
 display: grid;

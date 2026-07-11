@@ -255,6 +255,11 @@ window.renderWorkload = function () {
             ${kpi('💤', 'متفرّغون (بلا تكليف)', idle, '#7f8c8d')}
             ${kpi('⏱️', 'إجمالي الساعات المسجّلة', totalLogged.toFixed(0) + ` / ${cap}`, '#16a085')}
         </div>
+        ${overloaded ? `<div style="background:#fdecea;border:1px solid #f5b7b1;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-weight:800;color:#c0392b;margin-bottom:7px">🚨 تنبيه التحميل الزائد — ${overloaded} مورد يتجاوز الطاقة المتاحة</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">${rows.filter(r => r.util > 100).sort((a, b) => b.util - a.util).map(r => `<span style="background:#fff;border:1px solid #f5b7b1;border-radius:8px;padding:4px 10px;font-size:12px;color:#922b21"><strong>${tsEsc(r.name)}</strong> · ${r.util}% · ${r.openTasks} مهمة${r.overdue ? ` · ⏰ ${r.overdue} متأخرة` : ''}</span>`).join('')}</div>
+            <div style="font-size:11px;color:#a94442;margin-top:7px">💡 أعد توزيع المهام على موارد أقل تحميلاً أو مدّد المُهل لتخفيف الحمل وتفادي التأخير.</div>
+        </div>` : ''}
         <div style="font-size:11px;color:#999;margin-bottom:14px">💡 الطاقة المتاحة في الفترة = ${cap} ساعة (أيام العمل ما عدا الجمعة/السبت × 8 ساعات). نسبة الاستغلال = الساعات المسجّلة ÷ الطاقة.</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
         ${rows.length ? rows.map(r => {

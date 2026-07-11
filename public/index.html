@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بُنيان — منصّة إدارة المقاولات</title>
+    <title>بنيان للمقاولات — منصّة إدارة المقاولات</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -19,7 +19,21 @@
     <!-- 🧾 توليد رمز QR محلياً (offline) للفواتير الضريبية ZATCA — مستضاف ذاتياً لضمان عدم الاعتماد على الإنترنت -->
     <script src="qrcode.min.js?v=20260627-1"></script>
     <!-- 🎨 الستايل في ملف منفصل -->
-    <link rel="stylesheet" href="styles.css?v=20260627-bunyan">
+    <link rel="stylesheet" href="styles.css?v=20260708-cols2">
+    <!-- 📱 PWA: تطبيق قابل للتثبيت يعمل دون اتصال -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1a3a5c">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="بُنيان">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+      }
+    </script>
 </head>
 
 <body>
@@ -48,7 +62,7 @@
         <div class="auth-card">
             <div class="auth-logo">
                 <div class="logo-box">بُنيان</div>
-                <h2>بُنيان</h2>
+                <h2>بنيان للمقاولات</h2>
                 <p>منصّة إدارة المقاولات</p>
             </div>
             <div class="auth-notice">ℹ️ للدخول تحتاج حساباً ضمن شركتك. تواصل مع مدير شركتك، أو سجّل شركة جديدة.</div>
@@ -125,11 +139,13 @@
         <div style="background:linear-gradient(135deg,#1f618d,#154360);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
             <div><div style="font-size:18px;font-weight:800">👑 لوحة مالك المنصّة</div><div style="font-size:12px;opacity:.85">إدارة اشتراكات الشركات المسجّلة</div></div>
             <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn" onclick="opsShowErrorLog()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" title="سجل أخطاء كل الشركات المجمّع">🐞 سجل الأخطاء</button>
                 <button class="btn" onclick="renderOperatorConsole()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)">🔄 تحديث</button>
                 <button class="btn b-r" onclick="doLogout()">🚪 خروج</button>
             </div>
         </div>
         <div style="padding:18px 24px">
+          <div id="opsMain">
             <div id="opsStats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;background:#fff;padding:12px 14px;border-radius:10px">
                 <input id="opsSearch" type="text" placeholder="🔍 ابحث باسم الشركة..." oninput="opsRenderList()" style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
@@ -147,6 +163,8 @@
                 </select>
             </div>
             <div id="opsList"></div>
+          </div>
+          <div id="opsErrPage" style="display:none"></div>
         </div>
     </div>
 
@@ -175,6 +193,8 @@
 
                     <!-- ══ الرئيسية ══ -->
                     <div class="sb-sec">الرئيسية</div>
+                    <div class="sb-it" id="n-onboard" onclick="nav('onboarding',this)" style="display:none;background:linear-gradient(135deg,rgba(39,174,96,.16),transparent);border-right:3px solid #27ae60"><span class="ic">🚀</span><span>إعداد البرنامج</span></div>
+                    <div class="sb-it" id="n-index" onclick="nav('index',this)" style="background:linear-gradient(135deg,rgba(45,106,159,.16),transparent);border-right:3px solid #2d6a9f"><span class="ic">🗂️</span><span>فهرس البرنامج</span></div>
                     <div class="sb-it act" id="n-db" onclick="nav('dashboard',this)"><span class="ic">📊</span><span>لوحة التحكم</span></div>
                     <div class="sb-it" id="n-appr" onclick="nav('approvalsinbox',this)"><span class="ic">✅</span><span>صندوق الموافقات</span><span class="sb-badge" id="apprBadge" style="display:none"></span></div>
                     <div class="sb-it" id="n-tasks" onclick="nav('tasks',this)"><span class="ic">🗓️</span><span>المهام والتنبيهات</span><span class="sb-badge" id="tasksBadge" style="display:none"></span></div>
@@ -189,7 +209,6 @@
                             <div class="sb-it sub" id="n-accd" onclick="nav('accdashboard',this)" style="border-right:3px solid #8e44ad"><span class="ic">📊</span><span>لوحة المحاسبة</span></div>
                             <div class="sb-it sub" id="n-finmodels" onclick="nav('finmodels',this)" style="border-right:3px solid #16a085"><span class="ic">📊</span><span>النماذج المالية والتخطيط</span></div>
                             <div class="sb-it sub" id="n-cashfc" onclick="nav('cashforecast',this)"><span class="ic">💧</span><span>التدفق النقدي المتوقع</span></div>
-                            <div class="sb-it sub" id="n-fs" onclick="nav('finstatements',this)"><span class="ic">📑</span><span>القوائم المالية</span></div>
                             <div class="sb-it sub" id="n-aging" onclick="nav('aging',this)"><span class="ic">⏳</span><span>أعمار الديون</span></div>
                             <div class="sb-it sub" id="n-prr" onclick="nav('prjreports',this)" style="border-right:3px solid #8e44ad"><span class="ic">📈</span><span>التقارير المالية للمشاريع</span></div>
                             <div class="sb-it sub" id="n-laborcost" onclick="nav('laborcostreport',this)"><span class="ic">📈</span><span>تحليل تكلفة العمالة</span></div>
@@ -337,6 +356,7 @@
                             <div class="sb-it sub" id="n-acctanalysis" onclick="nav('acctanalysis',this)"><span class="ic">🔎</span><span>تحليل الحسابات</span></div>
                             <div class="sb-it sub" id="n-coabal" onclick="window._coaView='balances';nav('chartofaccounts',this)"><span class="ic">📋</span><span>كشف الأرصدة</span></div>
                             <div class="sb-it sub" id="n-tb"    onclick="nav('trialbalance',this)"><span class="ic">⚖️</span><span>ميزان المراجعة</span></div>
+                            <div class="sb-it sub" id="n-fs"    onclick="nav('finstatements',this)"><span class="ic">📑</span><span>القوائم المالية</span></div>
                             <div class="sb-it sub" id="n-glbudget" onclick="nav('glbudget',this)"><span class="ic">📊</span><span>الموازنة الشهرية</span></div>
                             <div class="sb-it sub" id="n-fsg" onclick="nav('fsg',this)"><span class="ic">🧱</span><span>مولّد القوائم المالية</span></div>
                             <div class="sb-it sub" id="n-workingcapital" onclick="nav('workingcapital',this)"><span class="ic">♻️</span><span>رأس المال العامل</span></div>
@@ -416,6 +436,8 @@
                     <div class="sb-it" id="n-present" onclick="openPresentation()" style="background:linear-gradient(135deg,rgba(240,196,25,.18),transparent);border-right:3px solid #f0c419"><span class="ic">🎬</span><span>العرض التقديمي</span></div>
                     <div class="sb-it" id="n-se" onclick="nav('settings',this)"><span class="ic">⚙️</span><span>الإعدادات</span></div>
                     <div class="sb-it" id="n-us" style="display:none" onclick="nav('users',this)"><span class="ic">👥</span><span>المستخدمون</span></div>
+                    <div class="sb-it" id="n-perms" style="display:none" onclick="nav('perms',this)"><span class="ic">🔐</span><span>صلاحيات المستخدمين</span></div>
+                    <div class="sb-it" id="n-errlog" style="display:none" onclick="showErrorLog()"><span class="ic">🐞</span><span>سجل الأخطاء</span></div>
                     <div id="adSec" style="display:none"></div><!-- legacy placeholder -->
 
                     <div class="sb-sec">الأدوات</div>
@@ -665,7 +687,7 @@
                         </div>
                         <div id="printW">
                             <div class="print-hd">
-                                <h2 style="color:#1a3a5c">بُنيان</h2>
+                                <h2 style="color:#1a3a5c">بنيان للمقاولات</h2>
                                 <p id="ph1"></p>
                                 <p id="ph2" style="font-weight:700"></p>
                             </div>
@@ -5860,7 +5882,7 @@
                                 <div style="font-size:10px;color:#666;margin-top:2px">IAS 37 / IFRS 15 / IFRS 16 / IFRS 9 / IAS 36</div>
                             </a>
                             <a href="#ifrs-gbr" style="background:#eafaf1;border-radius:10px;padding:12px;text-decoration:none;color:#0b3d36;border-right:3px solid #117a65">
-                                <div style="font-size:13px;font-weight:700">🏗️ أمثلة من المقاولات (GBR)</div>
+                                <div style="font-size:13px;font-weight:700">🏗️ أمثلة من المقاولات (بنيان)</div>
                                 <div style="font-size:10px;color:#666;margin-top:2px">تطبيق عملي في بيئة شركة مقاولات</div>
                             </a>
                             <a href="#ifrs-new" style="background:#eafaf1;border-radius:10px;padding:12px;text-decoration:none;color:#0b3d36;border-right:3px solid #117a65">
@@ -6250,6 +6272,27 @@
                         <div class="c-tl">📖 شرح تفصيلي إضافي لأهم معايير IFRS</div>
                         <div style="font-size:13px;line-height:2;color:#333;margin-top:10px">
 
+                            <div style="background:#eaf4fb;border-radius:10px;padding:14px;margin-bottom:12px;border:2px solid #2d6a9f">
+                                <strong style="color:#1a3a5c;font-size:14px">🆕 IFRS 18 — عرض والإفصاح في القوائم المالية (جديد — يحلّ محل IAS 1)</strong>
+                                <div style="font-size:11.5px;color:#2d6a9f;margin:4px 0 8px;font-weight:700">صدر أبريل 2024 من IASB · يسري للفترات السنوية التي تبدأ في أو بعد 1 يناير 2027 (يُسمح بالتطبيق المبكر)</div>
+                                <ul style="margin:6px 0;padding-right:22px;font-size:12.5px">
+                                    <li><strong>الهدف:</strong> تحسين <strong>مقارنة قوائم الدخل</strong> وشفافية «الربح التشغيلي» عبر هيكل موحّد وإفصاحات أدق — استجابةً لتباين طرق عرض الأداء بين الشركات.</li>
+                                    <li><strong>1) هيكل قائمة الدخل بخمس فئات + مجملان مُلزمان جديدان:</strong> الفئات: <strong>تشغيلية · استثمارية · تمويلية · ضرائب الدخل · عمليات متوقفة</strong>، والمجملان الجديدان: <strong>الربح التشغيلي (Operating Profit)</strong> ثم <strong>الربح قبل التمويل والضرائب</strong>.
+                                        <ul style="margin:4px 0;padding-right:18px;font-size:12px">
+                                            <li><strong>التشغيلية:</strong> الفئة الافتراضية (المتبقية) — كل دخل/مصروف لا يندرج في الفئات الأخرى: المبيعات، تكلفة المبيعات، المصروفات الإدارية والعمومية، الإهلاك، خسائر الانخفاض…</li>
+                                            <li><strong>الاستثمارية:</strong> عوائد الأصول التي تُدرّ عائدًا بشكل مستقل: فوائد الودائع والنقد، توزيعات الأرباح، أرباح/خسائر الاستثمارات، حصة الشركة في الزميلة بطريقة حقوق الملكية.</li>
+                                            <li><strong>التمويلية:</strong> الفوائد والأعباء على الالتزامات المتعلّقة بجمع التمويل: فوائد القروض والسندات، فائدة التزام الإيجار (IFRS 16)، تكلفة تفكيك خصم المخصصات.</li>
+                                            <li><strong>ضرائب الدخل</strong> (IAS 12) و<strong>العمليات المتوقفة</strong> (IFRS 5) — كلٌّ فئة مستقلة. الشركات ذات النشاط الرئيسي في الاستثمار أو تمويل العملاء (كالبنوك) تُصنّف بعض هذه البنود تشغيلياً.</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>2) مقاييس الأداء المُعرّفة إدارياً (MPMs):</strong> أي مجاميع فرعية للربح/الخسارة تستخدمها الإدارة في تواصلها العلني خارج القوائم (مثل «الربح التشغيلي المعدّل») — يجب الإفصاح عنها في <strong>إيضاح واحد</strong> مع <strong>مطابقتها بأقرب مجموع فرعي وفق IFRS</strong>، وأصبحت <strong>ضمن نطاق التدقيق</strong>.</li>
+                                    <li><strong>3) مبادئ التجميع والتفصيل:</strong> تجميع البنود حسب الخصائص المشتركة، وتسمية واضحة، وتجنّب بنود «أخرى» الغامضة (يجب وصف محتواها إن كانت جوهرية).</li>
+                                    <li><strong>أثره على قائمة التدفقات النقدية:</strong> نقطة البداية للطريقة غير المباشرة أصبحت <strong>الربح التشغيلي</strong> بدل الربح قبل الضريبة، وأُلغيت خيارات تصنيف الفوائد والتوزيعات للشركات غير المالية.</li>
+                                    <li><strong>العلاقة بـ IAS 1:</strong> نُقلت أغلب متطلبات IAS 1 دون تغيير (تصنيف المتداول/غير المتداول، الدخل الشامل الآخر، فترة المقارنة) — و<strong>سُحب IAS 1</strong>.</li>
+                                    <li style="color:#1e8449"><strong>✅ التطبيق في هذا النظام:</strong> أُعيد تقسيم قائمة الدخل لتُظهر <strong>«الربح التشغيلي»</strong> و<strong>«الربح قبل التمويل والضرائب»</strong> وفق IFRS 18 — الفوائد الدائنة كفئة استثمارية، وتكاليف التمويل كفئة تمويلية.</li>
+                                </ul>
+                            </div>
+
                             <div style="background:#fff;border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid #b6e3d4">
                                 <strong>🔍 IAS 1 — عرض القوائم المالية (تعمّق)</strong>
                                 <ul style="margin:6px 0;padding-right:22px;font-size:12.5px">
@@ -6495,7 +6538,7 @@
                                     <li><strong>مكافآت كبار المديرين (KMP Compensation):</strong> يجب الإفصاح عن إجمالي المكافآت مصنّفةً: رواتب قصيرة الأجل، مزايا ما بعد العمل، مزايا أخرى طويلة الأجل، مكافآت إنهاء الخدمة، مدفوعات قائمة على الأسهم.</li>
                                 </ul>
                                 <div style="background:#fff;border-radius:8px;padding:10px;margin-top:8px;font-size:12px;color:#444;line-height:1.9;border:1px dashed #b6e3d4">
-                                    <strong>📐 مثال:</strong> شركة مقاولات (GBR) باعت معدات لشركة شقيقة بقيمة 500,000$ في حين أن قيمتها السوقية 700,000$. وجب الإفصاح في إيضاحات القوائم عن: طبيعة العلاقة (شركة شقيقة)، المبلغ (500,000$)، سياسة التسعير المعتمدة، والفرق عن قيمة السوق لتمكين المستخدمين من تقييم الأثر.
+                                    <strong>📐 مثال:</strong> شركة مقاولات (بنيان) باعت معدات لشركة شقيقة بقيمة 500,000$ في حين أن قيمتها السوقية 700,000$. وجب الإفصاح في إيضاحات القوائم عن: طبيعة العلاقة (شركة شقيقة)، المبلغ (500,000$)، سياسة التسعير المعتمدة، والفرق عن قيمة السوق لتمكين المستخدمين من تقييم الأثر.
                                 </div>
                             </div>
 
@@ -7065,9 +7108,9 @@
                         </div>
                     </div>
 
-                    <!-- أمثلة عملية من صناعة المقاولات (GBR) -->
+                    <!-- أمثلة عملية من صناعة المقاولات (بنيان) -->
                     <div class="card" id="ifrs-gbr" style="margin-bottom:16px">
-                        <div class="c-tl">🏗️ أمثلة عملية من صناعة المقاولات — GBR Contracting</div>
+                        <div class="c-tl">🏗️ أمثلة عملية من صناعة المقاولات — بنيان للمقاولات</div>
                         <p style="font-size:12px;color:#777;margin-top:4px">كيف تُطبَّق معايير IFRS في شركة مقاولات فعلية — أمثلة من بيئة العمل المألوفة.</p>
 
                         <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;font-size:12.5px">
@@ -7077,7 +7120,7 @@
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">السيناريو:</div>
-                                        GBR تنفذ مشروع طرق بقيمة 10 مليون ريال مدته 24 شهراً. في نهاية الشهر 12 تم إنجاز 60% من العمل وتم فوترة العميل بـ 5.5 مليون.
+                                        بنيان تنفذ مشروع طرق بقيمة 10 مليون ريال مدته 24 شهراً. في نهاية الشهر 12 تم إنجاز 60% من العمل وتم فوترة العميل بـ 5.5 مليون.
                                     </div>
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">المعالجة بموجب IFRS 15:</div>
@@ -7094,7 +7137,7 @@
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">السيناريو:</div>
-                                        GBR تملك حفارة بتكلفة 2 مليون ريال، عمر 10 سنوات، قيمة متبقية 200,000. بعد 5 سنوات، أجرت GBR تقييماً أظهر قيمة عادلة 1.4 مليون.
+                                        بنيان تملك حفارة بتكلفة 2 مليون ريال، عمر 10 سنوات، قيمة متبقية 200,000. بعد 5 سنوات، أجرت بنيان تقييماً أظهر قيمة عادلة 1.4 مليون.
                                     </div>
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">المعالجة بموجب IAS 16:</div>
@@ -7111,7 +7154,7 @@
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">السيناريو:</div>
-                                        GBR وقّعت عقداً بقيمة 8 مليون لكن بسبب ارتفاع أسعار الحديد تُقدَّر التكلفة الإجمالية بـ 9 مليون. يصعب الفسخ دون غرامات.
+                                        بنيان وقّعت عقداً بقيمة 8 مليون لكن بسبب ارتفاع أسعار الحديد تُقدَّر التكلفة الإجمالية بـ 9 مليون. يصعب الفسخ دون غرامات.
                                     </div>
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">المعالجة بموجب IAS 37:</div>
@@ -7127,7 +7170,7 @@
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">السيناريو:</div>
-                                        GBR تستأجر رافعة (كرين) لمدة 3 سنوات بإيجار شهري 50,000 ريال. معدل الاقتراض الإضافي للشركة 8%.
+                                        بنيان تستأجر رافعة (كرين) لمدة 3 سنوات بإيجار شهري 50,000 ريال. معدل الاقتراض الإضافي للشركة 8%.
                                     </div>
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">المعالجة بموجب IFRS 16:</div>
@@ -7144,14 +7187,14 @@
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">السيناريو:</div>
-                                        GBR لديها مخزون حديد تسليح بتكلفة 500,000 ريال. بسبب انخفاض أسعار السوق، القيمة السوقية الصافية (NRV) = 420,000 ريال.
+                                        بنيان لديها مخزون حديد تسليح بتكلفة 500,000 ريال. بسبب انخفاض أسعار السوق، القيمة السوقية الصافية (NRV) = 420,000 ريال.
                                     </div>
                                     <div style="background:white;border-radius:6px;padding:8px">
                                         <div style="font-weight:700;color:#117a65;margin-bottom:4px">المعالجة بموجب IAS 2:</div>
                                         يُقيَّم المخزون بـ <strong>الأدنى من: التكلفة أو NRV</strong><br>
                                         → يُعاد التقييم إلى <strong>420,000</strong><br>
                                         → خسارة 80,000 في P&amp;L فوراً<br>
-                                        <span style="font-size:11px;color:#888">ملاحظة: LIFO محظورة في IFRS — GBR تستخدم FIFO أو المتوسط المرجح.</span>
+                                        <span style="font-size:11px;color:#888">ملاحظة: LIFO محظورة في IFRS — بنيان تستخدم FIFO أو المتوسط المرجح.</span>
                                     </div>
                                 </div>
                             </div>
@@ -12286,7 +12329,7 @@
                         <div class="c-tl">🏗️ نبذة عن قسم المشاريع</div>
                         <div style="background:#e8f4fd;border-radius:10px;padding:18px;margin-top:14px;border-right:4px solid #2d6a9f">
                             <p style="margin:0;font-size:14px;line-height:1.95;color:#1a3a5c">
-                                قسم المشاريع في منصّة «بُنيان» هو <strong>نظام متكامل لإدارة مشاريع المقاولات</strong> من ترسية العقد حتى الإقفال النهائي. يجمع في مكان واحد: <strong>إدارة العقود، الجدولة الزمنية الاحترافية، التكاليف والربحية، الموارد البشرية، والفوترة (المستخلصات)</strong> — مصمَّماً خصيصاً للمقاول العربي بواجهة عربية كاملة (RTL).
+                                قسم المشاريع في منصّة «بنيان للمقاولات» هو <strong>نظام متكامل لإدارة مشاريع المقاولات</strong> من ترسية العقد حتى الإقفال النهائي. يجمع في مكان واحد: <strong>إدارة العقود، الجدولة الزمنية الاحترافية، التكاليف والربحية، الموارد البشرية، والفوترة (المستخلصات)</strong> — مصمَّماً خصيصاً للمقاول العربي بواجهة عربية كاملة (RTL).
                             </p>
                         </div>
 
@@ -14247,8 +14290,29 @@
                     </div>
                 </div>
 
+                <!-- PAGE: ONBOARDING (تهيئة العميل الجديد) -->
+                <div class="pg" id="pg-onboarding"></div>
+
+                <!-- PAGE: PROGRAM INDEX (فهرس البرنامج) -->
+                <div class="pg" id="pg-index"></div>
+
+                <!-- PAGE: PERMISSIONS MATRIX -->
+                <div class="pg" id="pg-perms"></div>
+
                 <!-- PAGE: SETTINGS -->
                 <div class="pg" id="pg-settings">
+                    <div class="card" style="border-right:4px solid #16a085">
+                        <div class="c-tl">💾 النسخ الاحتياطي المحلي</div>
+                        <div style="font-size:12.5px;color:#555;line-height:1.9;margin-bottom:12px">تُحفظ نسخة مضغوطة من كامل بيانات شركتك على <b>جهازك</b> تلقائياً <b>مرة كل يوم</b> عند فتح البرنامج (تعمل بلا خادم). احتفظ بها في مكان آمن — تفيدك عند أي حاجة لاسترجاع البيانات.</div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                            <button class="btn b-g" onclick="downloadLocalBackup(false)" style="font-weight:800">⬇️ تحميل نسخة احتياطية الآن</button>
+                            <input type="file" id="bkpRestoreFile" accept=".gz,.json" style="display:none" onchange="restoreLocalBackup(this)">
+                            <button class="btn b-o" onclick="document.getElementById('bkpRestoreFile').click()" title="استرجاع البيانات من ملف نسخة احتياطية (للمدير)">♻️ استرجاع من نسخة</button>
+                            <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:#444;background:#f8fafc;border:1.5px solid #d0d7e0;border-radius:8px;padding:8px 14px">
+                                <input type="checkbox" id="autoBkpChk" checked onchange="setAutoBackup(this.checked)"> النسخ الاحتياطي اليومي التلقائي
+                            </label>
+                        </div>
+                    </div>
                     <div class="card">
                         <div class="c-tl">⚙️ إعدادات الشركة</div>
                         <div class="fgr">
@@ -14719,35 +14783,70 @@
 
     <!-- MODALS — مقاولو الباطن -->
     <div class="ov" id="ovSubcEdit">
-        <div class="modal" style="max-width:520px">
-            <div class="m-tl">👷 بيانات المقاول</div>
-            <input type="hidden" id="subcEditId">
-            <div class="fg"><label>اسم المقاول *</label><input id="subcEditName" type="text" placeholder="مثال: شركة النور للمقاولات"></div>
-            <div class="fg"><label>التخصص</label><input id="subcEditSpecialty" type="text" placeholder="مثال: حفر وتسوية، تشطيبات، ميكانيكا..."></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div class="fg"><label>رقم الجوال</label><input id="subcEditPhone" type="text" placeholder="05xxxxxxxx"></div>
-                <div class="fg"><label>السجل التجاري</label><input id="subcEditCR" type="text" placeholder="رقم السجل التجاري"></div>
+        <div class="modal" style="max-width:580px;padding:0;overflow:hidden">
+            <!-- ترويسة -->
+            <div style="background:linear-gradient(135deg,#7d5a00,#c69214);color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <div style="font-size:17px;font-weight:900">👷 بيانات المقاول</div>
+                    <div style="font-size:11.5px;opacity:.9;margin-top:2px">أضف أو عدّل بيانات مقاول الباطن وحساباته</div>
+                </div>
+                <button onclick="$('ovSubcEdit').classList.remove('show')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px" title="إغلاق">✕</button>
             </div>
-            <div class="fg"><label>رقم الآيبان (IBAN)</label><input id="subcEditIBAN" type="text" placeholder="SA..."></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div class="fg">
-                    <label>التقييم ⭐</label>
-                    <input type="hidden" id="subcEditRating" value="0">
-                    <div id="subcEditRatingStars" style="display:flex;gap:4px;font-size:24px;cursor:pointer;padding:4px 0">
-                        <span onclick="setSubcRating(1)" style="opacity:.3">★</span>
-                        <span onclick="setSubcRating(2)" style="opacity:.3">★</span>
-                        <span onclick="setSubcRating(3)" style="opacity:.3">★</span>
-                        <span onclick="setSubcRating(4)" style="opacity:.3">★</span>
-                        <span onclick="setSubcRating(5)" style="opacity:.3">★</span>
+            <!-- الحقول -->
+            <div style="padding:20px 22px;max-height:68vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
+                <input type="hidden" id="subcEditId">
+                <div>
+                    <label style="font-size:12px;color:#555;font-weight:700">🏷️ اسم المقاول <span style="color:#c0392b">*</span></label>
+                    <input id="subcEditName" type="text" placeholder="مثال: شركة النور للمقاولات" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px">
+                </div>
+                <div>
+                    <label style="font-size:12px;color:#555;font-weight:700">🛠️ التخصص</label>
+                    <input id="subcEditSpecialty" type="text" placeholder="مثال: حفر وتسوية، تشطيبات، ميكانيكا..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div>
+                        <label style="font-size:12px;color:#555;font-weight:700">📱 رقم الجوال</label>
+                        <input id="subcEditPhone" type="text" placeholder="05xxxxxxxx" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px;direction:ltr;text-align:right">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:#555;font-weight:700">📄 السجل التجاري</label>
+                        <input id="subcEditCR" type="text" placeholder="رقم السجل التجاري" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px">
                     </div>
                 </div>
-                <div class="fg"><label>حد تنبيه الرصيد 🔔 (ريال)</label><input id="subcEditAlert" type="number" placeholder="مثال: 50000" min="0" step="1000"></div>
+                <div>
+                    <label style="font-size:12px;color:#555;font-weight:700">🏦 رقم الآيبان (IBAN)</label>
+                    <input id="subcEditIBAN" type="text" placeholder="SA..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px;direction:ltr;text-align:right">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+                    <div style="background:#fffdf5;border:1px solid #f0e2b8;border-radius:9px;padding:8px 12px">
+                        <label style="font-size:12px;color:#7d5a00;font-weight:700">⭐ التقييم</label>
+                        <input type="hidden" id="subcEditRating" value="0">
+                        <div id="subcEditRatingStars" style="display:flex;gap:5px;font-size:26px;cursor:pointer;padding:2px 0;color:#e6a817">
+                            <span onclick="setSubcRating(1)" style="opacity:.3">★</span>
+                            <span onclick="setSubcRating(2)" style="opacity:.3">★</span>
+                            <span onclick="setSubcRating(3)" style="opacity:.3">★</span>
+                            <span onclick="setSubcRating(4)" style="opacity:.3">★</span>
+                            <span onclick="setSubcRating(5)" style="opacity:.3">★</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:#555;font-weight:700">🔔 حد تنبيه الرصيد (ريال)</label>
+                        <input id="subcEditAlert" type="number" placeholder="مثال: 50000" min="0" step="1000" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:#555;font-weight:700">🏗️ المشروع الرئيسي</label>
+                    <select id="subcEditProject" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px;background:#fff"><option value="">— بدون تحديد —</option></select>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:#555;font-weight:700">📝 ملاحظات</label>
+                    <textarea id="subcEditNotes" rows="2" placeholder="ملاحظات اختيارية..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #d7deea;border-radius:9px;font-family:inherit;font-size:13.5px;margin-top:5px;resize:vertical"></textarea>
+                </div>
             </div>
-            <div class="fg"><label>المشروع الرئيسي 🏗️</label><select id="subcEditProject" style="width:100%;padding:8px;border:1.5px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px"><option value="">— بدون تحديد —</option></select></div>
-            <div class="fg"><label>ملاحظات</label><textarea id="subcEditNotes" rows="2" style="resize:vertical"></textarea></div>
-            <div class="m-act">
-                <button class="btn-s" onclick="saveSubcontractor()">💾 حفظ</button>
-                <button class="btn-c" onclick="$('ovSubcEdit').classList.remove('show')">إلغاء</button>
+            <!-- أزرار -->
+            <div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid #eef2f7;background:#fafbfc">
+                <button onclick="$('ovSubcEdit').classList.remove('show')" style="background:#fff;border:1.5px solid #d0d7e0;color:#555;padding:10px 26px;border-radius:9px;font-weight:700;cursor:pointer;font-size:14px;font-family:inherit">إلغاء</button>
+                <button onclick="saveSubcontractor()" style="background:linear-gradient(135deg,#1e8449,#27ae60);border:none;color:#fff;padding:10px 30px;border-radius:9px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;box-shadow:0 3px 10px rgba(39,174,96,.3)">💾 حفظ المقاول</button>
             </div>
         </div>
     </div>
@@ -15460,6 +15559,15 @@
                 </div>
             </div>
             <div id="euPS"></div>
+            <div style="margin:14px 0;padding:12px 14px;background:#fdf2f1;border:1px solid #f5cfca;border-radius:10px">
+                <div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:6px">🔒 كلمة المرور</div>
+                <div style="font-size:11px;color:#7d4e00;margin-bottom:8px">للمستخدمين بلا بريد يمكنهم استقباله: اضبط كلمة المرور مباشرةً (يتطلب تفعيل الخادم/Blaze). أو أرسل رابط إعادة تعيين لبريد المستخدم.</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                    <input type="text" id="euNewPwd" autocomplete="new-password" placeholder="كلمة مرور جديدة (6 أحرف+)" style="flex:1;min-width:170px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                    <button class="btn" onclick="adminSetPassword(document.getElementById('euK').value)" style="background:#c0392b;color:#fff" title="ضبط كلمة المرور مباشرةً (يتطلب تفعيل الخادم)">🔒 ضبط مباشر</button>
+                    <button class="btn" onclick="resetUserPwd(document.getElementById('euK').value)" style="background:#8e44ad;color:#fff" title="إرسال رابط إعادة تعيين إلى بريد المستخدم">🔑 رابط بريد</button>
+                </div>
+            </div>
             <div class="m-ft"><button class="btn b-g" onclick="saveEU()">💾 حفظ</button><button class="btn b-gr"
                     onclick="cov('mEU')">إلغاء</button></div>
         </div>
@@ -16233,6 +16341,16 @@
                     </div>
                 </div>
 
+                <div id="mCustGroupWrap" style="margin-top:12px;display:none">
+                    <label style="font-size:12px;color:#0e6251;font-weight:800">👥 مجموعة العميل (حساب المراقبة) *</label>
+                    <div style="position:relative;margin-top:4px">
+                        <input type="text" id="mCustGroupSearch" autocomplete="off" placeholder="🔍 ابحث أو اختر المجموعة..." oninput="grpPickInput('cust')" onfocus="grpPickInput('cust')" onblur="grpPickBlur('cust')" style="width:100%;padding:9px;border:1.5px solid #16a085;border-radius:8px;font-family:inherit;font-size:13px;background:#f0fbf8;box-sizing:border-box">
+                        <input type="hidden" id="mCustGroup">
+                        <div id="mCustGroupBox" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:60;background:#fff;border:1.5px solid #16a085;border-radius:8px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.18)"></div>
+                    </div>
+                    <div style="font-size:10.5px;color:#888;margin-top:3px">تُرحَّل حركات هذا العميل على حساب مجموعته في شجرة الحسابات. أدِر المجموعات من زر «👥 المجموعات» في صفحة العملاء.</div>
+                </div>
+
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
                     <div>
                         <label style="font-size:12px;color:#666;font-weight:700">🗂️ التصنيف / الشريحة</label>
@@ -16982,6 +17100,16 @@
                     </div>
                 </div>
 
+                <div id="mVendGroupWrap" style="margin-top:12px;display:none">
+                    <label style="font-size:12px;color:#7d3c98;font-weight:800">🚚 مجموعة المورد (حساب المراقبة) *</label>
+                    <div style="position:relative;margin-top:4px">
+                        <input type="text" id="mVendGroupSearch" autocomplete="off" placeholder="🔍 ابحث أو اختر المجموعة..." oninput="grpPickInput('vend')" onfocus="grpPickInput('vend')" onblur="grpPickBlur('vend')" style="width:100%;padding:9px;border:1.5px solid #8e44ad;border-radius:8px;font-family:inherit;font-size:13px;background:#f9f0fb;box-sizing:border-box">
+                        <input type="hidden" id="mVendGroup">
+                        <div id="mVendGroupBox" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:60;background:#fff;border:1.5px solid #8e44ad;border-radius:8px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.18)"></div>
+                    </div>
+                    <div style="font-size:10.5px;color:#888;margin-top:3px">تُرحَّل حركات هذا المورد على حساب مجموعته في شجرة الحسابات. أدِر المجموعات من زر «🚚 المجموعات» في صفحة الموردين.</div>
+                </div>
+
                 <div style="margin-top:12px">
                     <label style="font-size:12px;color:#666;font-weight:700">📋 ملاحظات</label>
                     <textarea id="mVendNotes" rows="2" placeholder="ملاحظات اختيارية..." style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:4px;resize:vertical"></textarea>
@@ -17369,16 +17497,30 @@
         </div>
     </div>
 
-    <!-- 💰 مودال محرر قيد اليومية -->
+    <!-- 💰 محرر قيد اليومية — صفحة كاملة -->
     <div class="ov" id="mJrnEditor">
-        <div class="modal" style="max-width:1100px;max-height:95vh;display:flex;flex-direction:column">
+        <div class="modal" style="max-width:100vw;width:100vw;height:100vh;max-height:100vh;border-radius:0;display:flex;flex-direction:column">
             <div class="m-tl" id="mJrnTitle">📒 قيد جديد</div>
             <div class="m-bd" style="overflow-y:auto;flex:1;padding:14px">
                 <input type="hidden" id="mJrnKey">
 
+                <!-- 🧭 شريط التنقّل بين القيود (مثل الأنظمة الاحترافية) -->
+                <div id="mJrnNavBar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#eef4fb;border:1.5px solid #cfe0f2;border-radius:10px;padding:8px 12px;margin-bottom:12px;flex-wrap:wrap">
+                    <div style="display:flex;gap:6px">
+                        <button id="mJrnNavPrev" class="btn" onclick="jrnNavGo(-1)" style="background:#2d6a9f;color:#fff;padding:6px 13px;font-size:12px;font-weight:700" title="القيد السابق">◀ السابق</button>
+                        <button id="mJrnNavNext" class="btn" onclick="jrnNavGo(1)" style="background:#2d6a9f;color:#fff;padding:6px 13px;font-size:12px;font-weight:700" title="القيد التالي">التالي ▶</button>
+                    </div>
+                    <div id="mJrnNavLabel" style="font-size:12.5px;font-weight:800;color:#1a3a5c">—</div>
+                    <button class="btn b-g" onclick="openJrnEditor()" style="padding:6px 13px;font-size:12px;font-weight:700" title="بدء قيد جديد">➕ قيد جديد</button>
+                </div>
+
                 <!-- رأس القيد -->
                 <div style="background:#f0f5fa;border-radius:10px;padding:14px;margin-bottom:14px;border:1.5px solid #d0d7e0">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+                        <div>
+                            <label style="font-size:11px;color:#666;font-weight:700">📓 الدفتر (نوع اليومية) <span onclick="openJrnBookSettings()" style="cursor:pointer;color:#2d6a9f" title="إعدادات الدفاتر والحسابات الافتراضية">⚙️</span></label>
+                            <select id="mJrnBook" onchange="jrnSetBook(this.value)" style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;margin-top:3px;background:#fff"></select>
+                        </div>
                         <div>
                             <label style="font-size:11px;color:#666;font-weight:700">📄 رقم القيد</label>
                             <input type="text" id="mJrnNumber" readonly style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;background:#f8fafc;font-family:monospace;font-weight:800;color:#1a3a5c;margin-top:3px">
@@ -17391,13 +17533,32 @@
                             <label style="font-size:11px;color:#666;font-weight:700">🔗 المرجع</label>
                             <input type="text" id="mJrnRef" placeholder="رقم مرجعي اختياري" style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;margin-top:3px">
                         </div>
+                        <div>
+                            <label style="font-size:11px;color:#666;font-weight:700">💱 العملة</label>
+                            <select id="mJrnCurrency" onchange="jrnSetCurrency(this.value)" style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;margin-top:3px;background:#fff"></select>
+                        </div>
+                        <div id="mJrnRateWrap" style="display:none">
+                            <label id="mJrnRateLbl" style="font-size:11px;color:#666;font-weight:700">سعر الصرف</label>
+                            <input type="number" id="mJrnRate" step="0.0001" min="0" oninput="jrnSetRate(this.value)" placeholder="مثلاً 3.75" style="width:100%;padding:8px;border:1.5px solid #f39c12;border-radius:6px;font-family:inherit;margin-top:3px;direction:ltr;text-align:left">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#666;font-weight:700">🔄 عكس تلقائي بتاريخ (اختياري)</label>
+                            <input type="date" id="mJrnAutoRev" title="للمستحقات: يُنشئ النظام قيداً عكسياً تلقائياً في هذا التاريخ (أول الفترة التالية غالباً)" style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;margin-top:3px">
+                        </div>
                     </div>
                     <div style="margin-top:10px">
                         <label style="font-size:11px;color:#666;font-weight:700">📝 البيان العام للقيد *</label>
                         <input type="text" id="mJrnDescription" placeholder="مثلاً: إثبات سداد فاتورة المورد X" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;margin-top:3px">
                     </div>
+                    <div style="margin-top:10px">
+                        <label style="font-size:11px;color:#666;font-weight:700">🎯 مركز التكلفة / المشروع — للقيد كامل (اختياري)</label>
+                        <div id="mJrnHeaderCC" onclick="openJrnHeaderCcPicker()" style="cursor:pointer;border:1.5px solid #f39c12;border-radius:6px;padding:9px 12px;margin-top:3px;background:#fffdf5;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px">
+                            <span id="mJrnHeaderCCLabel" style="color:#bbb">اضغط لتعيين مركز تكلفة/مشروع واحد يُطبَّق على كل سطور القيد…</span>
+                            <span id="mJrnHeaderCCClear" onclick="event.stopPropagation();clearJrnHeaderCc()" style="display:none;color:#c0392b;font-weight:700;background:#fdecea;border-radius:5px;padding:2px 9px">✕ مسح</span>
+                        </div>
+                    </div>
                     <div style="background:#fff8e1;border-right:3px solid #f39c12;border-radius:6px;padding:8px 12px;margin-top:10px;font-size:11px;color:#7d4e00">
-                        💡 <strong>تنبيه:</strong> مركز التكلفة (المشروع) يُحدَّد لكل سطر منفصل في الجدول أدناه — مما يسمح بتوزيع نفس القيد على مشاريع متعددة.
+                        💡 <strong>تنبيه:</strong> عيّن مركز/مشروع <strong>للقيد كامل</strong> من الأعلى (يُطبَّق على كل السطور)، أو حدِّده <strong>لكل سطر</strong> في الجدول للتوزيع على مشاريع متعددة. سطور الضريبة لا تُنسَب لأي مشروع — فالمسجَّل للمشروع هو القيمة <strong>قبل الضريبة</strong>.
                     </div>
                 </div>
 
@@ -17405,35 +17566,64 @@
                 <div style="background:white;border-radius:10px;border:1.5px solid #d0d7e0;overflow:hidden">
                     <div style="background:#1a3a5c;color:white;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
                         <span style="font-weight:800">📊 سطور القيد (مدين / دائن)</span>
-                        <button class="btn b-g" onclick="addJrnLine()" style="padding:5px 12px;font-size:11px">➕ إضافة سطر</button>
+                        <span style="display:flex;gap:6px;align-items:center">
+                            <span style="font-size:10px;opacity:.7">⏎ Enter للتنقّل · Ctrl+Enter حفظ</span>
+                            <button class="btn" onclick="pasteJrnFromExcel()" style="background:rgba(255,255,255,.18);color:#fff;padding:5px 10px;font-size:11px" title="لصق سطور من Excel دفعة واحدة">📋 لصق من Excel</button>
+                            <button class="btn" onclick="jrnAutoBalance()" style="background:rgba(255,255,255,.18);color:#fff;padding:5px 10px;font-size:11px" title="ضع فرق الموازنة تلقائياً في سطر به حساب وبلا مبلغ">⚖️ موازنة</button>
+                            <button class="btn" onclick="resetJrnCols()" style="background:rgba(255,255,255,.18);color:#fff;padding:5px 10px;font-size:11px" title="إعادة ضبط عرض الأعمدة للوضع الافتراضي">↔️ ضبط الأعمدة</button>
+                            <button class="btn b-g" id="mJrnAddLineBtn" onclick="addJrnLine()" style="padding:5px 12px;font-size:11px">➕ إضافة سطر</button>
+                        </span>
                     </div>
-                    <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
-                        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px">
+                    <div style="overflow-x:auto;max-height:52vh;overflow-y:auto">
+                        <table id="mJrnTable" style="width:100%;border-collapse:collapse;font-size:12px;min-width:1160px;table-layout:fixed">
+                            <colgroup>
+                                <col id="jcw0" style="width:40px">
+                                <col id="jcw1" style="width:110px">
+                                <col id="jcw2" style="width:210px">
+                                <col id="jcw3" style="width:230px">
+                                <col id="jcw4" style="width:140px">
+                                <col id="jcw5" style="width:175px">
+                                <col id="jcw6" style="width:115px">
+                                <col id="jcw7" style="width:115px">
+                                <col id="jcw8" style="width:96px">
+                                <col id="jcw9" style="width:68px">
+                            </colgroup>
                             <thead style="background:#f0f5fa;position:sticky;top:0;z-index:5">
                                 <tr>
-                                    <th style="padding:8px;text-align:right;width:30px">#</th>
-                                    <th style="padding:8px;text-align:right;width:100px">رقم الحساب</th>
-                                    <th style="padding:8px;text-align:right;min-width:180px">الحساب</th>
-                                    <th style="padding:8px;text-align:right;min-width:160px">البيان التفصيلي</th>
-                                    <th style="padding:8px;text-align:center;width:130px;background:#eafaf1" title="اختياري — يظهر به السطر في كشف الحساب بدلاً من تاريخ القيد">📅 تاريخ السطر</th>
-                                    <th style="padding:8px;text-align:right;min-width:140px;background:#fef9e7">🎯 مركز التكلفة</th>
-                                    <th style="padding:8px;text-align:center;width:120px;background:#e8f4fd">مدين 💰</th>
-                                    <th style="padding:8px;text-align:center;width:120px;background:#fadbd8">دائن 💸</th>
-                                    <th style="padding:8px;text-align:center;width:50px"></th>
+                                    <th style="padding:9px 8px;text-align:center">#<span class="jcr" data-c="0"></span></th>
+                                    <th style="padding:9px 8px;text-align:right">رقم الحساب<span class="jcr" data-c="1"></span></th>
+                                    <th style="padding:9px 8px;text-align:right">الحساب<span class="jcr" data-c="2"></span></th>
+                                    <th style="padding:9px 8px;text-align:right">البيان التفصيلي<span class="jcr" data-c="3"></span></th>
+                                    <th style="padding:9px 8px;text-align:center;background:#eafaf1" title="اختياري — يظهر به السطر في كشف الحساب بدلاً من تاريخ القيد">📅 تاريخ السطر<span class="jcr" data-c="4"></span></th>
+                                    <th style="padding:9px 8px;text-align:right;background:#fef9e7">🎯 مركز التكلفة<span class="jcr" data-c="5"></span></th>
+                                    <th style="padding:9px 8px;text-align:center;background:#e8f4fd">مدين 💰<span class="jcr" data-c="6"></span></th>
+                                    <th style="padding:9px 8px;text-align:center;background:#fadbd8">دائن 💸<span class="jcr" data-c="7"></span></th>
+                                    <th style="padding:9px 8px;text-align:center;background:#fff8e1" title="فعّل ضريبة القيمة المضافة لكل سطر — تُنشأ سطور الضريبة تلقائياً وتتدفّق للإقرار الضريبي">🏷️ الضريبة<span class="jcr" data-c="8"></span></th>
+                                    <th style="padding:9px 8px;text-align:center"></th>
                                 </tr>
                             </thead>
                             <tbody id="mJrnLines"></tbody>
                             <tfoot style="background:#1a3a5c;color:white">
                                 <tr>
-                                    <td colspan="6" style="padding:10px;text-align:left;font-weight:800">📊 الإجمالي</td>
+                                    <td colspan="6" style="padding:10px;text-align:left;font-weight:800">📊 الإجمالي (بعد الضريبة)</td>
                                     <td style="padding:10px;text-align:center;font-weight:900" id="mJrnTotalDebit">0.00</td>
                                     <td style="padding:10px;text-align:center;font-weight:900" id="mJrnTotalCredit">0.00</td>
+                                    <td style="padding:10px;text-align:center;font-weight:900;color:#f1c40f" id="mJrnTotalTax" title="إجمالي الضريبة في القيد">0.00</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </div>
+
+                <!-- 💱 ملاحظة العملة الأجنبية (المعادل بالريال) -->
+                <div id="mJrnFxNote" style="display:none;margin-top:12px;background:#fff8e1;border:1.5px solid #f39c12;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#7d4e00"></div>
+
+                <!-- ♻️ تنبيه القيود المكرّرة (حيّ) -->
+                <div id="mJrnDupWarn" style="display:none;margin-top:12px;background:#fdecea;border:1.5px solid #e74c3c;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#922b21"></div>
+
+                <!-- ملخص الضريبة (قبل/بعد + إجمالي الضريبة) -->
+                <div id="mJrnTaxSummary" style="margin-top:12px"></div>
 
                 <!-- ملخص التوازن -->
                 <div id="mJrnBalance" style="margin-top:14px;padding:14px;border-radius:10px;text-align:center;font-weight:800;font-size:14px"></div>
@@ -17443,12 +17633,29 @@
                     <label style="font-size:11px;color:#666;font-weight:700">📋 ملاحظات</label>
                     <textarea id="mJrnNotes" rows="2" placeholder="ملاحظات اختيارية..." style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;margin-top:3px;resize:vertical"></textarea>
                 </div>
+
+                <!-- 🔗 مرفقات (روابط مستندات) -->
+                <div style="margin-top:14px">
+                    <label style="font-size:11px;color:#666;font-weight:700">🔗 مستندات مرفقة (روابط)</label>
+                    <div id="mJrnAttachments" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;align-items:center"></div>
+                </div>
             </div>
             <div class="m-ft">
-                <button class="btn b-g" onclick="saveJrnEntry('posted')" id="mJrnSavePosted">💾 حفظ ومرحلة</button>
-                <button class="btn b-or" onclick="saveJrnEntry('draft')">📝 حفظ كمسودة</button>
-                <button class="btn" onclick="saveJrnAsTemplate()" style="background:#8e44ad;color:#fff" title="حفظ سطور هذا القيد كقالب لإعادة استخدامه">📋 حفظ كقالب</button>
-                <button class="btn b-gr" onclick="cov('mJrnEditor')">إلغاء</button>
+                <span id="mJrnEditActions" style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn b-g" onclick="saveJrnEntry('posted')" id="mJrnSavePosted">💾 حفظ ومرحلة</button>
+                    <button class="btn b-or" onclick="saveJrnEntry('draft')">📝 حفظ كمسودة</button>
+                    <button class="btn" onclick="saveJrnAsTemplate()" style="background:#8e44ad;color:#fff" title="حفظ سطور هذا القيد كقالب لإعادة استخدامه">📋 حفظ كقالب</button>
+                    <button class="btn b-gr" onclick="cov('mJrnEditor')">إلغاء</button>
+                </span>
+                <span id="mJrnBrowseActions" style="display:none;gap:8px;flex-wrap:wrap">
+                    <button class="btn" onclick="jrnBrowsePrint()" style="background:#16a085;color:#fff" title="طباعة / حفظ PDF">🖨️ طباعة</button>
+                    <button class="btn" onclick="jrnBrowseExport()" style="background:#27ae60;color:#fff" title="تصدير هذا القيد إلى Excel">📤 تصدير Excel</button>
+                    <button class="btn" onclick="jrnBrowseEdit()" style="background:#2d6a9f;color:#fff" title="تعديل هذا القيد">✏️ تعديل</button>
+                    <button class="btn" onclick="jrnBrowseAudit()" style="background:#5d6d7e;color:#fff" title="سجل التدقيق: من أنشأ/عدّل/اعتمد ومتى">📜 سجل التدقيق</button>
+                    <button class="btn" onclick="jrnBrowseDuplicate()" style="background:#8e44ad;color:#fff" title="إنشاء قيد جديد بنفس السطور">⧉ نسخ كقيد جديد</button>
+                    <button class="btn b-g" onclick="openJrnEditor()" title="بدء قيد جديد">➕ قيد جديد</button>
+                    <button class="btn b-gr" onclick="cov('mJrnEditor')">إغلاق</button>
+                </span>
             </div>
         </div>
     </div>
@@ -19066,23 +19273,23 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260627-jtmp1"></script>
+    <script type="module" src="app.js?v=20260711-field6"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
-    <script defer src="accounting.js?v=20260703-eqrole2"></script>
-    <script defer src="tasks.js?v=20260627-tenant1"></script>
+    <script defer src="accounting.js?v=20260711-incfix"></script>
+    <script defer src="tasks.js?v=20260707-bunyan"></script>
     <script defer src="crm.js?v=20260627-5"></script>
-    <script defer src="timesheets.js?v=20260627-2"></script>
+    <script defer src="timesheets.js?v=20260711-field6"></script>
     <script defer src="presentation.js?v=20260627-pres3"></script>
-    <script defer src="finmodels.js?v=20260627-3"></script>
+    <script defer src="finmodels.js?v=20260707-bunyan"></script>
     <!-- 📁 وحدة ملف المشروع المتكامل -->
-    <script defer src="project-detail.js?v=20260627-chk1"></script>
+    <script defer src="project-detail.js?v=20260711-field7"></script>
     <!-- ❓ نظام دليل المساعدة -->
     <script defer src="help.js?v=20260619-1802"></script>
     <!-- 📊 استوديو التحليل -->
-    <script defer src="analytics.js?v=20260619-1802"></script>
+    <script defer src="analytics.js?v=20260707-bunyan2"></script>
     <!-- 🎓 شرح منهج CMA Part 1 -->
-    <script defer src="cma-lessons.js?v=20260619-1802"></script>
+    <script defer src="cma-lessons.js?v=20260710-su1"></script>
 
     <!-- زر الصعود للأعلى -->
     <button id="scrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="الصعود للأعلى" style="display:none;position:fixed;bottom:24px;left:24px;z-index:9999;width:48px;height:48px;border-radius:50%;border:none;background:linear-gradient(135deg,#2c3e50,#3498db);color:white;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:opacity .25s,transform .25s;align-items:center;justify-content:center">↑</button>

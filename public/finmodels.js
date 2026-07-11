@@ -1291,7 +1291,7 @@ window.fmImportExcel = function (table, file) {
 };
 
 function fmPrintHtml(title, inner) {
-    const co = (window.gbrCfg && (window.gbrCfg.companyAr || window.gbrCfg.companyEn)) || 'GBR';
+    const co = (window.gbrCfg && (window.gbrCfg.companyAr || window.gbrCfg.companyEn)) || 'بنيان للمقاولات';
     const w = window.open('', '_blank');
     w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:Tahoma,Arial,sans-serif;padding:22px;direction:rtl;color:#1a3a5c}h1{font-size:19px;color:#0e6251}table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}th,td{border:1px solid #ccc;padding:6px;text-align:right}th{background:#0e6251;color:#fff}tfoot td{background:#f0f5fa;font-weight:900}@page{size:A4 landscape;margin:1.2cm}</style></head><body><h1>${title} — ${co}</h1><div style="font-size:12px;color:#666">بتاريخ ${new Date().toLocaleDateString('ar-SA')}</div>${inner}<script>setTimeout(()=>print(),400)<\/script></body></html>`);
     w.document.close();

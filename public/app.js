@@ -90,8 +90,10 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
+import { getStorage, ref as _sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
 // تعطيل مؤقت: Firebase Storage يتطلب الترقية لخطة Blaze — مركز المستندات يعتمد حالياً على روابط خارجية
 // import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
 
@@ -107,6 +109,31 @@ const fbApp = initializeApp({
     measurementId: "G-8GF66TXBNL"
 });
 const auth = getAuth(fbApp);
+const fns = getFunctions(fbApp);   // 🔒 للدوال الخادمية (ضبط كلمة المرور مباشرةً — يتطلب Blaze)
+let storage = null; try { storage = getStorage(fbApp); } catch (e) { console.warn('📎 Storage غير مُفعّل بعد (يتطلب Blaze):', e && e.message); } // لرفع المستندات مستقبلاً
+
+// 📎 رفع ملف لمساحة الشركة المعزولة، يعيد رابط التنزيل والمسار — استخدمها في أي ميزة مستندات:
+//    const { url, path } = await uploadTenantFile(fileInput.files[0], 'suppliers');  ثم خزّن url في القيد.
+window.uploadTenantFile = async function (file, subpath) {
+    if (!storage) throw new Error('رفع المستندات يتطلب تفعيل Storage (خطة Blaze).');
+    if (!file) throw new Error('لا يوجد ملف');
+    if (!currentTenantId || !curU) throw new Error('غير مصرّح');
+    if (file.size > 25 * 1024 * 1024) throw new Error('الحد الأقصى 25 ميغابايت');
+    // مزامنة claim الشركة مرة واحدة (لقواعد عزل Storage) — يتطلب الخادم
+    if (!window.__tenantClaimSynced) {
+        try { await httpsCallable(fns, 'syncTenantClaim')(); await curU.getIdToken(true); window.__tenantClaimSynced = true; }
+        catch (e) { throw new Error('رفع المستندات يتطلب تفعيل الخادم (Blaze) ونشر الدوال والقواعد.'); }
+    }
+    const safe = (file.name || 'file').replace(/[^\w.\-؀-ۿ]/g, '_');
+    const path = `tenants/${currentTenantId}/${(subpath || 'docs').replace(/[^\w\-\/]/g, '')}/${Date.now()}_${safe}`;
+    await uploadBytes(_sRef(storage, path), file);
+    return { url: await getDownloadURL(_sRef(storage, path)), path };
+};
+window.deleteTenantFile = async function (path) {
+    if (!storage) throw new Error('يتطلب تفعيل Storage (خطة Blaze).');
+    if (!path || !path.startsWith(`tenants/${currentTenantId}/`)) throw new Error('مسار غير صالح');
+    await deleteObject(_sRef(storage, path));
+};
 const db = getDatabase(fbApp);
 getAnalytics(fbApp);
 
@@ -190,6 +217,7 @@ function buildRefs() {
     brSessions: ref(db, 'ledger/bankRecSessions'), // 🏦 جلسات التسوية: { sessionKey: { account, fromDate, toDate, openingBal, closingBal, status } }
     vatReturns: ref(db, 'ledger/vatReturns'),      // 🧾 الإقرارات الضريبية المحفوظة: { key: { from, to, label, figures, status } }
     incomeTaxReturns: ref(db, 'ledger/incomeTaxReturns'), // 💰 إقرارات ضريبة الدخل السنوية: { key: { year, foreignPct, netIncome, adjustments, taxableIncome, foreignShare, tax, status } }
+    incomeTaxAdjustments: ref(db, 'ledger/incomeTaxAdjustments'), // 💰 التعديلات الضريبية المحفوظة لكل سنة (مصدر واحد للقوائم): { <year>: { foreignPct, adjustments:[{desc,amount,kind}] } }
     zakatReturns: ref(db, 'ledger/zakatReturns'), // 🕌 إقرارات الزكاة السنوية: { key: { year, additions, deductions, base, zakat, status } }
     whtRecords: ref(db, 'ledger/whtRecords'), // 🌐 سجل ضريبة الاستقطاع: { key: { date, beneficiary, type, gross, rate, wht, net, status } }
     closingChecklists: ref(db, 'ledger/closingChecklists'), // ✅ قوائم الإقفال الشهري/السنوي: { 'month:YYYY-MM': { items:{id:{done}}, status } }
@@ -233,6 +261,11 @@ function buildRefs() {
     ptask: ref(db, 'ledger/projectTasks'),     // { projectId: { taskKey: { title, desc, status, priority, assigneeId, dueDate, createdAt, ... } } }
     timesheets: ref(db, 'ledger/timesheets'),  // ⏱️ تسجيل الأوقات { key:{ date, employeeId, projectId, taskKey, hours, hourlyRate, cost, billable, description } }
     projTemplates: ref(db, 'ledger/projectTemplates'), // 📋 قوالب المشاريع { key:{ name, taskCount, tasks:[{title,desc,priority,estHours,offsetStart,durationDays,deps:[idx]}] } }
+    rfis: ref(db, 'ledger/rfis'),              // 📨 طلبات المعلومات { projectId: { key:{ number, subject, discipline, priority, status, submittedTo, dueDate, question, answer, answeredBy, answeredDate } } }
+    punchItems: ref(db, 'ledger/punchItems'),  // 🔧 قوائم النواقص { projectId: { key:{ number, title, location, trade, priority, status, assignee, dueDate, description, photoUrl, closedDate } } }
+    qhse: ref(db, 'ledger/qhse'),              // 🦺 الجودة والسلامة { projectId: { key:{ kind:'inspection'|'observation'|'incident', number, title, ... } } }
+    submittals: ref(db, 'ledger/submittals'),  // 📋 المستندات الفنية { projectId: { key:{ number, title, subType, discipline, status, revision, specSection, submittedTo, submittedDate, dueDate, reviewer, returnedDate, reviewNotes, fileUrl } } }
+    subcontracts: ref(db, 'ledger/subcontracts'), // 🤝 عقود الباطن على مستوى المشروع { projectId: { key:{ subId, subName, scope, contractValue, retentionPct, advanceAmount, startDate, endDate, status, changeOrders:[{desc,amount,date}], certificates:[{no,date,periodValue,retentionAmt,advanceRecovery,netPayable,status,notes}] } } }
     pact: ref(db, 'ledger/projectActivityLog'), // { projectId: { logKey: { date, icon, text, user } } } سجل نشاط المشروع
     pdocs: ref(db, 'ledger/projectDocuments'), // { projectId: { docKey: { name, category, fileName, storagePath, url, size, uploadedAt, uploadedBy } } }
     psitereports: ref(db, 'ledger/projectSiteReports'), // { projectId: { reportKey: { date, type, weather, manpower, workDone, issues, ... } } }
@@ -571,7 +604,7 @@ const PRESETS = {
 
 // ── State ─────────────────────────────────
 let sup = {}, tr = {}, us = {}, emp = {}, attendance = {}, payrolls = {}, loans = {}, leaves = {}, performance = {}, perfSettings = { excellent: 15, vgood: 8, good: 3, weak: 0 }, departments = {}, quotations = {}, purchaseOrders = {}, goodsReceipts = {}, supplierInvoices = {};
-let cfg = { companyAr: 'شركة جى بى ار للمقاولات', companyEn: 'GBR', currency: 'SAR', phone: '', email: '', address: '', reg: '', vat: '' };
+let cfg = { companyAr: 'بنيان للمقاولات', companyEn: 'Bunyan', currency: 'SAR', phone: '', email: '', address: '', reg: '', vat: '' };
 window.gbrCfg = cfg; // 🌍 بيانات الشركة متاحة لـ accounting.js (تُحدَّث في مستمع R.cfg)
 let curU = null, myP = null;
 let charts = {};
@@ -625,10 +658,296 @@ window.ov = ov;
 window.cf2 = cf2;
 window.fmt = fmt;
 
+// ── 🐞 مراقبة الأخطاء (Observability) ────────────────────────────────────────
+// تلتقط أخطاء JS وفشل الوعود تلقائياً وتسجّلها تحت ledger/_errorLog (ضمن عزل المستأجر)
+// حواجز: منع التكرار، سقف لكل جلسة، خنق تنبيه المستخدم، وحماية المعالج من الانهيار.
+(function initErrorMonitor() {
+    let _logged = 0;
+    const _seen = new Map();          // توقيع الخطأ → آخر وقت (منع التكرار)
+    let _lastToast = 0;
+    const MAX_PER_SESSION = 40, DEDUP_MS = 60000, TOAST_MS = 30000;
+
+    // أخطاء خلفية شائعة وحميدة (لا تعني تعطّلاً) — تُتجاهَل تماماً لتفادي الإزعاج والضوضاء
+    const BENIGN_RE = /permission[_-]denied|PERMISSION_DENIED|aborted|abort(ed)?|cancell?ed|canceled|network[\s_-]?(error|request[\s_-]?failed)|Failed to fetch|The operation was aborted|Load failed|ResizeObserver|Non-Error promise rejection/i;
+    function capture(kind, message, stack, extra) {
+        try {
+            message = String(message == null ? '' : message).slice(0, 500);
+            stack = String(stack || '').slice(0, 2000);
+            if (BENIGN_RE.test(message)) return;   // تجاهل الأخطاء الحميدة (رفض صلاحية/إلغاء طلب/شبكة…)
+            const now = Date.now();
+            const sig = kind + '|' + message.slice(0, 120) + '|' + ((extra && extra.source) || '');
+            if (_seen.get(sig) && now - _seen.get(sig) < DEDUP_MS) return;   // مكرر حديثاً
+            _seen.set(sig, now); if (_seen.size > 200) _seen.clear();
+
+            console.error('[🐞 خطأ ملتقَط]', kind, message, extra || '');
+
+            // تنبيه المستخدم فقط للأخطاء البرمجية غير المعالَجة (js-error) — لا لرفض الوعود الخلفية
+            if (kind === 'js-error' && now - _lastToast > TOAST_MS && typeof toast === 'function') {
+                _lastToast = now;
+                toast('حدث خطأ غير متوقع — سُجّل تلقائياً للمراجعة الفنية', 'wn', 4000);
+            }
+
+            if (_logged >= MAX_PER_SESSION) return;
+            if (!currentTenantId || !curU) return;         // لا نكتب قبل الدخول (تفادي مسار خاطئ)
+            _logged++;
+            const page = (document.querySelector('.pg.act') && document.querySelector('.pg.act').id || '').replace('pg-', '');
+            const payload = {
+                kind, message, stack, page,
+                source: (extra && extra.source) || '', line: (extra && extra.line) || 0, col: (extra && extra.col) || 0,
+                uid: curU.uid || '', email: curU.email || '', role: (myP && myP.role) || '',
+                hash: location.hash || '', ua: (navigator.userAgent || '').slice(0, 200),
+                at: Date.now(), atText: new Date().toLocaleString('ar-EG')
+            };
+            try { push(ref(db, 'ledger/_errorLog'), payload).catch(() => { }); } catch (e) { }
+        } catch (e) { /* يجب ألا ينهار معالج الأخطاء أبداً */ }
+    }
+
+    window.addEventListener('error', (e) => {
+        if (e && e.target && ['IMG', 'SCRIPT', 'LINK'].includes(e.target.tagName)) return; // تجاهل فشل تحميل الموارد
+        capture('js-error', (e && e.message) || (e && e.error && e.error.message), e && e.error && e.error.stack, { source: e && e.filename, line: e && e.lineno, col: e && e.colno });
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+        const r = e && e.reason;
+        capture('promise-rejection', (r && r.message) || String(r), r && r.stack, {});
+    });
+    // تسجيل يدوي من كتل catch: logAppError('سياق', err)
+    window.logAppError = (message, err, ctx) => capture('manual', message, err && err.stack, ctx || {});
+})();
+
+// عارض سجل الأخطاء (للمدير فقط) — نافذة تعرض آخر الأخطاء الملتقَطة (للقراءة، السجل غير قابل للتعديل)
+window.showErrorLog = async function () {
+    if (!(myP && myP.role === 'admin')) { toast('🚫 سجل الأخطاء متاح للمدير فقط', 'er'); return; }
+    document.getElementById('errLogOverlay')?.remove();
+    let entries = [];
+    try {
+        const snap = await get(ref(db, 'ledger/_errorLog'));
+        const val = (snap && snap.val()) || {};
+        entries = Object.entries(val).map(([k, v]) => ({ k, ...v })).sort((a, b) => (b.at || 0) - (a.at || 0));
+    } catch (e) { toast('تعذّر تحميل سجل الأخطاء: ' + (e.message || e), 'er'); return; }
+
+    const kindLabel = { 'js-error': 'خطأ JS', 'promise-rejection': 'وعد مرفوض', 'manual': 'يدوي' };
+    const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const rows = entries.slice(0, 300).map(e => `
+        <tr style="border-bottom:1px solid #f0f0f0;vertical-align:top">
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;color:#666">${esc(e.atText || '')}</td>
+            <td style="padding:7px 9px;white-space:nowrap"><span style="background:#fdecea;color:#c0392b;padding:2px 7px;border-radius:5px;font-size:10px">${esc(kindLabel[e.kind] || e.kind)}</span></td>
+            <td style="padding:7px 9px;font-size:12px;color:#1a3a5c;max-width:420px">${esc(e.message)}${e.stack ? `<details style="margin-top:3px"><summary style="cursor:pointer;color:#999;font-size:10px">التفاصيل</summary><pre style="white-space:pre-wrap;word-break:break-word;font-size:10px;color:#777;margin:4px 0 0">${esc(e.stack)}</pre></details>` : ''}</td>
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;color:#8e44ad">${esc(e.page || '')}</td>
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;color:#666">${esc(e.email || '')}</td>
+        </tr>`).join('');
+
+    const ovl = document.createElement('div');
+    ovl.id = 'errLogOverlay';
+    ovl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    ovl.onclick = e => { if (e.target === ovl) ovl.remove(); };
+    ovl.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:1020px;width:100%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+        <div style="background:linear-gradient(135deg,#c0392b,#922b21);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:15px;font-weight:900">🐞 سجل الأخطاء — ${entries.length} خطأ</div>
+            <button onclick="document.getElementById('errLogOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:16px">✖</button>
+        </div>
+        <div style="padding:9px 16px;font-size:11px;color:#888;background:#fef9f8">تُلتقَط الأخطاء تلقائياً وتُسجَّل ضمن بيانات شركتك فقط (سجل للقراءة، غير قابل للتعديل). راجع أحدثها عند بلاغات المستخدمين.</div>
+        <div style="overflow:auto;flex:1">
+            ${entries.length ? `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#f8fafc"><tr style="text-align:right;color:#888;font-size:11px"><th style="padding:8px 9px">التاريخ</th><th style="padding:8px 9px">النوع</th><th style="padding:8px 9px">الرسالة</th><th style="padding:8px 9px">الصفحة</th><th style="padding:8px 9px">المستخدم</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<div style="padding:44px;text-align:center;color:#27ae60;font-size:14px">✅ لا توجد أخطاء مسجّلة — كل شيء يعمل بسلاسة</div>'}
+        </div>
+    </div>`;
+    document.body.appendChild(ovl);
+};
+
 function can(p) {
     if (!myP || myP.active === false) return false;
     return (myP.permissions || []).includes(p);
 }
+
+// ══ 💾 نسخة احتياطية محلية على جهاز العميل (تعمل بلا خادم — Spark) ══════════════════
+async function _gzipBlob(str) {
+    try {
+        if (typeof CompressionStream === 'function') {
+            const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+            return { blob: await new Response(stream).blob(), gz: true };
+        }
+    } catch (e) { }
+    return { blob: new Blob([str], { type: 'application/json' }), gz: false }; // بديل: بلا ضغط
+}
+function _triggerDownload(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+// تنزيل نسخة كاملة من بيانات الشركة إلى جهاز المستخدم (silent = تلقائي بلا رسائل زائدة)
+window.downloadLocalBackup = async function (silent) {
+    try {
+        if (!currentTenantId || !curU) { if (!silent) toast('سجّل الدخول أولاً', 'er'); return; }
+        if (!(myP && myP.role === 'admin')) { if (!silent) toast('🚫 النسخ الاحتياطي متاح للمدير فقط', 'er'); return; }
+        if (!silent) toast('⏳ جاري تجهيز النسخة الاحتياطية...', 'wn', 2000);
+        const snap = await get(ref(db, 'ledger'));                       // كل بيانات الشركة (مُوجَّهة لمسار المستأجر)
+        const payload = { tenant: currentTenantId, company: (window.us && window.us[curU.uid] && window.us[curU.uid].name) || '', exportedAt: new Date().toISOString(), by: curU.email || '', appVersion: 'local-backup-1', data: (snap && snap.val()) || {} };
+        const stamp = new Date().toISOString().slice(0, 10);
+        const { blob, gz } = await _gzipBlob(JSON.stringify(payload));
+        const sizeMB = (blob.size / 1048576).toFixed(2);
+        _triggerDownload(blob, `نسخة_احتياطية_${stamp}.json${gz ? '.gz' : ''}`);
+        localStorage.setItem('_bkpDate_' + currentTenantId, stamp);
+        toast(`💾 حُفظت نسخة احتياطية على جهازك (${sizeMB} م.ب)`, 'ok', 4500);
+    } catch (e) { if (!silent) toast('❌ تعذّر إنشاء النسخة: ' + (e.message || e), 'er'); console.error('[backup]', e); }
+};
+// يُستدعى بعد الدخول: ينزّل تلقائياً مرة واحدة يومياً (ما لم يُعطَّل)
+window.maybeDailyLocalBackup = function () {
+    try {
+        if (!currentTenantId || !curU) return;
+        if (!(myP && myP.role === 'admin')) return;                                        // النسخ الاحتياطي للمدير فقط
+        if (Object.keys(window.chartOfAccounts || {}).length === 0) return;                // شركة جديدة فارغة — لا حاجة لنسخة
+        if (localStorage.getItem('_autoBackup_' + currentTenantId) === 'off') return;     // مُعطَّل يدوياً
+        const today = new Date().toISOString().slice(0, 10);
+        if (localStorage.getItem('_bkpDate_' + currentTenantId) === today) return;         // نُسخت اليوم
+        setTimeout(() => downloadLocalBackup(true), 3500);                                  // بعد تحميل الواجهة
+    } catch (e) { }
+};
+window.setAutoBackup = function (on) {
+    if (!currentTenantId) return;
+    localStorage.setItem('_autoBackup_' + currentTenantId, on ? 'on' : 'off');
+    toast(on ? '✅ فُعّل النسخ الاحتياطي اليومي التلقائي' : '⏸️ أُوقف النسخ الاحتياطي التلقائي', 'ok');
+};
+// ♻️ استرجاع البيانات من ملف نسخة احتياطية — للمدير فقط، مع حواجز أمان قوية
+//    يُستثنى: المستخدمون + سجل التدقيق + سجل الأخطاء (حفاظاً على الوصول ومنع التلاعب بالسجلّات، وأيضاً لأن قواعدها تمنع الكتابة الجماعية)
+const _RESTORE_EXCLUDE = new Set(['users', 'auditLog', '_errorLog']);
+window.restoreLocalBackup = async function (input) {
+    try {
+        if (!(myP && myP.role === 'admin')) { toast('🚫 الاسترجاع متاح للمدير فقط', 'er'); return; }
+        const file = input && input.files && input.files[0]; if (!file) return;
+        input.value = '';
+        let text;
+        try {
+            if (/\.gz$/i.test(file.name) && typeof DecompressionStream === 'function') {
+                text = await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+            } else text = await file.text();
+        } catch (e) { toast('❌ تعذّر فك ضغط/قراءة الملف (قد يكون تالفاً)', 'er'); return; }
+        let payload; try { payload = JSON.parse(text); } catch (e) { toast('❌ الملف ليس نسخة احتياطية صالحة', 'er'); return; }
+        const data = payload && payload.data;
+        if (!data || typeof data !== 'object') { toast('❌ الملف لا يحتوي بيانات نسخة احتياطية', 'er'); return; }
+        if (payload.tenant && payload.tenant !== currentTenantId) {
+            if (!(await cf2('⚠️ تحذير: هذه النسخة تخص شركة أخرى!\nالاستمرار سيكتب بيانات شركة مختلفة فوق بياناتك — لا يُنصح إطلاقاً.\n\nهل أنت متأكد تمامًا؟'))) return;
+        }
+        const colls = Object.keys(data).filter(k => !_RESTORE_EXCLUDE.has(k));
+        if (!colls.length) { toast('لا توجد بيانات قابلة للاسترجاع في الملف', 'wn'); return; }
+        const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleString('ar-EG') : '؟';
+        if (!(await cf2(`♻️ استرجاع نسخة احتياطية بتاريخ:\n${when}\n\nسيُستبدل محتوى ${colls.length} مجموعة بيانات بما في الملف. (تُستثنى: المستخدمون وسجل التدقيق وسجل الأخطاء).\n\n⚠️ هذه العملية تكتب فوق بياناتك الحالية ولا يمكن التراجع عنها. يُفضّل أخذ نسخة احتياطية الآن أولاً.\n\nمتابعة؟`))) return;
+        const typed = prompt('لتأكيد الاسترجاع نهائياً، اكتب الكلمة:  استرجاع');
+        if ((typed || '').trim() !== 'استرجاع') { toast('أُلغي الاسترجاع', 'wn'); return; }
+        toast('⏳ جاري الاسترجاع...', 'wn', 3000);
+        let ok = 0; const fail = [];
+        for (const coll of colls) {
+            try { await set(ref(db, 'ledger/' + coll), data[coll]); ok++; }
+            catch (e) { fail.push(coll); console.error('[restore]', coll, e); }
+        }
+        if (typeof logAudit === 'function') logAudit('استرجاع نسخة احتياطية', 'النظام', `استُرجعت ${ok} مجموعة من نسخة بتاريخ ${when}`);
+        toast(`✅ اكتمل الاسترجاع: ${ok} مجموعة${fail.length ? ` — تعذّر: ${fail.join('، ')}` : ''}`, fail.length ? 'er' : 'ok', 8000);
+        setTimeout(() => location.reload(), 2800);   // إعادة تحميل لعرض البيانات المستعادة
+    } catch (e) { toast('❌ خطأ في الاسترجاع: ' + (e.message || e), 'er'); console.error('[restore]', e); }
+};
+
+// ══ 🚀 تهيئة العميل الجديد (Onboarding) — خطوات إعداد موجّهة مع كشف تلقائي للاكتمال ══
+window.renderOnboarding = function () {
+    const pg = $('pg-onboarding'); if (!pg) return;
+    if (!(myP && myP.role === 'admin')) { pg.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:#c0392b">🚀 صفحة الإعداد للمدير فقط</div>'; return; }
+    const cfg = window.gbrCfg || {};
+    const steps = [
+        { icon: '🌳', title: 'تفعيل شجرة الحسابات', desc: 'حمّل شجرة حسابات احترافية جاهزة وفق التصنيف الدولي — أساس كل العمليات المحاسبية.', done: Object.keys(window.chartOfAccounts || {}).length > 0, act: 'loadDefaultAccounts()', btn: '📥 تحميل الحسابات الافتراضية', req: true },
+        { icon: '🏢', title: 'بيانات الشركة', desc: 'أكمل الرقم الضريبي والسجل التجاري والعنوان — تظهر في الفواتير والتقارير الرسمية.', done: !!(cfg.sVat || cfg.sReg || cfg.sAddr), act: "nav('settings')", btn: '⚙️ فتح الإعدادات', req: true },
+        { icon: '📂', title: 'الأرصدة الافتتاحية', desc: 'أدخل أرصدة بداية المدة (نقدية، عملاء، موردون، أصول…) بقيد افتتاحي — نقطة انطلاق دفاترك.', done: Object.values(window.journalEntries || {}).some(e => typeof fsIsOpeningEntry === 'function' && fsIsOpeningEntry(e)), act: 'openOpeningBalanceEntry()', btn: '➕ إدخال الأرصدة الافتتاحية', req: true },
+        { icon: '👥', title: 'إضافة المستخدمين', desc: 'أضِف فريقك وحدّد صلاحيات كل مستخدم — يمكنك تأجيلها.', done: Object.keys(window.us || {}).length > 1, act: "nav('users');setTimeout(function(){typeof openAUM==='function'&&openAUM()},250)", btn: '➕ إضافة مستخدم', req: false }
+    ];
+    const req = steps.filter(s => s.req), doneN = req.filter(s => s.done).length, pct = Math.round(doneN / req.length * 100), allDone = doneN === req.length;
+    const cards = steps.map((s, i) => `
+        <div style="display:flex;gap:14px;align-items:flex-start;background:#fff;border:1.5px solid ${s.done ? '#abebc6' : '#e3e9f0'};border-radius:12px;padding:16px;margin-bottom:12px">
+            <div style="font-size:26px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:${s.done ? '#eafaf1' : '#f4f7fb'};border-radius:10px;flex-shrink:0">${s.done ? '✅' : s.icon}</div>
+            <div style="flex:1">
+                <div style="font-weight:900;color:#1a3a5c;font-size:15px">${i + 1}. ${s.title} ${s.done ? '<span style="font-size:11px;background:#eafaf1;color:#1e8449;padding:2px 9px;border-radius:10px">مكتمل</span>' : (s.req ? '<span style="font-size:11px;background:#fef5e7;color:#b9770e;padding:2px 9px;border-radius:10px">مطلوب</span>' : '<span style="font-size:11px;background:#eef2f6;color:#888;padding:2px 9px;border-radius:10px">اختياري</span>')}</div>
+                <div style="font-size:12.5px;color:#666;margin-top:5px;line-height:1.8">${s.desc}</div>
+                <button class="btn ${s.done ? '' : 'b-g'}" onclick="${s.act}" style="margin-top:10px;${s.done ? 'background:#f4f7fb;color:#555' : ''}">${s.done ? '↻ ' + s.btn : s.btn}</button>
+            </div>
+        </div>`).join('');
+    pg.innerHTML = `
+        <div class="card" style="background:linear-gradient(135deg,#1e8449,#27ae60);color:#fff;margin-bottom:16px">
+            <div style="font-size:22px;font-weight:900">🚀 مرحباً بك — لنجهّز شركتك للعمل</div>
+            <div style="font-size:13px;opacity:.95;margin-top:6px;line-height:1.8">أربع خطوات سريعة وتصبح جاهزاً. أنجز المطلوبة ثم ابدأ — يمكنك العودة أي وقت من «🚀 إعداد البرنامج».</div>
+            <div style="margin-top:14px;background:rgba(255,255,255,.25);border-radius:10px;height:12px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#fff;border-radius:10px;transition:width .4s"></div></div>
+            <div style="font-size:12px;margin-top:6px;font-weight:700">اكتمل ${doneN} من ${req.length} خطوات مطلوبة (${pct}%)</div>
+        </div>
+        ${allDone ? `<div class="card" style="background:#eafaf1;border:1.5px solid #abebc6;margin-bottom:14px"><div style="font-weight:900;color:#1e8449;font-size:15px">🎉 أحسنت! اكتمل الإعداد الأساسي — شركتك جاهزة للعمل.</div><button class="btn b-g" onclick="finishOnboarding()" style="margin-top:10px;font-weight:800">✅ إنهاء والذهاب للوحة التحكم</button></div>` : ''}
+        ${cards}
+        <div style="text-align:center;margin-top:6px">
+            <button class="btn" onclick="renderOnboarding()" style="background:#eef2f7;color:#555">🔄 تحديث الحالة</button>
+            <button class="btn" onclick="finishOnboarding()" style="background:#eef2f7;color:#555">تخطّي — سأكمل لاحقاً</button>
+        </div>`;
+};
+window.finishOnboarding = function () {
+    try { if (currentTenantId) localStorage.setItem('_onboardDone_' + currentTenantId, '1'); } catch (e) { }
+    nav('dashboard');
+};
+// يُستدعى بعد الدخول: يفتح التهيئة تلقائياً للشركة الجديدة (شجرة حسابات فارغة) للمدير — مرة حتى الإنهاء
+window.maybeShowOnboarding = function () {
+    try {
+        if (!(myP && myP.role === 'admin') || !currentTenantId) return;
+        if (localStorage.getItem('_onboardDone_' + currentTenantId) === '1') return;
+        setTimeout(() => {
+            try {
+                if (localStorage.getItem('_onboardDone_' + currentTenantId) === '1') return;
+                if (Object.keys(window.chartOfAccounts || {}).length === 0) nav('onboarding');
+            } catch (e) { }
+        }, 2600);
+    } catch (e) { }
+};
+
+// ══ 🗂️ فهرس البرنامج — مشتق تلقائياً من القائمة الجانبية (نفس الترتيب · يتحدّث تلقائياً · يحترم الصلاحيات) ══
+window._idxQ = '';
+window.renderProgramIndex = function () {
+    const pg = $('pg-index'); if (!pg) return;
+    pg.innerHTML = `
+        <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff">
+            <div style="font-size:20px;font-weight:900">🗂️ فهرس البرنامج</div>
+            <div style="font-size:12.5px;opacity:.92;margin-top:5px">كل أقسام النظام أمامك — انقر أي قسم للانتقال إليه مباشرة. يعرض ما تملك صلاحية الوصول إليه فقط، ويتحدّث تلقائياً مع أي تغيير في القوائم.</div>
+            <input id="idxSearch" type="text" value="${(window._idxQ || '').replace(/"/g, '&quot;')}" oninput="searchProgramIndex(this.value)" placeholder="🔍 ابحث عن قسم..." style="margin-top:12px;width:100%;max-width:440px;padding:10px 14px;border:none;border-radius:9px;font-family:inherit;font-size:13px">
+        </div>
+        <div id="idxBody"></div>`;
+    paintProgramIndex();
+};
+window.searchProgramIndex = function (v) { window._idxQ = v; paintProgramIndex(); };
+window.paintProgramIndex = function () {
+    const body = $('idxBody'); if (!body) return;
+    const nav = document.querySelector('.sb-nav'); if (!nav) { body.innerHTML = ''; return; }
+    const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const q = (window._idxQ || '').trim().toLowerCase();
+    const chip = (it) => {
+        if (it.style && it.style.display === 'none') return '';                 // مخفي بالصلاحية
+        const icon = (it.querySelector('.ic') && it.querySelector('.ic').textContent) || '📄';
+        const ls = Array.from(it.querySelectorAll('span')).find(s => !s.classList.contains('ic') && !s.classList.contains('sb-badge') && s.textContent.trim());
+        const label = (ls ? ls.textContent : it.textContent || '').trim();
+        if (!label || label === 'فهرس البرنامج') return '';                    // لا يُدرِج نفسه
+        if (q && !label.toLowerCase().includes(q)) return '';
+        const oc = it.getAttribute('onclick') || '';
+        const m = oc.match(/nav\(\s*'([^']+)'/);
+        // الأفضل: انقر بند القائمة الحقيقي بمعرّفه — يُنفّذ سلوكه الكامل (ضبط الحالة مثل عرض الأرصدة + التنقّل + تمييز القائمة)
+        const action = it.id ? `document.getElementById('${it.id}').click()` : (m ? `bcNav('${m[1]}')` : oc.replace(/"/g, '&quot;'));
+        return `<div onclick="${action}" title="${esc(label)}" style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:pointer;background:#fff;border:1px solid #eef2f6;font-size:13px;color:#1a3a5c" onmouseover="this.style.background='#eef5fb';this.style.borderColor='#c9dcec'" onmouseout="this.style.background='#fff';this.style.borderColor='#eef2f6'"><span style="font-size:16px">${esc(icon)}</span><span>${esc(label)}</span></div>`;
+    };
+    let out = '', cur = null;
+    const flush = () => { if (cur && cur.html.trim()) out += `<div style="margin-bottom:22px"><div style="font-size:15px;font-weight:900;color:${cur.color};border-right:4px solid ${cur.color};padding-right:10px;margin-bottom:12px">${esc(cur.title)}</div><div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">${cur.html}</div></div>`; };
+    Array.from(nav.children).forEach(ch => {
+        if (!ch.classList) return;
+        if (ch.classList.contains('sb-sec')) { flush(); cur = { title: ch.textContent.trim(), color: (ch.style && ch.style.color) || '#1a3a5c', html: '' }; }
+        else if (ch.classList.contains('sb-grp')) {
+            if (!cur) cur = { title: 'الأقسام', color: '#1a3a5c', html: '' };
+            const head = ch.querySelector('.sb-grp-h');
+            const gs = head && Array.from(head.querySelectorAll('span')).find(s => !s.classList.contains('ic') && !s.classList.contains('sb-grp-arrow') && s.textContent.trim());
+            const items = Array.from(ch.querySelectorAll('.sb-it')).map(chip).filter(Boolean).join('');
+            if (items) cur.html += `<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;min-width:230px;flex:1 1 230px"><div style="font-weight:800;color:#556;font-size:12.5px;margin-bottom:8px">${esc(gs ? gs.textContent.trim() : '')}</div><div style="display:flex;flex-direction:column;gap:6px">${items}</div></div>`;
+        }
+        else if (ch.classList.contains('sb-it')) { if (!cur) cur = { title: 'الأقسام', color: '#1a3a5c', html: '' }; const c = chip(ch); if (c) cur.html += `<div style="flex:1 1 230px;min-width:230px">${c}</div>`; }
+    });
+    flush();
+    body.innerHTML = out || `<div class="card" style="padding:30px;text-align:center;color:#888">لا أقسام مطابقة للبحث</div>`;
+};
 
 function getBillingApprovalLink(billingKey) {
     return `${location.origin}${location.pathname}#billing=${billingKey}`;
@@ -818,6 +1137,7 @@ window.opsRenderList = function () {
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn" onclick="opsOpenTenant('${e.tid}')" title="فتح نظام الشركة للعرض (دعم — قراءة فقط)" style="background:#8e44ad;color:#fff">👁️ افتح</button>
+                <button class="btn" onclick="opsOpenErrorLog('${e.tid}')" title="صفحة سجل أخطاء هذه الشركة" style="background:#c0392b;color:#fff">🐞 الأخطاء</button>
                 <button class="btn" onclick="opsSetTrial('${e.tid}')" title="تحديد مدة الفترة التجريبية يدوياً" style="background:#f39c12;color:#fff">🎁 تجربة</button>
                 <button class="btn b-g" onclick="opsActivate('${e.tid}',12)" title="تفعيل اشتراك سنة">✅ تفعيل سنة</button>
                 <button class="btn b-b" onclick="opsActivate('${e.tid}',1)" title="تفعيل/تمديد شهر">＋ شهر</button>
@@ -825,6 +1145,165 @@ window.opsRenderList = function () {
             </div>
         </div>`;
     }).join('');
+};
+// 🐞 عارض سجل الأخطاء المُجمّع لكل الشركات (للمشغّل فقط) — يقرأ ledger/_errorLog لكل مستأجر
+window.opsShowErrorLog = async function () {
+    document.getElementById('errLogOverlay')?.remove();
+    const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const ovl = document.createElement('div');
+    ovl.id = 'errLogOverlay';
+    ovl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    ovl.onclick = e => { if (e.target === ovl) ovl.remove(); };
+    ovl.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:1120px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.35)"><div style="padding:40px;text-align:center;color:#888">⏳ جاري تجميع الأخطاء من كل الشركات...</div></div>`;
+    document.body.appendChild(ovl);
+
+    let tenants = window.__opsTenants;
+    if (!tenants) { try { const sn = await get(_rawRef(db, 'tenants')); tenants = sn.exists() ? sn.val() : {}; } catch (e) { ovl.remove(); toast('❌ تعذّر القراءة: ' + (e.message || e), 'er'); return; } }
+
+    const all = [];
+    const perCompany = {};
+    await Promise.all(Object.keys(tenants).map(async (tid) => {
+        const company = (tenants[tid] && tenants[tid].meta && tenants[tid].meta.companyName) || tid;
+        try {
+            const sn = await get(_rawRef(db, `tenants/${tid}/ledger/_errorLog`));
+            const v = (sn && sn.val()) || {};
+            const arr = Object.values(v);
+            perCompany[company] = arr.length;
+            arr.forEach(e => all.push({ ...e, tid, company }));
+        } catch (e) { perCompany[company] = -1; /* -1 = تعذّر القراءة */ }
+    }));
+    all.sort((a, b) => (b.at || 0) - (a.at || 0));
+
+    const kindLabel = { 'js-error': 'خطأ JS', 'promise-rejection': 'وعد مرفوض', 'manual': 'يدوي' };
+    const chips = Object.entries(perCompany).sort((a, b) => (b[1] || 0) - (a[1] || 0)).map(([c, n]) =>
+        `<span style="background:${n > 0 ? '#fdecea' : '#eafaf1'};color:${n > 0 ? '#c0392b' : '#1e8449'};padding:3px 10px;border-radius:12px;font-size:11px;margin:2px;display:inline-block">${esc(c)}: ${n < 0 ? '⚠️' : n}</span>`).join('');
+    const rows = all.slice(0, 500).map(e => `
+        <tr style="border-bottom:1px solid #f0f0f0;vertical-align:top">
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;color:#666">${esc(e.atText || '')}</td>
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;font-weight:700;color:#1a3a5c">${esc(e.company || '')}</td>
+            <td style="padding:7px 9px;white-space:nowrap"><span style="background:#fdecea;color:#c0392b;padding:2px 7px;border-radius:5px;font-size:10px">${esc(kindLabel[e.kind] || e.kind)}</span></td>
+            <td style="padding:7px 9px;font-size:12px;color:#1a3a5c;max-width:400px">${esc(e.message)}${e.stack ? `<details style="margin-top:3px"><summary style="cursor:pointer;color:#999;font-size:10px">التفاصيل</summary><pre style="white-space:pre-wrap;word-break:break-word;font-size:10px;color:#777;margin:4px 0 0">${esc(e.stack)}</pre></details>` : ''}</td>
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;color:#8e44ad">${esc(e.page || '')}</td>
+            <td style="padding:7px 9px;white-space:nowrap;font-size:11px;color:#666">${esc(e.email || '')}</td>
+        </tr>`).join('');
+    ovl.querySelector('div').innerHTML = `
+        <div style="background:linear-gradient(135deg,#c0392b,#922b21);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:15px;font-weight:900">🐞 سجل أخطاء كل الشركات — ${all.length} خطأ</div>
+            <div style="display:flex;gap:8px">
+                <button onclick="opsShowErrorLog()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px">🔄 تحديث</button>
+                <button onclick="document.getElementById('errLogOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:16px">✖</button>
+            </div>
+        </div>
+        <div style="padding:10px 16px;background:#fef9f8;border-bottom:1px solid #f3f3f3">${chips || '<span style="color:#888;font-size:12px">لا توجد بيانات</span>'}</div>
+        <div style="overflow:auto;flex:1">
+            ${all.length ? `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#f8fafc"><tr style="text-align:right;color:#888;font-size:11px"><th style="padding:8px 9px">التاريخ</th><th style="padding:8px 9px">الشركة</th><th style="padding:8px 9px">النوع</th><th style="padding:8px 9px">الرسالة</th><th style="padding:8px 9px">الصفحة</th><th style="padding:8px 9px">المستخدم</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<div style="padding:44px;text-align:center;color:#27ae60;font-size:14px">✅ لا توجد أخطاء مسجّلة في أي شركة</div>'}
+        </div>`;
+};
+// ══ صفحة سجل أخطاء شركة واحدة (للمشغّل) — عرض/تفاصيل/فلترة/تعليم محلول ══════════
+window._opsErr = { tid: '', company: '', all: [], expanded: {}, filter: { status: 'all', from: '', to: '', q: '' } };
+window.opsErrEsc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+window.opsOpenErrorLog = async function (tid) {
+    const st = window._opsErr;
+    st.tid = tid; st.company = (window.__opsTenants && window.__opsTenants[tid] && window.__opsTenants[tid].meta && window.__opsTenants[tid].meta.companyName) || tid;
+    st.all = []; st.expanded = {}; st.filter = { status: 'all', from: '', to: '', q: '' };
+    if ($('opsMain')) $('opsMain').style.display = 'none';
+    const pg = $('opsErrPage'); if (!pg) return;
+    pg.style.display = 'block';
+    pg.innerHTML = '<div style="padding:40px;text-align:center;color:#888">⏳ جاري تحميل الأخطاء...</div>';
+    try {
+        const sn = await get(_rawRef(db, `tenants/${tid}/ledger/_errorLog`));
+        const v = (sn && sn.val()) || {};
+        st.all = Object.entries(v).map(([k, e]) => ({ k, ...e })).sort((a, b) => (b.at || 0) - (a.at || 0));
+    } catch (e) { pg.innerHTML = `<div style="padding:30px;text-align:center;color:#c0392b">❌ تعذّر التحميل: ${opsErrEsc(e.message || e)}</div><div style="text-align:center"><button class="btn" onclick="opsBackToConsole()">← رجوع</button></div>`; return; }
+    opsErrRender();
+};
+window.opsBackToConsole = function () {
+    if ($('opsErrPage')) $('opsErrPage').style.display = 'none';
+    if ($('opsMain')) $('opsMain').style.display = 'block';
+};
+window.opsErrSetFilter = function (key, val) { window._opsErr.filter[key] = val; opsErrRender(); };
+window.opsErrToggleDetail = function (k) { const s = window._opsErr; s.expanded[k] = !s.expanded[k]; opsErrRender(); };
+window.opsErrToggleResolved = async function (k) {
+    const s = window._opsErr; const item = s.all.find(e => e.k === k); if (!item) return;
+    const newVal = !item.resolved;
+    try {
+        await update(_rawRef(db, `tenants/${s.tid}/ledger/_errorLog/${k}`), { resolved: newVal, resolvedAt: newVal ? Date.now() : null, resolvedBy: newVal ? ((curU && curU.email) || 'operator') : null });
+        item.resolved = newVal; item.resolvedAt = newVal ? Date.now() : null; item.resolvedBy = newVal ? ((curU && curU.email) || 'operator') : null;
+        toast(newVal ? '✅ عُلّم كمحلول' : '↩️ أُعيد فتحه', 'ok');
+        opsErrRender();
+    } catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+};
+window.opsErrRender = function () {
+    const pg = $('opsErrPage'); if (!pg) return;
+    const s = window._opsErr, f = s.filter, esc = opsErrEsc;
+    const total = s.all.length, resolved = s.all.filter(e => e.resolved).length, open = total - resolved;
+    const fromTs = f.from ? new Date(f.from + 'T00:00:00').getTime() : null;
+    const toTs = f.to ? new Date(f.to + 'T23:59:59').getTime() : null;
+    const q = (f.q || '').trim().toLowerCase();
+    const list = s.all.filter(e => {
+        if (f.status === 'open' && e.resolved) return false;
+        if (f.status === 'resolved' && !e.resolved) return false;
+        if (fromTs && (e.at || 0) < fromTs) return false;
+        if (toTs && (e.at || 0) > toTs) return false;
+        if (q && !((e.message || '').toLowerCase().includes(q) || (e.page || '').toLowerCase().includes(q) || (e.email || '').toLowerCase().includes(q))) return false;
+        return true;
+    });
+    const kindLabel = { 'js-error': 'خطأ JS', 'promise-rejection': 'وعد مرفوض', 'manual': 'يدوي' };
+    const fbtn = (val, label, col) => `<button onclick="opsErrSetFilter('status','${val}')" style="background:${f.status === val ? col : '#fff'};color:${f.status === val ? '#fff' : col};border:1.5px solid ${col};border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:700">${label}</button>`;
+    const cards = list.map(e => {
+        const open = !!s.expanded[e.k];
+        const det = open ? `<div style="margin-top:8px;padding:10px;background:#fafbfc;border-radius:8px;font-size:11.5px;color:#555;line-height:1.9">
+            <div><b>الوقت:</b> ${esc(e.atText || '')}</div>
+            <div><b>المستخدم:</b> ${esc(e.email || '—')} · <b>الدور:</b> ${esc(e.role || '—')}</div>
+            <div><b>الصفحة:</b> ${esc(e.page || '—')} · <b>الرابط:</b> ${esc(e.hash || '—')}</div>
+            ${e.source ? `<div><b>المصدر:</b> ${esc(e.source)} : ${esc(e.line || 0)}:${esc(e.col || 0)}</div>` : ''}
+            <div><b>المتصفح:</b> ${esc(e.ua || '—')}</div>
+            ${e.stack ? `<div style="margin-top:6px"><b>التتبّع (Stack):</b><pre style="white-space:pre-wrap;word-break:break-word;font-size:10.5px;color:#777;margin:4px 0 0;background:#fff;padding:8px;border-radius:6px;max-height:220px;overflow:auto">${esc(e.stack)}</pre></div>` : ''}
+            ${e.resolved ? `<div style="margin-top:6px;color:#1e8449"><b>حُلّ بواسطة:</b> ${esc(e.resolvedBy || '')} · ${e.resolvedAt ? new Date(e.resolvedAt).toLocaleString('ar-EG') : ''}</div>` : ''}
+        </div>` : '';
+        return `<div style="background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-right:4px solid ${e.resolved ? '#27ae60' : '#c0392b'}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                <div style="flex:1;cursor:pointer" onclick="opsErrToggleDetail('${e.k}')">
+                    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+                        <span style="background:#fdecea;color:#c0392b;padding:2px 8px;border-radius:5px;font-size:10px">${esc(kindLabel[e.kind] || e.kind)}</span>
+                        ${e.resolved ? '<span style="background:#eafaf1;color:#1e8449;padding:2px 8px;border-radius:5px;font-size:10px">✅ تم الحل</span>' : '<span style="background:#fef5e7;color:#b9770e;padding:2px 8px;border-radius:5px;font-size:10px">⏳ لم يُحل</span>'}
+                        <span style="font-size:10.5px;color:#888">${esc(e.atText || '')}</span>
+                        <span style="font-size:10.5px;color:#8e44ad">${esc(e.page || '')}</span>
+                        <span style="font-size:10px;color:#bbb">${open ? '▲' : '▼'}</span>
+                    </div>
+                    <div style="font-size:13px;color:#1a3a5c;margin-top:5px;font-weight:600">${esc(e.message)}</div>
+                    ${det}
+                </div>
+                <button onclick="opsErrToggleResolved('${e.k}')" style="white-space:nowrap;background:${e.resolved ? '#f39c12' : '#27ae60'};color:#fff;border:none;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:11.5px;font-weight:700">${e.resolved ? '↩️ إعادة فتح' : '✅ تم الحل'}</button>
+            </div>
+        </div>`;
+    }).join('');
+    pg.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="btn" onclick="opsBackToConsole()" style="background:#eef2f7;color:#1a3a5c">← رجوع للشركات</button>
+                <div style="font-size:17px;font-weight:900;color:#1a3a5c">🐞 أخطاء: ${esc(s.company)}</div>
+            </div>
+            <button class="btn" onclick="opsOpenErrorLog('${s.tid}')" style="background:#eef2f7;color:#1a3a5c">🔄 تحديث</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <div style="background:#fff;border-radius:10px;padding:12px 20px;border-right:4px solid #1f618d"><div style="font-size:22px;font-weight:800;color:#1f618d">${total}</div><div style="font-size:12px;color:#666">إجمالي</div></div>
+            <div style="background:#fff;border-radius:10px;padding:12px 20px;border-right:4px solid #c0392b"><div style="font-size:22px;font-weight:800;color:#c0392b">${open}</div><div style="font-size:12px;color:#666">لم تُحل</div></div>
+            <div style="background:#fff;border-radius:10px;padding:12px 20px;border-right:4px solid #27ae60"><div style="font-size:22px;font-weight:800;color:#27ae60">${resolved}</div><div style="font-size:12px;color:#666">محلولة</div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;padding:12px 14px;border-radius:10px;margin-bottom:14px">
+            ${fbtn('all', 'الكل', '#1f618d')} ${fbtn('open', '⏳ لم تُحل', '#c0392b')} ${fbtn('resolved', '✅ محلولة', '#27ae60')}
+            <span style="color:#ccc">|</span>
+            <label style="font-size:12px;color:#666">من <input type="date" value="${f.from}" onchange="opsErrSetFilter('from',this.value)" style="padding:6px;border:1.5px solid #d0d7e0;border-radius:7px;font-family:inherit"></label>
+            <label style="font-size:12px;color:#666">إلى <input type="date" value="${f.to}" onchange="opsErrSetFilter('to',this.value)" style="padding:6px;border:1.5px solid #d0d7e0;border-radius:7px;font-family:inherit"></label>
+            <input type="text" value="${esc(f.q)}" oninput="opsErrSetFilter('q',this.value)" placeholder="🔍 بحث في الرسالة/الصفحة/المستخدم" style="flex:1;min-width:180px;padding:7px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12px">
+            ${(f.from || f.to || f.q || f.status !== 'all') ? `<button onclick="opsErrSetFilter('from','');opsErrSetFilter('to','');opsErrSetFilter('q','');opsErrSetFilter('status','all')" style="background:#f0f0f0;border:none;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12px">مسح الفلاتر</button>` : ''}
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:8px">عرض ${list.length} من ${total}</div>
+        ${list.length ? cards : `<div style="padding:44px;text-align:center;color:${total ? '#888' : '#27ae60'};font-size:14px">${total ? 'لا نتائج مطابقة للفلاتر' : '✅ لا توجد أخطاء مسجّلة لهذه الشركة'}</div>`}
+    `;
 };
 window.opsActivate = async function (tid, months) {
     const now = Date.now();
@@ -985,6 +1464,9 @@ onAuthStateChanged(auth, async fbU => {
             }
             window.__hadSession = true; // علامة لإعادة تحميل نظيفة عند الخروج (منع تسرّب بيانات الجلسة السابقة)
             showScr('app'); initApp();
+            if (typeof maybeDailyLocalBackup === 'function') maybeDailyLocalBackup(); // 💾 نسخة احتياطية يومية على جهاز العميل
+            if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();     // 🚀 تهيئة الشركة الجديدة تلقائياً
+
         } else {
             currentTenantId = null; window.currentTenantId = null; buildRefs();
             await signOut(auth); showScr('auth');
@@ -1011,7 +1493,7 @@ function initApp() {
         if ($('sbLogo')) { const ini = coName.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase(); $('sbLogo').textContent = ini || coName.slice(0, 3); }
         if ($('tbCompanyName')) $('tbCompanyName').textContent = coName;
         if ($('tbCompany')) $('tbCompany').style.display = 'flex';
-        document.title = coName + ' — بُنيان';
+        document.title = coName + ' — بنيان للمقاولات';
     }
     // 💳 لافتة الاشتراك: تنبيه أثناء التجربة أو قرب انتهاء الاشتراك
     const ss = window.currentSubState;
@@ -1167,7 +1649,7 @@ function initApp() {
         }
     }
 
-    if (myP?.role === 'admin') { $('adSec').style.display = 'block'; $('n-us').style.display = 'flex' }
+    if (myP?.role === 'admin') { $('adSec').style.display = 'block'; $('n-us').style.display = 'flex'; if ($('n-perms')) $('n-perms').style.display = 'flex'; if ($('n-errlog')) $('n-errlog').style.display = 'flex'; if ($('n-onboard')) $('n-onboard').style.display = 'flex'; }
     if (can('add_transaction')) { const el = $('bATr'); if (el) el.style.display = 'inline-flex'; }
     // bASp is now rendered dynamically inside renderSpL() — no static element
     if (myP?.role === 'admin') $('bCA').style.display = 'inline-flex';
@@ -1614,7 +2096,7 @@ window.renderApprovalsInbox = function () {
 // ── Navigate ──────────────────────────────
 window.nav = function (pg, el) {
     const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects' };
-    if (pg === 'users' && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
+    if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const p = pm[pg]; if (p && !can(p)) { toast('ليس لديك صلاحية', 'er'); return }
 
     // 🔙 سجلّ التنقل — لإظهار زر "رجوع" للصفحة السابقة من أي مكان
@@ -1630,7 +2112,8 @@ window.nav = function (pg, el) {
     const backBtn = $('pgBackBtn');
     if (backBtn) backBtn.style.display = (window._pgHistory && window._pgHistory.length > 0) ? '' : 'none';
 
-    document.querySelectorAll('.pg').forEach(x => x.classList.remove('act'));
+    // نمسح أي display سطري متبقٍّ (يضبطه استوديو التحليلات على pg-analytics) حتى يعود التحكم في الإظهار لصنف .act
+    document.querySelectorAll('.pg').forEach(x => { x.classList.remove('act'); if (x.style.display) x.style.display = ''; });
     document.querySelectorAll('.sb-it').forEach(x => x.classList.remove('act'));
     document.querySelectorAll('.sb-grp-h').forEach(x => x.classList.remove('has-active'));
     $('pg-' + pg).classList.add('act'); if (el) el.classList.add('act');
@@ -1649,7 +2132,7 @@ window.nav = function (pg, el) {
         }
     }
 
-    const tt = { dashboard: ['📊 لوحة التحكم', 'نظرة عامة على النظام'], tasks: ['🗓️ المهام والتنبيهات', 'مهام رئيسية وفرعية + تذكيرات مجدولة (مرة/يومي/أسبوعي/شهري) تظهر داخل البرنامج'], approvalsinbox: ['✅ صندوق الموافقات', 'كل المهام والطلبات بانتظار قرارك في مكان واحد'], execdashboard: ['🏛️ اللوحة التنفيذية', 'مؤشرات شاملة: مالية، مشاريع، وموارد بشرية في صفحة واحدة'], statement: ['📋 كشف حساب الموردين', 'الحركات المالية مع الموردين'], custstatement: ['📋 كشف حساب العملاء', 'الفواتير والمتحصلات لكل عميل'], suppliers: ['🏢 الموردون', 'إدارة بيانات الموردين'], suppliers_catalog: ['🏭 كتالوج الموردين', 'كتالوج موردين تفصيلي مع تقييمات وشروط'], materials: ['📦 كتالوج المواد', 'كتالوج المواد المركزي مع أسعار الموردين'], matrequests: ['📨 طلبات المواد', 'طلبات المواد من المواقع والموافقات'], quotations: ['💼 عروض الأسعار', 'إدارة عروض الموردين ومقارنتها'], purchaseorders: ['📄 أوامر الشراء', 'إصدار واعتماد أوامر الشراء'], grn: ['📥 استلام البضاعة', 'تسجيل استلام البضاعة من الموردين'], invoices: ['🧾 فواتير الموردين', 'تسجيل ومطابقة فواتير الموردين'], employees: ['👷 الموظفون', 'إدارة بيانات الموظفين'], departments: ['🏢 الإدارات والأقسام', 'إدارة الإدارات والأقسام الوظيفية'], projects: ['📁 المشاريع', 'إدارة المشاريع والموظفين'], prjtasks: ['✅ متابعة المهام', 'كل مهام المشاريع في مكان واحد — حسب المشروع، المسؤول، الأولوية'], users: ['👥 المستخدمون', 'الصلاحيات والأدوار'], settings: ['⚙️ الإعدادات', 'إعدادات النظام'], pdfexport: ['📄 تصدير PDF', 'إنشاء ملفات PDF احترافية'], attendance: ['🕐 الحضور والانصراف', 'تسجيل ومتابعة الحضور اليومي'], payroll: ['💵 مسير الرواتب', 'إنشاء واعتماد مسيرات الرواتب الشهرية'], deferredreport: ['⏸️ تقرير المُؤجَّلون', 'الموظفون الذين لم يُنشأ لهم مسير بعد — جاهز للمتابعة والسداد'], laborcostreport: ['📈 تحليل تكلفة العمالة', 'تقرير استراتيجي لتكاليف الرواتب — حسب المشروع/الإدارة/الفترة'], payrolldashboard: ['📊 لوحة تحكم الرواتب المحاسبية', 'مركز قيادة شامل: المستحقات، المدفوعات، التنبيهات، والإجراءات السريعة'], projectdetail: ['📂 ملف المشروع', 'عرض كامل لبيانات المشروع: مستخلصات، مصروفات، رواتب، بنود'], boq: ['📋 بنود العقود (BOQ)', 'إدارة بنود العقد لكل مشروع — الأساس لإنشاء المستخلصات'], progressbillings: ['📑 المستخلصات (Progress Billings)', 'إنشاء واعتماد المستخلصات الدورية للمشاريع — مع تتبع التراكمي'], loans: ['💳 السلف والقروض', 'إدارة سلف الموظفين والأقساط الشهرية'], docalerts: ['⏰ تنبيهات المستندات', 'متابعة تواريخ انتهاء مستندات الموظفين'], empstatement: ['📋 كشف حساب الموظف', 'كل بيانات الموظف في مكان واحد: العقد، الإجازات، السلف، العُهد، ونهاية الخدمة'], leaves: ['🌴 طلبات الإجازات', 'مراجعة واعتماد طلبات إجازات الموظفين'], performance: ['⭐ تقييمات الأداء', 'تقييم أداء الموظفين الشهري ومكافآتهم'], hrguide: ['📖 دليل الموارد البشرية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], hrdashboard: ['📊 لوحة تحكم HR', 'نظرة شاملة ومؤشرات أداء قسم الموارد البشرية'], prjdashboard: ['📊 لوحة تحكم المشاريع', 'تكاليف، ميزانية، انحرافات، وربحية المشاريع'], prjhealth: ['🚦 صحة المحفظة (EVM)', 'مصفوفة تنفيذية: مؤشرات أداء التكلفة (CPI) والجدول (SPI) وإشارات الصحة لكل مشروع — أي مشاريع متعثّرة'], prjreports: ['📈 التقارير المالية', '6 تقارير احترافية للمشاريع — تدفقات، ربحية، موردين، وأكثر'], projectcosts: ['💰 تكاليف المشاريع الشهرية', 'إدخال تكاليف المشاريع شهرياً (مواد، أجور، معدات، إلخ)'], indirectcosts: ['📊 التكاليف غير المباشرة', 'تسجيل التكاليف غير المباشرة (إهلاك، إيجارات، رواتب إدارية...) وتوزيعها على المشاريع شهرياً وسنوياً بنسب محددة'], accdashboard: ['💰 المحاسبة والإدارة المالية', 'قسم المحاسبة المتكامل — قيد البناء'], chartofaccounts: ['🌳 شجرة الحسابات', 'إدارة شجرة الحسابات المحاسبية'], costcenters: ['🎯 مراكز التكلفة', 'هيكلة مراكز التكلفة الرئيسية والفرعية — تظهر مع المشاريع في القيود والتقارير'], journalentries: ['📒 قيود اليومية', 'إدارة القيود المحاسبية اليومية بنظام القيد المزدوج'], recurringjournals: ['🔁 القيود المتكررة', 'قوالب قيود دورية (إيجارات، اشتراكات، استحقاقات) تُولّد تلقائياً كل شهر'], revrecognition: ['📐 إثبات الإيراد بنسبة الإنجاز', 'احتساب الإيراد المعترف به بطريقة نسبة الإنجاز (Cost-to-Cost) وتسوية الفوترة الزائدة/الناقصة وفق IFRS 15'], fxrevaluation: ['💱 إعادة تقييم العملات', 'إعادة تقييم أرصدة العملاء والموردين بالعملات الأجنبية بأسعار الصرف الحالية وإثبات فروق العملة غير المحققة'], cashforecast: ['💧 التدفق النقدي المتوقع', 'توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات القادمة'], finmodels: ['📊 النماذج المالية والتخطيط', 'الإيرادات المتوقعة (المستخلصات) والمصروفات والتدفقات النقدية ودفعات التحصيل والسداد — مع لوحة مجمّعة وتصدير/استيراد Excel وطباعة'], amortization: ['📆 إطفاء المصروفات المؤجلة', 'توزيع المصاريف المدفوعة مقدماً (إيجارات، تأمين، اشتراكات) على أشهرها تلقائياً بقيود إطفاء شهرية'], empexpenses: ['🧾 مصروفات الموظفين', 'تسجيل واعتماد مطالبات مصروفات الموظفين وربطها بالقيود المحاسبية'], generalledger: ['📖 دفتر الأستاذ', 'عرض حركات كل حساب مع الأرصدة الافتتاحية والختامية'], trialbalance: ['⚖️ ميزان المراجعة', 'التحقق من توازن النظام المحاسبي — كل الأرصدة في صفحة واحدة'], finstatements: ['📑 القوائم المالية', 'المركز المالي، الدخل، التدفق النقدي، التغير في حقوق الملكية + التحليل المالي والنسب'], bankrec: ['🏦 التسوية البنكية', 'مطابقة حركات البنوك في النظام مع كشف الحساب البنكي'], vatreturn: ['🧾 الإقرار الضريبي', 'احتساب ضريبة القيمة المضافة وإعداد الإقرار — شهري، ربع سنوي، سنوي، أو فترة مخصصة'], treasury: ['🛡️ الخزينة والضمانات', 'خطابات الضمان، الشيكات والآجلة (PDC)، ومحتجزات الضمان — مع تنبيهات الاستحقاق والانتهاء'], incometax: ['💰 ضريبة الدخل', 'احتساب ضريبة الدخل السنوية (20%) على حصة المستثمرين الأجانب من صافي الربح'], zakat: ['🕌 الزكاة', 'احتساب وعاء الزكاة والإقرار السنوي (2.5%) — مع قيد محاسبي تلقائي'], wht: ['🌐 ضريبة الاستقطاع', 'المبالغ المستقطعة من مدفوعات غير المقيمين — مع التقرير الشهري للهيئة ومتابعة التوريد'], closing: ['✅ قائمة الإقفال', 'خطوات منظّمة لإغلاق الفترة المحاسبية (شهري/سنوي) — مع متابعة نسبة الإنجاز'], taxcenter: ['🧮 مركز الضرائب والامتثال', 'لوحة موحّدة لكل الالتزامات الضريبية (قيمة مضافة، استقطاع، زكاة، دخل) مع تقويم مواعيد الهيئة'], glbudget: ['📊 الموازنة الشهرية الشاملة', 'موازنة 12 شهراً لكل الحسابات + تحليل الانحراف الفعلي مقابل الموازنة (Budget vs Actual)'], fsg: ['🧱 مولّد القوائم المالية', 'تصميم تقارير مالية مخصّصة بصفوف وأعمدة تحدّدها (Financial Statement Generator)'], acctanalysis: ['🔎 تحليل الحسابات', 'استعلام مرن عبر نطاق أو نوع حسابات دفعة واحدة — كل الحركات مع التتبّع والتصدير'], paymentrun: ['💸 الدفعات المجمّعة', 'سداد فواتير الموردين المستحقة دفعة واحدة — إنشاء سندات الصرف وقيودها تلقائياً'], workingcapital: ['♻️ رأس المال العامل', 'مؤشرات DSO/DPO/DIO ودورة التحويل النقدي مع اتجاه شهري'], segmentpl: ['🧭 قائمة الدخل المقارنة', 'مقارنة الربحية عبر مراكز التكلفة أو المشاريع جنباً إلى جنب'], jrntemplates: ['📋 قوالب القيود', 'قوالب جاهزة للقيود اليدوية المتكررة — تُملأ بنقرة'], periodlock: ['🔒 إقفال الفترات المحاسبية', 'منع الإضافة أو التعديل على القيود في الفترات المقفلة بعد اعتمادها'], yearclosing: ['🗓️ إقفال السنة المالية', 'ترحيل صافي الربح/الخسارة للأرباح المحتجزة، وإنشاء قيد افتتاحي للسنة الجديدة، وإقفال السنة المنتهية'], aging: ['⏳ أعمار الديون', 'تحليل أعمار ذمم العملاء والموردين حسب فترات التأخر'], auditlog: ['🕵️ سجل التدقيق', 'سجل شامل لكل العمليات الحساسة في النظام مع المستخدم والتاريخ'], customers: ['🧑‍💼 العملاء', 'إدارة بيانات العملاء وأرصدتهم وفواتيرهم'], crm: ['🤝 إدارة علاقات العملاء (CRM)', 'فرص البيع وخط الأنابيب — من العميل المحتمل حتى الإغلاق'], timesheets: ['⏱️ تسجيل الأوقات', 'تسجيل ساعات العمل على المشاريع والمهام — تكلفة عمالة فعلية دقيقة'], workload: ['👥 عبء العمل والموارد', 'توزيع المهام والساعات على الموظفين — من مشغول ومن متفرّغ ومن متجاوز طاقته'], salesinvoices: ['🧾 فواتير المبيعات', 'إصدار وإدارة فواتير المبيعات مع الربط التلقائي بالقيود'], vendors: ['🏭 الموردون (محاسبي)', 'إدارة بيانات الموردين وأرصدتهم وفواتيرهم'], purchaseinvoices: ['📋 فواتير المشتريات', 'إصدار وإدارة فواتير المشتريات مع الربط التلقائي بالقيود'], receipts: ['💵 سندات القبض', 'تسجيل المتحصلات من العملاء مع الربط التلقائي بالقيود وتحديث رصيد العميل'], payments: ['💸 سندات الصرف', 'تسجيل المدفوعات للموردين مع الربط التلقائي بالقيود وتحديث رصيد المورد'], inventory: ['📦 المخزون والأصناف', 'إدارة كتالوج الأصناف (مواد وخدمات) مع الأرصدة والحركات'], inventorymovements: ['📋 حركات المخزون', 'سجل دخول وخروج الأصناف مع الأرصدة الجارية'], inventoryreports: ['📊 تقارير المخزون', 'تقارير احترافية: الأرصدة، الحركات، تحت الحد الأدنى، التقييم'], warehouses: ['🏬 المخازن', 'إدارة المخازن الرئيسية والفرعية والربط بالمشاريع والمناطق'], accguide: ['📖 دليل المحاسبة والإدارة المالية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], invguide: ['📖 دليل المخزون والمخازن', 'شرح كامل لكل وحدة وكيفية الاستخدام'], prjguide: ['📖 دليل المشاريع', 'شرح كامل لكل وحدة وكيفية الاستخدام'], procguide: ['📖 دليل المشتريات والموردين', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assets: ['🏭 سجل الأصول الثابتة', 'الأصول والمعدات، الإهلاك التلقائي، الصيانة، والتخريد/البيع'], assetdetail: ['🏭 ملف الأصل', 'الإهلاك، النقل، الصيانة، والتخريد/البيع لهذا الأصل'], assetguide: ['📖 دليل إدارة الأصول الثابتة', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assetdashboard: ['📊 لوحة تحليلات الأصول', 'الفئات، القيمة الدفترية، الإهلاك، والأعمار'], finanalysisguide: ['📖 دليل التحليل المالي', 'شرح كل أقسام التحليل المالي: النماذج والتخطيط، التدفق النقدي، استوديو التحليل، القوائم المالية، أعمار الديون، واللوحات'] };
+    const tt = { dashboard: ['📊 لوحة التحكم', 'نظرة عامة على النظام'], tasks: ['🗓️ المهام والتنبيهات', 'مهام رئيسية وفرعية + تذكيرات مجدولة (مرة/يومي/أسبوعي/شهري) تظهر داخل البرنامج'], approvalsinbox: ['✅ صندوق الموافقات', 'كل المهام والطلبات بانتظار قرارك في مكان واحد'], execdashboard: ['🏛️ اللوحة التنفيذية', 'مؤشرات شاملة: مالية، مشاريع، وموارد بشرية في صفحة واحدة'], statement: ['📋 كشف حساب الموردين', 'الحركات المالية مع الموردين'], custstatement: ['📋 كشف حساب العملاء', 'الفواتير والمتحصلات لكل عميل'], suppliers: ['🏢 الموردون', 'إدارة بيانات الموردين'], suppliers_catalog: ['🏭 كتالوج الموردين', 'كتالوج موردين تفصيلي مع تقييمات وشروط'], materials: ['📦 كتالوج المواد', 'كتالوج المواد المركزي مع أسعار الموردين'], matrequests: ['📨 طلبات المواد', 'طلبات المواد من المواقع والموافقات'], quotations: ['💼 عروض الأسعار', 'إدارة عروض الموردين ومقارنتها'], purchaseorders: ['📄 أوامر الشراء', 'إصدار واعتماد أوامر الشراء'], grn: ['📥 استلام البضاعة', 'تسجيل استلام البضاعة من الموردين'], invoices: ['🧾 فواتير الموردين', 'تسجيل ومطابقة فواتير الموردين'], employees: ['👷 الموظفون', 'إدارة بيانات الموظفين'], departments: ['🏢 الإدارات والأقسام', 'إدارة الإدارات والأقسام الوظيفية'], projects: ['📁 المشاريع', 'إدارة المشاريع والموظفين'], prjtasks: ['✅ متابعة المهام', 'كل مهام المشاريع في مكان واحد — حسب المشروع، المسؤول، الأولوية'], users: ['👥 المستخدمون', 'الصلاحيات والأدوار'], perms: ['🔐 صلاحيات المستخدمين', 'مصفوفة كاملة: امنح أو امنع أي صلاحية لأي مستخدم عبر كل أقسام البرنامج'], index: ['🗂️ فهرس البرنامج', 'كل أقسام النظام في صفحة واحدة — انقر أي قسم للانتقال إليه مباشرة'], onboarding: ['🚀 إعداد البرنامج', 'خطوات سريعة لتجهيز شركتك للعمل: شجرة الحسابات، بيانات الشركة، الأرصدة الافتتاحية، المستخدمون'], settings: ['⚙️ الإعدادات', 'إعدادات النظام'], pdfexport: ['📄 تصدير PDF', 'إنشاء ملفات PDF احترافية'], attendance: ['🕐 الحضور والانصراف', 'تسجيل ومتابعة الحضور اليومي'], payroll: ['💵 مسير الرواتب', 'إنشاء واعتماد مسيرات الرواتب الشهرية'], deferredreport: ['⏸️ تقرير المُؤجَّلون', 'الموظفون الذين لم يُنشأ لهم مسير بعد — جاهز للمتابعة والسداد'], laborcostreport: ['📈 تحليل تكلفة العمالة', 'تقرير استراتيجي لتكاليف الرواتب — حسب المشروع/الإدارة/الفترة'], payrolldashboard: ['📊 لوحة تحكم الرواتب المحاسبية', 'مركز قيادة شامل: المستحقات، المدفوعات، التنبيهات، والإجراءات السريعة'], projectdetail: ['📂 ملف المشروع', 'عرض كامل لبيانات المشروع: مستخلصات، مصروفات، رواتب، بنود'], boq: ['📋 بنود العقود (BOQ)', 'إدارة بنود العقد لكل مشروع — الأساس لإنشاء المستخلصات'], progressbillings: ['📑 المستخلصات (Progress Billings)', 'إنشاء واعتماد المستخلصات الدورية للمشاريع — مع تتبع التراكمي'], loans: ['💳 السلف والقروض', 'إدارة سلف الموظفين والأقساط الشهرية'], docalerts: ['⏰ تنبيهات المستندات', 'متابعة تواريخ انتهاء مستندات الموظفين'], empstatement: ['📋 كشف حساب الموظف', 'كل بيانات الموظف في مكان واحد: العقد، الإجازات، السلف، العُهد، ونهاية الخدمة'], leaves: ['🌴 طلبات الإجازات', 'مراجعة واعتماد طلبات إجازات الموظفين'], performance: ['⭐ تقييمات الأداء', 'تقييم أداء الموظفين الشهري ومكافآتهم'], hrguide: ['📖 دليل الموارد البشرية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], hrdashboard: ['📊 لوحة تحكم HR', 'نظرة شاملة ومؤشرات أداء قسم الموارد البشرية'], prjdashboard: ['📊 لوحة تحكم المشاريع', 'تكاليف، ميزانية، انحرافات، وربحية المشاريع'], prjhealth: ['🚦 صحة المحفظة (EVM)', 'مصفوفة تنفيذية: مؤشرات أداء التكلفة (CPI) والجدول (SPI) وإشارات الصحة لكل مشروع — أي مشاريع متعثّرة'], prjreports: ['📈 التقارير المالية', '6 تقارير احترافية للمشاريع — تدفقات، ربحية، موردين، وأكثر'], projectcosts: ['💰 تكاليف المشاريع الشهرية', 'إدخال تكاليف المشاريع شهرياً (مواد، أجور، معدات، إلخ)'], indirectcosts: ['📊 التكاليف غير المباشرة', 'تسجيل التكاليف غير المباشرة (إهلاك، إيجارات، رواتب إدارية...) وتوزيعها على المشاريع شهرياً وسنوياً بنسب محددة'], accdashboard: ['💰 المحاسبة والإدارة المالية', 'قسم المحاسبة المتكامل — قيد البناء'], chartofaccounts: ['🌳 شجرة الحسابات', 'إدارة شجرة الحسابات المحاسبية'], costcenters: ['🎯 مراكز التكلفة', 'هيكلة مراكز التكلفة الرئيسية والفرعية — تظهر مع المشاريع في القيود والتقارير'], journalentries: ['📒 قيود اليومية', 'إدارة القيود المحاسبية اليومية بنظام القيد المزدوج'], recurringjournals: ['🔁 القيود المتكررة', 'قوالب قيود دورية (إيجارات، اشتراكات، استحقاقات) تُولّد تلقائياً كل شهر'], revrecognition: ['📐 إثبات الإيراد بنسبة الإنجاز', 'احتساب الإيراد المعترف به بطريقة نسبة الإنجاز (Cost-to-Cost) وتسوية الفوترة الزائدة/الناقصة وفق IFRS 15'], fxrevaluation: ['💱 إعادة تقييم العملات', 'إعادة تقييم أرصدة العملاء والموردين بالعملات الأجنبية بأسعار الصرف الحالية وإثبات فروق العملة غير المحققة'], cashforecast: ['💧 التدفق النقدي المتوقع', 'توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات القادمة'], finmodels: ['📊 النماذج المالية والتخطيط', 'الإيرادات المتوقعة (المستخلصات) والمصروفات والتدفقات النقدية ودفعات التحصيل والسداد — مع لوحة مجمّعة وتصدير/استيراد Excel وطباعة'], amortization: ['📆 إطفاء المصروفات المؤجلة', 'توزيع المصاريف المدفوعة مقدماً (إيجارات، تأمين، اشتراكات) على أشهرها تلقائياً بقيود إطفاء شهرية'], empexpenses: ['🧾 مصروفات الموظفين', 'تسجيل واعتماد مطالبات مصروفات الموظفين وربطها بالقيود المحاسبية'], generalledger: ['📖 دفتر الأستاذ', 'عرض حركات كل حساب مع الأرصدة الافتتاحية والختامية'], trialbalance: ['⚖️ ميزان المراجعة', 'التحقق من توازن النظام المحاسبي — كل الأرصدة في صفحة واحدة'], finstatements: ['📑 القوائم المالية', 'المركز المالي، الدخل، التدفق النقدي، التغير في حقوق الملكية + التحليل المالي والنسب'], bankrec: ['🏦 التسوية البنكية', 'مطابقة حركات البنوك في النظام مع كشف الحساب البنكي'], vatreturn: ['🧾 الإقرار الضريبي', 'احتساب ضريبة القيمة المضافة وإعداد الإقرار — شهري، ربع سنوي، سنوي، أو فترة مخصصة'], treasury: ['🛡️ الخزينة والضمانات', 'خطابات الضمان، الشيكات والآجلة (PDC)، ومحتجزات الضمان — مع تنبيهات الاستحقاق والانتهاء'], incometax: ['💰 ضريبة الدخل', 'احتساب ضريبة الدخل السنوية (20%) على حصة المستثمرين الأجانب من صافي الربح'], zakat: ['🕌 الزكاة', 'احتساب وعاء الزكاة والإقرار السنوي (2.5%) — مع قيد محاسبي تلقائي'], wht: ['🌐 ضريبة الاستقطاع', 'المبالغ المستقطعة من مدفوعات غير المقيمين — مع التقرير الشهري للهيئة ومتابعة التوريد'], closing: ['✅ قائمة الإقفال', 'خطوات منظّمة لإغلاق الفترة المحاسبية (شهري/سنوي) — مع متابعة نسبة الإنجاز'], taxcenter: ['🧮 مركز الضرائب والامتثال', 'لوحة موحّدة لكل الالتزامات الضريبية (قيمة مضافة، استقطاع، زكاة، دخل) مع تقويم مواعيد الهيئة'], glbudget: ['📊 الموازنة الشهرية الشاملة', 'موازنة 12 شهراً لكل الحسابات + تحليل الانحراف الفعلي مقابل الموازنة (Budget vs Actual)'], fsg: ['🧱 مولّد القوائم المالية', 'تصميم تقارير مالية مخصّصة بصفوف وأعمدة تحدّدها (Financial Statement Generator)'], acctanalysis: ['🔎 تحليل الحسابات', 'استعلام مرن عبر نطاق أو نوع حسابات دفعة واحدة — كل الحركات مع التتبّع والتصدير'], paymentrun: ['💸 الدفعات المجمّعة', 'سداد فواتير الموردين المستحقة دفعة واحدة — إنشاء سندات الصرف وقيودها تلقائياً'], workingcapital: ['♻️ رأس المال العامل', 'مؤشرات DSO/DPO/DIO ودورة التحويل النقدي مع اتجاه شهري'], segmentpl: ['🧭 قائمة الدخل المقارنة', 'مقارنة الربحية عبر مراكز التكلفة أو المشاريع جنباً إلى جنب'], jrntemplates: ['📋 قوالب القيود', 'قوالب جاهزة للقيود اليدوية المتكررة — تُملأ بنقرة'], periodlock: ['🔒 إقفال الفترات المحاسبية', 'منع الإضافة أو التعديل على القيود في الفترات المقفلة بعد اعتمادها'], yearclosing: ['🗓️ إقفال السنة المالية', 'ترحيل صافي الربح/الخسارة للأرباح المحتجزة، وإنشاء قيد افتتاحي للسنة الجديدة، وإقفال السنة المنتهية'], aging: ['⏳ أعمار الديون', 'تحليل أعمار ذمم العملاء والموردين حسب فترات التأخر'], auditlog: ['🕵️ سجل التدقيق', 'سجل شامل لكل العمليات الحساسة في النظام مع المستخدم والتاريخ'], customers: ['🧑‍💼 العملاء', 'إدارة بيانات العملاء وأرصدتهم وفواتيرهم'], crm: ['🤝 إدارة علاقات العملاء (CRM)', 'فرص البيع وخط الأنابيب — من العميل المحتمل حتى الإغلاق'], timesheets: ['⏱️ تسجيل الأوقات', 'تسجيل ساعات العمل على المشاريع والمهام — تكلفة عمالة فعلية دقيقة'], workload: ['👥 عبء العمل والموارد', 'توزيع المهام والساعات على الموظفين — من مشغول ومن متفرّغ ومن متجاوز طاقته'], salesinvoices: ['🧾 فواتير المبيعات', 'إصدار وإدارة فواتير المبيعات مع الربط التلقائي بالقيود'], vendors: ['🏭 الموردون (محاسبي)', 'إدارة بيانات الموردين وأرصدتهم وفواتيرهم'], purchaseinvoices: ['📋 فواتير المشتريات', 'إصدار وإدارة فواتير المشتريات مع الربط التلقائي بالقيود'], receipts: ['💵 سندات القبض', 'تسجيل المتحصلات من العملاء مع الربط التلقائي بالقيود وتحديث رصيد العميل'], payments: ['💸 سندات الصرف', 'تسجيل المدفوعات للموردين مع الربط التلقائي بالقيود وتحديث رصيد المورد'], inventory: ['📦 المخزون والأصناف', 'إدارة كتالوج الأصناف (مواد وخدمات) مع الأرصدة والحركات'], inventorymovements: ['📋 حركات المخزون', 'سجل دخول وخروج الأصناف مع الأرصدة الجارية'], inventoryreports: ['📊 تقارير المخزون', 'تقارير احترافية: الأرصدة، الحركات، تحت الحد الأدنى، التقييم'], warehouses: ['🏬 المخازن', 'إدارة المخازن الرئيسية والفرعية والربط بالمشاريع والمناطق'], accguide: ['📖 دليل المحاسبة والإدارة المالية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], invguide: ['📖 دليل المخزون والمخازن', 'شرح كامل لكل وحدة وكيفية الاستخدام'], prjguide: ['📖 دليل المشاريع', 'شرح كامل لكل وحدة وكيفية الاستخدام'], procguide: ['📖 دليل المشتريات والموردين', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assets: ['🏭 سجل الأصول الثابتة', 'الأصول والمعدات، الإهلاك التلقائي، الصيانة، والتخريد/البيع'], assetdetail: ['🏭 ملف الأصل', 'الإهلاك، النقل، الصيانة، والتخريد/البيع لهذا الأصل'], assetguide: ['📖 دليل إدارة الأصول الثابتة', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assetdashboard: ['📊 لوحة تحليلات الأصول', 'الفئات، القيمة الدفترية، الإهلاك، والأعمار'], finanalysisguide: ['📖 دليل التحليل المالي', 'شرح كل أقسام التحليل المالي: النماذج والتخطيط، التدفق النقدي، استوديو التحليل، القوائم المالية، أعمار الديون، واللوحات'] };
     const t = tt[pg] || [pg, '']; $('pgT').textContent = t[0]; $('pgS').textContent = t[1];
     if (pg === 'dashboard') renderDB();
     if (pg === 'approvalsinbox') renderApprovalsInbox();
@@ -1724,6 +2207,10 @@ window.nav = function (pg, el) {
     if (pg === 'grn') { fillGRNProjectFilter(); renderGRNs(); renderPendingPOsForGRN(); updateGRNKPIs() }
     if (pg === 'invoices') { renderInvoices(); renderPendingGRNsForInvoice(); updateInvKPIs() }
     if (pg === 'users') renderUsL();
+    if (pg === 'perms') { if (typeof renderPermsMatrix === 'function') renderPermsMatrix(true); }
+    if (pg === 'index') { if (typeof renderProgramIndex === 'function') renderProgramIndex(); }
+    if (pg === 'onboarding') { if (typeof renderOnboarding === 'function') renderOnboarding(); }
+    if (pg === 'settings') { const c = document.getElementById('autoBkpChk'); if (c && currentTenantId) c.checked = localStorage.getItem('_autoBackup_' + currentTenantId) !== 'off'; }
     if (pg === 'pdfexport') { fillPdfSups(); pdfFilter() }
     if (pg === 'attendance') { initAttendanceAdminCard(); fillAtEmpFilter(); renderAttendance(); updateAtKPIs(); refreshCheckInStatus() }
     if (pg === 'payroll') { renderPayrolls(); updatePayrollKPIs(); initPayrollMonth() }
@@ -1786,6 +2273,31 @@ document.addEventListener('click', e => { if ((e.ctrlKey || e.metaKey) && e.butt
 document.addEventListener('auxclick', e => { if (e.button === 1) _navOpenNewTab(e); }, true);
 
 // ── Breadcrumb ──────────────────────────────────────────────────────────────
+// 🟢 اشتقاق مسار الصفحة تلقائياً من القائمة الجانبية (مجموعة ← بند) لأي صفحة غير مُعرّفة في الخريطة اليدوية
+//    يضمن ظهور موقع أي قسم (مثل الزكاة) دون صيانة يدوية، ويبقى متزامناً مع القوائم الفعلية.
+function bcDeriveFromSidebar(pg) {
+    let item = null;
+    document.querySelectorAll('.sb-it').forEach(it => {
+        if (item) return;
+        const m = (it.getAttribute('onclick') || '').match(/nav\(\s*'([^']+)'/);
+        if (m && m[1] === pg) item = it;
+    });
+    if (!item) return null;
+    const txtSpan = Array.from(item.querySelectorAll('span')).find(s => !s.classList.contains('ic') && !s.classList.contains('sb-badge') && s.textContent.trim());
+    const itemLabel = (txtSpan ? txtSpan.textContent : item.textContent || pg).trim();
+    const grp = item.closest('.sb-grp');
+    let grpLabel = '', grpLanding = null;
+    if (grp) {
+        const head = grp.querySelector('.sb-grp-h');
+        const gSpan = head && Array.from(head.querySelectorAll('span')).find(s => !s.classList.contains('ic') && !s.classList.contains('sb-grp-arrow') && s.textContent.trim());
+        grpLabel = gSpan ? gSpan.textContent.trim() : '';
+        // صفحة هبوط المجموعة = أول بند فيها → يجعل اسم المجموعة قابلاً للنقر للرجوع إليها
+        const first = grp.querySelector('.sb-it');
+        const fm = first && (first.getAttribute('onclick') || '').match(/nav\(\s*'([^']+)'/);
+        grpLanding = fm ? fm[1] : null;
+    }
+    return grpLabel ? [[grpLabel, grpLanding], [itemLabel]] : [[itemLabel]];
+}
 window.updateBreadcrumb = function (pg, extraLabel) {
     const el = document.getElementById('pgBC'); if (!el) return;
 
@@ -1847,7 +2359,7 @@ window.updateBreadcrumb = function (pg, extraLabel) {
         finmodels:        [FA, ['النماذج المالية والتخطيط']],
         cashforecast:     [FA, ['التدفق النقدي المتوقع']],
         analytics:        [FA, ['استوديو التحليل']],
-        finstatements:    [FA, ['القوائم المالية']],
+        finstatements:    [ACC, ['القوائم المالية']],
         aging:            [FA, ['أعمار الديون']],
         execdashboard:    [FA, ['اللوحة التنفيذية']],
         accdashboard:     [FA, ['لوحة المحاسبة']],
@@ -1884,7 +2396,9 @@ window.updateBreadcrumb = function (pg, extraLabel) {
         pdfexport:        [ADM, ['تصدير PDF']],
     };
 
-    const crumbs = map[pg];
+    // 🟢 المصدر الأساسي = القائمة الجانبية الفعلية (مجموعة ← بند) لكل صفحات القائمة — فيتّسق المسار لكل الأقسام.
+    //    الخريطة اليدوية بديل للصفحات غير الموجودة في القائمة الجانبية (مثل ملف المشروع/الأصل بمستوياتها الخاصة).
+    const crumbs = bcDeriveFromSidebar(pg) || map[pg];
     if (!crumbs) { el.innerHTML = ''; return; }
 
     // ابنِ قائمة التنقل
@@ -1934,7 +2448,15 @@ window.bcNav = function (pg) {
         users: 'n-us', settings: 'n-se', pdfexport: 'n-pdf', analytics: 'n-analytics', tasks: 'n-tasks',
         subcanalytics: 'n-subcana', finanalysisguide: 'n-fag',
     };
-    nav(pg, document.getElementById(elId[pg] || ''));
+    let el = document.getElementById(elId[pg] || '');
+    if (!el) { // بديل ديناميكي: ابحث عن بند القائمة المطابق لأي صفحة (يفتح مجموعتها ويميّزها)
+        document.querySelectorAll('.sb-it').forEach(it => {
+            if (el) return;
+            const m = (it.getAttribute('onclick') || '').match(/nav\(\s*'([^']+)'/);
+            if (m && m[1] === pg) el = it;
+        });
+    }
+    nav(pg, el);
 };
 
 // طي / إظهار مجموعة في القائمة الجانبية
@@ -2048,6 +2570,7 @@ function startListeners() {
         if ($('pg-chartofaccounts')?.classList.contains('act') && typeof renderChartOfAccounts === 'function') renderChartOfAccounts();
         if ($('pg-generalledger')?.classList.contains('act') && typeof renderGeneralLedger === 'function') renderGeneralLedger();
         if ($('pg-trialbalance')?.classList.contains('act') && typeof renderTrialBalance === 'function') renderTrialBalance();
+        if ($('pg-onboarding')?.classList.contains('act') && typeof renderOnboarding === 'function') renderOnboarding();
     });
     onValue(R.jrn, sn => {
         window.journalEntries = sn.exists() ? sn.val() : {};
@@ -2055,6 +2578,7 @@ function startListeners() {
         if ($('pg-journalentries')?.classList.contains('act') && typeof renderJournalEntries === 'function') renderJournalEntries();
         if ($('pg-generalledger')?.classList.contains('act') && typeof renderGeneralLedger === 'function') renderGeneralLedger();
         if ($('pg-trialbalance')?.classList.contains('act') && typeof renderTrialBalance === 'function') renderTrialBalance();
+        if ($('pg-onboarding')?.classList.contains('act') && typeof renderOnboarding === 'function') renderOnboarding();
         // 🆕 مزامنة حالة القيد في المسير المرتبط
         if (typeof syncPayrollJournalStatus === 'function') syncPayrollJournalStatus();
         if ($('pg-bankrec')?.classList.contains('act') && typeof renderBankRec === 'function') renderBankRec();
@@ -2099,6 +2623,12 @@ function startListeners() {
     onValue(R.incomeTaxReturns, sn => {
         window.incomeTaxReturns = sn.exists() ? sn.val() : {};
         if ($('pg-incometax')?.classList.contains('act') && typeof renderIncomeTax === 'function') renderIncomeTax();
+    });
+    // 💰 التعديلات الضريبية المحفوظة لكل سنة (مصدر واحد يُغذّي القوائم والإيضاح)
+    onValue(R.incomeTaxAdjustments, sn => {
+        window.incomeTaxAdjustments = sn.exists() ? sn.val() : {};
+        if ($('pg-incometax')?.classList.contains('act') && typeof renderIncomeTax === 'function') renderIncomeTax();
+        else if ($('pg-finstatements')?.classList.contains('act') && typeof renderFinancialStatements === 'function') renderFinancialStatements();
     });
     onValue(R.zakatReturns, sn => {
         window.zakatReturns = sn.exists() ? sn.val() : {};
@@ -2332,6 +2862,27 @@ function startListeners() {
         if ($('pg-prjtasks')?.classList.contains('act')) renderAllProjectTasks();
         if ($('pg-workload')?.classList.contains('act') && typeof renderWorkload === 'function') renderWorkload();
         updatePrjTasksBadge();
+    });
+    // 📨 طلبات المعلومات (RFIs) و 🔧 قوائم النواقص (Punch Lists)
+    onValue(R.rfis, sn => {
+        window.rfis = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'rfis' && typeof pdRenderTab === 'function') pdRenderTab('rfis');
+    });
+    onValue(R.punchItems, sn => {
+        window.punchItems = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'punch' && typeof pdRenderTab === 'function') pdRenderTab('punch');
+    });
+    onValue(R.qhse, sn => {
+        window.qhse = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'qhse' && typeof pdRenderTab === 'function') pdRenderTab('qhse');
+    });
+    onValue(R.submittals, sn => {
+        window.submittals = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'submittals' && typeof pdRenderTab === 'function') pdRenderTab('submittals');
+    });
+    onValue(R.subcontracts, sn => {
+        window.subcontracts = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'subcontracts' && typeof pdRenderTab === 'function') pdRenderTab('subcontracts');
     });
     // 📜 سجل نشاط المشروع
     onValue(R.pact, sn => {
@@ -3476,6 +4027,7 @@ window.openEU = function (uid) {
     const u = us[uid]; if (!u) return;
     $('euK').value = uid; $('euNm').value = u.name || ''; $('euEm').value = u.email || '';
     $('euAc').value = String(u.active !== false);
+    if ($('euNewPwd')) $('euNewPwd').value = '';
     buildPrmS('euPS', u.permissions || []); ov('mEU');
 };
 
@@ -3510,11 +4062,142 @@ window.delU = function (uid) {
     cf2(`حذف "${us[uid]?.name}"؟`, async () => { try { await remove(ref(db, `ledger/users/${uid}`)); try { await remove(_rawRef(db, `userIndex/${uid}`)); } catch (e2) { } toast('تم الحذف ✓', 'ok') } catch (e) { toast('خطأ: ' + e.message, 'er') } });
 };
 
+// 🔑 إعادة تعيين كلمة مرور مستخدم — يُرسل رابطاً آمناً لبريده (الطريقة المتاحة من المتصفح؛ الضبط المباشر يتطلب خادماً/Blaze)
+window.resetUserPwd = function (uid) {
+    if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
+    const u = us[uid]; if (!u || !u.email) { toast('لا يوجد بريد لهذا المستخدم', 'er'); return }
+    cf2(`إرسال رابط إعادة تعيين كلمة المرور إلى:\n${u.email}؟\n\nسيصل للمستخدم بريد يضبط منه كلمة مرور جديدة.`, async () => {
+        try { await sendPasswordResetEmail(auth, u.email); toast('✅ أُرسل رابط إعادة التعيين إلى ' + u.email, 'ok', 5000); if (typeof logAudit === 'function') logAudit('إعادة تعيين كلمة مرور', 'المستخدمون', `إرسال رابط لـ ${u.email}`); }
+        catch (e) { toast('❌ ' + (typeof authEr === 'function' && e.code ? authEr(e.code) : (e.message || e)), 'er'); }
+    });
+};
+
+// 🔒 ضبط كلمة مرور مستخدم مباشرةً (للمستخدمين بلا بريد) — عبر دالة خادمية آمنة (تتطلب تفعيل الخادم/Blaze)
+window.adminSetPassword = async function (uid) {
+    if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return; }
+    const u = us[uid]; if (!u) { toast('المستخدم غير موجود', 'er'); return; }
+    const inp = $('euNewPwd'); const np = (inp && inp.value || '').trim();
+    if (np.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'er'); return; }
+    if (!(await cf2(`ضبط كلمة مرور جديدة مباشرةً للمستخدم "${u.name || u.email}"؟\n\nستُطبَّق فوراً، وأبلغ المستخدم بها.`))) return;
+    try {
+        await httpsCallable(fns, 'adminSetUserPassword')({ uid, newPassword: np });
+        if (inp) inp.value = '';
+        toast('✅ تم ضبط كلمة المرور بنجاح', 'ok', 5000);
+        if (typeof logAudit === 'function') logAudit('ضبط كلمة مرور مباشر', 'المستخدمون', `للمستخدم ${u.email || uid}`);
+    } catch (e) {
+        const code = (e && e.code) || '', msg = (e && e.message) || '';
+        if (/not-found|unavailable|internal|functions\//i.test(code) || /not[\s-]?found|CORS|Failed to fetch|does not exist/i.test(msg)) {
+            toast('⚙️ الضبط المباشر يتطلب تفعيل الخادم: ترقية الخطة إلى Blaze ثم «firebase deploy --only functions». حتى ذلك استخدم «🔑 إعادة تعيين» (رابط بريد).', 'er', 9000);
+        } else if (/permission-denied/i.test(code)) { toast('🚫 ' + (msg || 'غير مصرّح'), 'er'); }
+        else { toast('❌ ' + (msg || e), 'er'); }
+    }
+};
+
 window.togUAc = async function (uid) {
     const u = us[uid]; if (!u) return; if (uid === curU?.uid) { toast('لا يمكنك إيقاف نفسك', 'er'); return }
     const nA = !(u.active !== false);
     try { await update(ref(db, `ledger/users/${uid}`), { active: nA }); toast(nA ? 'تم التفعيل ✓' : 'تم الإيقاف ✓', 'ok') }
     catch (e) { toast('خطأ: ' + e.message, 'er') }
+};
+
+// ══ 🔐 صفحة مصفوفة صلاحيات المستخدمين (كل الصلاحيات × كل المستخدمين) ═══════════════
+const PERM_ROLE_AR = { admin: 'مدير', finance_manager: 'مدير مالي', accountant: 'محاسب', hr_officer: 'موظف HR', admin_officer: 'موظف إداري', project_manager: 'مدير مشروع', executive_director: 'مدير تنفيذي', procurement_officer: 'موظف مشتريات', warehouse_keeper: 'أمين مخزن', viewer: 'مشاهد', employee: 'موظف' };
+window._permsState = window._permsState || { perms: {}, dirty: new Set(), q: '' };
+function permsUsersSorted() { return Object.entries(window.us || {}).filter(([, u]) => u).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')); }
+
+window.renderPermsMatrix = function (rebuild) {
+    const pg = $('pg-perms'); if (!pg) return;
+    if (!(myP && myP.role === 'admin')) { pg.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للمدير فقط</div>'; return; }
+    const st = window._permsState; const users = permsUsersSorted();
+    if (rebuild || !st.perms || !Object.keys(st.perms).length) { st.perms = {}; st.dirty = new Set(); users.forEach(([uid, u]) => st.perms[uid] = new Set(u.permissions || [])); }
+    else users.forEach(([uid, u]) => { if (!st.perms[uid]) st.perms[uid] = new Set(u.permissions || []); });
+    if (!users.length) { pg.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#888">لا يوجد مستخدمون بعد. أضِف مستخدمين من صفحة «المستخدمون».</div>'; return; }
+    pg.innerHTML = `
+        <div class="card" style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                <div>
+                    <div style="font-size:16px;font-weight:900;color:#1a3a5c">🔐 مصفوفة صلاحيات المستخدمين</div>
+                    <div style="font-size:12px;color:#666;margin-top:3px">امنح أو امنع أي صلاحية لأي مستخدم عبر كل أقسام البرنامج (${ALL_P.length} صلاحية). المدير يملك كل الصلاحيات تلقائياً بحكم دوره.</div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <input id="permsSearch" type="text" value="${(st.q || '').replace(/"/g, '&quot;')}" oninput="permsSearch(this.value)" placeholder="🔍 ابحث في الصلاحيات..." style="padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12px;min-width:200px">
+                    <button class="btn b-g" onclick="permsSave()" style="font-weight:800">💾 حفظ التغييرات</button>
+                </div>
+            </div>
+        </div>
+        ${users.filter(([, u]) => u.role !== 'admin').length ? '' : `<div class="card" style="margin-bottom:14px;background:#fef9e7;border:1.5px solid #f0c419">
+            <div style="font-weight:800;color:#7d4e00;font-size:14px">ℹ️ لا يوجد مستخدمون لتخصيص صلاحياتهم بعد</div>
+            <div style="font-size:12.5px;color:#7d4e00;margin-top:6px;line-height:1.9">حسابك الحالي بدور <b>مدير النظام</b>، ويملك <b>كل الصلاحيات تلقائياً</b> — ولا يمكن تقييده حتى لا تُغلق على نفسك، لذا تظهر خاناته بعلامة ✓ مقفلة.<br>لتفعيل التحكم بالصلاحيات فعلياً: <b>أضِف مستخدماً بدور غير المدير</b> (محاسب، موظف موارد بشرية، مشاهد…). عندها يظهر له عمود بخانات قابلة للتفعيل والإلغاء هنا، وتتحكّم في كل ما يراه ويفعله.</div>
+            <button class="btn b-g" onclick="nav('users');setTimeout(function(){ if(typeof openAUM==='function') openAUM(); },250)" style="margin-top:11px;font-weight:800">➕ إضافة مستخدم جديد</button>
+        </div>`}
+        <div class="card" style="padding:0;overflow:hidden">
+            <div id="permsTableWrap" style="overflow:auto;max-height:72vh"></div>
+        </div>`;
+    permsPaintTable();
+};
+window.permsPaintTable = function () {
+    const wrap = $('permsTableWrap'); if (!wrap) return;
+    const st = window._permsState, esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const users = permsUsersSorted();
+    const q = (st.q || '').trim().toLowerCase();
+    const roleAr = r => PERM_ROLE_AR[r] || r || '';
+    const cnt = uid => (st.perms[uid] ? st.perms[uid].size : 0);
+    // رأس الأعمدة: عمود الصلاحية + عمود لكل مستخدم
+    const uHead = users.map(([uid, u]) => {
+        const isAdm = u.role === 'admin';
+        const presetSel = isAdm ? '' : `<select onchange="permApplyPreset('${uid}',this.value);this.value=''" style="margin-top:4px;font-size:10px;padding:3px;border:1px solid #d7dde5;border-radius:5px;max-width:110px"><option value="">تطبيق دور…</option>${Object.keys(PRESETS).map(r => `<option value="${r}">${esc(roleAr(r))}</option>`).join('')}</select>`;
+        const allBtns = isAdm ? '' : `<div style="margin-top:3px;display:flex;gap:3px;justify-content:center"><button onclick="permUserAll('${uid}',true)" title="منح كل الصلاحيات" style="background:#eafaf1;color:#1e8449;border:none;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">✓ الكل</button><button onclick="permUserAll('${uid}',false)" title="إلغاء كل الصلاحيات" style="background:#fdecea;color:#c0392b;border:none;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">✗ الكل</button></div>`;
+        return `<th style="padding:8px 6px;min-width:120px;text-align:center;vertical-align:top;border-right:1px solid #eef2f6">
+            <div style="font-weight:800;color:#1a3a5c;font-size:12px">${esc(u.name || '—')}</div>
+            <div style="font-size:10px;color:#8e44ad;margin-top:2px">${esc(roleAr(u.role))}${isAdm ? ' 👑' : ''}</div>
+            <div style="font-size:9.5px;color:#aaa">${isAdm ? 'كل الصلاحيات' : cnt(uid) + ' صلاحية'}</div>
+            ${allBtns}${presetSel}
+        </th>`;
+    }).join('');
+    // الصفوف حسب المجموعات
+    let body = '';
+    PG.forEach((g, gi) => {
+        const rows = g.p.filter(p => !q || (p.l || '').toLowerCase().includes(q) || (p.k || '').toLowerCase().includes(q));
+        if (!rows.length) return;
+        // صف عنوان المجموعة + أزرار منح/إلغاء المجموعة لكل مستخدم
+        const grpCells = users.map(([uid, u]) => {
+            if (u.role === 'admin') return `<td style="text-align:center;background:#f4f7fa;border-right:1px solid #eef2f6;color:#27ae60">✓</td>`;
+            return `<td style="text-align:center;background:#f4f7fa;border-right:1px solid #eef2f6;white-space:nowrap"><button onclick="permGroupUser('${uid}',${gi},true)" title="منح كل صلاحيات هذا القسم" style="background:none;border:none;color:#1e8449;cursor:pointer;font-size:12px">✓</button><button onclick="permGroupUser('${uid}',${gi},false)" title="إلغاء كل صلاحيات هذا القسم" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px">✗</button></td>`;
+        }).join('');
+        body += `<tr><td style="position:sticky;right:0;background:#eef3f8;padding:8px 12px;font-weight:900;color:#1a3a5c;z-index:1;border-top:6px solid #fff">${esc(g.t)}</td>${grpCells}</tr>`;
+        rows.forEach(p => {
+            const cells = users.map(([uid, u]) => {
+                if (u.role === 'admin') return `<td style="text-align:center;border-right:1px solid #eef2f6;color:#27ae60;font-weight:700">✓</td>`;
+                const has = st.perms[uid] && st.perms[uid].has(p.k);
+                return `<td style="text-align:center;border-right:1px solid #eef2f6;padding:5px"><input type="checkbox" ${has ? 'checked' : ''} onchange="permToggle('${uid}','${p.k}')" style="width:16px;height:16px;cursor:pointer"></td>`;
+            }).join('');
+            body += `<tr style="border-bottom:1px solid #f2f5f8"><td style="position:sticky;right:0;background:#fff;padding:7px 12px;font-size:12px;color:#333;z-index:1">${esc(p.l)}</td>${cells}</tr>`;
+        });
+    });
+    const dirtyNote = st.dirty.size ? `<div style="padding:8px 14px;background:#fef9e7;color:#b9770e;font-size:12px;font-weight:700;border-bottom:1px solid #f0e6c0">⚠️ لديك تغييرات غير محفوظة على ${st.dirty.size} مستخدم — اضغط «💾 حفظ التغييرات».</div>` : '';
+    wrap.innerHTML = dirtyNote + `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead style="position:sticky;top:0;z-index:2;background:#f8fafc"><tr><th style="position:sticky;right:0;background:#f8fafc;padding:8px 12px;text-align:right;color:#888;font-size:11px;z-index:3;min-width:260px">الصلاحية / القسم</th>${uHead}</tr></thead>
+        <tbody>${body || `<tr><td colspan="${users.length + 1}" style="padding:30px;text-align:center;color:#888">لا صلاحيات مطابقة للبحث</td></tr>`}</tbody>
+    </table>`;
+};
+window.permToggle = function (uid, key) { const s = window._permsState.perms[uid]; if (!s) return; if (s.has(key)) s.delete(key); else s.add(key); window._permsState.dirty.add(uid); permsPaintTable(); };
+window.permGroupUser = function (uid, gi, val) { const g = PG[gi], s = window._permsState.perms[uid]; if (!g || !s) return; g.p.forEach(p => { if (val) s.add(p.k); else s.delete(p.k); }); window._permsState.dirty.add(uid); permsPaintTable(); };
+window.permUserAll = function (uid, val) { window._permsState.perms[uid] = new Set(val ? ALL_P : []); window._permsState.dirty.add(uid); permsPaintTable(); };
+window.permApplyPreset = function (uid, role) { if (!role || !PRESETS[role]) return; window._permsState.perms[uid] = new Set(PRESETS[role]); window._permsState.dirty.add(uid); permsPaintTable(); };
+window.permsSearch = function (v) { window._permsState.q = v; permsPaintTable(); };
+window.permsSave = async function () {
+    if (!(myP && myP.role === 'admin')) { toast('🚫 للمدير فقط', 'er'); return; }
+    const st = window._permsState;
+    if (!st.dirty.size) { toast('لا توجد تغييرات للحفظ', 'wn'); return; }
+    let ok = 0, fail = 0;
+    for (const uid of [...st.dirty]) {
+        if ((window.us || {})[uid] && window.us[uid].role === 'admin') { continue; } // المدير لا تُحفظ له قائمة (دوره يتجاوزها)
+        try { await update(ref(db, `ledger/users/${uid}`), { permissions: [...(st.perms[uid] || [])], updatedAt: new Date().toISOString() }); ok++; }
+        catch (e) { fail++; }
+    }
+    if (typeof logAudit === 'function') logAudit('تعديل صلاحيات', 'المستخدمون', `تحديث صلاحيات ${ok} مستخدم`);
+    toast(`✅ حُفظت صلاحيات ${ok} مستخدم${fail ? ` — فشل ${fail}` : ''}`, fail ? 'er' : 'ok');
+    st.dirty.clear(); permsPaintTable();
 };
 
 function renderUsL() {
@@ -3525,7 +4208,7 @@ function renderUsL() {
     const rb = { admin: 'rb-a', accountant: 'rb-ac', finance_manager: 'rb-a', viewer: 'rb-v' };
     w.innerHTML = ks.map(uid => {
         const u = us[uid], isMe = uid === curU?.uid, ac = u.active !== false;
-        return `<div class="uc"><div class="u-av" style="background:${avCol(u.name || '')}">${(u.name || '?').charAt(0).toUpperCase()}</div><div class="u-if"><div class="u-nm">${u.name || '-'} ${isMe ? '<span style="font-size:11px;background:#ebf5fb;color:#2d6a9f;padding:1px 7px;border-radius:10px;margin-right:5px">أنا</span>' : ''}</div><div class="u-em">${u.email || '-'}</div><div class="u-mt">الصلاحيات: ${(u.permissions || []).length}/${ALL_P.length} | ${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-SA') : '-'}</div></div><span class="urb ${rb[u.role] || 'rb-v'}">${rl[u.role] || u.role}</span><span class="ust ${ac ? 'st-on' : 'st-off'}">${ac ? '✅ نشط' : '🚫 موقوف'}</span><div class="u-ac"><button class="btn b-b" onclick="openEU('${uid}')">✏️ تعديل</button>${!isMe ? `<button class="btn ${ac ? 'b-o' : 'b-g'}" onclick="togUAc('${uid}')">${ac ? '🚫 إيقاف' : '✅ تفعيل'}</button><button class="btn b-r" onclick="delU('${uid}')">🗑️</button>` : ''}</div></div>`;
+        return `<div class="uc"><div class="u-av" style="background:${avCol(u.name || '')}">${(u.name || '?').charAt(0).toUpperCase()}</div><div class="u-if"><div class="u-nm">${u.name || '-'} ${isMe ? '<span style="font-size:11px;background:#ebf5fb;color:#2d6a9f;padding:1px 7px;border-radius:10px;margin-right:5px">أنا</span>' : ''}</div><div class="u-em">${u.email || '-'}</div><div class="u-mt">الصلاحيات: ${(u.permissions || []).length}/${ALL_P.length} | ${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-SA') : '-'}</div></div><span class="urb ${rb[u.role] || 'rb-v'}">${rl[u.role] || u.role}</span><span class="ust ${ac ? 'st-on' : 'st-off'}">${ac ? '✅ نشط' : '🚫 موقوف'}</span><div class="u-ac"><button class="btn b-b" onclick="openEU('${uid}')">✏️ تعديل</button>${!isMe ? `<button class="btn" onclick="resetUserPwd('${uid}')" title="إرسال رابط إعادة تعيين كلمة المرور إلى بريد المستخدم" style="background:#8e44ad;color:#fff">🔑 كلمة المرور</button><button class="btn ${ac ? 'b-o' : 'b-g'}" onclick="togUAc('${uid}')">${ac ? '🚫 إيقاف' : '✅ تفعيل'}</button><button class="btn b-r" onclick="delU('${uid}')">🗑️</button>` : ''}</div></div>`;
     }).join('');
 }
 
@@ -3673,7 +4356,7 @@ window.emailjsSend = async function ({ subject, message, toEmail }) {
     if (!to) throw new Error('لا يوجد بريد مستلِم — اضبط بريد المحاسب في الإعدادات');
     const sdk = await loadEmailJSSDK();
     sdk.init({ publicKey: e.publicKey });
-    const params = { to_email: to, subject: subject || 'إشعار من بُنيان', message: message || '', company: (window.currentTenantName || cfg.companyAr || 'بُنيان') };
+    const params = { to_email: to, subject: subject || 'إشعار من بنيان للمقاولات', message: message || '', company: (window.currentTenantName || cfg.companyAr || 'بُنيان') };
     return sdk.send(e.serviceId, e.templateId, params);
 };
 window.sendTaxReminderEmail = async function (silent) {
@@ -3682,7 +4365,7 @@ window.sendTaxReminderEmail = async function (silent) {
     if (!tax.length) { if (!silent) toast('✅ لا توجد تذكيرات ضريبية مستحقة حالياً', 'ok'); return false; }
     const company = window.currentTenantName || cfg.companyAr || 'منشأتك';
     const lines = tax.map((a, i) => `${i + 1}) ${a.title}\n   ${a.subtitle}\n   (${(a.label || '').replace(/[⏰🚨📝]/g, '').trim()})`).join('\n\n');
-    const message = `تذكير بالالتزامات الضريبية والامتثال لـ${company}:\n\n${lines}\n\n— أُرسلت تلقائياً من نظام بُنيان لإدارة المقاولات.`;
+    const message = `تذكير بالالتزامات الضريبية والامتثال لـ${company}:\n\n${lines}\n\n— أُرسلت تلقائياً من بنيان للمقاولات لإدارة المقاولات.`;
     const subject = `🧮 تذكير ضريبي (${tax.length}) — ${company}`;
     try {
         if (!silent) toast('⏳ جاري إرسال التذكير البريدي...', 'wn', 3000);
@@ -3801,8 +4484,8 @@ window.refreshPrv = function () {
     const hds = {
         classic: `<div style="background:${cl.pc};color:white;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div style="background:rgba(255,255,255,.15);width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px">${cE.split(' ').map(w => w[0]).join('') || 'GBR'}</div><div style="text-align:right"><div style="font-size:18px;font-weight:800">بُنيان</div><div style="font-size:11px;opacity:.8">${cA}</div><div style="font-size:10px;opacity:.65">من ${fF} إلى ${fT}</div></div></div>`,
         modern: `<div style="background:linear-gradient(135deg,${cl.pc},${cl.sc});color:white;padding:18px 20px;display:flex;justify-content:space-between;align-items:center"><div style="background:rgba(255,255,255,.15);padding:8px 14px;border-radius:10px;font-weight:900;font-size:16px;letter-spacing:2px">${cE.split(' ').map(w => w[0]).join('') || 'GBR'}</div><div style="text-align:right"><div style="font-size:18px;font-weight:800">بُنيان</div><div style="font-size:11px;opacity:.8">${cA}</div></div></div>`,
-        green: `<div style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:20px;font-weight:900">GBR</div><div style="text-align:right"><div style="font-size:18px;font-weight:800">بُنيان</div><div style="font-size:11px;opacity:.85">${cA}</div></div></div>`,
-        warm: `<div style="background:linear-gradient(135deg,#e67e22,#f39c12);color:white;padding:16px 20px;border-bottom:5px solid #d35400;display:flex;justify-content:space-between;align-items:center"><div style="font-size:20px;font-weight:900">GBR</div><div style="text-align:right"><div style="font-size:18px;font-weight:800">بُنيان</div><div style="font-size:11px;opacity:.9">${cA}</div></div></div>`,
+        green: `<div style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:20px;font-weight:900">${cE.split(' ').map(w => w[0]).join('') || 'B'}</div><div style="text-align:right"><div style="font-size:18px;font-weight:800">بُنيان</div><div style="font-size:11px;opacity:.85">${cA}</div></div></div>`,
+        warm: `<div style="background:linear-gradient(135deg,#e67e22,#f39c12);color:white;padding:16px 20px;border-bottom:5px solid #d35400;display:flex;justify-content:space-between;align-items:center"><div style="font-size:20px;font-weight:900">${cE.split(' ').map(w => w[0]).join('') || 'B'}</div><div style="text-align:right"><div style="font-size:18px;font-weight:800">بُنيان</div><div style="font-size:11px;opacity:.9">${cA}</div></div></div>`,
         minimal: `<div style="border-bottom:3px solid ${cl.pc};padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-end"><div style="font-size:28px;font-weight:900;color:${cl.pc}">${cE.split(' ').map(w => w[0]).join('') || 'GBR'}</div><div style="text-align:right"><div style="font-size:18px;font-weight:800;color:${cl.pc}">بُنيان</div><div style="font-size:11px;color:#888">${cA}</div></div></div>`
     };
     let tblHTML = '', rD = 0, rC = 0;
@@ -14000,7 +14683,7 @@ window.projectHealth = function (pid) {
     const bac = (calcProjectBudget(pid) || {}).totalBudget || 0;
     const pct = (calcProjectProgress(pid) || 0) / 100;
     const ac = (calcProjectActualCosts(pid) || {}).total || 0;
-    const base = (window.projectBaselines || {})[pid] || null;
+    const base = (typeof pdActiveBaseline === 'function') ? pdActiveBaseline(pid) : ((window.projectBaselines || {})[pid] || null);
     const ps = (base && base.plannedStart) || p.startDate || '';
     const pe = (base && base.plannedEnd) || p.endDate || '';
     let plannedPct = 0;
@@ -25072,9 +25755,9 @@ window.openSubEdit = function(id) {
     // populate projects dropdown
     const prjSel = $('subcEditProject');
     if (prjSel) {
-        const projs = window.projects || [];
+        const projs = Object.entries(window.projects || {});
         prjSel.innerHTML = '<option value="">— بدون تحديد —</option>' +
-            projs.map(p=>`<option value="${esc(p.id)}" ${s?.projectId===p.id?'selected':''}>${esc(p.name||p.id)}</option>`).join('');
+            projs.map(([pid,p])=>`<option value="${esc(pid)}" ${s?.projectId===pid?'selected':''}>${esc(p.name||pid)}</option>`).join('');
     }
     $('ovSubcEdit').classList.add('show');
 };
@@ -25183,10 +25866,10 @@ window.openSubTrForm = function(type) {
     // populate projects + pre-select contractor's main project
     const prjSel = $('subTrProject');
     if (prjSel) {
-        const projs = window.projects || [];
+        const projs = Object.entries(window.projects || {});
         const activeSubc = (window.subcontractors||{})[window._subActiveId] || {};
         prjSel.innerHTML = '<option value="">— بدون تحديد —</option>' +
-            projs.map(p=>`<option value="${esc(p.id)}" ${activeSubc.projectId===p.id?'selected':''}>${esc(p.name||p.id)}</option>`).join('');
+            projs.map(([pid,p])=>`<option value="${esc(pid)}" ${activeSubc.projectId===pid?'selected':''}>${esc(p.name||pid)}</option>`).join('');
     }
     $('ovSubTr').classList.add('show');
 };
@@ -25391,8 +26074,8 @@ window.renderSubcAnalytics = function() {
         if (t.type==='credit') byProject[key].cr += +t.amount;
     });
 
-    const projs = window.projects || [];
-    const projName = id => projs.find(p=>p.id===id)?.name || (id==='_none'?'غير محدد':id);
+    const projs = window.projects || {};
+    const projName = id => projs[id]?.name || (id==='_none'?'غير محدد':id);
 
     el.innerHTML = `
     <!-- KPIs -->
@@ -26614,7 +27297,7 @@ window.openAssetLabel = function(id) {
             <div style="font-weight:800;font-size:16px;color:#2c3e50">${esc(a.name) || ''}</div>
             <div style="font-size:12px;color:#666;margin:2px 0 8px">${esc(a.category) || ''}${a.code ? ' — ' + esc(a.code) : ''}</div>
             <img src="${qr}" alt="QR" style="width:160px;height:160px" crossorigin="anonymous">
-            <div style="font-size:11px;color:#888;margin-top:8px">GBR — سجل الأصول الثابتة</div>
+            <div style="font-size:11px;color:#888;margin-top:8px">${cfg.companyAr || 'بنيان للمقاولات'} — سجل الأصول الثابتة</div>
         </div>`;
     $('ovAssetLabel').classList.add('show');
 };

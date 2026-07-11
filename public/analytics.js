@@ -177,7 +177,7 @@ window.renderAnalytics = function () {
             <div style="display:flex;align-items:center;gap:12px">
                 <div style="font-size:22px">📊</div>
                 <div>
-                    <div class="as-topbar-title">${window._asSharedMode ? (window._asSharedName||'تقرير مشترك') : 'استوديو تحليلات GBR الذكي'}</div>
+                    <div class="as-topbar-title">${window._asSharedMode ? (window._asSharedName||'تقرير مشترك') : 'استوديو تحليلات بُنيان الذكي'}</div>
                     <div class="as-topbar-sub">${window._asSharedMode ? (window._asSharePermission==='edit'?'✏️ مشاهدة وتعديل':'👁️ مشاهدة فقط') : 'بناءً على البيانات الموحدة للنظام'}</div>
                 </div>
             </div>
@@ -1678,7 +1678,7 @@ window.asPrint = function() {
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>${repName||'تقرير تحليلات GBR'} — ${new Date().toLocaleDateString('ar-SA')}</title>
+<title>${repName||'تقرير تحليلات بنيان للمقاولات'} — ${new Date().toLocaleDateString('ar-SA')}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;background:#f1f3f4;color:#202124}
@@ -1716,7 +1716,7 @@ tr:nth-child(even)td{background:#fafafa}
     <div class="hd">
         <div>
             ${repName ? `<div class="rep-name">📋 ${repName}</div>` : ''}
-            <h1>📊 تقرير تحليلات GBR الذكي</h1>
+            <h1>📊 تقرير تحليلات بنيان للمقاولات الذكي</h1>
             ${dateLine ? `<div class="dates">📅 ${dateLine}</div>` : ''}
             ${axisSection}
             ${filtersSection}

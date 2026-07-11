@@ -645,7 +645,7 @@ function tasksFlatForExport() {
 }
 window.tasksPrint = function () {
     const rows = tasksFlatForExport();
-    const co = (window.gbrCfg && (window.gbrCfg.companyName || window.gbrCfg.name)) || 'GBR';
+    const co = (window.gbrCfg && (window.gbrCfg.companyName || window.gbrCfg.name)) || 'بنيان للمقاولات';
     const trs = rows.map(t => { const p = TASK_PRIO[t.priority] || TASK_PRIO.medium; const s = TASK_STATUS[t.status] || TASK_STATUS.open; return `<tr><td>${(t.title || '').replace(/</g, '&lt;')}</td><td style="color:${p.color}">${p.label}</td><td>${s.label}</td><td>${t.dueDate || '—'}${t.dueTime ? ' ' + t.dueTime : ''}</td><td>${(t.assignedName || '').replace(/</g, '&lt;') || '—'}</td><td>${(tasksLinkLabel(t) || '—')}</td><td>${t.reminder && t.reminder.enabled ? tasksReminderLabel(t.reminder) : '—'}</td></tr>`; }).join('');
     const w = window.open('', '_blank');
     w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>قائمة المهام</title><style>body{font-family:'Segoe UI',Tahoma,sans-serif;padding:24px;direction:rtl}h1{color:#5b2c6f;font-size:20px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}th,td{border:1px solid #ccc;padding:7px;text-align:right}th{background:#5b2c6f;color:#fff}tr:nth-child(even){background:#f7f7fb}@media print{button{display:none}}</style></head><body><h1>🗓️ قائمة المهام — ${co}</h1><div style="font-size:12px;color:#666">تاريخ الطباعة: ${new Date().toLocaleString('ar-EG')} · عدد المهام: ${rows.length}</div><button onclick="print()" style="margin-top:10px;padding:8px 18px;background:#5b2c6f;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ طباعة</button><table><thead><tr><th>المهمة</th><th>الأولوية</th><th>الحالة</th><th>الاستحقاق</th><th>المُعيَّن</th><th>مرتبطة بـ</th><th>التذكير</th></tr></thead><tbody>${trs || '<tr><td colspan="7" style="text-align:center">لا توجد مهام</td></tr>'}</tbody></table></body></html>`);
@@ -720,7 +720,7 @@ function tasksCheckEscalations() {
 }
 window.tasksDailyAgenda = function () {
     const d = new Date(); d.setHours(0, 0, 0, 0); const items = tasksDayItems(d.getTime());
-    const co = (window.gbrCfg && (window.gbrCfg.companyName || window.gbrCfg.name)) || 'GBR';
+    const co = (window.gbrCfg && (window.gbrCfg.companyName || window.gbrCfg.name)) || 'بنيان للمقاولات';
     const list = items.map(it => { const p = TASK_PRIO[it.t.priority] || TASK_PRIO.medium; const done = it.t.status === 'done'; return `<div style="display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #eee"><span style="width:10px;height:10px;border-radius:50%;background:${p.color}"></span><span style="font-weight:700;min-width:48px">${it.time || '—'}</span><span style="flex:1;${done ? 'text-decoration:line-through;color:#999' : ''}">${it.kind === 'rem' ? '🔔 ' : '📌 '}${(it.t.title || '').replace(/</g, '&lt;')}</span><span style="font-size:11px;color:#888">${it.t.assignedName || ''}</span></div>`; }).join('');
     document.getElementById('taskEditorOverlay')?.remove();
     const ov = document.createElement('div'); ov.id = 'taskEditorOverlay';
