@@ -224,6 +224,8 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('qhse',      `🦺 الجودة والسلامة${(() => { const n = Object.values((window.qhse || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('submittals',`📋 المستندات الفنية${(() => { const n = Object.values((window.submittals || {})[projectId] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('correspondence',`📮 المراسلات${(() => { const n = Object.values((window.correspondence || {})[projectId] || {}).filter(r => r.status === 'open').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('photos',    `📷 الصور${(() => { const n = Object.keys((window.projectPhotos || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('markup',    `✏️ تأشير المخططات${(() => { const n = Object.keys((window.projectMarkups || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('meetings',  `📝 الاجتماعات والمحاضر${(() => { const n = Object.values((window.meetings || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('tenders',   `📢 المناقصات${(() => { const n = Object.values((window.tenders || {})[projectId] || {}).filter(r => ['open', 'evaluating'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
@@ -251,6 +253,8 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-photos"    class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-markup"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-meetings"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-tenders"   class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
@@ -315,6 +319,8 @@ function pdRenderTab(tab) {
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
+    if (tab === 'photos')    pdRenderPhotos(pid);
+    if (tab === 'markup' && typeof pdRenderMarkupTab === 'function') pdRenderMarkupTab(pid);
     if (tab === 'meetings')  pdRenderMeetings(pid);
     if (tab === 'tenders')   pdRenderTenders(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
@@ -4484,6 +4490,120 @@ window.pdCloseCorr = function (pid, key) {
 window.pdDeleteCorr = function (pid, key) {
     cf2('حذف هذه المراسلة نهائياً؟', async () => {
         try { await remove(ref(db, `ledger/correspondence/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('correspondence'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 📷 سجل الصور الميدانية الموسومة (Project Photo Log)                 ║
+// ║   معرض صور بروابط، موسومة بالتاريخ/الموقع/التصنيف — كـ Procore Photos.       ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_PHOTO_CAT = { progress: ['📈 تقدّم أعمال', '#27ae60'], defect: ['🔴 نقص/عيب', '#c0392b'], safety: ['🦺 سلامة', '#e67e22'], materials: ['📦 مواد', '#8e44ad'], general: ['📷 عام', '#2980b9'] };
+window._pdPhotoFilter = window._pdPhotoFilter || '';
+window._pdPhotoSearch = window._pdPhotoSearch || '';
+window.pdSetPhotoFilter = function (c) { window._pdPhotoFilter = c; pdRenderPhotos(window._pd.projectId); };
+window.pdSearchPhotos = function (v) {
+    window._pdPhotoSearch = v; pdRenderPhotos(window._pd.projectId);
+    const el = document.getElementById('pd-photo-search'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+};
+
+function pdRenderPhotos(pid) {
+    const pane = document.getElementById('pd-tab-photos'); if (!pane) return;
+    const all = Object.entries((window.projectPhotos || {})[pid] || {}).sort((a, b) => (b[1].date || b[1].createdAt || '').localeCompare(a[1].date || a[1].createdAt || ''));
+    const filter = window._pdPhotoFilter, q = (window._pdPhotoSearch || '').trim().toLowerCase();
+    const shown = all.filter(([, p]) => (!filter || (p.category || 'general') === filter) && (!q || `${p.caption || ''} ${p.location || ''} ${p.tags || ''}`.toLowerCase().includes(q)));
+    const catCount = c => all.filter(([, p]) => (p.category || 'general') === c).length;
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">📷 سجل الصور الميدانية</div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <input id="pd-photo-search" value="${(window._pdPhotoSearch || '').replace(/"/g, '&quot;')}" oninput="pdSearchPhotos(this.value)" placeholder="🔍 بحث..." style="${inputStyle('max-width:180px')}">
+                <button class="btn b-g" onclick="pdOpenPhotoForm('${pid}')">➕ صورة</button>
+            </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px">
+            <button onclick="pdSetPhotoFilter('')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === '' ? '#2d6a9f' : '#d0d7e0'};background:${filter === '' ? '#2d6a9f' : '#fff'};color:${filter === '' ? '#fff' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">الكل (${all.length})</button>
+            ${Object.entries(PD_PHOTO_CAT).map(([c, [label]]) => { const n = catCount(c); if (!n && filter !== c) return ''; return `<button onclick="pdSetPhotoFilter('${c}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === c ? '#2d6a9f' : '#d0d7e0'};background:${filter === c ? '#2d6a9f' : '#fff'};color:${filter === c ? '#fff' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">${label}${n ? ` (${n})` : ''}</button>`; }).join('')}
+        </div>
+        ${shown.length === 0 ? `<div class="empty"><div class="ei">📷</div><p>${all.length ? 'لا نتائج مطابقة' : 'لا صور بعد — أضف رابط أول صورة'}</p></div>` : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:10px">
+        ${shown.map(([k, p]) => {
+        const [catLabel, catCl] = PD_PHOTO_CAT[p.category] || PD_PHOTO_CAT.general;
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+                <div style="position:relative;height:140px;background:#f1f3f5">
+                    <a href="${p.url}" target="_blank" rel="noopener"><img src="${p.url}" alt="${(p.caption || '').replace(/"/g, '&quot;')}" style="width:100%;height:140px;object-fit:cover;display:block" onerror="this.style.display='none';this.parentElement.nextElementSibling.style.display='flex'"></a>
+                    <span style="position:absolute;top:6px;right:6px;background:${catCl};color:#fff;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${catLabel}</span>
+                </div>
+                <div style="display:none;height:140px;align-items:center;justify-content:center;flex-direction:column;color:#aaa;font-size:12px;background:#f1f3f5"><div style="font-size:28px">🔗</div><a href="${p.url}" target="_blank" style="color:#2980b9;font-weight:700">فتح الرابط</a></div>
+                <div style="padding:10px">
+                    <div style="font-size:12.5px;font-weight:700;color:#1a3a5c;line-height:1.4">${p.caption || '—'}</div>
+                    <div style="font-size:11px;color:#888;margin-top:4px">${p.date || ''}${p.location ? ` · 📍 ${p.location}` : ''}</div>
+                    ${p.tags ? `<div style="font-size:10px;color:#2980b9;margin-top:3px">🏷️ ${p.tags}</div>` : ''}
+                    <div style="display:flex;gap:6px;margin-top:8px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px;flex:1" onclick="pdOpenPhotoForm('${pid}','${k}')">✏️</button>
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeletePhoto('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+            </div>`;
+    }).join('')}
+        </div>`}
+        <div style="font-size:11px;color:#888;margin-top:12px">💡 ارفع الصورة إلى Google Drive/أي استضافة واجعل رابطها عاماً، ثم الصق الرابط المباشر للصورة هنا.</div>
+    </div>
+    ${pdPhotoFormHtml(pid)}`;
+}
+
+function pdPhotoFormHtml(pid) {
+    return `<div id="pd-photo-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #2980b9">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-photo-form-title">📷 إضافة صورة</div>
+        <input type="hidden" id="pd-photo-key">
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">رابط الصورة المباشر *</label><input type="url" id="photo-url" placeholder="https://.../image.jpg" style="${inputStyle()}"></div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">الوصف/التعليق</label><input id="photo-caption" placeholder="مثال: صبّ خرسانة سقف الدور الأول" style="${inputStyle()}"></div>
+        <div style="display:grid;grid-template-columns:150px 1fr 160px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="photo-date" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الموقع</label><input id="photo-loc" placeholder="الدور / المنطقة / المحور" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">التصنيف</label><select id="photo-cat" style="${inputStyle()}">${Object.entries(PD_PHOTO_CAT).map(([c, [label]]) => `<option value="${c}"${c === 'progress' ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">وسوم (مفصولة بفاصلة)</label><input id="photo-tags" placeholder="خرسانة، تسليح، محور A" style="${inputStyle()}"></div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSavePhoto('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-photo-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdOpenPhotoForm = function (pid, key = null) {
+    const form = document.getElementById('pd-photo-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-photo-key').value = key || '';
+    document.getElementById('pd-photo-form-title').textContent = key ? '✏️ تعديل الصورة' : '📷 إضافة صورة';
+    const p = key ? ((window.projectPhotos || {})[pid] || {})[key] : null;
+    document.getElementById('photo-url').value = p?.url || '';
+    document.getElementById('photo-caption').value = p?.caption || '';
+    document.getElementById('photo-date').value = p?.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('photo-loc').value = p?.location || '';
+    document.getElementById('photo-cat').value = p?.category || 'progress';
+    document.getElementById('photo-tags').value = p?.tags || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSavePhoto = async function (pid) {
+    const url = document.getElementById('photo-url')?.value.trim();
+    if (!/^https?:\/\//i.test(url || '')) { toast('أدخل رابط صورة صالحاً يبدأ بـ http', 'er'); return; }
+    const key = document.getElementById('pd-photo-key')?.value;
+    const data = {
+        url, caption: document.getElementById('photo-caption')?.value.trim() || '',
+        date: document.getElementById('photo-date')?.value || '',
+        location: document.getElementById('photo-loc')?.value.trim() || '',
+        category: document.getElementById('photo-cat')?.value || 'general',
+        tags: document.getElementById('photo-tags')?.value.trim() || '', updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/projectPhotos/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else { data.createdAt = new Date().toISOString(); data.by = window.myP?.name || window.curU?.email || ''; await push(ref(db, `ledger/projectPhotos/${pid}`), data); toast('تمت الإضافة ✓', 'ok'); }
+        document.getElementById('pd-photo-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('photos'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdDeletePhoto = function (pid, key) {
+    cf2('حذف هذه الصورة من السجل؟', async () => {
+        try { await remove(ref(db, `ledger/projectPhotos/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('photos'), 300); }
         catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
 };
