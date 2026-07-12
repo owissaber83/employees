@@ -266,6 +266,7 @@ function buildRefs() {
     qhse: ref(db, 'ledger/qhse'),              // 🦺 الجودة والسلامة { projectId: { key:{ kind:'inspection'|'observation'|'incident', number, title, ... } } }
     submittals: ref(db, 'ledger/submittals'),  // 📋 المستندات الفنية { projectId: { key:{ number, title, subType, discipline, status, revision, specSection, submittedTo, submittedDate, dueDate, reviewer, returnedDate, reviewNotes, fileUrl } } }
     subcontracts: ref(db, 'ledger/subcontracts'), // 🤝 عقود الباطن على مستوى المشروع { projectId: { key:{ subId, subName, scope, contractValue, retentionPct, advanceAmount, startDate, endDate, status, changeOrders:[{desc,amount,date}], certificates:[{no,date,periodValue,retentionAmt,advanceRecovery,netPayable,status,notes}] } } }
+    correspondence: ref(db, 'ledger/correspondence'), // 📮 المراسلات والتحويلات { projectId: { key:{ number, direction:'in'|'out', kind, date, party, subject, reference, priority, actionRequired, dueDate, status, summary, link } } }
     meetings: ref(db, 'ledger/meetings'),      // 📝 الاجتماعات والمحاضر { projectId: { key:{ number, title, meetingType, meetingDate, location, attendees, discussion, nextMeetingDate, status, actions:[{text,owner,dueDate,done}] } } }
     tenders: ref(db, 'ledger/tenders'),        // 📢 المناقصات والعطاءات { projectId: { key:{ number, title, category, budget, issueDate, dueDate, scope, status, notes, bids:[{bidder,amount,date,notes,selected}] } } }
     pact: ref(db, 'ledger/projectActivityLog'), // { projectId: { logKey: { date, icon, text, user } } } سجل نشاط المشروع
@@ -2885,6 +2886,10 @@ function startListeners() {
     onValue(R.subcontracts, sn => {
         window.subcontracts = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'subcontracts' && typeof pdRenderTab === 'function') pdRenderTab('subcontracts');
+    });
+    onValue(R.correspondence, sn => {
+        window.correspondence = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'correspondence' && typeof pdRenderTab === 'function') pdRenderTab('correspondence');
     });
     onValue(R.meetings, sn => {
         window.meetings = sn.exists() ? sn.val() : {};

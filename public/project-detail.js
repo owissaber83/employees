@@ -223,6 +223,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('punch',     `🔧 قوائم النواقص${(() => { const n = Object.values((window.punchItems || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('qhse',      `🦺 الجودة والسلامة${(() => { const n = Object.values((window.qhse || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('submittals',`📋 المستندات الفنية${(() => { const n = Object.values((window.submittals || {})[projectId] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('correspondence',`📮 المراسلات${(() => { const n = Object.values((window.correspondence || {})[projectId] || {}).filter(r => r.status === 'open').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('meetings',  `📝 الاجتماعات والمحاضر${(() => { const n = Object.values((window.meetings || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('tenders',   `📢 المناقصات${(() => { const n = Object.values((window.tenders || {})[projectId] || {}).filter(r => ['open', 'evaluating'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
@@ -249,6 +250,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-meetings"  class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-tenders"   class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
@@ -312,6 +314,7 @@ function pdRenderTab(tab) {
     if (tab === 'punch')     pdRenderPunch(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
+    if (tab === 'correspondence') pdRenderCorrespondence(pid);
     if (tab === 'meetings')  pdRenderMeetings(pid);
     if (tab === 'tenders')   pdRenderTenders(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
@@ -516,6 +519,41 @@ function pdRenderOverview(pid) {
             })()}
         </div>
 
+        ${(() => {
+            const today = new Date().toISOString().slice(0, 10);
+            const rfis = Object.values((window.rfis || {})[pid] || {});
+            const rfiOpen = rfis.filter(r => r.status !== 'closed').length;
+            const rfiOv = rfis.filter(r => r.status === 'open' && r.dueDate && r.dueDate < today).length;
+            const punch = Object.values((window.punchItems || {})[pid] || {});
+            const punchOpen = punch.filter(r => r.status !== 'closed').length;
+            const punchOv = punch.filter(r => r.status !== 'closed' && r.dueDate && r.dueDate < today).length;
+            const qhse = Object.values((window.qhse || {})[pid] || {});
+            const qhseOpen = qhse.filter(r => (r.kind === 'incident' || r.kind === 'observation') && r.status !== 'closed').length;
+            const subs = Object.values((window.submittals || {})[pid] || {});
+            const subOpen = subs.filter(r => !['approved', 'approved_noted'].includes(r.status)).length;
+            const subOv = subs.filter(r => !['approved', 'approved_noted', 'draft', 'rejected'].includes(r.status) && r.dueDate && r.dueDate < today).length;
+            const corr = Object.values((window.correspondence || {})[pid] || {});
+            const corrOpen = corr.filter(r => r.status === 'open').length;
+            const totalOverdue = rfiOv + punchOv + subOv;
+            if (!rfis.length && !punch.length && !qhse.length && !subs.length && !corr.length) return '';
+            const tile = (icon, label, val, tab, ov, color) => `<div onclick="pdSwitchTab('${tab}')" style="cursor:pointer;background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:12px;border-top:3px solid ${color};transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow='none'">
+                <div style="font-size:20px">${icon}</div>
+                <div style="font-size:11px;color:#888;margin-top:4px">${label}</div>
+                <div style="font-size:20px;font-weight:900;color:${color};font-variant-numeric:tabular-nums">${val}</div>
+                ${ov ? `<div style="font-size:10px;color:#c0392b;font-weight:700;margin-top:2px">⏰ ${ov} متأخر</div>` : '<div style="height:15px"></div>'}
+            </div>`;
+            return `<div class="card" style="margin-bottom:14px">
+                <div class="c-tl" style="margin:0 0 4px;border:none;padding:0">🏗️ لوحة الحالة الميدانية</div>
+                <div style="font-size:11px;color:#888;margin-bottom:12px">ملخّص التعاون الميداني والجودة — انقر أي بطاقة لفتح تبويبها.${totalOverdue ? ` <span style="color:#c0392b;font-weight:700">⚠️ ${totalOverdue} بند متأخر يحتاج إجراءً.</span>` : ''}</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+                    ${tile('📨', 'طلبات معلومات مفتوحة', rfiOpen, 'rfis', rfiOv, '#e67e22')}
+                    ${tile('🔧', 'نواقص مفتوحة', punchOpen, 'punch', punchOv, '#c0392b')}
+                    ${tile('🦺', 'حوادث/ملاحظات مفتوحة', qhseOpen, 'qhse', 0, '#16a085')}
+                    ${tile('📋', 'مستندات قيد المراجعة', subOpen, 'submittals', subOv, '#8e44ad')}
+                    ${tile('📮', 'مراسلات تنتظر رداً', corrOpen, 'correspondence', 0, '#2980b9')}
+                </div>
+            </div>`;
+        })()}
     </div>`;
 
     pdBuildActualProfitChart(approvedRevenue, totalCosts);
@@ -4304,6 +4342,153 @@ function pdRenderCashflow(pid) {
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   TAB — 📮 المراسلات والتحويلات (Correspondence / Transmittals)            ║
+// ║   سجل الخطابات والتحويلات الواردة/الصادرة بترقيم ومرجع وحالة — كـ Aconex.   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PD_CORR_STATUS = { open: ['🟠 مفتوح', '#e67e22', '#fef5e7'], replied: ['🔵 تمّ الرد', '#2980b9', '#eaf2fb'], closed: ['🟢 مغلق', '#27ae60', '#eafaf1'], info: ['⚪ للعلم', '#7f8c8d', '#f1f3f5'] };
+const PD_CORR_KIND = { letter: 'خطاب', transmittal: 'تحويل مستندات', notice: 'إشعار', email: 'بريد إلكتروني', mom: 'محضر' };
+window._pdCorrFilter = window._pdCorrFilter || 'all';
+window.pdSetCorrFilter = function (f) { window._pdCorrFilter = f; pdRenderCorrespondence(window._pd.projectId); };
+
+function pdRenderCorrespondence(pid) {
+    const pane = document.getElementById('pd-tab-correspondence'); if (!pane) return;
+    const all = Object.entries((window.correspondence || {})[pid] || {}).sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
+    const today = new Date().toISOString().slice(0, 10);
+    const isOv = r => r.actionRequired && r.status === 'open' && r.dueDate && r.dueDate < today;
+    let cIn = 0, cOut = 0, cOpen = 0, cOv = 0;
+    all.forEach(([, r]) => { if (r.direction === 'in') cIn++; else cOut++; if (r.status === 'open') cOpen++; if (isOv(r)) cOv++; });
+    const flt = window._pdCorrFilter;
+    const shown = all.filter(([, r]) => flt === 'all' ? true : flt === 'overdue' ? isOv(r) : (flt === 'in' || flt === 'out') ? r.direction === flt : r.status === flt);
+    pane.innerHTML = `
+    <div class="card">
+        <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">📮 المراسلات والتحويلات</div>
+            <button class="btn b-g" onclick="pdOpenCorrForm('${pid}')">➕ مراسلة جديدة</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            ${pdFiStat('الإجمالي', all.length, '#2d6a9f')}${pdFiStat('📥 واردة', cIn, '#8e44ad')}${pdFiStat('📤 صادرة', cOut, '#16a085')}${pdFiStat('تنتظر رداً/إجراء', cOpen, cOpen ? '#e67e22' : '#27ae60')}${pdFiStat('متأخرة', cOv, '#c0392b')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            ${pdFiltChip(flt, 'all', 'الكل', 'pdSetCorrFilter')}${pdFiltChip(flt, 'in', '📥 واردة', 'pdSetCorrFilter')}${pdFiltChip(flt, 'out', '📤 صادرة', 'pdSetCorrFilter')}${pdFiltChip(flt, 'open', 'مفتوحة', 'pdSetCorrFilter')}${pdFiltChip(flt, 'overdue', '⏰ متأخرة', 'pdSetCorrFilter')}${pdFiltChip(flt, 'closed', 'مغلقة', 'pdSetCorrFilter')}
+        </div>
+        ${shown.length === 0 ? '<div class="empty"><div class="ei">📮</div><p>لا توجد مراسلات في هذا التصنيف</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${shown.map(([k, r]) => {
+        const [sl, sc, sbg] = PD_CORR_STATUS[r.status] || PD_CORR_STATUS.open;
+        const dir = r.direction === 'in' ? ['📥 وارد', '#8e44ad'] : ['📤 صادر', '#16a085'];
+        const ov = isOv(r);
+        return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : dir[1]}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="background:${dir[1]}18;color:${dir[1]};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${dir[0]}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.subject || '—'}</span>
+                        <span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_CORR_KIND[r.kind] || r.kind || ''}</span>
+                        <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
+                        ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ متأخر</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="pdOpenCorrForm('${pid}','${k}')">✏️</button>
+                        ${r.status !== 'closed' ? `<button class="btn" style="padding:3px 8px;font-size:11px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdCloseCorr('${pid}','${k}')">✅ إغلاق</button>` : ''}
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="pdDeleteCorr('${pid}','${k}')">🗑️</button>
+                    </div>
+                </div>
+                ${r.summary ? `<div style="font-size:12.5px;color:#444;margin-top:8px;line-height:1.7">${r.summary.replace(/\n/g, '<br>')}</div>` : ''}
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:8px">
+                    ${r.party ? `<span>${r.direction === 'in' ? '👤 من: ' : '👤 إلى: '}${r.party}</span>` : ''}${r.date ? `<span>📅 ${r.date}</span>` : ''}${r.reference ? `<span>🔗 مرجع: ${r.reference}</span>` : ''}${r.actionRequired && r.dueDate ? `<span style="color:${ov ? '#c0392b' : '#888'}">⏳ إجراء بحلول: ${r.dueDate}</span>` : ''}${r.link ? `<a href="${r.link}" target="_blank" style="color:#2980b9;font-weight:700">📎 المرفق</a>` : ''}
+                </div>
+            </div>`;
+    }).join('')}
+        </div>`}
+    </div>
+    ${pdCorrFormHtml(pid)}`;
+}
+
+function pdCorrFormHtml(pid) {
+    return `<div id="pd-corr-form" style="display:none;background:#fff;border-radius:12px;padding:20px;margin-top:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);border:2px solid #16a085">
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px" id="pd-corr-form-title">📮 مراسلة جديدة</div>
+        <input type="hidden" id="pd-corr-key">
+        <div style="display:grid;grid-template-columns:150px 160px 150px;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الاتجاه</label><select id="corr-dir" style="${inputStyle()}"><option value="in">📥 وارد</option><option value="out">📤 صادر</option></select></div>
+            <div><label style="${lblStyle()}">النوع</label><select id="corr-kind" style="${inputStyle()}"><option value="letter">خطاب</option><option value="transmittal">تحويل مستندات</option><option value="notice">إشعار</option><option value="email">بريد إلكتروني</option><option value="mom">محضر</option></select></div>
+            <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="corr-date" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">الموضوع *</label><input id="corr-subject" placeholder="موضوع المراسلة" style="${inputStyle()}"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div><label style="${lblStyle()}">الجهة (المرسِل/المرسَل إليه)</label><input id="corr-party" placeholder="الاستشاري / المالك / الجهة" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">المرجع (رقم خطاب/مستند)</label><input id="corr-ref" placeholder="اختياري" style="${inputStyle()}"></div>
+        </div>
+        <div style="margin-bottom:10px"><label style="${lblStyle()}">الملخّص/المحتوى</label><textarea id="corr-summary" rows="3" placeholder="ملخّص المراسلة..." style="${inputStyle('resize:vertical')}"></textarea></div>
+        <div style="display:grid;grid-template-columns:auto 160px 1fr;gap:10px;align-items:end;margin-bottom:10px">
+            <div><label style="${lblStyle()}">يتطلّب إجراء؟</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:9px 0"><input type="checkbox" id="corr-action" style="width:18px;height:18px"> نعم — بمهلة</label></div>
+            <div><label style="${lblStyle()}">مهلة الإجراء</label><input type="date" id="corr-due" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الحالة</label><select id="corr-status" style="${inputStyle()}"><option value="open">🟠 مفتوح</option><option value="replied">🔵 تمّ الرد</option><option value="closed">🟢 مغلق</option><option value="info">⚪ للعلم</option></select></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="${lblStyle()}">رابط المرفق (اختياري)</label><input id="corr-link" placeholder="https://..." style="${inputStyle()}"></div>
+        <div style="display:flex;gap:8px">
+            <button class="btn b-g" onclick="pdSaveCorr('${pid}')">💾 حفظ</button>
+            <button class="btn" onclick="document.getElementById('pd-corr-form').style.display='none'" style="background:#f8fafc;color:#666;border:1.5px solid #d0d7e0">إلغاء</button>
+        </div>
+    </div>`;
+}
+window.pdOpenCorrForm = function (pid, key = null) {
+    const form = document.getElementById('pd-corr-form'); if (!form) return;
+    form.style.display = ''; document.getElementById('pd-corr-key').value = key || '';
+    document.getElementById('pd-corr-form-title').textContent = key ? '✏️ تعديل المراسلة' : '📮 مراسلة جديدة';
+    const r = key ? ((window.correspondence || {})[pid] || {})[key] : null;
+    document.getElementById('corr-dir').value = r?.direction || 'in';
+    document.getElementById('corr-kind').value = r?.kind || 'letter';
+    document.getElementById('corr-date').value = r?.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('corr-subject').value = r?.subject || '';
+    document.getElementById('corr-party').value = r?.party || '';
+    document.getElementById('corr-ref').value = r?.reference || '';
+    document.getElementById('corr-summary').value = r?.summary || '';
+    document.getElementById('corr-action').checked = !!r?.actionRequired;
+    document.getElementById('corr-due').value = r?.dueDate || '';
+    document.getElementById('corr-status').value = r?.status || 'open';
+    document.getElementById('corr-link').value = r?.link || '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+window.pdSaveCorr = async function (pid) {
+    const subject = document.getElementById('corr-subject')?.value.trim();
+    if (!subject) { toast('أدخل موضوع المراسلة', 'er'); return; }
+    const key = document.getElementById('pd-corr-key')?.value;
+    const direction = document.getElementById('corr-dir')?.value || 'in';
+    const data = {
+        direction, kind: document.getElementById('corr-kind')?.value || 'letter',
+        date: document.getElementById('corr-date')?.value || '', subject,
+        party: document.getElementById('corr-party')?.value.trim() || '',
+        reference: document.getElementById('corr-ref')?.value.trim() || '',
+        summary: document.getElementById('corr-summary')?.value.trim() || '',
+        actionRequired: !!document.getElementById('corr-action')?.checked,
+        dueDate: document.getElementById('corr-due')?.value || '',
+        status: document.getElementById('corr-status')?.value || 'open',
+        link: document.getElementById('corr-link')?.value.trim() || '', updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/correspondence/${pid}/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else {
+            const prefix = direction === 'in' ? 'IN' : 'OUT';
+            data.number = pdNextNum(prefix, Object.fromEntries(Object.entries((window.correspondence || {})[pid] || {}).filter(([, r]) => r.direction === direction)));
+            data.createdAt = new Date().toISOString(); data.createdBy = window.curU?.uid || '';
+            await push(ref(db, `ledger/correspondence/${pid}`), data); toast('تم الحفظ ✓', 'ok');
+        }
+        document.getElementById('pd-corr-form').style.display = 'none';
+        setTimeout(() => pdRenderTab('correspondence'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.pdCloseCorr = function (pid, key) {
+    cf2('إغلاق هذه المراسلة؟', async () => {
+        try { await update(ref(db, `ledger/correspondence/${pid}/${key}`), { status: 'closed', updatedAt: new Date().toISOString() }); toast('تم الإغلاق', 'ok'); setTimeout(() => pdRenderTab('correspondence'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.pdDeleteCorr = function (pid, key) {
+    cf2('حذف هذه المراسلة نهائياً؟', async () => {
+        try { await remove(ref(db, `ledger/correspondence/${pid}/${key}`)); toast('تم الحذف', 'ok'); setTimeout(() => pdRenderTab('correspondence'), 300); }
+        catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
 // ║   TAB — المهام (Tasks Kanban)                                             ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 const PD_TASK_COLS = [
@@ -5088,6 +5273,10 @@ function pdRenderDocCenter(pid) {
                 </select>
             </div>
             <div>
+                <label style="${lblStyle()}">الإصدار/المراجعة</label>
+                <input type="text" id="pd-doc-rev" placeholder="Rev 0" value="Rev 0" style="${inputStyle()}">
+            </div>
+            <div>
                 <button class="btn b-g" id="pd-doc-upload-btn" onclick="pdUploadDocument('${pid}')" style="width:100%">➕ إضافة المستند</button>
             </div>
         </div>
@@ -5104,23 +5293,42 @@ function pdRenderDocCenter(pid) {
             ${Object.entries(PD_DOC_CATEGORIES).map(([cat, [label]]) => { const n = catCount(cat); if (!n && filter !== cat) return ''; return `<button onclick="pdFilterDocs('${pid}','${cat}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === cat ? '#2d6a9f' : '#d0d7e0'};background:${filter === cat ? '#2d6a9f' : 'white'};color:${filter === cat ? 'white' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">${label}${n ? ` (${n})` : ''}</button>`; }).join('')}
         </div>
         ${docs.length === 0 ? `<div class="empty"><div class="ei">📁</div><p>${allDocs.length ? 'لا نتائج مطابقة للبحث/التصنيف' : 'لا توجد مستندات بعد'}</p></div>` : `
-        <div style="display:flex;flex-direction:column;gap:0;margin-top:8px">
-        ${docs.map(([dk, d], i) => {
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        ${docs.map(([dk, d]) => {
             const [catLabel, catBg, catCl] = PD_DOC_CATEGORIES[d.category] || PD_DOC_CATEGORIES.other;
-            const date = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('ar-SA') : '-';
-            return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;${i < docs.length - 1 ? 'border-bottom:1px solid #eef2f7' : ''}">
-                <div style="font-size:22px">🔗</div>
-                <div style="flex:1;min-width:0">
-                    <div style="font-size:13px;font-weight:700;color:#1a3a5c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name || d.fileName || '-'}</div>
-                    <div style="font-size:11px;color:#888;margin-top:2px">${date}${d.uploadedBy ? ` · 👤 ${d.uploadedBy}` : ''}</div>
+            const vers = pdDocVersions(d);
+            const cur = vers[vers.length - 1];
+            const date = cur.date || (d.uploadedAt ? d.uploadedAt.slice(0, 10) : '-');
+            return `<div style="border:1px solid #eef2f7;border-radius:10px;padding:11px 12px">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="font-size:22px">🔗</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:13px;font-weight:700;color:#1a3a5c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name || d.fileName || '-'} <span style="background:#eef3f8;color:#2d6a9f;padding:1px 8px;border-radius:6px;font-size:11px;font-weight:800">${cur.rev || 'Rev 0'}</span></div>
+                        <div style="font-size:11px;color:#888;margin-top:2px">${date}${(cur.by || d.uploadedBy) ? ` · 👤 ${cur.by || d.uploadedBy}` : ''}${vers.length > 1 ? ` · 📚 ${vers.length} إصدار` : ''}</div>
+                    </div>
+                    <span style="background:${catBg};color:${catCl};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;flex:0 0 auto">${catLabel}</span>
+                    <a href="${cur.url}" target="_blank" rel="noopener" class="btn b-b" style="padding:5px 10px;font-size:11px;flex:0 0 auto">🔗 الأحدث</a>
+                    <button class="btn" style="padding:5px 9px;font-size:11px;flex:0 0 auto;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf" onclick="pdAddDocVersion('${pid}','${dk}')">➕ إصدار</button>
+                    <button class="btn b-r" style="padding:5px 8px;font-size:11px;flex:0 0 auto" onclick="pdDeleteDocument('${pid}','${dk}')">🗑️</button>
                 </div>
-                <span style="background:${catBg};color:${catCl};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;flex:0 0 auto">${catLabel}</span>
-                <a href="${d.url}" target="_blank" rel="noopener" class="btn b-b" style="padding:5px 10px;font-size:11px;flex:0 0 auto">🔗 فتح</a>
-                <button class="btn b-r" style="padding:5px 8px;font-size:11px;flex:0 0 auto" onclick="pdDeleteDocument('${pid}','${dk}')">🗑️</button>
+                ${vers.length > 1 ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;color:#2d6a9f;font-weight:700">📚 سجل الإصدارات (${vers.length})</summary>
+                    <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+                    ${vers.slice().reverse().map((v, ri) => `<div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#666;padding:4px 8px;background:${ri === 0 ? '#f4faf8' : '#fafbfc'};border-radius:6px">
+                        <span style="font-weight:800;color:#1a3a5c;min-width:52px">${v.rev || 'Rev'}</span>
+                        <span style="min-width:80px">${v.date || ''}</span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.note || ''}${v.by ? ' · ' + v.by : ''}</span>
+                        <a href="${v.url}" target="_blank" rel="noopener" style="color:#2980b9;font-weight:700;flex:0 0 auto">🔗 فتح</a>
+                    </div>`).join('')}
+                    </div></details>` : ''}
             </div>`;
         }).join('')}
         </div>`}
     </div>`;
+}
+// نُسخ المستند (متوافق مع المستندات القديمة أحادية الرابط)
+function pdDocVersions(d) {
+    if (Array.isArray(d.versions) && d.versions.length) return d.versions;
+    return [{ rev: d.revision || 'Rev 0', url: d.url, date: (d.uploadedAt || '').slice(0, 10), note: '', by: d.uploadedBy || '' }];
 }
 
 window.pdFilterDocs = function (pid, cat) {
@@ -5154,6 +5362,9 @@ window.pdUploadDocument = async function (pid) {
     const customName = document.getElementById('pd-doc-name')?.value.trim();
     if (!customName) { toast('أدخل اسم المستند', 'er'); return; }
     const category = document.getElementById('pd-doc-category')?.value || 'other';
+    const rev = document.getElementById('pd-doc-rev')?.value.trim() || 'Rev 0';
+    const now = new Date().toISOString();
+    const by = window.myP?.name || window.curU?.email || '';
 
     const btn = document.getElementById('pd-doc-upload-btn');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإضافة...'; }
@@ -5161,11 +5372,12 @@ window.pdUploadDocument = async function (pid) {
         await push(ref(db, `ledger/projectDocuments/${pid}`), {
             name: customName,
             category,
-            url,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: window.myP?.name || window.curU?.email || ''
+            url, revision: rev,
+            versions: [{ rev, url, date: now.slice(0, 10), note: '', by }],
+            uploadedAt: now,
+            uploadedBy: by
         });
-        pdLogActivity(pid, '🔗', `إضافة رابط مستند: ${customName}`);
+        pdLogActivity(pid, '🔗', `إضافة رابط مستند: ${customName} (${rev})`);
         toast('تمت إضافة المستند ✓', 'ok');
         setTimeout(() => pdRenderTab('docs'), 400);
     } catch (e) {
@@ -5184,6 +5396,56 @@ window.pdDeleteDocument = function (pid, docKey) {
             setTimeout(() => pdRenderTab('docs'), 400);
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
+};
+
+// ── ➕ إضافة إصدار/مراجعة جديدة لمستند موجود (ضبط الإصدارات) ──
+window.pdAddDocVersion = function (pid, docKey) {
+    const d = (window.projectDocuments || {})[pid]?.[docKey]; if (!d) return;
+    const vers = pdDocVersions(d);
+    const lastRev = (vers[vers.length - 1].rev || 'Rev 0');
+    let ov = document.getElementById('pdDocVerOverlay');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'pdDocVerOverlay'; document.body.appendChild(ov); }
+    ov.dataset.pid = pid; ov.dataset.key = docKey;
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
+    ov.innerHTML = `<div dir="rtl" style="background:#fff;border-radius:16px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+        <div style="background:linear-gradient(135deg,#16a085,#0e6b5e);color:#fff;padding:15px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:900;font-size:15px">📚 إصدار جديد — ${d.name || 'مستند'}</div>
+            <button onclick="pdCloseDocVer()" style="border:0;background:rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
+        </div>
+        <div style="padding:20px">
+            <div style="font-size:11px;color:#888;margin-bottom:12px">الإصدار الحالي: <b>${lastRev}</b> — أضف الرابط الجديد كإصدار أحدث؛ يبقى السجل السابق محفوظاً.</div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;margin-bottom:10px">
+                <div><label style="${lblStyle()}">المراجعة *</label><input id="pdv-rev" placeholder="Rev 1 / B" style="${inputStyle()}"></div>
+                <div><label style="${lblStyle()}">تاريخ الإصدار</label><input type="date" id="pdv-date" value="${new Date().toISOString().slice(0, 10)}" style="${inputStyle()}"></div>
+            </div>
+            <div style="margin-bottom:10px"><label style="${lblStyle()}">رابط الإصدار *</label><input type="url" id="pdv-url" placeholder="https://..." style="${inputStyle()}"></div>
+            <div style="margin-bottom:14px"><label style="${lblStyle()}">ملاحظة الإصدار</label><input id="pdv-note" placeholder="مثال: تعديل بناءً على ملاحظات الاستشاري" style="${inputStyle()}"></div>
+            <div style="display:flex;gap:8px">
+                <button class="btn b-g" onclick="pdSaveDocVersion()" style="flex:1">💾 حفظ الإصدار</button>
+                <button class="btn" onclick="pdCloseDocVer()" style="background:#ecf0f1;color:#555">إلغاء</button>
+            </div>
+        </div>
+    </div>`;
+    setTimeout(() => { const r = document.getElementById('pdv-rev'); if (r) r.focus(); }, 30);
+};
+window.pdCloseDocVer = function () { const ov = document.getElementById('pdDocVerOverlay'); if (ov) ov.remove(); };
+window.pdSaveDocVersion = async function () {
+    const ov = document.getElementById('pdDocVerOverlay'); if (!ov) return;
+    const pid = ov.dataset.pid, docKey = ov.dataset.key;
+    const d = (window.projectDocuments || {})[pid]?.[docKey]; if (!d) return;
+    const rev = document.getElementById('pdv-rev')?.value.trim();
+    const url = document.getElementById('pdv-url')?.value.trim();
+    if (!rev) { toast('أدخل رقم المراجعة', 'er'); return; }
+    if (!/^https?:\/\//i.test(url || '')) { toast('أدخل رابطاً صالحاً يبدأ بـ http', 'er'); return; }
+    const v = { rev, url, date: document.getElementById('pdv-date')?.value || new Date().toISOString().slice(0, 10), note: document.getElementById('pdv-note')?.value.trim() || '', by: window.myP?.name || window.curU?.email || '' };
+    const versions = [...pdDocVersions(d), v];
+    try {
+        await update(ref(db, `ledger/projectDocuments/${pid}/${docKey}`), { versions, url: v.url, revision: v.rev, updatedAt: new Date().toISOString() });
+        pdLogActivity(pid, '📚', `إصدار جديد للمستند ${d.name || ''}: ${rev}`);
+        toast('تم حفظ الإصدار ✓', 'ok');
+        pdCloseDocVer();
+        setTimeout(() => pdRenderTab('docs'), 400);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
 
 // ── تقارير الموقع اليومية/الأسبوعية ──────────────────────────────
