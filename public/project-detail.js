@@ -5020,10 +5020,18 @@ window.pdOpenExecSummary = function (pid) {
 // ║   TAB — المستندات والتقارير (Document Center & Site Reports)            ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 const PD_DOC_CATEGORIES = {
-    contract: ['📄 عقود', '#e8f4fd', '#1a5276'],
-    drawing:  ['📐 مخططات', '#eafaf1', '#1e8449'],
-    permit:   ['🪪 تصاريح', '#fef9e7', '#7d6608'],
-    other:    ['📦 أخرى', '#f4f4f4', '#555']
+    contract:       ['📄 عقود', '#e8f4fd', '#1a5276'],
+    drawing:        ['📐 مخططات', '#eafaf1', '#1e8449'],
+    spec:           ['📘 مواصفات', '#eaf2fb', '#2471a3'],
+    permit:         ['🪪 تصاريح', '#fef9e7', '#7d6608'],
+    correspondence: ['✉️ مراسلات', '#f5eef8', '#6c3483'],
+    report:         ['📋 تقارير', '#fdf2e9', '#a04000'],
+    financial:      ['💰 مالية وفواتير', '#fef5e7', '#9c640c'],
+    warranty:       ['🛡️ ضمانات', '#eafaf1', '#0e6655'],
+    insurance:      ['🏥 تأمينات', '#eaf6f9', '#117a65'],
+    certificate:    ['🏅 شهادات واعتمادات', '#fdedec', '#922b21'],
+    photo:          ['🖼️ صور', '#f4ecf7', '#7d3c98'],
+    other:          ['📦 أخرى', '#f4f4f4', '#555']
 };
 
 function pdRenderDocsAndReports(pid) {
@@ -5050,9 +5058,11 @@ window.pdSwitchDocsSubTab = function (pid, sub) {
 function pdRenderDocCenter(pid) {
     const sub = document.getElementById('pd-docs-sub'); if (!sub) return;
     const filter = window._pd.docCategoryFilter || '';
-    const docs = Object.entries((window.projectDocuments || {})[pid] || {})
-        .sort((a, b) => new Date(b[1].uploadedAt || 0) - new Date(a[1].uploadedAt || 0))
-        .filter(([, d]) => !filter || d.category === filter);
+    const q = (window._pd.docSearch || '').trim().toLowerCase();
+    const allDocs = Object.entries((window.projectDocuments || {})[pid] || {})
+        .sort((a, b) => new Date(b[1].uploadedAt || 0) - new Date(a[1].uploadedAt || 0));
+    const docs = allDocs.filter(([, d]) => (!filter || (d.category || 'other') === filter) && (!q || (d.name || d.fileName || '').toLowerCase().includes(q)));
+    const catCount = c => allDocs.filter(([, d]) => (d.category || 'other') === c).length;
 
     sub.innerHTML = `
     <div class="card">
@@ -5074,10 +5084,7 @@ function pdRenderDocCenter(pid) {
             <div>
                 <label style="${lblStyle()}">التصنيف</label>
                 <select id="pd-doc-category" style="${inputStyle()}">
-                    <option value="contract">📄 عقود</option>
-                    <option value="drawing">📐 مخططات</option>
-                    <option value="permit">🪪 تصاريح</option>
-                    <option value="other" selected>📦 أخرى</option>
+                    ${Object.entries(PD_DOC_CATEGORIES).map(([cat, [label]]) => `<option value="${cat}"${cat === 'other' ? ' selected' : ''}>${label}</option>`).join('')}
                 </select>
             </div>
             <div>
@@ -5090,12 +5097,13 @@ function pdRenderDocCenter(pid) {
     <div class="card" style="margin-top:14px">
         <div class="tlb">
             <div class="c-tl" style="margin:0;border:none;padding:0">📁 مستندات المشروع</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button onclick="pdFilterDocs('${pid}','')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === '' ? '#2d6a9f' : '#d0d7e0'};background:${filter === '' ? '#2d6a9f' : 'white'};color:${filter === '' ? 'white' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">الكل</button>
-                ${Object.entries(PD_DOC_CATEGORIES).map(([cat, [label]]) => `<button onclick="pdFilterDocs('${pid}','${cat}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === cat ? '#2d6a9f' : '#d0d7e0'};background:${filter === cat ? '#2d6a9f' : 'white'};color:${filter === cat ? 'white' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">${label}</button>`).join('')}
-            </div>
+            <input id="pd-doc-search" value="${(window._pd.docSearch || '').replace(/"/g, '&quot;')}" oninput="pdSearchDocs('${pid}',this.value)" placeholder="🔍 بحث بالاسم..." style="${inputStyle('max-width:220px')}">
         </div>
-        ${docs.length === 0 ? '<div class="empty"><div class="ei">📁</div><p>لا توجد مستندات بعد</p></div>' : `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px">
+            <button onclick="pdFilterDocs('${pid}','')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === '' ? '#2d6a9f' : '#d0d7e0'};background:${filter === '' ? '#2d6a9f' : 'white'};color:${filter === '' ? 'white' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">الكل (${allDocs.length})</button>
+            ${Object.entries(PD_DOC_CATEGORIES).map(([cat, [label]]) => { const n = catCount(cat); if (!n && filter !== cat) return ''; return `<button onclick="pdFilterDocs('${pid}','${cat}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${filter === cat ? '#2d6a9f' : '#d0d7e0'};background:${filter === cat ? '#2d6a9f' : 'white'};color:${filter === cat ? 'white' : '#1a3a5c'};font-size:11px;font-weight:700;cursor:pointer">${label}${n ? ` (${n})` : ''}</button>`; }).join('')}
+        </div>
+        ${docs.length === 0 ? `<div class="empty"><div class="ei">📁</div><p>${allDocs.length ? 'لا نتائج مطابقة للبحث/التصنيف' : 'لا توجد مستندات بعد'}</p></div>` : `
         <div style="display:flex;flex-direction:column;gap:0;margin-top:8px">
         ${docs.map(([dk, d], i) => {
             const [catLabel, catBg, catCl] = PD_DOC_CATEGORIES[d.category] || PD_DOC_CATEGORIES.other;
@@ -5118,6 +5126,12 @@ function pdRenderDocCenter(pid) {
 window.pdFilterDocs = function (pid, cat) {
     window._pd.docCategoryFilter = cat;
     pdRenderDocCenter(pid);
+};
+window.pdSearchDocs = function (pid, v) {
+    window._pd.docSearch = v;
+    pdRenderDocCenter(pid);
+    const el = document.getElementById('pd-doc-search');
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
 };
 
 // 📤 رفع ملف فعلي عبر Cloudinary ويملأ حقل الرابط والاسم تلقائياً
