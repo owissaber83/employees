@@ -4683,6 +4683,7 @@ function pdRenderTasks(pid) {
                 <div style="background:#f4f6f8;border-radius:8px;padding:3px;display:flex;gap:2px">
                     <button class="btn ${taskView === 'kanban' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'kanban' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','kanban')">📋 كانبان</button>
                     <button class="btn ${taskView === 'gantt' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'gantt' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','gantt')">📅 جانت</button>
+                    <button class="btn ${taskView === 'cpm' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'cpm' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','cpm')" title="تحليل المسار الحرج">📊 CPM</button>
                 </div>
                 <button class="btn" onclick="pdApplyTemplatePicker('${pid}')" style="background:#f0f5fa;border:1.5px solid #d0d7e0" title="إضافة مهام من قالب جاهز">📋 من قالب</button>
                 ${tasks.length ? `<button class="btn" onclick="pdSaveTasksAsTemplate('${pid}')" style="background:#f0f5fa;border:1.5px solid #d0d7e0" title="حفظ مهام هذا المشروع كقالب لإعادة استخدامه">💾 حفظ كقالب</button>` : ''}
@@ -4702,7 +4703,7 @@ function pdRenderTasks(pid) {
             <button class="btn" style="padding:5px 12px;font-size:12px;background:#fdecea;color:#c0392b" onclick="pdDeleteAllTasks('${pid}')">🗑️ حذف كل المهام (${tasks.length})</button>
         </div>` : ''}
     </div>
-    ${taskView === 'gantt' ? pdRenderTasksGantt(pid, tasks, today) : `
+    ${taskView === 'cpm' ? pdRenderCpmTable(pid) : taskView === 'gantt' ? pdRenderTasksGantt(pid, tasks, today) : `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;overflow-x:auto">
         ${PD_TASK_COLS.map(([st, label, color]) => {
             const colTasks = tasks.filter(([, t]) => (t.status || 'todo') === st);
@@ -4803,9 +4804,53 @@ window.pdComputeCPM = function (pid) {
     }
     keys.forEach(bwd);
     const res = {};
-    keys.forEach(k => { const fl = LS[k] - ES[k]; res[k] = { ES: ES[k], EF: EF[k], LS: LS[k], LF: LF[k], float: fl, critical: fl <= 0.0001, duration: dur(k) }; });
+    keys.forEach(k => {
+        const fl = LS[k] - ES[k];
+        // الطفو الحر (Free Float) = أقل بداية مبكرة للتالين − النهاية المبكرة (أو حتى نهاية المشروع إن لم يوجد تالٍ)
+        let ff = succ[k].length ? (Math.min(...succ[k].map(s => ES[s])) - EF[k]) : (projectDuration - EF[k]);
+        res[k] = { ES: ES[k], EF: EF[k], LS: LS[k], LF: LF[k], float: fl, freeFloat: Math.max(0, ff), critical: fl <= 0.0001, duration: dur(k) };
+    });
     return { tasks: res, projectDuration };
 };
+
+// ── 📊 جدول تحليل المسار الحرج (CPM Analysis) ──
+function pdRenderCpmTable(pid) {
+    const cpm = window.pdComputeCPM(pid);
+    const T = (window.projectTasks || {})[pid] || {};
+    const rows = Object.entries(cpm.tasks).map(([tk, c]) => ({ tk, t: T[tk], ...c })).filter(r => r.t)
+        .sort((a, b) => (a.ES - b.ES) || (b.critical - a.critical) || (a.LS - b.LS));
+    if (!rows.length) return '<div class="card"><div class="empty"><div class="ei">📊</div><p>لا مهام لتحليلها — أضف مهام بتواريخ وترابط (سابقات)</p></div></div>';
+    const critRows = rows.filter(r => r.critical);
+    const hasDeps = rows.some(r => (r.t.deps || []).some(d => T[d]));
+    const cell = (v, bold) => `<td style="padding:7px 8px;text-align:center;font-variant-numeric:tabular-nums;${bold ? 'font-weight:800' : ''}">${v}</td>`;
+    return `
+    <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <div style="flex:1;min-width:140px;background:#eef3fb;border-radius:10px;padding:12px 14px;border-right:3px solid #2980b9"><div style="font-size:11px;color:#888">⏱️ مدة المشروع (المسار الأطول)</div><div style="font-size:22px;font-weight:900;color:#2980b9">${cpm.projectDuration} يوم</div></div>
+            <div style="flex:1;min-width:140px;background:#fdecea;border-radius:10px;padding:12px 14px;border-right:3px solid #c0392b"><div style="font-size:11px;color:#888">🔴 أنشطة حرجة (طفو صفر)</div><div style="font-size:22px;font-weight:900;color:#c0392b">${critRows.length} / ${rows.length}</div></div>
+            <div style="flex:2;min-width:200px;background:#f8fafc;border-radius:10px;padding:12px 14px;border-right:3px solid #1a3a5c"><div style="font-size:11px;color:#888">🎯 المسار الحرج</div><div style="font-size:12.5px;font-weight:700;color:#1a3a5c;margin-top:3px;line-height:1.6">${critRows.length ? critRows.map(r => r.t.title || '—').join(' ← ') : 'لا يوجد مسار حرج محدّد'}</div></div>
+        </div>
+        ${!hasDeps ? '<div style="background:#fef9e7;border:1px dashed #f0c419;border-radius:8px;padding:9px 12px;font-size:11px;color:#7d6608;margin-bottom:12px">💡 لم تُحدَّد سابقات (ترابط) للمهام — أضف «السابقات» في نموذج المهمة ليكون تحليل المسار الحرج ذا معنى (حالياً يعتمد على المُدد فقط).</div>' : ''}
+        <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:720px">
+                <thead><tr style="background:#1a3a5c;color:#fff">
+                    <th style="padding:8px;text-align:right">النشاط</th><th style="padding:8px" title="المدة">المدة</th>
+                    <th style="padding:8px" title="Early Start">ES</th><th style="padding:8px" title="Early Finish">EF</th>
+                    <th style="padding:8px" title="Late Start">LS</th><th style="padding:8px" title="Late Finish">LF</th>
+                    <th style="padding:8px" title="Total Float">الطفو الكلي</th><th style="padding:8px" title="Free Float">الطفو الحر</th>
+                    <th style="padding:8px">حرجة</th>
+                </tr></thead>
+                <tbody>${rows.map(r => `<tr style="border-top:1px solid #eef2f7;background:${r.critical ? '#fdf0ee' : '#fff'}">
+                    <td style="padding:7px 10px;font-weight:700;color:#1a3a5c">${r.critical ? '🔴 ' : ''}${r.t.title || '—'}</td>
+                    ${cell(r.duration + ' ي')}${cell(r.ES)}${cell(r.EF)}${cell(r.LS)}${cell(r.LF)}
+                    ${cell(r.float, true)}${cell(r.freeFloat)}
+                    <td style="padding:7px 8px;text-align:center">${r.critical ? '<span style="color:#c0392b;font-weight:800">🔴 نعم</span>' : '<span style="color:#27ae60">لا</span>'}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:10px;line-height:1.7">💡 ES/EF/LS/LF بالأيام من بداية المشروع (نسبي). <b>الطفو الكلي</b> = أقصى تأخير للنشاط دون تأخير المشروع؛ <b>الطفو الحر</b> = دون تأخير أي نشاط تالٍ. الأنشطة ذات الطفو الصفري تُكوّن <b>المسار الحرج</b> — أي تأخير فيها يؤخّر المشروع كاملاً.</div>
+    </div>`;
+}
 
 // ── عرض جانت لمهام المشروع ─────────────────
 function pdRenderTasksGantt(pid, tasks, today) {
