@@ -15439,6 +15439,27 @@ window.zatcaQRDataURL = function (b64) {
 // التحقق من صيغة الرقم الضريبي السعودي: 15 رقماً يبدأ وينتهي بالرقم 3
 window.isValidSaudiVAT = function (v) { return /^3\d{13}3$/.test(String(v || '').trim()); };
 
+// 🏷️ ملصق باركود/QR لصنف المخزون (للجرد الميداني) — QR محلي (offline) + الكود نصياً، قابل للطباعة
+window.openInvItemLabel = function (key) {
+    const it = window.inventoryItems?.[key]; if (!it) { toast('الصنف غير موجود', 'er'); return; }
+    const codeVal = (it.barcode || it.code || key).toString();
+    const payload = `ITEM|${it.code || ''}|${it.barcode || ''}|${it.nameAr || ''}`;
+    const qrImg = (typeof zatcaQRDataURL === 'function') ? zatcaQRDataURL(payload) : '';
+    const company = (window.cfg?.companyAr) || (typeof cfg !== 'undefined' && cfg.companyAr) || 'بنيان للمقاولات';
+    const esc = s => String(s || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+    const label = `<div id="invLabelPrintable" style="border:2px solid #1a3a5c;border-radius:10px;padding:16px;display:inline-block;min-width:240px;text-align:center;font-family:Arial,'Segoe UI',sans-serif">
+        <div style="font-weight:800;font-size:15px;color:#1a3a5c">${esc(it.nameAr)}</div>
+        <div style="font-size:12px;color:#666;margin:2px 0 8px">${esc(it.code)}${it.category ? ' — ' + esc(it.category) : ''}${it.unit ? ' · ' + esc(it.unit) : ''}</div>
+        ${qrImg ? `<img src="${qrImg}" style="width:150px;height:150px" alt="QR">` : '<div style="color:#c0392b;font-size:11px">تعذّر توليد QR</div>'}
+        <div style="font-family:monospace;font-size:15px;letter-spacing:2px;margin-top:8px;color:#111;font-weight:700">${esc(codeVal)}</div>
+        <div style="font-size:11px;color:#888;margin-top:6px">${esc(company)} — المخزون</div>
+    </div>`;
+    const w = window.open('', '_blank');
+    if (!w) { toast('⚠️ اسمح بالنوافذ المنبثقة لطباعة الملصق', 'er'); return; }
+    w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>ملصق صنف — ${esc(it.nameAr)}</title><style>body{text-align:center;padding:30px;font-family:Arial,sans-serif}button{padding:9px 20px;font-size:13px;cursor:pointer;border:0;border-radius:8px;background:#1a3a5c;color:#fff;margin-top:16px}@media print{button{display:none}}</style></head><body>${label}<br><button onclick="window.print()">🖨️ طباعة الملصق</button></body></html>`);
+    w.document.close();
+};
+
 // ── عرض الفاتورة (طباعة بنمط ZATCA) ─────────────────
 window.viewSInvProforma = function (key) { viewSInv(key, true); };
 window.viewSInv = function (key, proforma) {
@@ -19123,6 +19144,7 @@ function renderInvItemRow(key, it, idx, canManage) {
         <td style="padding:8px;text-align:center">
             <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap">
                 ${!isService ? `<button class="btn" onclick="viewInvItemMovements('${key}')" style="background:#16a085;color:white;padding:3px 8px;font-size:10px" title="عرض الحركات">📋</button>` : ''}
+                ${!isService ? `<button class="btn" onclick="openInvItemLabel('${key}')" style="background:#8e44ad;color:white;padding:3px 8px;font-size:10px" title="ملصق باركود/QR للجرد">🏷️</button>` : ''}
                 ${canManage ? `<button class="btn" onclick="editInvItem('${key}')" style="background:#2d6a9f;color:white;padding:3px 8px;font-size:10px" title="تعديل">✏️</button>` : ''}
                 ${canManage ? `<button class="btn" onclick="deleteInvItem('${key}')" style="background:#c0392b;color:white;padding:3px 8px;font-size:10px" title="حذف">🗑️</button>` : ''}
             </div>
