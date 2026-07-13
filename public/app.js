@@ -8501,6 +8501,53 @@ function getLeaveBalance(empKey) {
     };
 }
 
+// 🏖️ رصيد الإجازة السنوية بالاستحقاق التراكمي + الترحيل (يشمل المرحّل من السنوات السابقة)
+//    الاستحقاق: نظام العمل السعودي — 21 يوماً/سنة أول 5 سنوات ثم 30 يوماً/سنة (أو معدّل مخصّص إن ضبطه HR).
+//    المستحق التراكمي منذ التعيين − المستخدم كلياً = الرصيد المتاح (فالمتبقّي يُرحَّل تلقائياً).
+function annualLeaveBalance(empKey, asOf) {
+    const e = emp[empKey]; if (!e) return null;
+    asOf = asOf || new Date();
+    const rateCfg = parseFloat(e.leaveAnnual) || 21;
+    const yd = 365.25;
+    let serviceYears = 0, accrued = rateCfg;
+    const hire = e.hireDate ? new Date(e.hireDate) : null;
+    if (hire && !isNaN(hire) && hire <= asOf) {
+        const sDays = (asOf - hire) / 86400000;
+        serviceYears = sDays / yd;
+        if (rateCfg !== 21) { accrued = sDays * (rateCfg / yd); }                 // معدّل مخصّص → ثابت
+        else { const first = Math.min(sDays, 5 * yd), later = Math.max(0, sDays - 5 * yd); accrued = first * (21 / yd) + later * (30 / yd); } // نظام العمل
+    }
+    accrued = Math.round(accrued * 100) / 100;
+    let usedAll = 0;
+    Object.values(leaves).forEach(lv => { if (lv.empKey === empKey && lv.status === 'approved' && lv.type === 'annual') usedAll += (lv.days || 0); });
+    const currentRate = (rateCfg !== 21) ? rateCfg : (serviceYears >= 5 ? 30 : 21);
+    return { serviceYears: Math.round(serviceYears * 10) / 10, rate: currentRate, accrued, used: Math.round(usedAll * 100) / 100, balance: Math.round((accrued - usedAll) * 100) / 100 };
+}
+
+// 📊 تقرير أرصدة الإجازة السنوية للفريق (بالاستحقاق والترحيل)
+function renderLeaveBalancesTeam() {
+    const host = $('leaveBalancesTeam'); if (!host) return;
+    const rows = Object.keys(emp).filter(k => emp[k].active !== false).map(k => ({ k, b: annualLeaveBalance(k) })).filter(r => r.b);
+    rows.sort((a, b) => a.b.balance - b.b.balance);
+    host.innerHTML = `<div class="card" style="margin:0 0 14px">
+        <div style="font-weight:800;color:#1a3a5c;font-size:15px;margin-bottom:4px">📊 أرصدة الإجازة السنوية — بالاستحقاق والترحيل</div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px">الرصيد المتاح = المستحق التراكمي منذ التعيين (نظام العمل السعودي: 21 يوماً أول 5 سنوات ثم 30) − المستخدم كلياً. يشمل الرصيد المرحّل من السنوات السابقة تلقائياً.</div>
+        ${rows.length === 0 ? '<div style="text-align:center;color:#aaa;padding:16px;font-size:13px">لا موظفون</div>' : `
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:660px">
+            <thead><tr style="background:#f4f6f8;color:#1a3a5c"><th style="padding:8px;text-align:right">الموظف</th><th style="padding:8px">التعيين</th><th style="padding:8px">سنوات الخدمة</th><th style="padding:8px">المعدل السنوي</th><th style="padding:8px;text-align:left">المستحق التراكمي</th><th style="padding:8px;text-align:left">المستخدم</th><th style="padding:8px;text-align:left">الرصيد المتاح</th></tr></thead>
+            <tbody>${rows.map(({ k, b }) => { const e = emp[k] || {}; const low = b.balance <= 3; return `<tr style="border-top:1px solid #eef2f7">
+                <td style="padding:7px 9px;font-weight:700;color:#1a3a5c">${e.name || k}</td>
+                <td style="padding:7px 9px;text-align:center;color:#666">${e.hireDate || '—'}</td>
+                <td style="padding:7px 9px;text-align:center">${b.serviceYears}</td>
+                <td style="padding:7px 9px;text-align:center">${b.rate} ي</td>
+                <td style="padding:7px 9px;text-align:left;color:#27ae60;font-weight:700">${b.accrued}</td>
+                <td style="padding:7px 9px;text-align:left;color:#e67e22">${b.used}</td>
+                <td style="padding:7px 9px;text-align:left;font-weight:900;color:${b.balance < 0 ? '#c0392b' : low ? '#e67e22' : '#1e8449'}">${b.balance}${b.balance < 0 ? ' ⚠️' : ''}</td>
+            </tr>`; }).join('')}</tbody>
+        </table></div>`}
+    </div>`;
+}
+
 // عرض الأرصدة في تبويب الإجازات
 window.calcLeaveBalances = function () {
     const key = $('mEmpK')?.value;
@@ -8529,7 +8576,8 @@ window.calcLeaveBalances = function () {
         else if (lv.type === 'sick') usedSick += lv.days || 0;
         else if (lv.type === 'emergency') usedEmergency += lv.days || 0;
     });
-    container.innerHTML = renderBalanceCard('🏖️ سنوية', annual, usedAnnual, annual - usedAnnual, '#27ae60') +
+    const _ab = annualLeaveBalance(key);
+    container.innerHTML = renderBalanceCard('🏖️ سنوية (شامل المرحّل)', _ab ? _ab.accrued : annual, _ab ? _ab.used : usedAnnual, _ab ? _ab.balance : (annual - usedAnnual), '#27ae60') +
         renderBalanceCard('🏥 مرضية', sick, usedSick, sick - usedSick, '#3498db') +
         renderBalanceCard('⚡ اضطرارية', emergency, usedEmergency, emergency - usedEmergency, '#e67e22');
 };
@@ -9194,8 +9242,49 @@ window.approvePerm = function (key) { update(ref(db, `ledger/permissions/${key}`
 window.rejectPerm = function (key) { update(ref(db, `ledger/permissions/${key}`), { status: 'rejected', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الرفض', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er')); };
 window.deletePerm = function (key) { cf2('حذف هذا الإذن؟', async () => { try { await remove(ref(db, `ledger/permissions/${key}`)); toast('تم الحذف', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
 
+// 📅 تقويم إجازات الفريق — شبكة شهرية (موظف × يوم) بالإجازات المعتمدة، ملوّنة حسب النوع
+const LV_TYPE_META = {
+    annual: ['سنوية', '#27ae60'], sick: ['مرضية', '#e74c3c'], emergency: ['اضطرارية', '#e67e22'],
+    maternity: ['أمومة', '#8e44ad'], hajj: ['حج', '#16a085'], bereavement: ['وفاة', '#34495e'],
+    unpaid: ['بدون راتب', '#7f8c8d'], paternity: ['أبوة', '#2980b9'], other: ['أخرى', '#95a5a6'],
+};
+window._lvCalMonth = window._lvCalMonth || new Date().toISOString().slice(0, 7);
+window.lvCalNav = function (delta) { const [y, m] = window._lvCalMonth.split('-').map(Number); window._lvCalMonth = new Date(y, m - 1 + delta, 1).toISOString().slice(0, 7); renderLeaveCalendar(); };
+function renderLeaveCalendar() {
+    const host = $('leaveCalendar'); if (!host) return;
+    const ym = window._lvCalMonth, [Y, M] = ym.split('-').map(Number);
+    const days = new Date(Y, M, 0).getDate();
+    const mStart = ym + '-01', mEnd = ym + '-' + String(days).padStart(2, '0');
+    const appr = Object.values(leaves || {}).filter(l => l.status === 'approved' && (l.from || '') <= mEnd && (l.to || '') >= mStart);
+    const byEmp = {}; appr.forEach(l => { (byEmp[l.empKey] = byEmp[l.empKey] || []).push(l); });
+    const empKeys = Object.keys(byEmp);
+    const monthLabel = new Date(Y, M - 1, 1).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
+    const isWknd = d => { const w = new Date(Y, M - 1, d).getDay(); return w === 5 || w === 6; };
+    const cell = (empK, d) => {
+        const ds = `${ym}-${String(d).padStart(2, '0')}`;
+        const lv = byEmp[empK].find(l => (l.from || '') <= ds && (l.to || '') >= ds);
+        if (lv) { const [lbl, c] = LV_TYPE_META[lv.type] || LV_TYPE_META.other; return `<td title="${lbl}" style="padding:0;background:${c};width:22px;height:24px;border:1px solid #fff"></td>`; }
+        return `<td style="padding:0;width:22px;height:24px;border:1px solid #eef2f7;background:${isWknd(d) ? '#f4f6f8' : '#fff'}"></td>`;
+    };
+    const usedTypes = [...new Set(appr.map(l => l.type || 'other'))];
+    host.innerHTML = `<div class="card" style="margin:0 0 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div style="font-weight:800;color:#1a3a5c;font-size:15px">📅 تقويم إجازات الفريق</div>
+            <div style="display:flex;align-items:center;gap:8px"><button class="btn" onclick="lvCalNav(-1)" style="padding:4px 11px">‹</button><span style="font-weight:800;color:#1a3a5c;min-width:130px;text-align:center">${monthLabel}</span><button class="btn" onclick="lvCalNav(1)" style="padding:4px 11px">›</button></div>
+        </div>
+        ${empKeys.length === 0 ? '<div style="text-align:center;color:#aaa;padding:16px;font-size:13px">لا إجازات معتمدة في هذا الشهر</div>' : `
+        <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px">
+            <thead><tr><th style="position:sticky;right:0;background:#1a3a5c;color:#fff;padding:5px 8px;text-align:right;min-width:120px;z-index:1">الموظف</th>${Array.from({ length: days }, (_, i) => `<th style="padding:2px;background:${isWknd(i + 1) ? '#12283f' : '#1a3a5c'};color:#fff;width:22px">${i + 1}</th>`).join('')}</tr></thead>
+            <tbody>${empKeys.map(k => { const e = emp[k] || {}; return `<tr><td style="position:sticky;right:0;background:#fff;padding:4px 8px;font-weight:700;color:#1a3a5c;white-space:nowrap;box-shadow:1px 0 0 #eef2f7">${e.name || byEmp[k][0].empName || '—'}</td>${Array.from({ length: days }, (_, i) => cell(k, i + 1)).join('')}</tr>`; }).join('')}</tbody>
+        </table></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#666">${usedTypes.map(t => { const [l, c] = LV_TYPE_META[t] || LV_TYPE_META.other; return `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:${c};border-radius:3px;display:inline-block"></span>${l}</span>`; }).join('')}</div>`}
+    </div>`;
+}
+
 window.renderLeavesPage = function () {
     fillLeavesEmpFilter();
+    renderLeaveCalendar();
+    renderLeaveBalancesTeam();
     const container = $('leavesPageList'); if (!container) return;
     const empF = $('lvFilterEmp')?.value || '';
     const statusF = $('lvFilterStatus')?.value || '';
