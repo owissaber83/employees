@@ -328,6 +328,7 @@
                             <div class="sb-it sub" id="n-deferred"  onclick="nav('deferredreport',this)"><span class="ic">⏸️</span><span>المُؤجَّلون</span></div>
                             <div style="height:1px;background:#f0f0f0;margin:4px 10px"></div>
                             <div class="sb-it sub" id="n-lv"        onclick="nav('leaves',this)"><span class="ic">🌴</span><span>طلبات الإجازات</span></div>
+                            <div class="sb-it sub" id="n-perm"      onclick="nav('permissions',this)"><span class="ic">🕘</span><span>الأذونات والاستئذان</span></div>
                             <div class="sb-it sub" id="n-ln"        onclick="nav('loans',this)"><span class="ic">💳</span><span>السلف والقروض</span></div>
                             <div class="sb-it sub" id="n-pf"        onclick="nav('performance',this)"><span class="ic">⭐</span><span>تقييمات الأداء</span></div>
                             <div class="sb-it sub" id="n-da"        onclick="nav('docalerts',this)"><span class="ic">⏰</span><span>تنبيهات المستندات</span></div>
@@ -1492,6 +1493,12 @@
                                     <option value="days">أيام الحضور الفعلية</option>
                                 </select>
                             </div>
+                            <div class="fg" style="display:flex;align-items:flex-end">
+                                <label title="عند تفعيله يُخصم (قيمة اليوم × أيام الغياب) من الموظفين بالراتب الثابت. الوضعان الآخران يخصمان الغياب أصلاً." style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#1a3a5c;cursor:pointer;font-weight:600;padding-bottom:9px">
+                                    <input type="checkbox" id="prDeductAbsence" style="width:17px;height:17px">
+                                    ➖ خصم أيام الغياب (للراتب الثابت)
+                                </label>
+                            </div>
                         </div>
 
                         <!-- الصف الثاني: النطاق -->
@@ -1742,6 +1749,9 @@
                         <div id="leavesPageList"><div class="empty"><div class="ei">🌴</div><p>لا توجد طلبات إجازة</p></div></div>
                     </div>
                 </div>
+
+                <!-- PAGE: PERMISSIONS / الأذونات -->
+                <div class="pg" id="pg-permissions"></div>
 
                 <!-- PAGE: PERFORMANCE -->
                 <div class="pg" id="pg-performance">
@@ -19273,7 +19283,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260711-markup1"></script>
+    <script type="module" src="app.js?v=20260712-permpay1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260711-incfix"></script>

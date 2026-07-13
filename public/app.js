@@ -197,6 +197,7 @@ function buildRefs() {
     pay: ref(db, 'ledger/payrolls'),
     loans: ref(db, 'ledger/loans'),
     leaves: ref(db, 'ledger/leaves'),
+    permissions: ref(db, 'ledger/permissions'), // 🕘 الأذونات والاستئذان { key:{ empKey, empName, type, date, fromTime, toTime, hours, reason, status, deductible, notes, reviewedBy, reviewedAt } }
     perf: ref(db, 'ledger/performance'),
     perfSettings: ref(db, 'ledger/perfSettings'),
     depts: ref(db, 'ledger/departments'),
@@ -1557,6 +1558,7 @@ function initApp() {
     if (!can('view_payroll') && myP?.role !== 'admin') $('n-payrolldash').style.display = 'none';
     if (!can('view_loans') && myP?.role !== 'admin') $('n-ln').style.display = 'none';
     if (!can('view_leaves') && myP?.role !== 'admin') $('n-lv').style.display = 'none';
+    if (!can('view_leaves') && myP?.role !== 'admin') { const _np = $('n-perm'); if (_np) _np.style.display = 'none'; }
     if (!can('view_performance') && myP?.role !== 'admin') $('n-pf').style.display = 'none';
     if (!can('view_employees') && myP?.role !== 'admin') $('n-em').style.display = 'none';
     if (!can('manage_departments') && myP?.role !== 'admin') $('n-dp').style.display = 'none';
@@ -1717,7 +1719,7 @@ function getNavIdForPage(pg) {
         grn: 'grn', invoices: 'inv',
         employees: 'em', departments: 'dp', projects: 'pr',
         attendance: 'at', payroll: 'pr2', loans: 'ln',
-        leaves: 'lv', performance: 'pf', docalerts: 'da',
+        leaves: 'lv', permissions: 'perm', performance: 'pf', docalerts: 'da',
         hrdashboard: 'hrd', hrguide: 'hrg',
         prjdashboard: 'prd', prjreports: 'prr', projectcosts: 'pmc', indirectcosts: 'indc',
         accdashboard: 'accd', chartofaccounts: 'coa', costcenters: 'cc',
@@ -2137,7 +2139,7 @@ window.nav = function (pg, el) {
         }
     }
 
-    const tt = { dashboard: ['📊 لوحة التحكم', 'نظرة عامة على النظام'], tasks: ['🗓️ المهام والتنبيهات', 'مهام رئيسية وفرعية + تذكيرات مجدولة (مرة/يومي/أسبوعي/شهري) تظهر داخل البرنامج'], approvalsinbox: ['✅ صندوق الموافقات', 'كل المهام والطلبات بانتظار قرارك في مكان واحد'], execdashboard: ['🏛️ اللوحة التنفيذية', 'مؤشرات شاملة: مالية، مشاريع، وموارد بشرية في صفحة واحدة'], statement: ['📋 كشف حساب الموردين', 'الحركات المالية مع الموردين'], custstatement: ['📋 كشف حساب العملاء', 'الفواتير والمتحصلات لكل عميل'], suppliers: ['🏢 الموردون', 'إدارة بيانات الموردين'], suppliers_catalog: ['🏭 كتالوج الموردين', 'كتالوج موردين تفصيلي مع تقييمات وشروط'], materials: ['📦 كتالوج المواد', 'كتالوج المواد المركزي مع أسعار الموردين'], matrequests: ['📨 طلبات المواد', 'طلبات المواد من المواقع والموافقات'], quotations: ['💼 عروض الأسعار', 'إدارة عروض الموردين ومقارنتها'], purchaseorders: ['📄 أوامر الشراء', 'إصدار واعتماد أوامر الشراء'], grn: ['📥 استلام البضاعة', 'تسجيل استلام البضاعة من الموردين'], invoices: ['🧾 فواتير الموردين', 'تسجيل ومطابقة فواتير الموردين'], employees: ['👷 الموظفون', 'إدارة بيانات الموظفين'], departments: ['🏢 الإدارات والأقسام', 'إدارة الإدارات والأقسام الوظيفية'], projects: ['📁 المشاريع', 'إدارة المشاريع والموظفين'], prjtasks: ['✅ متابعة المهام', 'كل مهام المشاريع في مكان واحد — حسب المشروع، المسؤول، الأولوية'], users: ['👥 المستخدمون', 'الصلاحيات والأدوار'], perms: ['🔐 صلاحيات المستخدمين', 'مصفوفة كاملة: امنح أو امنع أي صلاحية لأي مستخدم عبر كل أقسام البرنامج'], index: ['🗂️ فهرس البرنامج', 'كل أقسام النظام في صفحة واحدة — انقر أي قسم للانتقال إليه مباشرة'], onboarding: ['🚀 إعداد البرنامج', 'خطوات سريعة لتجهيز شركتك للعمل: شجرة الحسابات، بيانات الشركة، الأرصدة الافتتاحية، المستخدمون'], settings: ['⚙️ الإعدادات', 'إعدادات النظام'], pdfexport: ['📄 تصدير PDF', 'إنشاء ملفات PDF احترافية'], attendance: ['🕐 الحضور والانصراف', 'تسجيل ومتابعة الحضور اليومي'], payroll: ['💵 مسير الرواتب', 'إنشاء واعتماد مسيرات الرواتب الشهرية'], deferredreport: ['⏸️ تقرير المُؤجَّلون', 'الموظفون الذين لم يُنشأ لهم مسير بعد — جاهز للمتابعة والسداد'], laborcostreport: ['📈 تحليل تكلفة العمالة', 'تقرير استراتيجي لتكاليف الرواتب — حسب المشروع/الإدارة/الفترة'], payrolldashboard: ['📊 لوحة تحكم الرواتب المحاسبية', 'مركز قيادة شامل: المستحقات، المدفوعات، التنبيهات، والإجراءات السريعة'], projectdetail: ['📂 ملف المشروع', 'عرض كامل لبيانات المشروع: مستخلصات، مصروفات، رواتب، بنود'], boq: ['📋 بنود العقود (BOQ)', 'إدارة بنود العقد لكل مشروع — الأساس لإنشاء المستخلصات'], progressbillings: ['📑 المستخلصات (Progress Billings)', 'إنشاء واعتماد المستخلصات الدورية للمشاريع — مع تتبع التراكمي'], loans: ['💳 السلف والقروض', 'إدارة سلف الموظفين والأقساط الشهرية'], docalerts: ['⏰ تنبيهات المستندات', 'متابعة تواريخ انتهاء مستندات الموظفين'], empstatement: ['📋 كشف حساب الموظف', 'كل بيانات الموظف في مكان واحد: العقد، الإجازات، السلف، العُهد، ونهاية الخدمة'], leaves: ['🌴 طلبات الإجازات', 'مراجعة واعتماد طلبات إجازات الموظفين'], performance: ['⭐ تقييمات الأداء', 'تقييم أداء الموظفين الشهري ومكافآتهم'], hrguide: ['📖 دليل الموارد البشرية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], hrdashboard: ['📊 لوحة تحكم HR', 'نظرة شاملة ومؤشرات أداء قسم الموارد البشرية'], prjdashboard: ['📊 لوحة تحكم المشاريع', 'تكاليف، ميزانية، انحرافات، وربحية المشاريع'], prjhealth: ['🚦 صحة المحفظة (EVM)', 'مصفوفة تنفيذية: مؤشرات أداء التكلفة (CPI) والجدول (SPI) وإشارات الصحة لكل مشروع — أي مشاريع متعثّرة'], prjreports: ['📈 التقارير المالية', '6 تقارير احترافية للمشاريع — تدفقات، ربحية، موردين، وأكثر'], projectcosts: ['💰 تكاليف المشاريع الشهرية', 'إدخال تكاليف المشاريع شهرياً (مواد، أجور، معدات، إلخ)'], indirectcosts: ['📊 التكاليف غير المباشرة', 'تسجيل التكاليف غير المباشرة (إهلاك، إيجارات، رواتب إدارية...) وتوزيعها على المشاريع شهرياً وسنوياً بنسب محددة'], accdashboard: ['💰 المحاسبة والإدارة المالية', 'قسم المحاسبة المتكامل — قيد البناء'], chartofaccounts: ['🌳 شجرة الحسابات', 'إدارة شجرة الحسابات المحاسبية'], costcenters: ['🎯 مراكز التكلفة', 'هيكلة مراكز التكلفة الرئيسية والفرعية — تظهر مع المشاريع في القيود والتقارير'], journalentries: ['📒 قيود اليومية', 'إدارة القيود المحاسبية اليومية بنظام القيد المزدوج'], recurringjournals: ['🔁 القيود المتكررة', 'قوالب قيود دورية (إيجارات، اشتراكات، استحقاقات) تُولّد تلقائياً كل شهر'], revrecognition: ['📐 إثبات الإيراد بنسبة الإنجاز', 'احتساب الإيراد المعترف به بطريقة نسبة الإنجاز (Cost-to-Cost) وتسوية الفوترة الزائدة/الناقصة وفق IFRS 15'], fxrevaluation: ['💱 إعادة تقييم العملات', 'إعادة تقييم أرصدة العملاء والموردين بالعملات الأجنبية بأسعار الصرف الحالية وإثبات فروق العملة غير المحققة'], cashforecast: ['💧 التدفق النقدي المتوقع', 'توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات القادمة'], finmodels: ['📊 النماذج المالية والتخطيط', 'الإيرادات المتوقعة (المستخلصات) والمصروفات والتدفقات النقدية ودفعات التحصيل والسداد — مع لوحة مجمّعة وتصدير/استيراد Excel وطباعة'], amortization: ['📆 إطفاء المصروفات المؤجلة', 'توزيع المصاريف المدفوعة مقدماً (إيجارات، تأمين، اشتراكات) على أشهرها تلقائياً بقيود إطفاء شهرية'], empexpenses: ['🧾 مصروفات الموظفين', 'تسجيل واعتماد مطالبات مصروفات الموظفين وربطها بالقيود المحاسبية'], generalledger: ['📖 دفتر الأستاذ', 'عرض حركات كل حساب مع الأرصدة الافتتاحية والختامية'], trialbalance: ['⚖️ ميزان المراجعة', 'التحقق من توازن النظام المحاسبي — كل الأرصدة في صفحة واحدة'], finstatements: ['📑 القوائم المالية', 'المركز المالي، الدخل، التدفق النقدي، التغير في حقوق الملكية + التحليل المالي والنسب'], bankrec: ['🏦 التسوية البنكية', 'مطابقة حركات البنوك في النظام مع كشف الحساب البنكي'], vatreturn: ['🧾 الإقرار الضريبي', 'احتساب ضريبة القيمة المضافة وإعداد الإقرار — شهري، ربع سنوي، سنوي، أو فترة مخصصة'], treasury: ['🛡️ الخزينة والضمانات', 'خطابات الضمان، الشيكات والآجلة (PDC)، ومحتجزات الضمان — مع تنبيهات الاستحقاق والانتهاء'], incometax: ['💰 ضريبة الدخل', 'احتساب ضريبة الدخل السنوية (20%) على حصة المستثمرين الأجانب من صافي الربح'], zakat: ['🕌 الزكاة', 'احتساب وعاء الزكاة والإقرار السنوي (2.5%) — مع قيد محاسبي تلقائي'], wht: ['🌐 ضريبة الاستقطاع', 'المبالغ المستقطعة من مدفوعات غير المقيمين — مع التقرير الشهري للهيئة ومتابعة التوريد'], closing: ['✅ قائمة الإقفال', 'خطوات منظّمة لإغلاق الفترة المحاسبية (شهري/سنوي) — مع متابعة نسبة الإنجاز'], taxcenter: ['🧮 مركز الضرائب والامتثال', 'لوحة موحّدة لكل الالتزامات الضريبية (قيمة مضافة، استقطاع، زكاة، دخل) مع تقويم مواعيد الهيئة'], glbudget: ['📊 الموازنة الشهرية الشاملة', 'موازنة 12 شهراً لكل الحسابات + تحليل الانحراف الفعلي مقابل الموازنة (Budget vs Actual)'], fsg: ['🧱 مولّد القوائم المالية', 'تصميم تقارير مالية مخصّصة بصفوف وأعمدة تحدّدها (Financial Statement Generator)'], acctanalysis: ['🔎 تحليل الحسابات', 'استعلام مرن عبر نطاق أو نوع حسابات دفعة واحدة — كل الحركات مع التتبّع والتصدير'], paymentrun: ['💸 الدفعات المجمّعة', 'سداد فواتير الموردين المستحقة دفعة واحدة — إنشاء سندات الصرف وقيودها تلقائياً'], workingcapital: ['♻️ رأس المال العامل', 'مؤشرات DSO/DPO/DIO ودورة التحويل النقدي مع اتجاه شهري'], segmentpl: ['🧭 قائمة الدخل المقارنة', 'مقارنة الربحية عبر مراكز التكلفة أو المشاريع جنباً إلى جنب'], jrntemplates: ['📋 قوالب القيود', 'قوالب جاهزة للقيود اليدوية المتكررة — تُملأ بنقرة'], periodlock: ['🔒 إقفال الفترات المحاسبية', 'منع الإضافة أو التعديل على القيود في الفترات المقفلة بعد اعتمادها'], yearclosing: ['🗓️ إقفال السنة المالية', 'ترحيل صافي الربح/الخسارة للأرباح المحتجزة، وإنشاء قيد افتتاحي للسنة الجديدة، وإقفال السنة المنتهية'], aging: ['⏳ أعمار الديون', 'تحليل أعمار ذمم العملاء والموردين حسب فترات التأخر'], auditlog: ['🕵️ سجل التدقيق', 'سجل شامل لكل العمليات الحساسة في النظام مع المستخدم والتاريخ'], customers: ['🧑‍💼 العملاء', 'إدارة بيانات العملاء وأرصدتهم وفواتيرهم'], crm: ['🤝 إدارة علاقات العملاء (CRM)', 'فرص البيع وخط الأنابيب — من العميل المحتمل حتى الإغلاق'], timesheets: ['⏱️ تسجيل الأوقات', 'تسجيل ساعات العمل على المشاريع والمهام — تكلفة عمالة فعلية دقيقة'], workload: ['👥 عبء العمل والموارد', 'توزيع المهام والساعات على الموظفين — من مشغول ومن متفرّغ ومن متجاوز طاقته'], salesinvoices: ['🧾 فواتير المبيعات', 'إصدار وإدارة فواتير المبيعات مع الربط التلقائي بالقيود'], vendors: ['🏭 الموردون (محاسبي)', 'إدارة بيانات الموردين وأرصدتهم وفواتيرهم'], purchaseinvoices: ['📋 فواتير المشتريات', 'إصدار وإدارة فواتير المشتريات مع الربط التلقائي بالقيود'], receipts: ['💵 سندات القبض', 'تسجيل المتحصلات من العملاء مع الربط التلقائي بالقيود وتحديث رصيد العميل'], payments: ['💸 سندات الصرف', 'تسجيل المدفوعات للموردين مع الربط التلقائي بالقيود وتحديث رصيد المورد'], inventory: ['📦 المخزون والأصناف', 'إدارة كتالوج الأصناف (مواد وخدمات) مع الأرصدة والحركات'], inventorymovements: ['📋 حركات المخزون', 'سجل دخول وخروج الأصناف مع الأرصدة الجارية'], inventoryreports: ['📊 تقارير المخزون', 'تقارير احترافية: الأرصدة، الحركات، تحت الحد الأدنى، التقييم'], warehouses: ['🏬 المخازن', 'إدارة المخازن الرئيسية والفرعية والربط بالمشاريع والمناطق'], accguide: ['📖 دليل المحاسبة والإدارة المالية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], invguide: ['📖 دليل المخزون والمخازن', 'شرح كامل لكل وحدة وكيفية الاستخدام'], prjguide: ['📖 دليل المشاريع', 'شرح كامل لكل وحدة وكيفية الاستخدام'], procguide: ['📖 دليل المشتريات والموردين', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assets: ['🏭 سجل الأصول الثابتة', 'الأصول والمعدات، الإهلاك التلقائي، الصيانة، والتخريد/البيع'], assetdetail: ['🏭 ملف الأصل', 'الإهلاك، النقل، الصيانة، والتخريد/البيع لهذا الأصل'], assetguide: ['📖 دليل إدارة الأصول الثابتة', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assetdashboard: ['📊 لوحة تحليلات الأصول', 'الفئات، القيمة الدفترية، الإهلاك، والأعمار'], finanalysisguide: ['📖 دليل التحليل المالي', 'شرح كل أقسام التحليل المالي: النماذج والتخطيط، التدفق النقدي، استوديو التحليل، القوائم المالية، أعمار الديون، واللوحات'] };
+    const tt = { dashboard: ['📊 لوحة التحكم', 'نظرة عامة على النظام'], tasks: ['🗓️ المهام والتنبيهات', 'مهام رئيسية وفرعية + تذكيرات مجدولة (مرة/يومي/أسبوعي/شهري) تظهر داخل البرنامج'], approvalsinbox: ['✅ صندوق الموافقات', 'كل المهام والطلبات بانتظار قرارك في مكان واحد'], execdashboard: ['🏛️ اللوحة التنفيذية', 'مؤشرات شاملة: مالية، مشاريع، وموارد بشرية في صفحة واحدة'], statement: ['📋 كشف حساب الموردين', 'الحركات المالية مع الموردين'], custstatement: ['📋 كشف حساب العملاء', 'الفواتير والمتحصلات لكل عميل'], suppliers: ['🏢 الموردون', 'إدارة بيانات الموردين'], suppliers_catalog: ['🏭 كتالوج الموردين', 'كتالوج موردين تفصيلي مع تقييمات وشروط'], materials: ['📦 كتالوج المواد', 'كتالوج المواد المركزي مع أسعار الموردين'], matrequests: ['📨 طلبات المواد', 'طلبات المواد من المواقع والموافقات'], quotations: ['💼 عروض الأسعار', 'إدارة عروض الموردين ومقارنتها'], purchaseorders: ['📄 أوامر الشراء', 'إصدار واعتماد أوامر الشراء'], grn: ['📥 استلام البضاعة', 'تسجيل استلام البضاعة من الموردين'], invoices: ['🧾 فواتير الموردين', 'تسجيل ومطابقة فواتير الموردين'], employees: ['👷 الموظفون', 'إدارة بيانات الموظفين'], departments: ['🏢 الإدارات والأقسام', 'إدارة الإدارات والأقسام الوظيفية'], projects: ['📁 المشاريع', 'إدارة المشاريع والموظفين'], prjtasks: ['✅ متابعة المهام', 'كل مهام المشاريع في مكان واحد — حسب المشروع، المسؤول، الأولوية'], users: ['👥 المستخدمون', 'الصلاحيات والأدوار'], perms: ['🔐 صلاحيات المستخدمين', 'مصفوفة كاملة: امنح أو امنع أي صلاحية لأي مستخدم عبر كل أقسام البرنامج'], index: ['🗂️ فهرس البرنامج', 'كل أقسام النظام في صفحة واحدة — انقر أي قسم للانتقال إليه مباشرة'], onboarding: ['🚀 إعداد البرنامج', 'خطوات سريعة لتجهيز شركتك للعمل: شجرة الحسابات، بيانات الشركة، الأرصدة الافتتاحية، المستخدمون'], settings: ['⚙️ الإعدادات', 'إعدادات النظام'], pdfexport: ['📄 تصدير PDF', 'إنشاء ملفات PDF احترافية'], attendance: ['🕐 الحضور والانصراف', 'تسجيل ومتابعة الحضور اليومي'], payroll: ['💵 مسير الرواتب', 'إنشاء واعتماد مسيرات الرواتب الشهرية'], deferredreport: ['⏸️ تقرير المُؤجَّلون', 'الموظفون الذين لم يُنشأ لهم مسير بعد — جاهز للمتابعة والسداد'], laborcostreport: ['📈 تحليل تكلفة العمالة', 'تقرير استراتيجي لتكاليف الرواتب — حسب المشروع/الإدارة/الفترة'], payrolldashboard: ['📊 لوحة تحكم الرواتب المحاسبية', 'مركز قيادة شامل: المستحقات، المدفوعات، التنبيهات، والإجراءات السريعة'], projectdetail: ['📂 ملف المشروع', 'عرض كامل لبيانات المشروع: مستخلصات، مصروفات، رواتب، بنود'], boq: ['📋 بنود العقود (BOQ)', 'إدارة بنود العقد لكل مشروع — الأساس لإنشاء المستخلصات'], progressbillings: ['📑 المستخلصات (Progress Billings)', 'إنشاء واعتماد المستخلصات الدورية للمشاريع — مع تتبع التراكمي'], loans: ['💳 السلف والقروض', 'إدارة سلف الموظفين والأقساط الشهرية'], docalerts: ['⏰ تنبيهات المستندات', 'متابعة تواريخ انتهاء مستندات الموظفين'], empstatement: ['📋 كشف حساب الموظف', 'كل بيانات الموظف في مكان واحد: العقد، الإجازات، السلف، العُهد، ونهاية الخدمة'], leaves: ['🌴 طلبات الإجازات', 'مراجعة واعتماد طلبات إجازات الموظفين'], permissions: ['🕘 الأذونات والاستئذان', 'طلبات الاستئذان بالساعة (خروج مبكر/تأخير/مأمورية) — تسجيل واعتماد ومتابعة'], performance: ['⭐ تقييمات الأداء', 'تقييم أداء الموظفين الشهري ومكافآتهم'], hrguide: ['📖 دليل الموارد البشرية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], hrdashboard: ['📊 لوحة تحكم HR', 'نظرة شاملة ومؤشرات أداء قسم الموارد البشرية'], prjdashboard: ['📊 لوحة تحكم المشاريع', 'تكاليف، ميزانية، انحرافات، وربحية المشاريع'], prjhealth: ['🚦 صحة المحفظة (EVM)', 'مصفوفة تنفيذية: مؤشرات أداء التكلفة (CPI) والجدول (SPI) وإشارات الصحة لكل مشروع — أي مشاريع متعثّرة'], prjreports: ['📈 التقارير المالية', '6 تقارير احترافية للمشاريع — تدفقات، ربحية، موردين، وأكثر'], projectcosts: ['💰 تكاليف المشاريع الشهرية', 'إدخال تكاليف المشاريع شهرياً (مواد، أجور، معدات، إلخ)'], indirectcosts: ['📊 التكاليف غير المباشرة', 'تسجيل التكاليف غير المباشرة (إهلاك، إيجارات، رواتب إدارية...) وتوزيعها على المشاريع شهرياً وسنوياً بنسب محددة'], accdashboard: ['💰 المحاسبة والإدارة المالية', 'قسم المحاسبة المتكامل — قيد البناء'], chartofaccounts: ['🌳 شجرة الحسابات', 'إدارة شجرة الحسابات المحاسبية'], costcenters: ['🎯 مراكز التكلفة', 'هيكلة مراكز التكلفة الرئيسية والفرعية — تظهر مع المشاريع في القيود والتقارير'], journalentries: ['📒 قيود اليومية', 'إدارة القيود المحاسبية اليومية بنظام القيد المزدوج'], recurringjournals: ['🔁 القيود المتكررة', 'قوالب قيود دورية (إيجارات، اشتراكات، استحقاقات) تُولّد تلقائياً كل شهر'], revrecognition: ['📐 إثبات الإيراد بنسبة الإنجاز', 'احتساب الإيراد المعترف به بطريقة نسبة الإنجاز (Cost-to-Cost) وتسوية الفوترة الزائدة/الناقصة وفق IFRS 15'], fxrevaluation: ['💱 إعادة تقييم العملات', 'إعادة تقييم أرصدة العملاء والموردين بالعملات الأجنبية بأسعار الصرف الحالية وإثبات فروق العملة غير المحققة'], cashforecast: ['💧 التدفق النقدي المتوقع', 'توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات القادمة'], finmodels: ['📊 النماذج المالية والتخطيط', 'الإيرادات المتوقعة (المستخلصات) والمصروفات والتدفقات النقدية ودفعات التحصيل والسداد — مع لوحة مجمّعة وتصدير/استيراد Excel وطباعة'], amortization: ['📆 إطفاء المصروفات المؤجلة', 'توزيع المصاريف المدفوعة مقدماً (إيجارات، تأمين، اشتراكات) على أشهرها تلقائياً بقيود إطفاء شهرية'], empexpenses: ['🧾 مصروفات الموظفين', 'تسجيل واعتماد مطالبات مصروفات الموظفين وربطها بالقيود المحاسبية'], generalledger: ['📖 دفتر الأستاذ', 'عرض حركات كل حساب مع الأرصدة الافتتاحية والختامية'], trialbalance: ['⚖️ ميزان المراجعة', 'التحقق من توازن النظام المحاسبي — كل الأرصدة في صفحة واحدة'], finstatements: ['📑 القوائم المالية', 'المركز المالي، الدخل، التدفق النقدي، التغير في حقوق الملكية + التحليل المالي والنسب'], bankrec: ['🏦 التسوية البنكية', 'مطابقة حركات البنوك في النظام مع كشف الحساب البنكي'], vatreturn: ['🧾 الإقرار الضريبي', 'احتساب ضريبة القيمة المضافة وإعداد الإقرار — شهري، ربع سنوي، سنوي، أو فترة مخصصة'], treasury: ['🛡️ الخزينة والضمانات', 'خطابات الضمان، الشيكات والآجلة (PDC)، ومحتجزات الضمان — مع تنبيهات الاستحقاق والانتهاء'], incometax: ['💰 ضريبة الدخل', 'احتساب ضريبة الدخل السنوية (20%) على حصة المستثمرين الأجانب من صافي الربح'], zakat: ['🕌 الزكاة', 'احتساب وعاء الزكاة والإقرار السنوي (2.5%) — مع قيد محاسبي تلقائي'], wht: ['🌐 ضريبة الاستقطاع', 'المبالغ المستقطعة من مدفوعات غير المقيمين — مع التقرير الشهري للهيئة ومتابعة التوريد'], closing: ['✅ قائمة الإقفال', 'خطوات منظّمة لإغلاق الفترة المحاسبية (شهري/سنوي) — مع متابعة نسبة الإنجاز'], taxcenter: ['🧮 مركز الضرائب والامتثال', 'لوحة موحّدة لكل الالتزامات الضريبية (قيمة مضافة، استقطاع، زكاة، دخل) مع تقويم مواعيد الهيئة'], glbudget: ['📊 الموازنة الشهرية الشاملة', 'موازنة 12 شهراً لكل الحسابات + تحليل الانحراف الفعلي مقابل الموازنة (Budget vs Actual)'], fsg: ['🧱 مولّد القوائم المالية', 'تصميم تقارير مالية مخصّصة بصفوف وأعمدة تحدّدها (Financial Statement Generator)'], acctanalysis: ['🔎 تحليل الحسابات', 'استعلام مرن عبر نطاق أو نوع حسابات دفعة واحدة — كل الحركات مع التتبّع والتصدير'], paymentrun: ['💸 الدفعات المجمّعة', 'سداد فواتير الموردين المستحقة دفعة واحدة — إنشاء سندات الصرف وقيودها تلقائياً'], workingcapital: ['♻️ رأس المال العامل', 'مؤشرات DSO/DPO/DIO ودورة التحويل النقدي مع اتجاه شهري'], segmentpl: ['🧭 قائمة الدخل المقارنة', 'مقارنة الربحية عبر مراكز التكلفة أو المشاريع جنباً إلى جنب'], jrntemplates: ['📋 قوالب القيود', 'قوالب جاهزة للقيود اليدوية المتكررة — تُملأ بنقرة'], periodlock: ['🔒 إقفال الفترات المحاسبية', 'منع الإضافة أو التعديل على القيود في الفترات المقفلة بعد اعتمادها'], yearclosing: ['🗓️ إقفال السنة المالية', 'ترحيل صافي الربح/الخسارة للأرباح المحتجزة، وإنشاء قيد افتتاحي للسنة الجديدة، وإقفال السنة المنتهية'], aging: ['⏳ أعمار الديون', 'تحليل أعمار ذمم العملاء والموردين حسب فترات التأخر'], auditlog: ['🕵️ سجل التدقيق', 'سجل شامل لكل العمليات الحساسة في النظام مع المستخدم والتاريخ'], customers: ['🧑‍💼 العملاء', 'إدارة بيانات العملاء وأرصدتهم وفواتيرهم'], crm: ['🤝 إدارة علاقات العملاء (CRM)', 'فرص البيع وخط الأنابيب — من العميل المحتمل حتى الإغلاق'], timesheets: ['⏱️ تسجيل الأوقات', 'تسجيل ساعات العمل على المشاريع والمهام — تكلفة عمالة فعلية دقيقة'], workload: ['👥 عبء العمل والموارد', 'توزيع المهام والساعات على الموظفين — من مشغول ومن متفرّغ ومن متجاوز طاقته'], salesinvoices: ['🧾 فواتير المبيعات', 'إصدار وإدارة فواتير المبيعات مع الربط التلقائي بالقيود'], vendors: ['🏭 الموردون (محاسبي)', 'إدارة بيانات الموردين وأرصدتهم وفواتيرهم'], purchaseinvoices: ['📋 فواتير المشتريات', 'إصدار وإدارة فواتير المشتريات مع الربط التلقائي بالقيود'], receipts: ['💵 سندات القبض', 'تسجيل المتحصلات من العملاء مع الربط التلقائي بالقيود وتحديث رصيد العميل'], payments: ['💸 سندات الصرف', 'تسجيل المدفوعات للموردين مع الربط التلقائي بالقيود وتحديث رصيد المورد'], inventory: ['📦 المخزون والأصناف', 'إدارة كتالوج الأصناف (مواد وخدمات) مع الأرصدة والحركات'], inventorymovements: ['📋 حركات المخزون', 'سجل دخول وخروج الأصناف مع الأرصدة الجارية'], inventoryreports: ['📊 تقارير المخزون', 'تقارير احترافية: الأرصدة، الحركات، تحت الحد الأدنى، التقييم'], warehouses: ['🏬 المخازن', 'إدارة المخازن الرئيسية والفرعية والربط بالمشاريع والمناطق'], accguide: ['📖 دليل المحاسبة والإدارة المالية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], invguide: ['📖 دليل المخزون والمخازن', 'شرح كامل لكل وحدة وكيفية الاستخدام'], prjguide: ['📖 دليل المشاريع', 'شرح كامل لكل وحدة وكيفية الاستخدام'], procguide: ['📖 دليل المشتريات والموردين', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assets: ['🏭 سجل الأصول الثابتة', 'الأصول والمعدات، الإهلاك التلقائي، الصيانة، والتخريد/البيع'], assetdetail: ['🏭 ملف الأصل', 'الإهلاك، النقل، الصيانة، والتخريد/البيع لهذا الأصل'], assetguide: ['📖 دليل إدارة الأصول الثابتة', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assetdashboard: ['📊 لوحة تحليلات الأصول', 'الفئات، القيمة الدفترية، الإهلاك، والأعمار'], finanalysisguide: ['📖 دليل التحليل المالي', 'شرح كل أقسام التحليل المالي: النماذج والتخطيط، التدفق النقدي، استوديو التحليل، القوائم المالية، أعمار الديون، واللوحات'] };
     const t = tt[pg] || [pg, '']; $('pgT').textContent = t[0]; $('pgS').textContent = t[1];
     if (pg === 'dashboard') renderDB();
     if (pg === 'approvalsinbox') renderApprovalsInbox();
@@ -2229,6 +2231,7 @@ window.nav = function (pg, el) {
     if (pg === 'docalerts') { renderDocAlerts() }
     if (pg === 'empstatement') { fillEmpStatementSelect(); }
     if (pg === 'leaves') { fillLeavesEmpFilter(); renderLeavesPage(); updateLeavesKPIs() }
+    if (pg === 'permissions' && typeof renderPermissions === 'function') renderPermissions();
     if (pg === 'performance') { fillPerfEmpFilter(); renderPerfPage(); updatePerfKPIs() }
     if (pg === 'subcontractors') renderSubcontractors();
     if (pg === 'subcanalytics') { if (typeof renderSubcAnalytics === 'function') renderSubcAnalytics(); }
@@ -2968,6 +2971,7 @@ function startListeners() {
     onValue(R.loans, sn => { loans = sn.exists() ? sn.val() : {}; window.loans = loans; if ($('pg-loans')?.classList.contains('act')) { renderLoansPage(); updateLoansKPIs() } });
     onValue(R.custody, sn => { window.empCustody = sn.exists() ? sn.val() : {}; if ($('pg-empstatement')?.classList.contains('act')) renderEmpStatement($('esEmpSelect')?.value); });
     onValue(R.leaves, sn => { leaves = sn.exists() ? sn.val() : {}; window.leaves = leaves; updateLeaveBadge(); if ($('pg-leaves')?.classList.contains('act')) { renderLeavesPage(); updateLeavesKPIs() } if ($('mEmp')?.classList.contains('show')) { const k = $('mEmpK')?.value; if (k) loadEmpLeaves(k) } });
+    onValue(R.permissions, sn => { window.permissions = sn.exists() ? sn.val() : {}; if ($('pg-permissions')?.classList.contains('act') && typeof renderPermissions === 'function') renderPermissions(); });
     onValue(R.perf, sn => { performance = sn.exists() ? sn.val() : {}; window.performance = performance; if ($('pg-performance')?.classList.contains('act')) { renderPerfPage(); updatePerfKPIs() } if ($('mEmp')?.classList.contains('show')) { const k = $('mEmpK')?.value; if (k) loadEmpPerformance(k) } });
     onValue(R.perfSettings, sn => { if (sn.exists()) { perfSettings = sn.val(); window.perfSettings = perfSettings; if ($('bonusExcellent')) { $('bonusExcellent').value = perfSettings.excellent ?? 15; $('bonusVgood').value = perfSettings.vgood ?? 8; $('bonusGood').value = perfSettings.good ?? 3; $('bonusWeak').value = perfSettings.weak ?? 0; } } });
     onValue(R.depts, sn => { departments = sn.exists() ? sn.val() : {}; window.departments = departments; updateDeptFilter(); fillDeptDatalist(); if ($('pg-departments')?.classList.contains('act')) renderDepartments(); });
@@ -6628,7 +6632,7 @@ function initPayrollMonth() {
 }
 
 // احتساب راتب موظف واحد بناءً على وضع الاحتساب
-function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate) {
+function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, deductAbsence) {
     const f = empFinance(eData);
     const dailyHours = parseFloat(eData.dailyHours) || 8;
     const [yy, mm] = month.split('-').map(Number);
@@ -6712,6 +6716,21 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate) {
 
     const unpaidLeaveDeduct = unpaidLeaveDays > 0 ? parseFloat((dailyRateMonth * unpaidLeaveDays).toFixed(2)) : 0;
 
+    // 🆕 خصم الغياب (اختياري) — يُطبَّق فقط في «الراتب الثابت» عند تفعيله؛ الوضعان الآخران يخصمان الغياب أصلاً بطبيعتهما
+    const absenceDeduct = (deductAbsence && calcMode === 'fixed' && absentDays > 0) ? parseFloat((dailyRateMonth * absentDays).toFixed(2)) : 0;
+    // ⚠️ تنبيه: غياب مرتفع في الراتب الثابت بلا خصم (نصف أيام العمل أو أكثر)
+    const absenceWarn = calcMode === 'fixed' && !deductAbsence && absentDays >= Math.ceil(workingDaysExpected / 2);
+
+    // 🕘 خصم ساعات الأذونات المعتمدة القابلة للخصم — فقط في «الراتب الثابت» (الوضعان الآخران يخصمانها عبر الحضور، فتفادي الازدواج)
+    let permHoursTotal = 0;
+    if (calcMode === 'fixed') {
+        Object.values(window.permissions || {}).forEach(pm => {
+            if (pm.empKey === empKey && pm.status === 'approved' && pm.deductible !== false && (pm.date || '') >= rangeStart && (pm.date || '') <= rangeEnd) permHoursTotal += (parseFloat(pm.hours) || 0);
+        });
+    }
+    permHoursTotal = Math.round(permHoursTotal * 100) / 100;
+    const permDeduct = permHoursTotal > 0 ? parseFloat((hourlyRate * permHoursTotal).toFixed(2)) : 0;
+
     // أقساط السلف المستحقة (تبقى شهرية كاملة)
     const empLoans = Object.values(loans).filter(l => l.empKey === empKey && l.status === 'active');
     const loanDeductTotal = empLoans.reduce((s, l) => {
@@ -6726,13 +6745,15 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate) {
         ? `⭐ ${getPerfRating(perfEval.avgScore).label} (${perfEval.avgScore?.toFixed(1)}/10) = ${fmt(perfBonusAmt)}${(perfEval.manualBonus||0)!==0?` [يدوي: ${perfEval.manualBonus>0?'+':''}${fmt(perfEval.manualBonus)}${perfEval.manualReason?' - '+perfEval.manualReason:''}]`:''}`
         : '';
 
-    const totalDeductions = monthDeductTotal + loanDeductTotal + unpaidLeaveDeduct;
+    const totalDeductions = monthDeductTotal + loanDeductTotal + unpaidLeaveDeduct + absenceDeduct + permDeduct;
     const finalNet = Math.max(0, parseFloat((earnedNet - totalDeductions + perfBonusAmt).toFixed(2)));
 
     const leavesNote = paidLeaveDays > 0 || unpaidLeaveDays > 0
         ? `${paidLeaveDays>0?`🌴 ${paidLeaveDays}ي إجازة مدفوعة`:''}${paidLeaveDays>0&&unpaidLeaveDays>0?' | ':''}${unpaidLeaveDays>0?`📭 ${unpaidLeaveDays}ي بدون راتب (خصم ${fmt(unpaidLeaveDeduct)})`:''}`
         : '';
-    const combinedNote = [monthDeductNote, leavesNote, perfBonusNote].filter(Boolean).join(' | ');
+    const absenceNote = absenceDeduct > 0 ? `➖ خصم غياب ${absentDays}ي = ${fmt(absenceDeduct)}` : (absenceWarn ? `⚠️ غياب ${absentDays}ي بلا خصم — راجع` : '');
+    const permNote = permDeduct > 0 ? `🕘 خصم أذونات ${permHoursTotal}س = ${fmt(permDeduct)}` : '';
+    const combinedNote = [monthDeductNote, leavesNote, perfBonusNote, absenceNote, permNote].filter(Boolean).join(' | ');
 
     return {
         empKey, name: eData.name || '', job: eData.job || '', dept: eData.dept || '',
@@ -6743,7 +6764,8 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate) {
         fullGrossSalary: f.grossSalary, fullNetSalary: f.netSalary,
         periodFactor, useCustomRange,
         rangeStart: useCustomRange ? rangeStart : '', rangeEnd: useCustomRange ? rangeEnd : '',
-        monthDeductTotal: monthDeductTotal + unpaidLeaveDeduct, loanDeductTotal, totalExtraDeductions: totalDeductions,
+        monthDeductTotal: monthDeductTotal + unpaidLeaveDeduct + absenceDeduct + permDeduct, loanDeductTotal, totalExtraDeductions: totalDeductions,
+        absenceDeduct, absenceWarn, permDeduct, permHours: permHoursTotal,
         perfBonusAmt, perfRating: perfEval?.rating || null, perfScore: perfEval?.avgScore || null,
         finalNet,
         monthDaysTotal, weekendDays, workingDaysExpected, dailyHours, expectedMonthlyHours,
@@ -7154,6 +7176,7 @@ window.reopenDeferredPayroll = function (sourcePayrollKey) {
     // املأ الفلاتر بنفس بيانات المسير الأصلي
     if ($('prMonth')) $('prMonth').value = sourceP.month;
     if ($('prCalcMode')) $('prCalcMode').value = sourceP.calcMode || 'fixed';
+    if ($('prDeductAbsence')) $('prDeductAbsence').checked = !!sourceP.deductAbsence;
     if ($('prScope')) $('prScope').value = sourceP.scope || 'all';
     if (sourceP.scope === 'project' && $('prProject')) {
         onPRScopeChange();
@@ -7188,6 +7211,7 @@ window.generatePayroll = async function () {
     if (myP?.role !== 'admin' && !can('create_payroll')) { toast('ليس لديك صلاحية إنشاء مسير', 'er'); return }
     const month = $('prMonth')?.value;
     const calcMode = $('prCalcMode')?.value || 'fixed';
+    const deductAbsence = !!$('prDeductAbsence')?.checked;
     if (!month) { toast('اختر الشهر أولاً', 'er'); return }
 
     const scope = $('prScope')?.value || 'all';
@@ -7253,7 +7277,7 @@ window.generatePayroll = async function () {
         }));
 
     // احتساب رواتب المُختارين
-    const items = selectedEmps.map(([k, e]) => calcEmpPayForMonth(k, e, month, calcMode, fromDate, toDate));
+    const items = selectedEmps.map(([k, e]) => calcEmpPayForMonth(k, e, month, calcMode, fromDate, toDate, deductAbsence));
     const totalNet = items.reduce((s, i) => s + i.finalNet, 0);
     const totalGross = items.reduce((s, i) => s + i.grossSalary, 0);
 
@@ -7267,7 +7291,7 @@ window.generatePayroll = async function () {
     if (deferredEmps.length > 0) scopeLabel += ` (⏸️ ${deferredEmps.length} مُؤجَّل)`;
 
     const payrollData = {
-        month, calcMode, status: 'draft',
+        month, calcMode, deductAbsence, status: 'draft',
         scope, projectId, dept,
         projectName: scope === 'project' && projectId ? (window.projects?.[projectId]?.name || '') : '',
         fromDate: fromDate || '', toDate: toDate || '',
@@ -7289,6 +7313,9 @@ window.generatePayroll = async function () {
         const periodMsg = useCustom ? ` (${fromDate} → ${toDate})` : '';
         const deferMsg = deferredEmps.length > 0 ? ` · ⏸️ ${deferredEmps.length} مُؤجَّل` : '';
         toast(`✅ تم إنشاء مسير ${month}${scopeLabel}${periodMsg} — ${items.length} موظف${deferMsg}`, 'ok');
+        // ⚠️ تنبيه غياب مرتفع بلا خصم (راتب ثابت) — يذكّر المدير أن الغياب لم يُخصم وقد تكون بيانات الحضور غير مُدخَلة
+        const warnCount = items.filter(it => it.absenceWarn).length;
+        if (warnCount > 0) toast(`⚠️ ${warnCount} موظف بغياب مرتفع في الراتب الثابت بلا خصم — تأكد من إدخال الحضور أو فعّل «خصم أيام الغياب» أو استخدم «حسب أيام الحضور».`, 'wn', 10000);
         // مسح state بعد الحفظ
         window.prEmpsState = { selected: new Set(), deferReasons: {} };
         renderPREmployeesTable();
@@ -7467,6 +7494,7 @@ window.renderPayrolls = function () {
                     : ''}
                 <button class="btn b-gr" style="padding:4px 10px;font-size:11px" onclick="printPayroll('${k}')">🖨️ طباعة</button>
                 <button class="btn" style="padding:4px 10px;font-size:11px;background:#1e7e34;color:white" onclick="exportPayrollToExcel('${k}')">📊 تصدير Excel</button>
+                <button class="btn" style="padding:4px 10px;font-size:11px;background:#5b2c6f;color:white" onclick="exportPayrollWPS('${k}')" title="ملف حماية الأجور — مِدد/البنك">📤 WPS/مِدد</button>
                 <button class="btn" style="padding:4px 10px;font-size:11px;background:#16a085;color:white" onclick="generatePayrollShareLink('${k}')">🔗 رابط للاعتماد</button>
                 <button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="openPayrollSettings('${k}')">⚙️ إعدادات العرض</button>
             </div>
@@ -9045,6 +9073,126 @@ function fillLeavesEmpFilter() {
         .forEach(([k, e]) => { sel.innerHTML += `<option value="${k}">${e.name || k}</option>`; });
     if (cur) sel.value = cur;
 }
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   🕘  [HR-PERM]  الأذونات والاستئذان (Hourly Permissions / Excuses)         ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PERM_TYPES = {
+    early_leave: ['🚪 خروج مبكر', '#e67e22', true],
+    late_arrival: ['⏰ تأخير/دخول متأخر', '#e74c3c', true],
+    personal: ['👤 إذن شخصي', '#8e44ad', true],
+    official: ['💼 مأمورية/عمل خارجي', '#2980b9', false],
+    other: ['📝 أخرى', '#7f8c8d', true],
+};
+const PERM_STATUS = { pending: ['⏳ قيد الاعتماد', '#e67e22', '#fef5e7'], approved: ['✅ معتمد', '#27ae60', '#eafaf1'], rejected: ['❌ مرفوض', '#c0392b', '#fdecea'] };
+function permHours(from, to) { if (!from || !to) return 0; const [fh, fm] = from.split(':').map(Number); const [th, tm] = to.split(':').map(Number); let m = (th * 60 + tm) - (fh * 60 + fm); if (m < 0) m += 1440; return Math.round(m / 60 * 100) / 100; }
+window._permFilter = window._permFilter || { status: 'all', month: new Date().toISOString().slice(0, 7), empKey: '' };
+window.permSetFilter = function (k, v) { window._permFilter[k] = v; renderPermissions(); };
+
+window.renderPermissions = function () {
+    const pg = $('pg-permissions'); if (!pg) return;
+    const all = Object.entries(window.permissions || {});
+    const f = window._permFilter;
+    const inMonth = p => !f.month || (p.date || '').slice(0, 7) === f.month;
+    const monthList = all.filter(([, p]) => inMonth(p));
+    const shown = all.filter(([, p]) => inMonth(p) && (f.status === 'all' || p.status === f.status) && (!f.empKey || p.empKey === f.empKey))
+        .sort((a, b) => (b[1].date || '').localeCompare(a[1].date || '') || (b[1].createdAt || '').localeCompare(a[1].createdAt || ''));
+    let cPend = 0, cAppr = 0, cHours = 0;
+    monthList.forEach(([, p]) => { if (p.status === 'pending') cPend++; if (p.status === 'approved') { cAppr++; cHours += (parseFloat(p.hours) || 0); } });
+    const canApprove = myP?.role === 'admin' || can('approve_leave');
+    const kpi = (ic, l, v, c) => `<div style="background:#fff;border-radius:12px;padding:14px 16px;flex:1;min-width:150px;border-top:3px solid ${c};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${ic} ${l}</div><div style="font-size:22px;font-weight:800;color:${c};margin-top:4px">${v}</div></div>`;
+    pg.innerHTML = `
+    <div style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);border-radius:16px;padding:20px;margin-bottom:16px;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div><h1 style="margin:0;font-size:22px;font-weight:900">🕘 الأذونات والاستئذان</h1><div style="font-size:12.5px;opacity:.9;margin-top:4px">طلبات الاستئذان بالساعة — خروج مبكر · تأخير · مأمورية · إذن شخصي</div></div>
+        <button class="btn" onclick="openPermForm()" style="background:#fff;color:#5b2c6f;font-weight:800;padding:9px 16px">➕ إذن جديد</button>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('📋', 'أذونات الشهر', monthList.length, '#2980b9')}
+        ${kpi('⏳', 'قيد الاعتماد', cPend, cPend ? '#e67e22' : '#95a5a6')}
+        ${kpi('✅', 'معتمدة', cAppr, '#27ae60')}
+        ${kpi('⏱️', 'ساعات معتمدة', cHours.toFixed(1), '#8e44ad')}
+    </div>
+    <div class="card">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px">
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الشهر</label><input type="month" value="${f.month}" onchange="permSetFilter('month',this.value)" style="padding:7px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit"></div>
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الموظف</label><select onchange="permSetFilter('empKey',this.value)" style="padding:7px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit"><option value="">الكل</option>${Object.entries(emp).filter(([, e]) => e.active !== false).map(([k, e]) => `<option value="${k}" ${f.empKey === k ? 'selected' : ''}>${e.name || k}</option>`).join('')}</select></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                ${['all', 'pending', 'approved', 'rejected'].map(s => { const lbl = { all: 'الكل', pending: 'قيد الاعتماد', approved: 'معتمد', rejected: 'مرفوض' }[s]; const a = f.status === s; return `<button onclick="permSetFilter('status','${s}')" style="padding:6px 12px;border:1px solid ${a ? '#5b2c6f' : '#d0d7e0'};background:${a ? '#5b2c6f' : '#fff'};color:${a ? '#fff' : '#555'};border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${lbl}</button>`; }).join('')}
+            </div>
+        </div>
+        ${shown.length === 0 ? '<div style="text-align:center;padding:30px;color:#aaa">🕘 لا أذونات في هذا التصنيف</div>' : `
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:780px">
+            <thead><tr style="background:#f4f6f8;color:#1a3a5c"><th style="padding:9px;text-align:right">الموظف</th><th style="padding:9px">النوع</th><th style="padding:9px">التاريخ</th><th style="padding:9px">من</th><th style="padding:9px">إلى</th><th style="padding:9px">الساعات</th><th style="padding:9px;text-align:right">السبب</th><th style="padding:9px">الحالة</th><th style="padding:9px"></th></tr></thead>
+            <tbody>${shown.map(([k, p]) => {
+        const [tl, tc] = PERM_TYPES[p.type] || PERM_TYPES.other;
+        const [sl, sc, sbg] = PERM_STATUS[p.status] || PERM_STATUS.pending;
+        const e = emp[p.empKey] || {};
+        return `<tr style="border-top:1px solid #eef2f7">
+                <td style="padding:8px 9px;font-weight:700;color:#1a3a5c">${e.name || p.empName || '—'}</td>
+                <td style="padding:8px 9px;text-align:center"><span style="color:${tc};font-weight:700;font-size:12px">${tl}</span>${p.deductible === false ? '<div style="font-size:9px;color:#27ae60">بلا خصم</div>' : ''}</td>
+                <td style="padding:8px 9px;text-align:center;color:#666">${p.date || ''}</td>
+                <td style="padding:8px 9px;text-align:center">${p.fromTime || ''}</td>
+                <td style="padding:8px 9px;text-align:center">${p.toTime || ''}</td>
+                <td style="padding:8px 9px;text-align:center;font-weight:800;color:#8e44ad">${(parseFloat(p.hours) || 0).toFixed(1)}</td>
+                <td style="padding:8px 9px;color:#555;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(p.reason || '').replace(/"/g, '&quot;')}">${p.reason || '—'}</td>
+                <td style="padding:8px 9px;text-align:center"><span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span></td>
+                <td style="padding:8px 9px;text-align:center;white-space:nowrap">
+                    ${p.status === 'pending' && canApprove ? `<button onclick="approvePerm('${k}')" title="اعتماد" style="border:0;background:#eafaf1;color:#1e8449;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px">✅</button> <button onclick="rejectPerm('${k}')" title="رفض" style="border:0;background:#fdecea;color:#c0392b;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px">❌</button> ` : ''}
+                    <button onclick="openPermForm('${k}')" style="border:0;background:#eef3f8;color:#2980b9;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px">✏️</button>
+                    <button onclick="deletePerm('${k}')" style="border:0;background:#fdecea;color:#c0392b;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px">🗑️</button>
+                </td>
+            </tr>`;
+    }).join('')}</tbody>
+        </table></div>`}
+    </div>`;
+};
+
+window.openPermForm = function (key) {
+    const p = key ? (window.permissions || {})[key] : null;
+    let ov = document.getElementById('permOverlay'); if (!ov) { ov = document.createElement('div'); ov.id = 'permOverlay'; document.body.appendChild(ov); }
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+    const empOpts = Object.entries(emp).filter(([, e]) => e.active !== false).map(([k, e]) => `<option value="${k}" ${p && p.empKey === k ? 'selected' : ''}>${e.name || k}</option>`).join('');
+    const typeOpts = Object.entries(PERM_TYPES).map(([t, [l]]) => `<option value="${t}" ${p && p.type === t ? 'selected' : ''}>${l}</option>`).join('');
+    const ist = 'width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px;font-family:inherit', lst = 'font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px';
+    ov.innerHTML = `<div dir="rtl" style="background:#fff;border-radius:16px;max-width:540px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+        <div style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:#fff;padding:15px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><b>🕘 ${key ? 'تعديل إذن' : 'إذن جديد'}</b><button onclick="document.getElementById('permOverlay').remove()" style="border:0;background:rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px">✕</button></div>
+        <div style="padding:20px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div><label style="${lst}">الموظف *</label><select id="perm-emp" style="${ist}"><option value="">— اختر —</option>${empOpts}</select></div>
+                <div><label style="${lst}">نوع الإذن</label><select id="perm-type" onchange="permSyncDeduct()" style="${ist}">${typeOpts}</select></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 130px 130px;gap:10px;margin-bottom:10px">
+                <div><label style="${lst}">التاريخ *</label><input type="date" id="perm-date" value="${p?.date || new Date().toISOString().slice(0, 10)}" style="${ist}"></div>
+                <div><label style="${lst}">من الساعة</label><input type="time" id="perm-from" value="${p?.fromTime || ''}" oninput="permCalc()" style="${ist}"></div>
+                <div><label style="${lst}">إلى الساعة</label><input type="time" id="perm-to" value="${p?.toTime || ''}" oninput="permCalc()" style="${ist}"></div>
+            </div>
+            <div style="background:#f6f0fa;border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:#5b2c6f;font-weight:700">⏱️ مدة الإذن</span><span id="perm-hours" style="font-size:18px;font-weight:900;color:#8e44ad">0.0 ساعة</span></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="perm-deduct" ${!p || p.deductible !== false ? 'checked' : ''} style="width:17px;height:17px"> يُحتسب على الموظف (قابل للخصم) — أزِله للمأموريات الرسمية</label>
+            <div style="margin-bottom:14px"><label style="${lst}">السبب</label><textarea id="perm-reason" rows="2" placeholder="سبب الاستئذان..." style="${ist};resize:vertical">${p?.reason || ''}</textarea></div>
+            <div style="display:flex;gap:8px"><button class="btn b-g" onclick="savePerm(${key ? `'${key}'` : 'null'})" style="flex:1">💾 حفظ</button><button class="btn" onclick="document.getElementById('permOverlay').remove()" style="background:#ecf0f1;color:#555">إلغاء</button></div>
+        </div></div>`;
+    setTimeout(permCalc, 30);
+};
+window.permCalc = function () { const h = permHours($('perm-from')?.value, $('perm-to')?.value); const el = $('perm-hours'); if (el) el.textContent = h.toFixed(1) + ' ساعة'; };
+window.permSyncDeduct = function () { const d = PERM_TYPES[$('perm-type')?.value]?.[2]; const cb = $('perm-deduct'); if (cb) cb.checked = d !== false; };
+window.savePerm = async function (key) {
+    const empKey = $('perm-emp')?.value; if (!empKey) { toast('اختر الموظف', 'er'); return; }
+    const date = $('perm-date')?.value; if (!date) { toast('اختر التاريخ', 'er'); return; }
+    const fromTime = $('perm-from')?.value || '', toTime = $('perm-to')?.value || '';
+    const data = {
+        empKey, empName: emp[empKey]?.name || '', type: $('perm-type')?.value || 'other',
+        date, fromTime, toTime, hours: permHours(fromTime, toTime),
+        reason: $('perm-reason')?.value.trim() || '', deductible: !!$('perm-deduct')?.checked, updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) { await update(ref(db, `ledger/permissions/${key}`), data); toast('تم التحديث ✓', 'ok'); }
+        else { data.status = 'pending'; data.createdAt = new Date().toISOString(); data.createdBy = curU?.uid || ''; await push(R.permissions, data); toast('تم تقديم الإذن ✓', 'ok'); }
+        document.getElementById('permOverlay')?.remove();
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.approvePerm = function (key) { update(ref(db, `ledger/permissions/${key}`), { status: 'approved', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الاعتماد ✓', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er')); };
+window.rejectPerm = function (key) { update(ref(db, `ledger/permissions/${key}`), { status: 'rejected', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الرفض', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er')); };
+window.deletePerm = function (key) { cf2('حذف هذا الإذن؟', async () => { try { await remove(ref(db, `ledger/permissions/${key}`)); toast('تم الحذف', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
 
 window.renderLeavesPage = function () {
     fillLeavesEmpFilter();
@@ -20107,6 +20255,92 @@ window.exportPayrollToExcel = function (payrollKey) {
     toast('✅ تم تصدير الملف', 'ok');
 };
 
+// ── 📤 [HR-WPS] ملف حماية الأجور (WPS / مِدد) — من مسير معتمد ──
+// يولّد ملف SIF مبسّطاً (CSV بترميز UTF-8 + BOM) يرفعه صاحب العمل لمنصّة مِدد/البنك.
+window.openWpsSettings = function (payrollKey) {
+    const w = (cfg && cfg.wps) || {};
+    let ov = document.getElementById('wpsSetOverlay'); if (!ov) { ov = document.createElement('div'); ov.id = 'wpsSetOverlay'; document.body.appendChild(ov); }
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+    const inp = (id, label, val, ph) => `<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px">${label}</label><input id="${id}" value="${(val || '').toString().replace(/"/g, '&quot;')}" placeholder="${ph || ''}" style="width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px;font-family:inherit"></div>`;
+    ov.innerHTML = `<div dir="rtl" style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+        <div style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:#fff;padding:15px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><b>📤 إعدادات ملف حماية الأجور (WPS/مِدد)</b><button onclick="document.getElementById('wpsSetOverlay').remove()" style="border:0;background:rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px">✕</button></div>
+        <div style="padding:20px">
+            <div style="font-size:11px;color:#888;margin-bottom:14px">بيانات المنشأة المطلوبة في ملف حماية الأجور — تُحفظ مرة واحدة وتُدرَج تلقائياً في كل ملف.</div>
+            ${inp('wps-estab', 'رقم المنشأة (وزارة الموارد البشرية)', w.establishmentId, 'مثال: 1-2345678')}
+            ${inp('wps-mol', 'رقم مكتب العمل (MOL)', w.molNumber, '')}
+            ${inp('wps-empname', 'اسم المنشأة (كما لدى البنك)', w.employerName || (cfg && cfg.companyAr) || '', '')}
+            ${inp('wps-bank', 'بنك صرف الرواتب', w.employerBank, 'مثال: الراجحي')}
+            ${inp('wps-iban', 'آيبان حساب المنشأة', w.employerIban, 'SA...')}
+            <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn b-g" onclick="saveWpsSettings(${payrollKey ? `'${payrollKey}'` : 'null'})" style="flex:1">💾 حفظ${payrollKey ? ' وتوليد الملف' : ''}</button>
+                <button class="btn" onclick="document.getElementById('wpsSetOverlay').remove()" style="background:#ecf0f1;color:#555">إلغاء</button>
+            </div>
+        </div></div>`;
+};
+window.saveWpsSettings = async function (payrollKey) {
+    const data = {
+        establishmentId: document.getElementById('wps-estab')?.value.trim() || '',
+        molNumber: document.getElementById('wps-mol')?.value.trim() || '',
+        employerName: document.getElementById('wps-empname')?.value.trim() || '',
+        employerBank: document.getElementById('wps-bank')?.value.trim() || '',
+        employerIban: document.getElementById('wps-iban')?.value.trim() || '',
+    };
+    try {
+        await update(ref(db, 'ledger/settings/wps'), data);
+        cfg = cfg || {}; cfg.wps = { ...(cfg.wps || {}), ...data };
+        toast('تم حفظ إعدادات WPS ✓', 'ok');
+        document.getElementById('wpsSetOverlay')?.remove();
+        if (payrollKey) setTimeout(() => exportPayrollWPS(payrollKey), 200);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.exportPayrollWPS = function (payrollKey) {
+    const p = payrolls[payrollKey]; if (!p) { toast('المسير غير موجود', 'er'); return; }
+    const w = (cfg && cfg.wps) || {};
+    if (!w.establishmentId && !w.employerIban) { toast('⚙️ أدخل بيانات المنشأة لملف WPS أولاً', 'wn'); openWpsSettings(payrollKey); return; }
+    const items = p.items || [];
+    if (!items.length) { toast('لا يوجد موظفون في هذا المسير', 'er'); return; }
+
+    const r1 = v => Math.round((parseFloat(v) || 0) * 100) / 100;
+    const missing = [];
+    const recs = items.map((it, i) => {
+        const e = (emp || {})[it.empKey] || {};
+        const basic = r1(e.salary), housing = r1(e.houseAllow);
+        const gross = r1(it.grossSalary);
+        const other = r1(gross - basic - housing);
+        const ded = r1(it.totalDeductions);
+        const net = r1(it.finalNet != null ? it.finalNet : it.netSalary);
+        const iban = (it.iban || e.iban || '').replace(/\s/g, '');
+        const natId = e.natId || '';
+        if (!iban || !natId) missing.push(it.name || e.name || `#${i + 1}`);
+        return [i + 1, natId, it.name || e.name || '', iban, e.bankName || '', basic, housing, other, gross, ded, net, it.actualDays != null ? it.actualDays : ''];
+    });
+    const totNet = recs.reduce((s, r) => s + (parseFloat(r[10]) || 0), 0);
+
+    const meta = [
+        ['ملف حماية الأجور (WPS) — ' + (w.employerName || (cfg && cfg.companyAr) || 'المنشأة')],
+        ['رقم المنشأة (وزارة الموارد)', w.establishmentId || ''],
+        ['رقم مكتب العمل (MOL)', w.molNumber || ''],
+        ['بنك المنشأة', w.employerBank || ''],
+        ['آيبان المنشأة', w.employerIban || ''],
+        ['شهر الرواتب', p.month || ''],
+        ['عدد الموظفين', recs.length],
+        ['إجمالي صافي الرواتب', r1(totNet)],
+        ['تاريخ التوليد', new Date().toISOString().slice(0, 10)],
+        [],
+    ];
+    const header = ['م', 'رقم الهوية/الإقامة', 'اسم الموظف', 'آيبان الموظف', 'البنك', 'الراتب الأساسي', 'بدل السكن', 'بدلات/تعديلات أخرى', 'إجمالي المستحقات', 'الاستقطاعات', 'صافي الراتب', 'أيام العمل'];
+    const aoa = [...meta, header, ...recs];
+    const csv = aoa.map(r => r.map(c => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `WPS_حماية_الأجور_${p.month || 'unknown'}.csv`;
+    a.click();
+    if (typeof logAudit === 'function') logAudit('wps_export', 'payroll', `توليد ملف WPS لمسير ${p.month}`, { count: recs.length });
+    if (missing.length) toast(`⚠️ تم التوليد — لكن ${missing.length} موظف بلا آيبان/هوية: ${missing.slice(0, 3).join('، ')}${missing.length > 3 ? '…' : ''}`, 'wn', 8000);
+    else toast('✅ تم توليد ملف حماية الأجور (WPS)', 'ok');
+};
+
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║   ╰─  نهاية القسم [HRC]  ─  إعدادات مسير الراتب                            ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
@@ -20303,6 +20537,19 @@ function findCurrentEmpRecord() {
     return { key: entry[0], data: entry[1] };
 }
 
+// 📍 التقاط الموقع الجغرافي (أفضل جهد — لا يعطّل التسجيل إن رُفض/تعذّر)
+function getGeoLoc(timeoutMs = 8000) {
+    return new Promise(resolve => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: +pos.coords.latitude.toFixed(6), lng: +pos.coords.longitude.toFixed(6), acc: Math.round(pos.coords.accuracy || 0) }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 }
+        );
+    });
+}
+function geoLink(loc) { return loc && loc.lat != null ? `<a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank" rel="noopener" title="عرض موقع التسجيل على الخريطة (دقة ~${loc.acc}م)" style="color:#2980b9;font-weight:700;font-size:11px">📍</a>` : ''; }
+
 window.doCheckIn = async function () {
     if (!curU) { toast('يجب تسجيل الدخول أولاً', 'er'); return }
     const myEmpRec = findCurrentEmpRecord();
@@ -20311,9 +20558,11 @@ window.doCheckIn = async function () {
     const existing = Object.values(attendance).find(a => a.employeeId === myEmpRec.key && a.date === todayStr);
     if (existing) { $('atStatus').textContent = '⚠️ تم تسجيل دخولك مسبقاً اليوم'; return }
     try {
-        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: new Date().toISOString(), checkOut: null, totalHours: 0 });
-        $('atStatus').textContent = '✅ تم تسجيل الدخول في ' + new Date().toLocaleTimeString('ar-SA');
-        toast('✅ تم تسجيل الدخول', 'ok');
+        if ($('atStatus')) $('atStatus').textContent = '📍 جارٍ تحديد الموقع...';
+        const loc = await getGeoLoc();
+        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: new Date().toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null });
+        $('atStatus').textContent = '✅ تم تسجيل الدخول في ' + new Date().toLocaleTimeString('ar-SA') + (loc ? ' · 📍 تم تسجيل الموقع' : ' · ⚠️ تعذّر الموقع');
+        toast('✅ تم تسجيل الدخول' + (loc ? ' مع الموقع' : ''), 'ok');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
 
@@ -20328,10 +20577,12 @@ window.doCheckOut = async function () {
     const [key, data] = entry;
     if (data.checkOut) { $('atStatus').textContent = '⚠️ تم تسجيل خروجك مسبقاً اليوم'; return }
     try {
+        if ($('atStatus')) $('atStatus').textContent = '📍 جارٍ تحديد الموقع...';
+        const loc = await getGeoLoc();
         const checkOutTime = new Date().toISOString();
         const hours = parseFloat(((new Date(checkOutTime) - new Date(data.checkIn)) / (1000 * 60 * 60)).toFixed(2));
-        await update(ref(db, 'ledger/attendance/' + key), { checkOut: checkOutTime, totalHours: hours });
-        $('atStatus').textContent = '🚪 تم تسجيل الخروج في ' + new Date(checkOutTime).toLocaleTimeString('ar-SA') + ' | المجموع: ' + hours.toFixed(2) + ' س';
+        await update(ref(db, 'ledger/attendance/' + key), { checkOut: checkOutTime, totalHours: hours, checkOutLoc: loc || null });
+        $('atStatus').textContent = '🚪 تم تسجيل الخروج في ' + new Date(checkOutTime).toLocaleTimeString('ar-SA') + ' | المجموع: ' + hours.toFixed(2) + ' س' + (loc ? ' · 📍' : '');
         toast('✅ تم تسجيل الخروج', 'ok');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
@@ -20563,8 +20814,8 @@ window.renderAttendance = function () {
             <td style="padding:10px 12px;color:#999;font-size:12px">${rows.length - overallIdx}</td>
             <td style="padding:10px 12px;font-weight:600">${a.employeeName || '-'}</td>
             <td style="padding:10px 12px">${a.date || '-'}</td>
-            <td style="padding:10px 12px;color:#27ae60;font-weight:600">${ciTime}</td>
-            <td style="padding:10px 12px;color:#e74c3c;font-weight:600">${coTime}</td>
+            <td style="padding:10px 12px;color:#27ae60;font-weight:600">${ciTime} ${geoLink(a.checkInLoc)}</td>
+            <td style="padding:10px 12px;color:#e74c3c;font-weight:600">${coTime} ${geoLink(a.checkOutLoc)}</td>
             <td style="padding:10px 12px">${hrs}</td>
             <td style="padding:10px 12px">${statusBadge}</td>
             ${actionsBtns}
