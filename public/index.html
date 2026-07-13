@@ -19,7 +19,7 @@
     <!-- 🧾 توليد رمز QR محلياً (offline) للفواتير الضريبية ZATCA — مستضاف ذاتياً لضمان عدم الاعتماد على الإنترنت -->
     <script src="qrcode.min.js?v=20260627-1"></script>
     <!-- 🎨 الستايل في ملف منفصل -->
-    <link rel="stylesheet" href="styles.css?v=20260711-pdfields">
+    <link rel="stylesheet" href="styles.css?v=20260713-hrfields">
     <!-- 📱 PWA: تطبيق قابل للتثبيت يعمل دون اتصال -->
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#1a3a5c">
@@ -1314,54 +1314,54 @@
                     <!-- تسجيل حضور موظف (للمسؤول) -->
                     <div class="card" id="atAdminCard" style="margin-bottom:16px;display:none">
                         <div class="c-tl">👤 تسجيل حضور / انصراف موظف — بواسطة المسؤول</div>
-                        <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin-top:14px">
+                        <div class="form-grid">
                             <div class="fg">
                                 <label>الموظف *</label>
-                                <select id="atAdminEmp" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <select id="atAdminEmp">
                                     <option value="">-- اختر موظفاً --</option>
                                 </select>
                             </div>
                             <div class="fg">
                                 <label>التاريخ *</label>
-                                <input type="date" id="atAdminDate" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="date" id="atAdminDate">
                             </div>
                             <div class="fg">
                                 <label>وقت الدخول *</label>
-                                <input type="time" id="atAdminCheckIn" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="time" id="atAdminCheckIn">
                             </div>
                             <div class="fg">
-                                <label>وقت الخروج <span style="color:#999;font-weight:400">(اختياري)</span></label>
-                                <input type="time" id="atAdminCheckOut" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <label>وقت الخروج <span class="opt">(اختياري)</span></label>
+                                <input type="time" id="atAdminCheckOut">
                             </div>
                         </div>
-                        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <div class="card-actions">
                             <button class="btn b-g" onclick="doAdminAddAttendance()">💾 حفظ السجل</button>
-                            <div id="atAdminStatus" style="font-size:13px;color:#2d6a9f;font-weight:600"></div>
+                            <div id="atAdminStatus" class="stat"></div>
                         </div>
                     </div>
 
                     <!-- التحضير الشهري الجماعي -->
                     <div class="card" id="atBulkCard" style="margin-bottom:16px;display:none;border-right:5px solid #9b59b6">
                         <div class="c-tl">📆 التحضير الشهري الجماعي — للموظفين دفعة واحدة</div>
-                        <div style="background:#f4ecf7;border-radius:10px;padding:10px 14px;margin-top:10px;font-size:12px;color:#5b2c6f">
+                        <div class="hr-info violet">
                             💡 لتسجيل حضور موظف أو عدة موظفين لشهر كامل دفعة واحدة. مفيد للموظفين بدوام منتظم. <strong>سيتم تخطي:</strong> الجمعة والسبت، الأيام التي يوجد بها سجل حضور مسبق، أيام الإجازات المعتمدة.
                         </div>
-                        <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));margin-top:14px">
+                        <div class="form-grid sm">
                             <div class="fg">
                                 <label>الشهر *</label>
-                                <input type="month" id="atBulkMonth" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="month" id="atBulkMonth">
                             </div>
                             <div class="fg">
                                 <label>وقت الدخول *</label>
-                                <input type="time" id="atBulkCheckIn" value="08:00" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="time" id="atBulkCheckIn" value="08:00">
                             </div>
                             <div class="fg">
                                 <label>وقت الخروج *</label>
-                                <input type="time" id="atBulkCheckOut" value="17:00" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="time" id="atBulkCheckOut" value="17:00">
                             </div>
                             <div class="fg">
                                 <label>تخطي أيام الإجازة الأسبوعية</label>
-                                <select id="atBulkSkipWeekend" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <select id="atBulkSkipWeekend">
                                     <option value="fri_sat" selected>الجمعة والسبت</option>
                                     <option value="fri">الجمعة فقط</option>
                                     <option value="sat_sun">السبت والأحد</option>
@@ -1369,7 +1369,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div style="margin-top:14px">
+                        <div style="margin-top:16px">
                             <label style="font-size:13px;font-weight:700;color:#1a3a5c;display:block;margin-bottom:8px">اختر الموظفين *</label>
                             <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
                                 <button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="bulkSelectAllEmps(true)">✅ تحديد الكل</button>
@@ -1378,9 +1378,9 @@
                             </div>
                             <div id="atBulkEmpsList" style="max-height:240px;overflow-y:auto;border:1.5px solid #e0e8f0;border-radius:8px;padding:10px;background:#fafbfc;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px"></div>
                         </div>
-                        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <div class="card-actions">
                             <button class="btn" style="background:#9b59b6;color:white" onclick="doBulkMonthlyAttendance()">📆 تنفيذ التحضير الشهري</button>
-                            <div id="atBulkStatus" style="font-size:13px;color:#5b2c6f;font-weight:600"></div>
+                            <div id="atBulkStatus" class="stat" style="color:#5b2c6f"></div>
                         </div>
                     </div>
 
@@ -1389,25 +1389,22 @@
                         <div class="c-tl">📋 سجل الحضور والانصراف</div>
 
                         <!-- فلاتر البحث -->
-                        <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin:14px 0 10px">
+                        <div class="form-grid" style="margin-bottom:2px">
                             <div class="fg">
                                 <label>الموظف</label>
-                                <select id="atFilterEmp" onchange="renderAttendance()"
-                                    style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <select id="atFilterEmp" onchange="renderAttendance()">
                                     <option value="">-- جميع الموظفين --</option>
                                 </select>
                             </div>
                             <div class="fg">
                                 <label>من تاريخ</label>
-                                <input type="date" id="atFilterFrom" onchange="renderAttendance()"
-                                    style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="date" id="atFilterFrom" onchange="renderAttendance()">
                             </div>
                             <div class="fg">
                                 <label>إلى تاريخ</label>
-                                <input type="date" id="atFilterTo" onchange="renderAttendance()"
-                                    style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="date" id="atFilterTo" onchange="renderAttendance()">
                             </div>
-                            <div class="fg" style="display:flex;align-items:flex-end;gap:8px">
+                            <div class="fg" style="flex-direction:row;gap:8px">
                                 <button class="btn b-b" onclick="atSetThisMonth()" style="flex:1">📅 هذا الشهر</button>
                                 <button class="btn b-gr" onclick="atResetFilter()" style="flex:1">🔄 إعادة</button>
                             </div>
@@ -1480,48 +1477,53 @@
                         <div class="c-tl">➕ إنشاء مسير رواتب شهري جديد</div>
 
                         <!-- الصف الأول: الشهر + طريقة الاحتساب -->
-                        <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-top:14px">
+                        <div class="form-grid">
                             <div class="fg">
                                 <label>الشهر *</label>
-                                <input type="month" id="prMonth" onchange="onPRMonthChange()" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <input type="month" id="prMonth" onchange="onPRMonthChange()">
                             </div>
                             <div class="fg">
                                 <label>احتساب الراتب بناءً على</label>
-                                <select id="prCalcMode" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                <select id="prCalcMode">
                                     <option value="fixed">الراتب الثابت (بدون ربط الحضور)</option>
                                     <option value="hours">ساعات الحضور الفعلية</option>
                                     <option value="days">أيام الحضور الفعلية</option>
                                 </select>
                             </div>
-                            <div class="fg" style="display:flex;align-items:flex-end">
-                                <label title="عند تفعيله يُخصم (قيمة اليوم × أيام الغياب) من الموظفين بالراتب الثابت. الوضعان الآخران يخصمان الغياب أصلاً." style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#1a3a5c;cursor:pointer;font-weight:600;padding-bottom:9px">
-                                    <input type="checkbox" id="prDeductAbsence" style="width:17px;height:17px">
-                                    ➖ خصم أيام الغياب (للراتب الثابت)
-                                </label>
-                            </div>
+                        </div>
+                        <!-- صف مفاتيح الاختيار -->
+                        <div class="opt-row">
+                            <label class="opt-chk" title="عند تفعيله يُخصم (قيمة اليوم × أيام الغياب) من الموظفين بالراتب الثابت. الوضعان الآخران يخصمان الغياب أصلاً.">
+                                <input type="checkbox" id="prDeductAbsence">
+                                ➖ خصم أيام الغياب (للراتب الثابت)
+                            </label>
+                            <label class="opt-chk" title="بدل السيارة/الإضافي غير الخاضع للخصم. عند إلغاء التفعيل لن يُصرف هذا المسير. يُخصم منه تلقائياً نصيب أيام الإجازة السنوية.">
+                                <input type="checkbox" id="prPayCarAllow" checked>
+                                🚗 صرف بدل السيارة/الإضافي
+                            </label>
                         </div>
 
                         <!-- الصف الثاني: النطاق -->
                         <div style="background:#f0f5fa;border-radius:10px;padding:12px;margin-top:12px;border-right:4px solid #2d6a9f">
                             <div style="font-size:12px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🎯 نطاق المسير (لمن سيُولَّد؟)</div>
-                            <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+                            <div class="form-grid" style="margin-top:0">
                                 <div class="fg">
-                                    <label style="font-size:11px;color:#666;font-weight:700">📊 النطاق</label>
-                                    <select id="prScope" onchange="onPRScopeChange()" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                    <label>📊 النطاق</label>
+                                    <select id="prScope" onchange="onPRScopeChange()">
                                         <option value="all">👥 جميع الموظفين النشطين</option>
                                         <option value="project">📁 موظفو مشروع محدد</option>
                                         <option value="dept">🏢 موظفو إدارة محددة</option>
                                     </select>
                                 </div>
                                 <div class="fg" id="prProjectWrap" style="display:none">
-                                    <label style="font-size:11px;color:#666;font-weight:700">📁 المشروع</label>
-                                    <select id="prProject" onchange="renderPREmployeesTable()" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                    <label>📁 المشروع</label>
+                                    <select id="prProject" onchange="renderPREmployeesTable()">
                                         <option value="">-- اختر المشروع --</option>
                                     </select>
                                 </div>
                                 <div class="fg" id="prDeptWrap" style="display:none">
-                                    <label style="font-size:11px;color:#666;font-weight:700">🏢 الإدارة/القسم</label>
-                                    <select id="prDept" onchange="renderPREmployeesTable()" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                    <label>🏢 الإدارة/القسم</label>
+                                    <select id="prDept" onchange="renderPREmployeesTable()">
                                         <option value="">-- اختر الإدارة --</option>
                                     </select>
                                 </div>
@@ -1537,14 +1539,14 @@
                                     <span style="font-size:12px;color:#7d4e00;font-weight:600">استخدم فترة مخصصة (بدلاً من الشهر كاملاً)</span>
                                 </label>
                             </div>
-                            <div id="prCustomRangeFields" style="display:none;grid-template-columns:1fr 1fr;gap:10px">
+                            <div id="prCustomRangeFields" class="form-grid" style="display:none;margin-top:0">
                                 <div class="fg">
-                                    <label style="font-size:11px;color:#666;font-weight:700">📅 من تاريخ *</label>
-                                    <input type="date" id="prFromDate" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                    <label>📅 من تاريخ *</label>
+                                    <input type="date" id="prFromDate">
                                 </div>
                                 <div class="fg">
-                                    <label style="font-size:11px;color:#666;font-weight:700">📅 إلى تاريخ *</label>
-                                    <input type="date" id="prToDate" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                                    <label>📅 إلى تاريخ *</label>
+                                    <input type="date" id="prToDate">
                                 </div>
                             </div>
                             <div style="font-size:10px;color:#7d4e00;margin-top:6px">💡 افتراضياً يتم احتساب المسير للشهر بأكمله</div>
@@ -15615,7 +15617,7 @@
                     <div class="fg"><label>الوظيفة / المسمى *</label><input type="text" id="eJob"></div>
                     <div class="fg" style="grid-column:1/-1;background:#fef9e7;padding:12px;border-radius:8px;border:1.5px dashed #f39c12">
                         <label style="color:#7d4e00;font-weight:700">🏷️ تبعية الموظف * — اختر إما الإدارة أو المشروع</label>
-                        <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-top:8px">
+                        <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:8px">
                             <div>
                                 <label style="font-size:12px;color:#666">نوع التبعية *</label>
                                 <select id="eAffiliationType" onchange="toggleAffiliationType()" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
@@ -15687,6 +15689,8 @@
                     <div class="fg"><label>بدل الطبيعة / الخطورة</label><input type="number" id="eNatureAllow" value="0"
                             step="0.01" oninput="calcEmpSummary()"></div>
                     <div class="fg"><label>بدل التمثيل / الإدارة</label><input type="number" id="eRepAllow" value="0"
+                            step="0.01" oninput="calcEmpSummary()"></div>
+                    <div class="fg"><label>بدل السيارة / إضافي <span style="font-size:10px;color:#e67e22;font-weight:400">(غير خاضع للخصم)</span></label><input type="number" id="eCarAllow" value="0"
                             step="0.01" oninput="calcEmpSummary()"></div>
                     <div class="fg"><label>مكافأة الأداء الشهرية</label><input type="number" id="ePerfBonus" value="0"
                             step="0.01" oninput="calcEmpSummary()"></div>
@@ -19285,7 +19289,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260712-lvaccr1"></script>
+    <script type="module" src="app.js?v=20260713-empstmt2"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260712-invlbl1"></script>

@@ -1192,6 +1192,93 @@ resize: vertical;
 min-height: 70px
 }
 
+/* ===== نظام تخطيط النماذج الاحترافي (HR) ===== */
+.form-grid {
+display: grid;
+grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+gap: 14px;
+margin-top: 14px;
+align-items: end
+}
+.form-grid.sm {
+grid-template-columns: repeat(auto-fill, minmax(170px, 1fr))
+}
+.form-grid.wide {
+grid-template-columns: repeat(auto-fill, minmax(240px, 1fr))
+}
+.fg .opt {
+color: #9aa5b1;
+font-weight: 400;
+font-size: 10px
+}
+/* شريط أزرار أسفل البطاقة */
+.card-actions {
+margin-top: 16px;
+padding-top: 14px;
+border-top: 1px solid #eef2f6;
+display: flex;
+gap: 10px;
+align-items: center;
+flex-wrap: wrap
+}
+.card-actions .stat {
+font-size: 13px;
+font-weight: 600;
+color: #2d6a9f
+}
+/* لوحة تلميح/إرشاد داخل البطاقة */
+.hr-info {
+border-radius: 10px;
+padding: 11px 14px;
+margin-top: 12px;
+font-size: 12.5px;
+line-height: 1.7;
+background: #eef5fb;
+color: #23577f;
+border: 1px solid #d5e6f3
+}
+.hr-info.violet {
+background: #f5eefb;
+color: #6b3a94;
+border-color: #e6d5f3
+}
+.hr-info strong {
+font-weight: 700
+}
+/* صف مفاتيح اختيار (checkboxes) — يلتفّ بأمان عند التكبير/التصغير */
+.opt-row {
+display: flex;
+flex-wrap: wrap;
+gap: 10px 20px;
+margin-top: 14px;
+align-items: center
+}
+.opt-chk {
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 12.5px;
+font-weight: 600;
+color: #1a3a5c;
+cursor: pointer;
+background: #f8fafc;
+border: 1.5px solid #e0e8f0;
+border-radius: 8px;
+padding: 8px 12px;
+transition: all .15s
+}
+.opt-chk:hover {
+border-color: #2d6a9f;
+background: #f0f5fa
+}
+.opt-chk input[type=checkbox] {
+width: 16px;
+height: 16px;
+margin: 0;
+cursor: pointer;
+flex-shrink: 0
+}
+
 .sg {
 display: grid;
 grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));

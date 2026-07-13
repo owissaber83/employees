@@ -2967,7 +2967,7 @@ function startListeners() {
     });
     onValue(R.mpur, sn => { matPurchases = sn.exists() ? sn.val() : {}; window.matPurchases = matPurchases; if ($('pg-projects')?.classList.contains('act')) renderProjects(); if ($('mPrjK')?.value) renderProjectMatLists($('mPrjK').value); });
     onValue(R.att, sn => { attendance = sn.exists() ? sn.val() : {}; window.attendance = attendance; if ($('pg-attendance')?.classList.contains('act')) { renderAttendance(); updateAtKPIs(); refreshCheckInStatus() } });
-    onValue(R.pay, sn => { payrolls = sn.exists() ? sn.val() : {}; window.payrolls = payrolls; if ($('pg-payroll')?.classList.contains('act')) { renderPayrolls(); updatePayrollKPIs() } });
+    onValue(R.pay, sn => { payrolls = sn.exists() ? sn.val() : {}; window.payrolls = payrolls; if ($('pg-payroll')?.classList.contains('act')) { renderPayrolls(); updatePayrollKPIs() } if ($('pg-empstatement')?.classList.contains('act')) renderEmpStatement($('esEmpSelect')?.value); });
     onValue(R.loans, sn => { loans = sn.exists() ? sn.val() : {}; window.loans = loans; if ($('pg-loans')?.classList.contains('act')) { renderLoansPage(); updateLoansKPIs() } });
     onValue(R.custody, sn => { window.empCustody = sn.exists() ? sn.val() : {}; if ($('pg-empstatement')?.classList.contains('act')) renderEmpStatement($('esEmpSelect')?.value); });
     onValue(R.leaves, sn => { leaves = sn.exists() ? sn.val() : {}; window.leaves = leaves; updateLeaveBadge(); if ($('pg-leaves')?.classList.contains('act')) { renderLeavesPage(); updateLeavesKPIs() } if ($('mEmp')?.classList.contains('show')) { const k = $('mEmpK')?.value; if (k) loadEmpLeaves(k) } });
@@ -4921,6 +4921,7 @@ function empFinance(e) {
     const phone = parseFloat(e.phoneAllow) || 0;
     const nature = parseFloat(e.natureAllow) || 0;
     const rep = parseFloat(e.repAllow) || 0;
+    const car = parseFloat(e.carAllow) || 0;   // 🚗 بدل السيارة/إضافي — غير خاضع لخصم الغياب/التأخير، ولا يُصرف أثناء الإجازة السنوية
     const perf = parseFloat(e.perfBonus) || 0;
     const bonus = parseFloat(e.otherBonus) || 0;
     const otHours = parseFloat(e.otHours) || 0;
@@ -4929,7 +4930,7 @@ function empFinance(e) {
     const workDaysPerMonth = parseFloat(e.workDaysPerMonth) || 26;
     const dailyHours = parseFloat(e.dailyHours) || 8;
 
-    const grossSalary = sal + house + trans + phone + nature + rep + perf + bonus + ot;
+    const grossSalary = sal + house + trans + phone + nature + rep + car + perf + bonus + ot;
 
     // Deductions from employee
     const socialEmpPct = parseFloat(e.socialEmp) || 0;
@@ -4943,6 +4944,10 @@ function empFinance(e) {
     const totalDeductions = socialDeductAmt + advance + absence + late + penalty + loan + otherDeduct;
 
     const netSalary = grossSalary - totalDeductions;
+
+    // 🚗 قاعدة الخصم (غياب/تأخير/أذونات) تستثني البدل غير الخاضع للخصم
+    const deductibleGross = grossSalary - car;
+    const deductibleNet = netSalary - car;
 
     // Company costs
     const socialCompPct = parseFloat(e.socialComp) || 0;
@@ -4965,7 +4970,7 @@ function empFinance(e) {
     const totalCost = grossSalary + monthlyCosts;
 
     return {
-        sal, house, trans, phone, nature, rep, perf, bonus, ot, grossSalary,
+        sal, house, trans, phone, nature, rep, car, perf, bonus, ot, grossSalary, deductibleGross, deductibleNet,
         socialEmpPct, socialDeductAmt, advance, absence, late, penalty, loan, otherDeduct, totalDeductions, netSalary,
         socialCompPct, socialCompAmt, medIns, profIns, iqamaRenew, sponsorship, levyFee, airTicket, vacAllow, gratuity, training, otherCost,
         monthlyCosts, totalCost, workDaysPerMonth, dailyHours
@@ -5048,6 +5053,7 @@ window.calcEmpSummary = function () {
         f.phone > 0 ? { l: 'بدل الاتصالات', v: f.phone } : null,
         f.nature > 0 ? { l: 'بدل الطبيعة / الخطورة', v: f.nature } : null,
         f.rep > 0 ? { l: 'بدل التمثيل', v: f.rep } : null,
+        f.car > 0 ? { l: 'بدل السيارة / إضافي (غير خاضع للخصم)', v: f.car, c: '#e67e22' } : null,
         f.perf > 0 ? { l: 'مكافأة الأداء', v: f.perf } : null,
         f.bonus > 0 ? { l: 'مكافأة أخرى', v: f.bonus } : null,
         f.ot > 0 ? { l: `عمل إضافي (${f.ot > 0 ? parseFloat($('eOTHours')?.value || 0).toFixed(1) : 0} ساعة)`, v: f.ot } : null,
@@ -5080,8 +5086,9 @@ window.calcEmpSummary = function () {
         if (dow === 5 || dow === 6) weekendCount++;
     }
     const workingExpected = monthDays - weekendCount;
-    const dailyRate = monthDays > 0 ? f.netSalary / monthDays : 0;
-    const hourlyRate = workingExpected > 0 ? f.netSalary / (workingExpected * dh) : 0;
+    // قيمة اليوم/الساعة تُحسب على القاعدة الخاضعة للخصم (تستثني بدل السيارة/الإضافي)
+    const dailyRate = monthDays > 0 ? f.deductibleNet / monthDays : 0;
+    const hourlyRate = workingExpected > 0 ? f.deductibleNet / (workingExpected * dh) : 0;
     const monthName = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][nowD.getMonth()];
     html += `<div style="margin-top:8px;background:#f0f8ff;border-radius:8px;padding:10px 12px;font-size:12px;color:#2d6a9f">
         <div style="font-size:10px;color:#888;text-align:center;margin-bottom:6px">📅 الاحتساب لشهر ${monthName} (${monthDays} يوم — ${workingExpected} عمل + ${weekendCount} راحة أسبوعية)</div>
@@ -5212,7 +5219,7 @@ window.openEmpM = function (key = null) {
     $('et1').classList.add('act');
     document.querySelectorAll('#mEmp .pt-btn')[0].classList.add('act');
 
-    const numFields = ['eSalary', 'eHouseAllow', 'eTransAllow', 'ePhoneAllow', 'eNatureAllow', 'eRepAllow', 'ePerfBonus', 'eOtherBonus', 'eOTHours', 'eOTRate',
+    const numFields = ['eSalary', 'eHouseAllow', 'eTransAllow', 'ePhoneAllow', 'eNatureAllow', 'eRepAllow', 'eCarAllow', 'ePerfBonus', 'eOtherBonus', 'eOTHours', 'eOTRate',
         'eSocialComp', 'eSocialEmp', 'eMedIns', 'eProfIns', 'eIqamaRenew', 'eSponsorship', 'eLevyFee', 'eAirTicket', 'eVacAllow', 'eGratuity', 'eTraining', 'eOtherCost',
         'eAdvanceDeduct', 'eAbsenceDeduct', 'eLateDeduct', 'ePenaltyDeduct', 'eLoanDeduct', 'eOtherDeduct', 'eDailyHours', 'eWorkDays'];
     const txtFields = ['eNm', 'eId', 'eJob', 'eDept', 'eNat', 'eNatId', 'ePhone', 'eEmail', 'eIban', 'eNotes'];
@@ -5251,7 +5258,7 @@ window.openEmpM = function (key = null) {
             toggleAffiliationType();
         }
         const nMap = {
-            eSalary: 'salary', eHouseAllow: 'houseAllow', eTransAllow: 'transAllow', ePhoneAllow: 'phoneAllow', eNatureAllow: 'natureAllow', eRepAllow: 'repAllow',
+            eSalary: 'salary', eHouseAllow: 'houseAllow', eTransAllow: 'transAllow', ePhoneAllow: 'phoneAllow', eNatureAllow: 'natureAllow', eRepAllow: 'repAllow', eCarAllow: 'carAllow',
             ePerfBonus: 'perfBonus', eOtherBonus: 'otherBonus', eOTHours: 'otHours', eOTRate: 'otRate',
             eSocialComp: 'socialComp', eSocialEmp: 'socialEmp', eMedIns: 'medIns', eProfIns: 'profIns',
             eIqamaRenew: 'iqamaRenew', eSponsorship: 'sponsorship', eLevyFee: 'levyFee', eAirTicket: 'airTicket',
@@ -5348,6 +5355,7 @@ window.saveEmp = async function () {
         // Salary & Allowances
         salary: n('eSalary'), houseAllow: n('eHouseAllow'), transAllow: n('eTransAllow'),
         phoneAllow: n('ePhoneAllow'), natureAllow: n('eNatureAllow'), repAllow: n('eRepAllow'),
+        carAllow: n('eCarAllow'),
         perfBonus: n('ePerfBonus'), otherBonus: n('eOtherBonus'),
         otHours: n('eOTHours'), otRate: n('eOTRate'),
         // Insurance & Fees
@@ -5430,6 +5438,7 @@ table{width:100%;border-collapse:collapse}
     ${f.phone > 0 ? row('بدل الاتصالات', fmt(f.phone) + ' ريال') : ''}
     ${f.nature > 0 ? row('بدل الطبيعة / الخطورة', fmt(f.nature) + ' ريال') : ''}
     ${f.rep > 0 ? row('بدل التمثيل', fmt(f.rep) + ' ريال') : ''}
+    ${f.car > 0 ? row('بدل السيارة / إضافي (غير خاضع للخصم)', fmt(f.car) + ' ريال') : ''}
     ${f.perf > 0 ? row('مكافأة الأداء', fmt(f.perf) + ' ريال') : ''}
     ${f.bonus > 0 ? row('مكافأة أخرى', fmt(f.bonus) + ' ريال') : ''}
     ${f.ot > 0 ? row('عمل إضافي', fmt(f.ot) + ' ريال') : ''}
@@ -6632,7 +6641,8 @@ function initPayrollMonth() {
 }
 
 // احتساب راتب موظف واحد بناءً على وضع الاحتساب
-function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, deductAbsence) {
+function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, deductAbsence, payCarAllow) {
+    payCarAllow = payCarAllow !== false; // افتراضياً يُصرف البدل غير الخاضع للخصم ما لم يُوقَف صراحةً لهذا المسير
     const f = empFinance(eData);
     const dailyHours = parseFloat(eData.dailyHours) || 8;
     const [yy, mm] = month.split('-').map(Number);
@@ -6668,7 +6678,7 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, de
 
     // الإجازات المعتمدة المتداخلة مع النطاق
     const paidLeaveTypes = ['annual', 'sick', 'emergency', 'maternity', 'hajj', 'bereavement', 'other'];
-    let paidLeaveDays = 0, unpaidLeaveDays = 0;
+    let paidLeaveDays = 0, unpaidLeaveDays = 0, annualLeaveDays = 0;
     Object.values(leaves).forEach(lv => {
         if (lv.empKey !== empKey || lv.status !== 'approved') return;
         const lvFrom = new Date(lv.from), lvTo = new Date(lv.to);
@@ -6678,6 +6688,7 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, de
         const overlapDays = Math.floor((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
         if (paidLeaveTypes.includes(lv.type)) paidLeaveDays += overlapDays;
         else if (lv.type === 'unpaid') unpaidLeaveDays += overlapDays;
+        if (lv.type === 'annual') annualLeaveDays += overlapDays; // 🚗 لخصم نصيب بدل السيارة أثناء الإجازة السنوية
     });
 
     const absentDays = Math.max(0, workingDaysExpected - actualDays - paidLeaveDays);
@@ -6689,25 +6700,39 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, de
     const periodFactor = useCustomRange ? (rangeDaysTotal / fullMonthDays) : 1;
     const periodNetSalary = parseFloat((f.netSalary * periodFactor).toFixed(2));
     const periodGrossSalary = parseFloat((f.grossSalary * periodFactor).toFixed(2));
+    // 🚗 القاعدة الخاضعة للخصم (تستثني بدل السيارة/الإضافي) + البدل نفسه منفصلاً
+    const periodDeductibleNet = parseFloat((f.deductibleNet * periodFactor).toFixed(2));
+    const periodCar = parseFloat((f.car * periodFactor).toFixed(2));
 
-    // قيمة اليوم والساعة لهذه الفترة
-    const dailyRateMonth = rangeDaysTotal > 0 ? periodNetSalary / rangeDaysTotal : 0;
-    const hourlyRate = expectedMonthlyHours > 0 ? periodNetSalary / expectedMonthlyHours : 0;
+    // 🚗 بدل السيارة/الإضافي — ثابت شهري، يُخصم منه نصيب أيام الإجازة السنوية فقط، وقابل للإيقاف لكل مسير
+    let carPaid = 0;
+    if (payCarAllow && periodCar > 0) {
+        const carEligibleDays = Math.max(0, rangeDaysTotal - annualLeaveDays);
+        carPaid = parseFloat((periodCar * (carEligibleDays / rangeDaysTotal)).toFixed(2));
+    }
 
-    let earnedNet = periodNetSalary;
-    let calcNote = useCustomRange ? `راتب جزئي (${rangeDaysTotal}/${fullMonthDays} يوم) = ${fmt(periodNetSalary)}` : 'راتب ثابت';
+    // قيمة اليوم والساعة لهذه الفترة — على القاعدة الخاضعة للخصم
+    const dailyRateMonth = rangeDaysTotal > 0 ? periodDeductibleNet / rangeDaysTotal : 0;
+    const hourlyRate = expectedMonthlyHours > 0 ? periodDeductibleNet / expectedMonthlyHours : 0;
+
+    let earnedBase = periodDeductibleNet;
+    let earnedNet = earnedBase + carPaid;
+    let calcNote = useCustomRange ? `راتب جزئي (${rangeDaysTotal}/${fullMonthDays} يوم) = ${fmt(periodDeductibleNet)}` : 'راتب ثابت';
 
     if (calcMode === 'hours') {
         const paidLeaveHours = paidLeaveDays * dailyHours;
         const weekendHours = weekendDays * dailyHours;
         const effectiveHours = actualHours + paidLeaveHours + weekendHours;
-        earnedNet = hourlyRate * effectiveHours;
-        calcNote = `${actualHours.toFixed(1)}س حضور${paidLeaveDays>0?` + ${paidLeaveHours}س إجازة`:''} + ${weekendHours}س راحة × ${fmt(hourlyRate)} ر/س = ${fmt(earnedNet)}`;
+        earnedBase = hourlyRate * effectiveHours;
+        earnedNet = earnedBase + carPaid;
+        calcNote = `${actualHours.toFixed(1)}س حضور${paidLeaveDays>0?` + ${paidLeaveHours}س إجازة`:''} + ${weekendHours}س راحة × ${fmt(hourlyRate)} ر/س = ${fmt(earnedBase)}`;
     } else if (calcMode === 'days') {
         const effectivePaidDays = actualDays + paidLeaveDays + weekendDays;
-        earnedNet = dailyRateMonth * effectivePaidDays;
-        calcNote = `${actualDays}ي حضور${paidLeaveDays>0?` + ${paidLeaveDays}ي إجازة`:''} + ${weekendDays}ي راحة = ${effectivePaidDays}ي × ${fmt(dailyRateMonth)} ر/ي${useCustomRange?` (${fmt(periodNetSalary)}÷${rangeDaysTotal})`:` (${fmt(f.netSalary)}÷${monthDaysTotal})`} = ${fmt(earnedNet)}`;
+        earnedBase = dailyRateMonth * effectivePaidDays;
+        earnedNet = earnedBase + carPaid;
+        calcNote = `${actualDays}ي حضور${paidLeaveDays>0?` + ${paidLeaveDays}ي إجازة`:''} + ${weekendDays}ي راحة = ${effectivePaidDays}ي × ${fmt(dailyRateMonth)} ر/ي${useCustomRange?` (${fmt(periodDeductibleNet)}÷${rangeDaysTotal})`:` (${fmt(f.deductibleNet)}÷${monthDaysTotal})`} = ${fmt(earnedBase)}`;
     }
+    if (carPaid > 0) calcNote += ` + 🚗 بدل ${fmt(carPaid)}${annualLeaveDays > 0 ? ` (بعد خصم ${annualLeaveDays}ي إجازة)` : ''} = ${fmt(earnedNet)}`;
 
     // الخصومات الشهرية المؤقتة
     const monthDeductions = Object.values(eData.monthlyDeductions || {}).filter(d => d.month === month);
@@ -6753,7 +6778,10 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, de
         : '';
     const absenceNote = absenceDeduct > 0 ? `➖ خصم غياب ${absentDays}ي = ${fmt(absenceDeduct)}` : (absenceWarn ? `⚠️ غياب ${absentDays}ي بلا خصم — راجع` : '');
     const permNote = permDeduct > 0 ? `🕘 خصم أذونات ${permHoursTotal}س = ${fmt(permDeduct)}` : '';
-    const combinedNote = [monthDeductNote, leavesNote, perfBonusNote, absenceNote, permNote].filter(Boolean).join(' | ');
+    const carNote = f.car > 0
+        ? (!payCarAllow ? `🚗 بدل السيارة موقوف هذا المسير` : (carPaid < periodCar ? `🚗 بدل سيارة ${fmt(carPaid)} (خُصم نصيب ${annualLeaveDays}ي إجازة سنوية)` : `🚗 بدل سيارة ${fmt(carPaid)}`))
+        : '';
+    const combinedNote = [monthDeductNote, leavesNote, perfBonusNote, absenceNote, permNote, carNote].filter(Boolean).join(' | ');
 
     return {
         empKey, name: eData.name || '', job: eData.job || '', dept: eData.dept || '',
@@ -6766,6 +6794,7 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, de
         rangeStart: useCustomRange ? rangeStart : '', rangeEnd: useCustomRange ? rangeEnd : '',
         monthDeductTotal: monthDeductTotal + unpaidLeaveDeduct + absenceDeduct + permDeduct, loanDeductTotal, totalExtraDeductions: totalDeductions,
         absenceDeduct, absenceWarn, permDeduct, permHours: permHoursTotal,
+        carPaid, carAllow: periodCar, payCarAllow, annualLeaveDays,
         perfBonusAmt, perfRating: perfEval?.rating || null, perfScore: perfEval?.avgScore || null,
         finalNet,
         monthDaysTotal, weekendDays, workingDaysExpected, dailyHours, expectedMonthlyHours,
@@ -7177,6 +7206,7 @@ window.reopenDeferredPayroll = function (sourcePayrollKey) {
     if ($('prMonth')) $('prMonth').value = sourceP.month;
     if ($('prCalcMode')) $('prCalcMode').value = sourceP.calcMode || 'fixed';
     if ($('prDeductAbsence')) $('prDeductAbsence').checked = !!sourceP.deductAbsence;
+    if ($('prPayCarAllow')) $('prPayCarAllow').checked = sourceP.payCarAllow !== false;
     if ($('prScope')) $('prScope').value = sourceP.scope || 'all';
     if (sourceP.scope === 'project' && $('prProject')) {
         onPRScopeChange();
@@ -7212,6 +7242,7 @@ window.generatePayroll = async function () {
     const month = $('prMonth')?.value;
     const calcMode = $('prCalcMode')?.value || 'fixed';
     const deductAbsence = !!$('prDeductAbsence')?.checked;
+    const payCarAllow = $('prPayCarAllow') ? !!$('prPayCarAllow').checked : true; // 🚗 صرف البدلات غير الخاضعة للخصم لهذا المسير
     if (!month) { toast('اختر الشهر أولاً', 'er'); return }
 
     const scope = $('prScope')?.value || 'all';
@@ -7277,7 +7308,7 @@ window.generatePayroll = async function () {
         }));
 
     // احتساب رواتب المُختارين
-    const items = selectedEmps.map(([k, e]) => calcEmpPayForMonth(k, e, month, calcMode, fromDate, toDate, deductAbsence));
+    const items = selectedEmps.map(([k, e]) => calcEmpPayForMonth(k, e, month, calcMode, fromDate, toDate, deductAbsence, payCarAllow));
     const totalNet = items.reduce((s, i) => s + i.finalNet, 0);
     const totalGross = items.reduce((s, i) => s + i.grossSalary, 0);
 
@@ -7291,7 +7322,7 @@ window.generatePayroll = async function () {
     if (deferredEmps.length > 0) scopeLabel += ` (⏸️ ${deferredEmps.length} مُؤجَّل)`;
 
     const payrollData = {
-        month, calcMode, deductAbsence, status: 'draft',
+        month, calcMode, deductAbsence, payCarAllow, status: 'draft',
         scope, projectId, dept,
         projectName: scope === 'project' && projectId ? (window.projects?.[projectId]?.name || '') : '',
         fromDate: fromDate || '', toDate: toDate || '',
@@ -8600,22 +8631,73 @@ function renderBalanceCard(label, total, used, remaining, color) {
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 // ── حساب مستحقات نهاية الخدمة (تقديري وفق نظام العمل السعودي) ──
-function calcEndOfService(e, f) {
+function calcEndOfService(e, f, excludeCar) {
     if (!e.hireDate) return null;
     const hire = new Date(e.hireDate);
     const end = e.contractEnd && new Date(e.contractEnd) > new Date() ? new Date(e.contractEnd) : new Date();
     const totalDays = (end - hire) / (1000 * 60 * 60 * 24);
     const years = totalDays / 365;
-    if (years <= 0) return { years: 0, wage: 0, amount: 0 };
-    const wage = f.grossSalary || f.sal || 0; // آخر أجر شامل
+    if (years <= 0) return { years: 0, wage: 0, amount: 0, carExcluded: 0 };
+    // آخر أجر شامل — مع إمكانية استبعاد بدل السيارة/الإضافي من أساس نهاية الخدمة
+    const carExcluded = excludeCar ? (parseFloat(f.car) || 0) : 0;
+    const wage = Math.max(0, (f.grossSalary || f.sal || 0) - carExcluded);
     let amount = 0;
     if (years <= 5) {
         amount = years * 0.5 * wage;
     } else {
         amount = 5 * 0.5 * wage + (years - 5) * wage;
     }
-    return { years, wage, amount };
+    return { years, wage, amount, carExcluded };
 }
+
+// ══ [HR-STMT-TBL] مكوّن جدول احترافي: صفحات + بحث + فلتر شهري (لكشف حساب الموظف) ══
+// يُخزَّن التكوين في window._esTbl[id] ثم يُعاد بناء جسم الجدول فقط عند الفلترة (حفاظاً على تركيز مربّع البحث)
+window._esTbl = {};
+window.esTblToolbar = function (id, opts) {
+    opts = opts || {};
+    const mf = opts.monthFilter !== false;
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <input id="${id}-q" oninput="esTblSearch('${id}',this.value)" placeholder="${opts.searchPlaceholder || '🔍 بحث...'}" style="flex:1;min-width:150px;padding:7px 11px;border:1.5px solid #dbe3ec;border-radius:8px;font-family:inherit;font-size:12px;background:#fafbfc">
+        ${mf ? `<input id="${id}-from" type="month" onchange="esTblDate('${id}','from',this.value)" title="من شهر" style="padding:6px 9px;border:1.5px solid #dbe3ec;border-radius:8px;font-family:inherit;font-size:12px;background:#fafbfc">
+        <span style="color:#aaa;font-size:11px">إلى</span>
+        <input id="${id}-to" type="month" onchange="esTblDate('${id}','to',this.value)" title="إلى شهر" style="padding:6px 9px;border:1.5px solid #dbe3ec;border-radius:8px;font-family:inherit;font-size:12px;background:#fafbfc">` : ''}
+        <button onclick="esTblReset('${id}')" title="إعادة" style="padding:6px 12px;border:1.5px solid #dbe3ec;background:white;border-radius:8px;font-size:12px;cursor:pointer;color:#555">🔄</button>
+    </div>`;
+};
+window.esTblRenderBody = function (id) {
+    const st = window._esTbl[id]; if (!st) return;
+    const body = document.getElementById(id + '-body'); if (!body) return;
+    let rows = (st.rows || []).slice();
+    const q = (st.q || '').trim().toLowerCase();
+    if (q && st.searchText) rows = rows.filter(r => (st.searchText(r) || '').toLowerCase().includes(q));
+    if (st.dateKey) {
+        if (st.from) rows = rows.filter(r => ((r[st.dateKey] || '').slice(0, 7)) >= st.from);
+        if (st.to) rows = rows.filter(r => ((r[st.dateKey] || '').slice(0, 7)) <= st.to);
+    }
+    const total = rows.length;
+    const pageSize = st.pageSize || 10;
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    if (!st.page || st.page < 1) st.page = 1;
+    if (st.page > pages) st.page = pages;
+    if (!total) { body.innerHTML = `<div style="text-align:center;padding:18px;color:#aaa;font-size:12px">${st.emptyMsg || 'لا توجد بيانات مطابقة'}</div>`; return; }
+    const startI = (st.page - 1) * pageSize;
+    const pageRows = rows.slice(startI, startI + pageSize);
+    const head = st.cols.map(c => `<th style="padding:7px 10px;text-align:${c.align || 'right'};font-size:11px;color:#5a6b7b;white-space:nowrap;border-bottom:2px solid #eef2f6">${c.h}</th>`).join('');
+    const bodyRows = pageRows.map((r, i) => `<tr>${st.cols.map(c => `<td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:${c.align || 'right'};font-size:12px">${c.cell(r, startI + i)}</td>`).join('')}</tr>`).join('');
+    const foot = st.foot ? st.foot(rows) : '';
+    let pager = '';
+    if (pages > 1) {
+        const btn = (p, lbl, dis, act) => `<button ${dis ? 'disabled' : ''} onclick="esTblSetPage('${id}',${p})" style="min-width:30px;padding:4px 9px;border:1px solid ${act ? '#1a3a5c' : '#dbe3ec'};background:${act ? '#1a3a5c' : 'white'};color:${act ? 'white' : '#444'};border-radius:6px;font-size:11px;cursor:${dis ? 'default' : 'pointer'};font-weight:${act ? '800' : '600'};opacity:${dis ? '.4' : '1'}">${lbl}</button>`;
+        let nums = '';
+        for (let p = 1; p <= pages; p++) { if (p === 1 || p === pages || Math.abs(p - st.page) <= 1) nums += btn(p, p, false, p === st.page); else if (Math.abs(p - st.page) === 2) nums += `<span style="padding:0 3px;color:#bbb">…</span>`; }
+        pager = `<div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px">${btn(st.page - 1, '‹', st.page <= 1)}${nums}${btn(st.page + 1, '›', st.page >= pages)}</div>`;
+    }
+    body.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8fafc">${head}</tr></thead><tbody>${bodyRows}</tbody>${foot ? `<tfoot>${foot}</tfoot>` : ''}</table></div>${pager}<div style="text-align:center;font-size:10.5px;color:#aaa;margin-top:6px">عرض ${startI + 1}–${Math.min(startI + pageSize, total)} من ${total}</div>`;
+};
+window.esTblSetPage = function (id, p) { const st = window._esTbl[id]; if (st) { st.page = p; esTblRenderBody(id); } };
+window.esTblSearch = function (id, v) { const st = window._esTbl[id]; if (st) { st.q = v; st.page = 1; esTblRenderBody(id); } };
+window.esTblDate = function (id, which, v) { const st = window._esTbl[id]; if (st) { st[which] = v; st.page = 1; esTblRenderBody(id); } };
+window.esTblReset = function (id) { const st = window._esTbl[id]; if (!st) return; st.q = ''; st.from = ''; st.to = ''; st.page = 1; ['-q', '-from', '-to'].forEach(sfx => { const el = document.getElementById(id + sfx); if (el) el.value = ''; }); esTblRenderBody(id); };
 
 // ── تعبئة قائمة اختيار الموظف (مع البحث) ──
 window.fillEmpStatementSelect = function () {
@@ -8649,6 +8731,8 @@ window.esRenderEmpDropdown = function (list) {
 };
 
 window.esOpenEmpDropdown = function () { const dd = $('esEmpDropdown'); if (dd) dd.style.display = 'block'; };
+// 🚗 تبديل استبعاد بدل السيارة/الإضافي من أجر نهاية الخدمة، ثم إعادة بناء الكشف
+window.esSetEosCar = function (exclude) { window.esEosExcludeCar = exclude; renderEmpStatement($('esEmpSelect')?.value); };
 window.esSelectEmp = function (key) {
     $('esEmpSelect').value = key;
     $('esEmpSearch').value = (window.esEmpList || []).find(x => x.key === key)?.label || '';
@@ -8666,7 +8750,23 @@ window.renderEmpStatement = function (key) {
     const e = emp[key]; if (!e) { container.innerHTML = ''; return; }
     const f = empFinance(e);
     const balance = getLeaveBalance(key);
-    const eos = calcEndOfService(e, f);
+    // 🚗 استبعاد بدل السيارة/الإضافي من أجر نهاية الخدمة (افتراضياً مُستبعَد — قابل للتبديل)
+    const excludeEosCar = window.esEosExcludeCar !== false;
+    const eos = calcEndOfService(e, f, excludeEosCar);
+
+    // 💵 سجل الرواتب المصروفة (من المسيرات) — الشهر + الراتب المصروف + الحالة
+    const PR_ST = { draft: ['مسودة', '#95a5a6'], review: ['قيد المراجعة', '#f39c12'], approved: ['معتمد ✅', '#27ae60'] };
+    const fmtMonthAr = (m) => { if (!m) return '-'; const [y, mo] = m.split('-'); const nm = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'][+mo] || mo; return `${nm} ${y}`; };
+    const empPayHist = [];
+    Object.values(window.payrolls || {}).forEach(p => {
+        if (p.status === 'cancelled') return;
+        const it = (p.items || []).find(i => i.empKey === key);
+        if (!it) return;
+        empPayHist.push({ month: p.month || '', net: (it.finalNet ?? it.earnedNet ?? it.netSalary ?? 0), status: p.status || 'draft' });
+    });
+    empPayHist.sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+    const payReceived = empPayHist.filter(r => r.status === 'approved');
+    const totalReceived = payReceived.reduce((s, r) => s + r.net, 0);
 
     // 📅 العقد
     const contractInfo = (() => {
@@ -8677,7 +8777,8 @@ window.renderEmpStatement = function (key) {
         return { label: `✅ ساري — ${days} يوم متبقي`, color: '#27ae60' };
     })();
     const tenure = e.hireDate ? Math.floor((new Date() - new Date(e.hireDate)) / (1000 * 60 * 60 * 24)) : 0;
-    const tenureYears = Math.floor(tenure / 365), tenureMonths = Math.floor((tenure % 365) / 30);
+    const tenureYears = Math.floor(tenure / 365), tenureMonths = Math.floor((tenure % 365) / 30), tenureDaysRem = (tenure % 365) % 30;
+    const tenureText = `${tenureYears} سنة و ${tenureMonths} شهر${tenureDaysRem > 0 ? ` و ${tenureDaysRem} يوم` : ''}`;
 
     // 🌴 سجل الإجازات
     const empLeaves = Object.entries(leaves || {}).filter(([, l]) => l.empKey === key).sort((a, b) => (b[1].requestedAt || '').localeCompare(a[1].requestedAt || ''));
@@ -8707,7 +8808,7 @@ window.renderEmpStatement = function (key) {
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <span style="background:${(e.status||'active')==='active'?'#27ae60':'#e74c3c'};padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">${(e.status||'active')==='active'?'✅ نشط':'⏸️ موقوف'}</span>
-                <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">⏳ مدة الخدمة: ${tenureYears} سنة ${tenureMonths} شهر</span>
+                <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">⏳ مدة الخدمة: ${tenureText}</span>
                 <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700;color:${contractInfo.color==='#c0392b'?'#ffd0d0':contractInfo.color==='#e67e22'?'#ffe0c0':'white'}">📅 العقد: ${contractInfo.label}</span>
             </div>
         </div>
@@ -8730,7 +8831,7 @@ window.renderEmpStatement = function (key) {
                 ${row2('الجنسية', e.nationality)}
                 ${row2('تاريخ التعيين', e.hireDate)}
                 ${row2('تاريخ انتهاء العقد', e.contractEnd ? `${e.contractEnd} <span style="color:${contractInfo.color};font-weight:700">(${contractInfo.label})</span>` : null)}
-                ${row2('مدة الخدمة', `${tenureYears} سنة و ${tenureMonths} شهر`)}
+                ${row2('مدة الخدمة', tenureText)}
                 ${row2('رقم الجوال', e.phone)}
                 ${row2('الإدارة / القسم', e.dept)}
                 ${row2('المسمى الوظيفي', e.job)}
@@ -8747,6 +8848,7 @@ window.renderEmpStatement = function (key) {
                 ${f.phone > 0 ? row2('بدل الاتصالات', fmt(f.phone) + ' ريال') : ''}
                 ${f.nature > 0 ? row2('بدل الطبيعة/الخطورة', fmt(f.nature) + ' ريال') : ''}
                 ${f.rep > 0 ? row2('بدل التمثيل', fmt(f.rep) + ' ريال') : ''}
+                ${f.car > 0 ? row2('بدل السيارة / إضافي (غير خاضع للخصم)', fmt(f.car) + ' ريال') : ''}
                 ${f.airTicket > 0 ? row2('بدل تذكرة السفر (سنوي)', fmt(f.airTicket) + ' ريال — ' + fmt(f.airTicket/12) + '/شهر') : ''}
                 ${f.vacAllow > 0 ? row2('بدل الإجازة السنوي', fmt(f.vacAllow) + ' ريال') : ''}
                 ${f.perf > 0 ? row2('مكافأة أداء', fmt(f.perf) + ' ريال') : ''}
@@ -8762,13 +8864,26 @@ window.renderEmpStatement = function (key) {
         ${eos ? `
         <div class="card" style="margin-top:16px;border-right:4px solid #8e44ad">
             <div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🏁 مكافأة نهاية الخدمة (تقديرية)</div>
-            <div style="font-size:12px;color:#666;margin-bottom:8px">محسوبة وفق نظام العمل السعودي: نصف شهر عن كل سنة من أول 5 سنوات، وشهر كامل عن كل سنة بعدها — على أساس آخر أجر إجمالي (${fmt(eos.wage)} ريال/شهر)</div>
+            <div style="font-size:12px;color:#666;margin-bottom:8px">محسوبة وفق نظام العمل السعودي: نصف شهر عن كل سنة من أول 5 سنوات، وشهر كامل عن كل سنة بعدها — على أساس آخر أجر ${excludeEosCar && f.car > 0 ? 'إجمالي (بعد استبعاد بدل السيارة)' : 'إجمالي'} (${fmt(eos.wage)} ريال/شهر)</div>
             <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
                 <div><div style="font-size:11px;color:#888">عدد سنوات الخدمة</div><div style="font-size:20px;font-weight:900;color:#1a3a5c">${eos.years.toFixed(2)}</div></div>
                 <div><div style="font-size:11px;color:#888">المستحق التقديري</div><div style="font-size:20px;font-weight:900;color:#8e44ad">${fmt(eos.amount)} ريال</div></div>
                 <div style="font-size:11px;color:#aaa;flex:1">⚠️ تقدير لأغراض الإطلاع فقط — يخضع لشروط الاستقالة/الفصل وفق نظام العمل (الاستقالة قبل 5 سنوات قد تُخفّض المستحق إلى الثلث أو الثلثين)</div>
             </div>
+            ${f.car > 0 ? `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5b2c6f;cursor:pointer;margin-top:12px;font-weight:600;background:#f6f0fa;border:1px solid #e6d5f3;border-radius:8px;padding:8px 12px;width:fit-content"><input type="checkbox" ${excludeEosCar ? 'checked' : ''} onchange="esSetEosCar(this.checked)" style="width:16px;height:16px"> 🚗 استبعاد بدل السيارة/الإضافي (${fmt(f.car)} ريال) من أجر نهاية الخدمة</label>` : ''}
         </div>` : ''}
+
+        <!-- سجل الرواتب المصروفة -->
+        <div class="card" style="margin-top:16px;border-right:4px solid #27ae60">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                <div style="font-size:14px;font-weight:800;color:#1a3a5c">💵 سجل الرواتب المصروفة</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <span style="background:#d5f5e3;color:#1e8449;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">عدد الرواتب المعتمدة: ${payReceived.length}</span>
+                    <span style="background:#1a3a5c;color:white;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">إجمالي المصروف: ${fmt(totalReceived)} ريال</span>
+                </div>
+            </div>
+            ${empPayHist.length ? `${esTblToolbar('esTbl-salaries', { searchPlaceholder: '🔍 ابحث بالشهر أو الحالة...' })}<div id="esTbl-salaries-body"></div><div style="font-size:11px;color:#999;margin-top:6px">💡 الإجمالي يشمل المسيرات المعتمدة فقط. المسودات/قيد المراجعة معروضة للعلم ولا تُحتسب ضمن المصروف.</div>` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد رواتب مصروفة مسجّلة في المسيرات بعد</div>`}
+        </div>
 
         <!-- الإجازات -->
         <div class="card" style="margin-top:16px">
@@ -8783,16 +8898,7 @@ window.renderEmpStatement = function (key) {
                 </div>
             </div>
             ${!takenAnnualThisYear ? `<div style="background:#fef9e7;border:1.5px solid #f9e79f;border-radius:8px;padding:8px 14px;margin-bottom:10px;font-size:12px;color:#7d4e00">ℹ️ لم يحصل الموظف على إجازة سنوية معتمدة خلال عام ${new Date().getFullYear()} حتى الآن</div>` : ''}
-            ${empLeaves.length ? `
-            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-                <thead><tr style="background:#f8fafc"><th style="padding:6px 10px;text-align:right">النوع</th><th style="padding:6px 10px;text-align:right">من</th><th style="padding:6px 10px;text-align:right">إلى</th><th style="padding:6px 10px;text-align:center">عدد الأيام</th><th style="padding:6px 10px;text-align:center">الحالة</th></tr></thead>
-                <tbody>${empLeaves.map(([, l]) => {
-                    const ti = LEAVE_TYPE_LABELS[l.type] || LEAVE_TYPE_LABELS.other;
-                    const stMap = { pending: '⏳ قيد المراجعة', approved: '✅ معتمدة', rejected: '❌ مرفوضة', cancelled: '🚫 ملغاة' };
-                    return `<tr><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${ti.lb}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${l.from}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${l.to}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${l.days}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${stMap[l.status]||l.status}</td></tr>`;
-                }).join('')}</tbody>
-            </table></div>
-            ` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد طلبات إجازة مسجّلة</div>`}
+            ${empLeaves.length ? `${esTblToolbar('esTbl-leaves', { searchPlaceholder: '🔍 ابحث بالنوع أو الحالة...' })}<div id="esTbl-leaves-body"></div>` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد طلبات إجازة مسجّلة</div>`}
         </div>
 
         <!-- السلف والقروض -->
@@ -8801,15 +8907,7 @@ window.renderEmpStatement = function (key) {
                 <div style="font-size:14px;font-weight:800;color:#1a3a5c">💳 السلف والقروض</div>
                 <span style="background:#fdecea;color:#c0392b;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">إجمالي متبقي: ${fmt(totalLoansRemaining)} ريال</span>
             </div>
-            ${empLoans.length ? `
-            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-                <thead><tr style="background:#f8fafc"><th style="padding:6px 10px;text-align:right">المبلغ</th><th style="padding:6px 10px;text-align:right">تاريخ الاستلام</th><th style="padding:6px 10px;text-align:center">القسط الشهري</th><th style="padding:6px 10px;text-align:center">المتبقي</th><th style="padding:6px 10px;text-align:center">الحالة</th></tr></thead>
-                <tbody>${empLoans.map(([, l]) => {
-                    const rem = (l.schedule||[]).filter(x=>!x.paid).reduce((s,x)=>s+x.amount,0);
-                    return `<tr><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${fmt(l.amount)}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${l.date}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${fmt(l.monthly)}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center;font-weight:700;color:${rem>0?'#e74c3c':'#27ae60'}">${fmt(rem)}</td><td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${l.status==='settled'?'✅ مسددة':'⏳ نشطة'}</td></tr>`;
-                }).join('')}</tbody>
-            </table></div>
-            ` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد سلف مسجّلة</div>`}
+            ${empLoans.length ? `${esTblToolbar('esTbl-loans', { searchPlaceholder: '🔍 ابحث بالمبلغ أو الحالة...' })}<div id="esTbl-loans-body"></div>` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد سلف مسجّلة</div>`}
         </div>
 
         <!-- العُهد -->
@@ -8818,27 +8916,63 @@ window.renderEmpStatement = function (key) {
                 <div style="font-size:14px;font-weight:800;color:#1a3a5c">📦 العُهد (الأصول والأدوات بحوزة الموظف)</div>
                 <button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="openCustodyModal('${key}')">➕ إضافة عُهدة</button>
             </div>
-            ${empCustodyItems.length ? `
-            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-                <thead><tr style="background:#f8fafc"><th style="padding:6px 10px;text-align:right">العُهدة</th><th style="padding:6px 10px;text-align:right">الرقم التسلسلي</th><th style="padding:6px 10px;text-align:center">القيمة</th><th style="padding:6px 10px;text-align:center">تاريخ التسليم</th><th style="padding:6px 10px;text-align:center">الحالة</th><th style="padding:6px 10px;text-align:center">إجراءات</th></tr></thead>
-                <tbody>${empCustodyItems.map(([ck, c]) => `
-                    <tr>
-                        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${custodyTypeIcons[c.type]||'📦'} ${c.name || '-'}${c.notes ? `<div style="font-size:10px;color:#999">${c.notes}</div>` : ''}</td>
-                        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${c.serial || '-'}</td>
-                        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${c.value ? fmt(c.value) : '-'}</td>
-                        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${c.dateGiven || '-'}</td>
-                        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${c.status === 'returned' ? `✅ مُستلَمة (${c.dateReturned||''})` : '🔵 بحوزته'}</td>
-                        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center;white-space:nowrap">
-                            ${c.status !== 'returned' ? `<button class="btn b-b" style="padding:2px 8px;font-size:10px" onclick="returnCustodyItem('${ck}')">↩️ استلام</button>` : ''}
-                            <button class="btn" style="padding:2px 8px;font-size:10px;background:#f39c12;color:white" onclick="openCustodyModal('${key}','${ck}')">✏️</button>
-                            <button class="btn b-r" style="padding:2px 8px;font-size:10px" onclick="deleteCustodyItem('${ck}')">🗑️</button>
-                        </td>
-                    </tr>
-                `).join('')}</tbody>
-            </table></div>
-            ` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد عُهد مسجّلة لهذا الموظف</div>`}
+            ${empCustodyItems.length ? `${esTblToolbar('esTbl-custody', { monthFilter: false, searchPlaceholder: '🔍 ابحث بالاسم أو الرقم التسلسلي...' })}<div id="esTbl-custody-body"></div>` : `<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">لا توجد عُهد مسجّلة لهذا الموظف</div>`}
         </div>
     `;
+
+    // ── تسجيل تكوين الجداول الاحترافية (صفحات + بحث + فلتر شهري) ثم بناء أجسامها ──
+    const leaveRows = empLeaves.map(([, l]) => ({ type: l.type, from: l.from || '', to: l.to || '', days: l.days || 0, status: l.status || '' }));
+    const loanRows = empLoans.map(([, l]) => ({ amount: l.amount || 0, date: l.date || '', monthly: l.monthly || 0, remaining: (l.schedule || []).filter(x => !x.paid).reduce((s, x) => s + x.amount, 0), status: l.status || '' }));
+    const custodyRows = empCustodyItems.map(([ck, c]) => ({ key: ck, name: c.name || '', type: c.type || '', serial: c.serial || '', value: c.value || 0, dateGiven: c.dateGiven || '', dateReturned: c.dateReturned || '', status: c.status || '', notes: c.notes || '' }));
+    const lvStMap = { pending: ['⏳ قيد المراجعة', '#f39c12'], approved: ['✅ معتمدة', '#27ae60'], rejected: ['❌ مرفوضة', '#e74c3c'], cancelled: ['🚫 ملغاة', '#95a5a6'] };
+
+    window._esTbl['esTbl-salaries'] = {
+        rows: empPayHist, pageSize: 10, dateKey: 'month', emptyMsg: 'لا توجد رواتب مطابقة', q: '', from: '', to: '', page: 1,
+        searchText: r => `${fmtMonthAr(r.month)} ${(PR_ST[r.status] || [''])[0]}`,
+        cols: [
+            { h: '#', align: 'center', cell: (r, i) => `<span style="color:#bbb">${i + 1}</span>` },
+            { h: 'الشهر', cell: r => `<span style="font-weight:600">${fmtMonthAr(r.month)}</span>` },
+            { h: 'الراتب المصروف', align: 'center', cell: r => `<span style="font-weight:700;color:#1a3a5c">${fmt(r.net)} ريال</span>` },
+            { h: 'الحالة', align: 'center', cell: r => { const s = PR_ST[r.status] || [r.status, '#888']; return `<span style="color:${s[1]};font-weight:700">${s[0]}</span>`; } }
+        ],
+        foot: rows => { const rec = rows.filter(r => r.status === 'approved'); const t = rec.reduce((s, r) => s + r.net, 0); return `<tr style="background:#eafaf1"><td colspan="2" style="padding:8px 10px;font-weight:800;color:#1e8449;font-size:12px">الإجمالي المصروف (المعتمد) — ${rec.length} راتب</td><td style="padding:8px 10px;text-align:center;font-weight:900;color:#1e8449;font-size:12px">${fmt(t)} ريال</td><td></td></tr>`; }
+    };
+    window._esTbl['esTbl-leaves'] = {
+        rows: leaveRows, pageSize: 8, dateKey: 'from', emptyMsg: 'لا توجد طلبات إجازة مطابقة', q: '', from: '', to: '', page: 1,
+        searchText: r => `${(LEAVE_TYPE_LABELS[r.type] || LEAVE_TYPE_LABELS.other).lb} ${(lvStMap[r.status] || [''])[0]} ${r.from} ${r.to}`,
+        cols: [
+            { h: 'النوع', cell: r => (LEAVE_TYPE_LABELS[r.type] || LEAVE_TYPE_LABELS.other).lb },
+            { h: 'من', cell: r => r.from || '-' },
+            { h: 'إلى', cell: r => r.to || '-' },
+            { h: 'عدد الأيام', align: 'center', cell: r => `<b>${r.days}</b>` },
+            { h: 'الحالة', align: 'center', cell: r => { const s = lvStMap[r.status] || [r.status, '#888']; return `<span style="color:${s[1]};font-weight:700">${s[0]}</span>`; } }
+        ]
+    };
+    window._esTbl['esTbl-loans'] = {
+        rows: loanRows, pageSize: 8, dateKey: 'date', emptyMsg: 'لا توجد سلف مطابقة', q: '', from: '', to: '', page: 1,
+        searchText: r => `${fmt(r.amount)} ${r.date} ${r.status === 'settled' ? 'مسددة' : 'نشطة'}`,
+        cols: [
+            { h: 'المبلغ', cell: r => `${fmt(r.amount)} ريال` },
+            { h: 'تاريخ الاستلام', cell: r => r.date || '-' },
+            { h: 'القسط الشهري', align: 'center', cell: r => fmt(r.monthly) },
+            { h: 'المتبقي', align: 'center', cell: r => `<b style="color:${r.remaining > 0 ? '#e74c3c' : '#27ae60'}">${fmt(r.remaining)}</b>` },
+            { h: 'الحالة', align: 'center', cell: r => r.status === 'settled' ? '✅ مسددة' : '⏳ نشطة' }
+        ],
+        foot: rows => { const t = rows.reduce((s, r) => s + r.remaining, 0); return `<tr style="background:#fdecea"><td colspan="3" style="padding:8px 10px;font-weight:800;color:#c0392b;font-size:12px">إجمالي المتبقي</td><td style="padding:8px 10px;text-align:center;font-weight:900;color:#c0392b;font-size:12px">${fmt(t)} ريال</td><td></td></tr>`; }
+    };
+    window._esTbl['esTbl-custody'] = {
+        rows: custodyRows, pageSize: 8, dateKey: 'dateGiven', emptyMsg: 'لا توجد عُهد مطابقة', q: '', from: '', to: '', page: 1,
+        searchText: r => `${r.name} ${r.serial} ${r.notes} ${r.status === 'returned' ? 'مستلمة' : 'بحوزته'}`,
+        cols: [
+            { h: 'العُهدة', cell: r => `${custodyTypeIcons[r.type] || '📦'} ${r.name || '-'}${r.notes ? `<div style="font-size:10px;color:#999">${r.notes}</div>` : ''}` },
+            { h: 'الرقم التسلسلي', cell: r => r.serial || '-' },
+            { h: 'القيمة', align: 'center', cell: r => r.value ? fmt(r.value) : '-' },
+            { h: 'تاريخ التسليم', align: 'center', cell: r => r.dateGiven || '-' },
+            { h: 'الحالة', align: 'center', cell: r => r.status === 'returned' ? `✅ مُستلَمة (${r.dateReturned || ''})` : '🔵 بحوزته' },
+            { h: 'إجراءات', align: 'center', cell: r => `<span style="white-space:nowrap">${r.status !== 'returned' ? `<button class="btn b-b" style="padding:2px 8px;font-size:10px" onclick="returnCustodyItem('${r.key}')">↩️ استلام</button> ` : ''}<button class="btn" style="padding:2px 8px;font-size:10px;background:#f39c12;color:white" onclick="openCustodyModal('${key}','${r.key}')">✏️</button> <button class="btn b-r" style="padding:2px 8px;font-size:10px" onclick="deleteCustodyItem('${r.key}')">🗑️</button></span>` }
+        ]
+    };
+    ['esTbl-salaries', 'esTbl-leaves', 'esTbl-loans', 'esTbl-custody'].forEach(id => { if (document.getElementById(id + '-body')) esTblRenderBody(id); });
 };
 
 // ── مودال إضافة/تعديل عُهدة ──
@@ -8912,10 +9046,23 @@ window.printEmpStatement = function (key) {
     const e = emp[key]; if (!e) { toast('اختر موظفاً', 'er'); return }
     const f = empFinance(e);
     const balance = getLeaveBalance(key);
-    const eos = calcEndOfService(e, f);
+    const excludeEosCar = window.esEosExcludeCar !== false;
+    const eos = calcEndOfService(e, f, excludeEosCar);
     const empLoans = Object.entries(loans || {}).filter(([, l]) => l.empKey === key);
     const totalLoansRemaining = empLoans.reduce((s, [, l]) => s + (l.schedule || []).filter(x => !x.paid).reduce((ss, x) => ss + x.amount, 0), 0);
     const empCustodyItems = Object.entries(window.empCustody || {}).filter(([, c]) => c.empKey === key && c.status !== 'returned');
+    // 💵 سجل الرواتب المصروفة
+    const _prMonthAr = (m) => { if (!m) return '-'; const [y, mo] = m.split('-'); return `${['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'][+mo] || mo} ${y}`; };
+    const _prStLbl = { draft: 'مسودة', review: 'قيد المراجعة', approved: 'معتمد' };
+    const empPayHist = [];
+    Object.values(window.payrolls || {}).forEach(p => {
+        if (p.status === 'cancelled') return;
+        const it = (p.items || []).find(i => i.empKey === key);
+        if (it) empPayHist.push({ month: p.month || '', net: (it.finalNet ?? it.earnedNet ?? it.netSalary ?? 0), status: p.status || 'draft' });
+    });
+    empPayHist.sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+    const payReceived = empPayHist.filter(r => r.status === 'approved');
+    const totalReceived = payReceived.reduce((s, r) => s + r.net, 0);
     const av = avCol(e.name || '');
     const row = (l, v) => v !== undefined && v !== null && v !== '' ? `<tr><td style="color:#888;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px;white-space:nowrap">${l}</td><td style="font-weight:700;color:#1a3a5c;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px">${v}</td></tr>` : '';
     const sec = (title, bg = '#f8fafc') => `<tr><td colspan="2" style="background:${bg};font-weight:700;padding:8px 10px;font-size:12px;color:#1a3a5c">${title}</td></tr>`;
@@ -8953,6 +9100,7 @@ table{width:100%;border-collapse:collapse}
     ${row('الراتب الأساسي', fmt(f.sal) + ' ريال')}
     ${f.house > 0 ? row('بدل السكن', fmt(f.house) + ' ريال') : ''}
     ${f.trans > 0 ? row('بدل المواصلات', fmt(f.trans) + ' ريال') : ''}
+    ${f.car > 0 ? row('بدل السيارة / إضافي (غير خاضع للخصم)', fmt(f.car) + ' ريال') : ''}
     ${f.airTicket > 0 ? row('بدل تذكرة السفر (سنوي)', fmt(f.airTicket) + ' ريال') : ''}
     ${f.vacAllow > 0 ? row('بدل الإجازة السنوي', fmt(f.vacAllow) + ' ريال') : ''}
     <tr style="background:#1a3a5c"><td colspan="2" style="padding:10px 14px;font-weight:800;color:white;font-size:14px">💵 الراتب الصافي: ${fmt(f.netSalary)} ريال</td></tr>
@@ -8970,7 +9118,12 @@ table{width:100%;border-collapse:collapse}
 
     ${eos ? sec('🏁 مكافأة نهاية الخدمة (تقديرية)', '#f4ecf7') : ''}
     ${eos ? row('سنوات الخدمة', eos.years.toFixed(2)) : ''}
+    ${eos ? row('أساس الأجر', fmt(eos.wage) + ' ريال/شهر' + (excludeEosCar && f.car > 0 ? ' (بعد استبعاد بدل السيارة)' : '')) : ''}
     ${eos ? row('المستحق التقديري', fmt(eos.amount) + ' ريال') : ''}
+
+    ${sec('💵 سجل الرواتب المصروفة', '#eafaf1')}
+    ${empPayHist.length ? empPayHist.map(r => row(_prMonthAr(r.month), `${fmt(r.net)} ريال — ${_prStLbl[r.status] || r.status}`)).join('') : row('لا توجد رواتب مصروفة', '-')}
+    ${empPayHist.length ? `<tr style="background:#eafaf1"><td style="padding:8px 10px;font-weight:800;color:#1e8449;font-size:12px">الإجمالي المصروف (المعتمد) — ${payReceived.length} راتب</td><td style="padding:8px 10px;font-weight:900;color:#1e8449;font-size:12px">${fmt(totalReceived)} ريال</td></tr>` : ''}
   </table>
   <div class="footer">تاريخ الإصدار: ${new Date().toLocaleDateString('ar-SA')}
   <br><button onclick="window.print()" style="margin-top:8px;padding:7px 20px;background:#1a3a5c;color:white;border:none;border-radius:7px;cursor:pointer;font-size:12px">🖨️ طباعة</button></div>
@@ -9205,11 +9358,11 @@ window.openPermForm = function (key) {
     ov.innerHTML = `<div dir="rtl" style="background:#fff;border-radius:16px;max-width:540px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">
         <div style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:#fff;padding:15px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><b>🕘 ${key ? 'تعديل إذن' : 'إذن جديد'}</b><button onclick="document.getElementById('permOverlay').remove()" style="border:0;background:rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px">✕</button></div>
         <div style="padding:20px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:10px">
                 <div><label style="${lst}">الموظف *</label><select id="perm-emp" style="${ist}"><option value="">— اختر —</option>${empOpts}</select></div>
                 <div><label style="${lst}">نوع الإذن</label><select id="perm-type" onchange="permSyncDeduct()" style="${ist}">${typeOpts}</select></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 130px 130px;gap:10px;margin-bottom:10px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px">
                 <div><label style="${lst}">التاريخ *</label><input type="date" id="perm-date" value="${p?.date || new Date().toISOString().slice(0, 10)}" style="${ist}"></div>
                 <div><label style="${lst}">من الساعة</label><input type="time" id="perm-from" value="${p?.fromTime || ''}" oninput="permCalc()" style="${ist}"></div>
                 <div><label style="${lst}">إلى الساعة</label><input type="time" id="perm-to" value="${p?.toTime || ''}" oninput="permCalc()" style="${ist}"></div>
@@ -9600,6 +9753,7 @@ const EMP_EXCEL_COLS = [
     { key: 'phoneAllow', label: 'بدل الهاتف' },
     { key: 'natureAllow', label: 'بدل طبيعة عمل' },
     { key: 'repAllow', label: 'بدل تمثيل' },
+    { key: 'carAllow', label: 'بدل سيارة (غير خاضع للخصم)' },
     { key: 'perfBonus', label: 'مكافأة الأداء' },
     { key: 'otherBonus', label: 'مكافآت أخرى' },
     { key: 'socialEmp', label: 'تأمينات الموظف %' },
@@ -9820,7 +9974,7 @@ window.handleEmpImport = async function (input) {
                     let v = row[colMap[c.key]];
                     if (v === '' || v === null || v === undefined) return;
                     // تحويل القيم الرقمية
-                    const numericKeys = ['dailyHours', 'workDaysPerMonth', 'salary', 'houseAllow', 'transAllow', 'phoneAllow', 'natureAllow', 'repAllow', 'perfBonus', 'otherBonus', 'socialEmp', 'socialComp', 'medIns', 'leaveAnnual', 'leaveSick', 'leaveEmergency'];
+                    const numericKeys = ['dailyHours', 'workDaysPerMonth', 'salary', 'houseAllow', 'transAllow', 'phoneAllow', 'natureAllow', 'repAllow', 'carAllow', 'perfBonus', 'otherBonus', 'socialEmp', 'socialComp', 'medIns', 'leaveAnnual', 'leaveSick', 'leaveEmergency'];
                     if (numericKeys.includes(c.key)) v = parseFloat(v) || 0;
                     else v = String(v).trim();
                     data[c.key] = v;
