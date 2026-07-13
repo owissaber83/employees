@@ -1,0 +1,334 @@
+<title>مقارنة قسم المشاريع — بُنيان مقابل كبرى برامج إدارة مشاريع المقاولات</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#eef1f5; --surface:#ffffff; --surface-2:#f7f9fb; --line:#dde3ea;
+    --ink:#16283d; --muted:#5c6b7d; --faint:#8a97a6;
+    --navy:#1a3a5c; --amber:#d97a1a; --amber-soft:#fbe9d3;
+    --good:#1e8449; --good-bg:#e6f4ec; --part:#c9821a; --part-bg:#fbefdb; --miss:#c0392b; --miss-bg:#fbe6e4;
+    --shadow:0 1px 3px rgba(20,40,61,.08),0 6px 18px rgba(20,40,61,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0e1621; --surface:#16222f; --surface-2:#1b2836; --line:#28384a;
+      --ink:#e7eef5; --muted:#9fb0c0; --faint:#6f8093;
+      --navy:#8fb4d9; --amber:#e79a4c; --amber-soft:#3a2a17;
+      --good:#4cc38a; --good-bg:#12261c; --part:#e0a23c; --part-bg:#2c2210; --miss:#e26d63; --miss-bg:#2c1613;
+      --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e1621; --surface:#16222f; --surface-2:#1b2836; --line:#28384a;
+    --ink:#e7eef5; --muted:#9fb0c0; --faint:#6f8093;
+    --navy:#8fb4d9; --amber:#e79a4c; --amber-soft:#3a2a17;
+    --good:#4cc38a; --good-bg:#12261c; --part:#e0a23c; --part-bg:#2c2210; --miss:#e26d63; --miss-bg:#2c1613;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --ground:#eef1f5; --surface:#ffffff; --surface-2:#f7f9fb; --line:#dde3ea;
+    --ink:#16283d; --muted:#5c6b7d; --faint:#8a97a6;
+    --navy:#1a3a5c; --amber:#d97a1a; --amber-soft:#fbe9d3;
+    --good:#1e8449; --good-bg:#e6f4ec; --part:#c9821a; --part-bg:#fbefdb; --miss:#c0392b; --miss-bg:#fbe6e4;
+    --shadow:0 1px 3px rgba(20,40,61,.08),0 6px 18px rgba(20,40,61,.05);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; direction:rtl; background:var(--ground); color:var(--ink);
+    font-family:"Segoe UI","Tahoma","Noto Naskh Arabic",system-ui,-apple-system,sans-serif;
+    line-height:1.65; font-size:16px;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 20px 80px}
+  a{color:var(--amber)}
+  header{background:linear-gradient(135deg,var(--navy),#12283f);color:#eaf1f8;padding:44px 20px 40px;border-bottom:4px solid var(--amber)}
+  .head-inner{max-width:1120px;margin:0 auto}
+  .eyebrow{font-size:12.5px;letter-spacing:.18em;font-weight:700;color:#9dc0e0;text-transform:uppercase;margin:0 0 10px}
+  header h1{font-size:clamp(24px,4.4vw,38px);font-weight:900;margin:0 0 12px;line-height:1.2;text-wrap:balance;color:#fff}
+  header p{margin:0;max-width:70ch;color:#c4d6e6;font-size:15.5px}
+  .head-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+  .head-meta span{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;color:#dbe8f4}
+  section{margin-top:38px}
+  h2{font-size:21px;font-weight:900;margin:0 0 6px;color:var(--ink);display:flex;align-items:center;gap:9px}
+  h2 .bar{width:5px;height:22px;background:var(--amber);border-radius:3px;display:inline-block}
+  .lead{color:var(--muted);font-size:14.5px;margin:0 0 18px;max-width:78ch}
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .score{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .score .n{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+  .score .l{font-size:12.5px;color:var(--muted);margin-top:7px;font-weight:600}
+  .score.g .n{color:var(--good)} .score.p .n{color:var(--part)} .score.m .n{color:var(--miss)} .score.b .n{color:var(--navy)}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 20px;font-size:13px;color:var(--muted)}
+  .legend b{color:var(--ink)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:7px;padding:2px 9px;font-size:12.5px}
+  .pill.g{background:var(--good-bg);color:var(--good)}
+  .pill.p{background:var(--part-bg);color:var(--part)}
+  .pill.m{background:var(--miss-bg);color:var(--miss)}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:900px;font-size:13.5px}
+  thead th{position:sticky;top:0;background:var(--navy);color:#fff;font-weight:800;padding:12px 12px;text-align:center;font-size:12.5px;white-space:nowrap}
+  thead th:first-child{text-align:right}
+  thead th.us{background:#12283f;border-bottom:3px solid var(--amber)}
+  .area td{background:var(--surface-2);font-weight:900;color:var(--navy);font-size:13px;padding:10px 14px;border-top:1px solid var(--line)}
+  tbody td{padding:9px 12px;border-top:1px solid var(--line);text-align:center;vertical-align:middle}
+  tbody td:first-child{text-align:right;color:var(--ink);font-weight:600;position:sticky;right:0;background:var(--surface);min-width:210px;box-shadow:1px 0 0 var(--line)}
+  .area td:first-child{position:sticky;right:0;background:var(--surface-2)}
+  td.us{background:color-mix(in srgb,var(--amber-soft) 55%,transparent)}
+  :root[data-theme="dark"] td.us{background:rgba(231,154,76,.09)}
+  @media (prefers-color-scheme:dark){td.us{background:rgba(231,154,76,.09)}}
+  .mk{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:14px;font-weight:900}
+  .mk.g{background:var(--good-bg);color:var(--good)}
+  .mk.p{background:var(--part-bg);color:var(--part)}
+  .mk.m{background:var(--miss-bg);color:var(--miss)}
+  .note{display:block;font-size:10.5px;color:var(--faint);font-weight:500;margin-top:3px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 10px;font-size:15.5px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .card ul{margin:0;padding:0 18px 0 0;list-style:none}
+  .card li{position:relative;padding:5px 0 5px 0;font-size:14px;color:var(--muted)}
+  .card li::before{content:"";position:absolute;right:-14px;top:12px;width:6px;height:6px;border-radius:50%;background:var(--amber)}
+  .card.strong{border-top:3px solid var(--good)}
+  .card.strong li::before{background:var(--good)}
+  .track{display:flex;flex-direction:column;gap:10px}
+  .titem{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 16px;box-shadow:var(--shadow)}
+  .titem .ic{font-size:17px;line-height:1.5}
+  .titem b{font-size:14.5px;display:block;margin-bottom:2px}
+  .titem span{font-size:12.5px;color:var(--muted);display:block}
+  .titem.done{border-right:4px solid var(--good)}
+  .titem.next{border-right:4px solid var(--amber);background:linear-gradient(135deg,var(--amber-soft),transparent)}
+  :root[data-theme="dark"] .titem.next{background:rgba(231,154,76,.08)}
+  @media (prefers-color-scheme:dark){.titem.next{background:rgba(231,154,76,.08)}}
+  .titem.todo{border-right:4px solid var(--line);opacity:.82}
+  .prio{display:flex;flex-direction:column;gap:14px}
+  .row{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .badge{font-weight:900;font-size:12px;padding:6px 11px;border-radius:9px;white-space:nowrap;text-align:center;line-height:1.3}
+  .badge.p1{background:var(--miss-bg);color:var(--miss)}
+  .badge.p2{background:var(--part-bg);color:var(--part)}
+  .badge.p3{background:var(--good-bg);color:var(--good)}
+  .badge.p4{background:#e7edf4;color:var(--navy)}
+  :root[data-theme="dark"] .badge.p4{background:#22303f;color:var(--navy)}
+  @media (prefers-color-scheme:dark){.badge.p4{background:#22303f;color:var(--navy)}}
+  .row h4{margin:0 0 5px;font-size:15px;font-weight:800}
+  .row p{margin:0;font-size:13.5px;color:var(--muted)}
+  .row .tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .row .tags span{font-size:11px;font-weight:700;color:var(--faint);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+  .callout{background:linear-gradient(135deg,var(--amber-soft),transparent);border:1px solid var(--amber);border-radius:14px;padding:18px 20px;margin-top:22px;font-size:14px}
+  :root[data-theme="dark"] .callout{background:rgba(231,154,76,.08)}
+  @media (prefers-color-scheme:dark){.callout{background:rgba(231,154,76,.08)}}
+  .callout b{color:var(--ink)}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--faint);font-size:12px;text-align:center}
+</style>
+
+<header>
+  <div class="head-inner">
+    <p class="eyebrow">تحليل تنافسي · قسم إدارة المشاريع</p>
+    <h1>أين يقف نظام «بُنيان» مقابل كبرى برامج إدارة مشاريع المقاولات؟</h1>
+    <p>مراجعة تفصيلية لقدرات قسم المشاريع، ومقارنتها بنداً ببند مع Odoo والأربعة الكبار عالمياً — وسجلّ تقدّم حيّ لما أُنجز. أُغلقت 12 فجوة عبر الأولويات 1–4.</p>
+    <div class="head-meta">
+      <span>🟣 Odoo</span><span>🏗️ Procore</span><span>📐 Autodesk Construction Cloud</span><span>📊 Oracle Primavera</span><span>🧱 Trimble / Viewpoint</span><span>📅 يوليو 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <h2><span class="bar"></span>الخلاصة في سطر</h2>
+    <p class="lead">قوتنا الحقيقية هي <b>التكامل المالي المحاسبي</b> (دفتر أستاذ + تكاليف + IFRS-15 + فوترة ZATCA)؛ أقرب منافسينا معمارياً هما <b>Odoo</b> و<b>CMiC</b> (ERP متكامل). لكن Odoo <b>أفقي/عام</b> بينما نحن <b>رأسي/إنشائي عربي</b>. بعد الأولويات 1–4 أغلقنا فجوة <b>التعاون الميداني والجودة والسلامة والعمق المالي</b>، وأصبح التطبيق <b>قابلاً للتثبيت ويعمل دون اتصال (PWA)</b>.</p>
+    <div class="scores">
+      <div class="score g"><div class="n">✅ 30</div><div class="l">قدرة مكتملة لدينا</div></div>
+      <div class="score p"><div class="n">🟡 3</div><div class="l">قدرة جزئية / أساسية</div></div>
+      <div class="score m"><div class="n">❌ 1</div><div class="l">فجوة غير موجودة</div></div>
+      <div class="score b"><div class="n">18</div><div class="l">فجوة أُغلقت / حُسّنت</div></div>
+    </div>
+    <div class="legend" style="margin-top:20px">
+      <span><b>الرموز:</b></span>
+      <span class="pill g">✅ مكتمل</span>
+      <span class="pill p">🟡 جزئي/أساسي</span>
+      <span class="pill m">❌ غير موجود</span>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>سجل التقدم — ما أُنجز</h2>
+    <p class="lead">أولويات 1 و2 و3 مكتملة، وأولوية 4 (المنصّة) قيد الإنجاز — أُطلق <b>PWA</b> و<b>بوابة/تقرير حالة العميل</b>.</p>
+    <div style="margin:8px 0 6px;font-size:13px;font-weight:800;color:var(--good)">✅ أولوية 1 (التعاون الميداني + الجودة والسلامة): 6 من 6</div>
+    <div style="height:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:12px"><div style="width:100%;height:100%;background:linear-gradient(90deg,var(--good),#43b06e);border-radius:20px"></div></div>
+    <div style="margin:8px 0 6px;font-size:13px;font-weight:800;color:var(--good)">✅ أولوية 2 (تقرير الموقع · عقود الباطن · التدفق النقدي): 3 من 3</div>
+    <div style="height:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:12px"><div style="width:100%;height:100%;background:linear-gradient(90deg,var(--good),#43b06e);border-radius:20px"></div></div>
+    <div style="margin:8px 0 6px;font-size:13px;font-weight:800;color:var(--good)">✅ أولوية 3 (خطوط أساس متعددة · تنبيه التحميل الزائد): منجزة</div>
+    <div style="height:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:12px"><div style="width:100%;height:100%;background:linear-gradient(90deg,var(--good),#43b06e);border-radius:20px"></div></div>
+    <div style="margin:8px 0 6px;font-size:13px;font-weight:800;color:var(--amber)">🔨 أولوية 4 (المنصّة: PWA · بوابة العميل · بوابات خارجية): 2 من 4</div>
+    <div style="height:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:20px"><div style="width:50%;height:100%;background:linear-gradient(90deg,var(--amber),#e79a4c);border-radius:20px"></div></div>
+    <div class="track">
+      <div class="titem done"><span class="ic">✅</span><div><b>التعاون الميداني: RFIs · Punch · Submittals</b><span>ثلاث وحدات بترقيم تلقائي ودورات حالة ومُهل وتنبيه تأخّر وفلاتر — قلب Procore. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>الجودة والسلامة (QHSE)</b><span>🔍 تفتيش/ITP بقوائم فحص ديناميكية · ⚠️ ملاحظات ومخالفات بإجراء تصحيحي · 🚨 سجل حوادث بالسبب الجذري. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>تقرير الموقع اليومي الاحترافي</b><span>طقس/حرارة/ساعات + جداول ديناميكية (عمالة بالتخصص · معدّات · مواد) + تأخيرات وسلامة وزوّار وصور. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>عقود الباطن + التدفق النقدي (S-Curve)</b><span>عقود باطن بأوامر تغيير ومستخلصات وضمان واسترداد دفعة · منحنى SVG (مخطّط/إيراد/تكلفة) بجدول ومؤشرات. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>خطوط أساس متعددة + تنبيه التحميل الزائد</b><span>خطوط أساس مُسمّاة (لقطة ميزانية/تواريخ/مهام) مع تعيين النشط وجدول مقارنة · بانر تحميل زائد في «عبء العمل». مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>تطبيق جوال (PWA) يعمل دون اتصال + بوابة العميل</b><span>manifest + service worker (تخزين الواجهة والأصول) → قابل للتثبيت ويعمل دون اتصال · وتقرير حالة نظيف للعميل قابل للطباعة/المشاركة PDF. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>سجل المراسلات والتحويلات (Correspondence)</b><span>تبويب «📮 المراسلات»: خطابات/تحويلات واردة وصادرة بترقيم تلقائي (IN/OUT) ونوع ومرجع وجهة وحالة، ويتطلّب-إجراء بمهلة وتنبيه تأخّر — يكمل «الاجتماعات والمحاضر» الموجود. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>ضبط إصدارات المستندات (Document Version Control)</b><span>مركز المستندات صار سجلاً بإصدارات: كل مستند يحمل مراجعات متعددة (Rev + رابط + تاريخ + ملاحظة)، مع «الأحدث» وسجل إصدارات قابل للطي — بلا رفع ملفات (روابط). مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>لوحة الحالة الميدانية (Project Field Dashboard)</b><span>في «نظرة عامة» المشروع: بطاقات موحّدة تجمع RFIs · النواقص · الجودة/السلامة · المستندات الفنية · المراسلات بعدّاداتها وتنبيهات التأخّر، ونقر مباشر لكل تبويب — تربط حزمة الميدان كلوحة تحكّم واحدة (مثل Procore Home). مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>سجل الصور الميدانية الموسومة (Photo Log)</b><span>تبويب «📷 الصور»: معرض صور بروابط موسومة بالتاريخ/الموقع/التصنيف (تقدّم·نقص·سلامة·مواد·عام) ووسوم، مع فلاتر وبحث ومعاينة — كـ Procore Photos، بلا رفع ملفات. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>تأشير المخططات + الحصر (Markup & Takeoff — HTML5 canvas)</b><span>محرّك رسم بملء الشاشة (public/markup.js): تأشير (📍 دبابيس · مستطيل · سهم · رسم حر · نص)، و<b>حصر (Takeoff)</b>: 📐 معايرة المقياس (خط بطول معلوم) ثم 📏 قياس أطوال و⬛ مساحات <b>تلقائياً</b> بالبكسل الأصلي × عامل المقياس، مع 📋 جدول حصر بالإجماليات. إحداثيات مُطبَّعة تُحفظ فوق الصورة. مباشر ✓</span></div></div>
+      <div class="titem done"><span class="ic">✅</span><div><b>تحليل المسار الحرج الكامل (CPM Analysis)</b><span>عرض «📊 CPM» في تبويب المهام: مرور أمامي/خلفي (ES/EF/LS/LF) + <b>الطفو الكلي والحر</b> + جدول تحليل الأنشطة + مدة المشروع (المسار الأطول) + قائمة المسار الحرج. تحقّقت الرياضيات (A→B→D = 7 أيام). مباشر ✓</span></div></div>
+      <div class="titem next"><span class="ic">▶</span><div><b>التالي (أولوية 4): بوابات خارجية بتسجيل دخول + تسوية موارد كاملة</b><span>بوابة عميل/باطن بمصادقة خارجية تتطلّب خطة Blaze/باكند (كما ZATCA المرحلة 2)، ومحرك تسوية موارد آلي مثل P6.</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>مصفوفة المقارنة التفصيلية</h2>
+    <p class="lead">القدرة مقابل: بُنيان (نحن) · Odoo · Procore · Autodesk ACC · Oracle Primavera/Unifier · Trimble Viewpoint. مرّر الجدول أفقياً على الجوال.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>القدرة</th><th class="us">بُنيان (نحن)</th><th>Odoo</th><th>Procore</th><th>Autodesk&nbsp;ACC</th><th>Oracle&nbsp;Primavera</th><th>Trimble</th></tr>
+        </thead>
+        <tbody>
+          <tr class="area"><td colspan="7">أ · التكامل المالي وضبط التكاليف — أرضنا القوية</td></tr>
+          <tr><td>دفتر أستاذ متكامل + تكلفة المشروع من نفس القيود</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">ERP واحد</span></td><td><span class="mk g">✅</span><span class="note">محاسبة تحليلية</span></td><td><span class="mk p">🟡</span><span class="note">عبر تكامل</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span><span class="note">Unifier</span></td><td><span class="mk g">✅</span><span class="note">Vista</span></td></tr>
+          <tr><td>أوامر التغيير (VO / Change Orders)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk p">🟡</span><span class="note">غير إنشائي</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>المستخلصات + الضمان (Retention)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk p">🟡</span><span class="note">فوترة مراحل</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>الاعتراف بالإيراد IFRS-15 / نسبة الإنجاز</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">مدمج</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+          <tr><td>الفوترة الإلكترونية ZATCA (السعودية)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">أصيل</span></td><td><span class="mk p">🟡</span><span class="note">توطين KSA</span></td><td><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td></tr>
+          <tr><td>القيمة المكتسبة + التنبؤ (EVM: EAC/ETC/VAC)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td></tr>
+          <tr><td>الالتزامات وعقود الباطن (Commitments) بشهادات دفع</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk p">🟡</span><span class="note">أوامر شراء</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>جدول استرداد الدفعة المقدمة</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">ضمن المستخلص</span></td><td><span class="mk p">🟡</span><span class="note">دفعات مقدمة</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>التنبؤ بالتدفق النقدي للمشروع (S-Curve)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk m">❌</span><span class="note">غير مشروعي</span></td><td><span class="mk p">🟡</span></td><td><span class="mk m">❌</span></td><td><span class="mk g">✅</span><span class="note">Unifier</span></td><td><span class="mk g">✅</span></td></tr>
+
+          <tr class="area"><td colspan="7">ب · الجدولة وضبط الوقت</td></tr>
+          <tr><td>مخطط جانت تفاعلي (سحب لإعادة الجدولة)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>الترابط والمسار الحرج (CPM)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">مرور أمامي/خلفي + طفو كلي/حر + جدول</span></td><td><span class="mk p">🟡</span><span class="note">ترابط بلا حرج</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span><span class="note">المعيار</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>خطوط أساس متعددة والمقارنة بينها</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>تسوية الموارد ومعالجة التحميل الزائد</td>
+            <td class="us"><span class="mk p">🟡</span><span class="note">تنبيه تحميل زائد</span></td><td><span class="mk p">🟡</span><span class="note">Planning</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td></tr>
+
+          <tr class="area"><td colspan="7">ج · التعاون الميداني — أُغلقت الفجوة</td></tr>
+          <tr><td>طلبات المعلومات (RFIs) بترقيم وحالة ومهلة</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span><span class="note">Aconex</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>المستندات الفنية / الشوب دروينج (Submittals)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>قوائم النواقص (Punch / Snag Lists)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>التقارير اليومية للموقع (طقس/عمالة/معدات/إنجاز)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk p">🟡</span><span class="note">FSM</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>الاجتماعات والمحاضر / المراسلات والخطابات</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">اجتماعات + مراسلات</span></td><td><span class="mk p">🟡</span><span class="note">Discuss/أنشطة</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span><span class="note">Aconex</span></td><td><span class="mk p">🟡</span></td></tr>
+          <tr><td>الصور الميدانية الموسومة بالموقع والبند</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">سجل صور مُوسّم</span></td><td><span class="mk p">🟡</span><span class="note">مرفقات</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+
+          <tr class="area"><td colspan="7">د · الجودة والسلامة (QHSE) — ✅ منجز يوليو</td></tr>
+          <tr><td>التفتيش وقوائم الفحص (Inspections / ITP)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk p">🟡</span><span class="note">Quality</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>الملاحظات والمخالفات (Observations)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td></tr>
+          <tr><td>سجل الحوادث والإصابات (HSE Incidents)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منجز · يوليو</span></td><td><span class="mk m">❌</span><span class="note">بلا سلامة</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td></tr>
+
+          <tr class="area"><td colspan="7">هـ · إدارة المستندات والتصميم</td></tr>
+          <tr><td>مركز مستندات مصنّف للمشروع</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">مصنّف + إصدارات</span></td><td><span class="mk g">✅</span><span class="note">Documents</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>ضبط الإصدارات + الوسم على المخططات (Markup)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">إصدارات + Markup canvas</span></td><td><span class="mk p">🟡</span><span class="note">إصدارات فقط</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span><span class="note">الأقوى</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>نمذجة BIM وكشف التعارض (Clash)</td>
+            <td class="us"><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span><span class="note">حصنهم</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+
+          <tr class="area"><td colspan="7">و · ما قبل الإنشاء والتقدير</td></tr>
+          <tr><td>إدارة المناقصات والعطاءات (Bidding)</td>
+            <td class="us"><span class="mk p">🟡</span><span class="note">تبويب مناقصات</span></td><td><span class="mk p">🟡</span><span class="note">عروض/مناقصات</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>التقدير وحصر الكميات (Estimating / Takeoff)</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">Takeoff على canvas + BOQ</span></td><td><span class="mk p">🟡</span><span class="note">بنود بيع</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+
+          <tr class="area"><td colspan="7">ز · الموارد والمحفظة والمنصّة</td></tr>
+          <tr><td>جداول الأوقات (Timesheets)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>عبء العمل والطاقة (Workload)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span><span class="note">Planning</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td></tr>
+          <tr><td>صحة المحفظة (CPI/SPI Rollup)</td>
+            <td class="us"><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>بوابة العميل / بوابة مقاول الباطن</td>
+            <td class="us"><span class="mk p">🟡</span><span class="note">تقرير مشاركة</span></td><td><span class="mk g">✅</span><span class="note">Portal — الأقوى</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+          <tr><td>تطبيق جوال + العمل دون اتصال</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">PWA · يوليو</span></td><td><span class="mk g">✅</span><span class="note">تطبيق</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+          <tr><td>عربي / RTL + امتثال سعودي</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">حصننا</span></td><td><span class="mk p">🟡</span><span class="note">RTL+توطين</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td></tr>
+          <tr><td>التكلفة / سهولة التبنّي للمقاول الصغير-المتوسط</td>
+            <td class="us"><span class="mk g">✅</span><span class="note">منخفضة</span></td><td><span class="mk p">🟡</span><span class="note">يحتاج تخصيص</span></td><td><span class="mk m">❌</span><span class="note">مرتفعة جداً</span></td><td><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td><td><span class="mk m">❌</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>خارطة الأولويات — الحالة</h2>
+    <div class="prio">
+      <div class="row">
+        <div class="badge p3">أولوية 1<br>✅ مكتمل</div>
+        <div>
+          <h4>التعاون الميداني: RFIs ✅ + Punch ✅ + Submittals ✅</h4>
+          <p>اكتمل ثلاثي التعاون الميداني بالكامل كتبويبات في ملف المشروع (ترقيم تلقائي، دورات حالة، مُهل وتنبيه تأخّر، فلاتر وإحصاءات) — قلب Procore، وبيانات فقط بلا رفع ملفات.</p>
+          <div class="tags"><span>✅ RFIs</span><span>✅ Punch/Snag</span><span>✅ Submittals</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="badge p3">أولوية 1<br>✅ منجز</div>
+        <div>
+          <h4>الجودة والسلامة (QHSE): تفتيش ITP + ملاحظات + سجل حوادث ✅</h4>
+          <p>تبويب «🦺 الجودة والسلامة» بثلاثة أقسام: قوائم فحص/تفتيش ديناميكية (ITP) بنتيجة، وملاحظات/مخالفات سلامة وجودة بإجراء تصحيحي، وسجل حوادث وإصابات بالسبب الجذري. مطلب تعاقدي في السوق السعودي.</p>
+          <div class="tags"><span>✅ Inspections/ITP</span><span>✅ Observations</span><span>✅ HSE Incidents</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="badge p3">أولوية 2<br>✅ مكتمل</div>
+        <div>
+          <h4>عقود الباطن ✅ + استرداد الدفعة ✅ + التدفق النقدي (S-Curve) ✅</h4>
+          <p>وحدة عقود الباطن (قيمة + أوامر تغيير → قيمة معدّلة، مستخلصات باطن بالضمان واسترداد الدفعة وصافي مستحق)، ومنحنى التدفق النقدي S-Curve (مخطّط · إيراد · تكلفة) بجدول شهري ومؤشرات — ما لا يقدّمه Odoo.</p>
+          <div class="tags"><span>✅ Commitments</span><span>✅ Payment Certificates</span><span>✅ Advance Recovery</span><span>✅ Cash S-Curve</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="badge p3">أولوية 2<br>✅ منجز</div>
+        <div>
+          <h4>تقرير الموقع اليومي الاحترافي ✅</h4>
+          <p>طقس وحرارة وساعات عمل، وجداول ديناميكية للعمالة حسب التخصص والمعدّات وساعات تشغيلها والمواد المستلمة، والتأخيرات وأثر الطقس، وملاحظات السلامة والزوّار وروابط الصور.</p>
+          <div class="tags"><span>✅ Daily Log</span><span>✅ Manpower by trade</span><span>✅ Equipment</span><span>✅ Materials</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="badge p3">أولوية 3<br>✅ منجز</div>
+        <div>
+          <h4>خطوط أساس متعددة ✅ + تنبيه التحميل الزائد ✅</h4>
+          <p>خطوط أساس مُسمّاة متعددة (لقطة ميزانية + تواريخ + مهام) مع تعيين النشط لاحتساب EVM وجدول مقارنة (Δ الميزانية وانزياح النهاية بالأيام)، وبانر تنبيه التحميل الزائد في «عبء العمل». محرك التسوية الآلي الكامل خارج نطاقنا عمداً.</p>
+          <div class="tags"><span>✅ Multiple Baselines</span><span>✅ Baseline Comparison</span><span>✅ Over-allocation Alert</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="badge p2">أولوية 4<br>🔨 قيد الإنجاز</div>
+        <div>
+          <h4>PWA ✅ + بوابة العميل (تقرير) ✅ · بوابات خارجية ◻︎</h4>
+          <p><b>أُطلق</b>: تطبيق قابل للتثبيت يعمل دون اتصال (manifest + service worker)، وتقرير حالة نظيف للعميل قابل للطباعة/المشاركة PDF (دون كشف التكاليف/الأرباح الداخلية). المتبقّي: بوابة خارجية بمصادقة (تتطلّب باكند Blaze)، ومحرك تسوية موارد كامل.</p>
+          <div class="tags"><span>✅ PWA / Offline</span><span>✅ Client Status Report</span><span>◻︎ Authenticated Portal</span><span>◻︎ Full Leveling</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>الحصيلة:</b> أغلقنا 12 فجوة عبر الأولويات 1–4 (RFIs · Punch · Submittals · تفتيش/ITP · ملاحظات · حوادث · تقرير يومي · عقود باطن · استرداد دفعة · S-Curve · خطوط أساس متعددة · PWA). قسم المشاريع الآن يطابق أو يتجاوز <b>Odoo</b> في كل محور تقريباً، ويضاهي الأربعة الكبار في التعاون الميداني والجودة/السلامة والعمق المالي — مع تميّزنا الفريد: نظام واحد بالعربية يجمع المال + المشروع + الميدان، ممتثل لـ ZATCA، بسعر معقول للمقاول السعودي المتوسط.
+    </div>
+  </section>
+
+  <footer>
+    تحليل داخلي لتطوير المنتج · نظام بُنيان للمقاولات · يوليو 2026. أسماء المنتجات الأخرى علاماتها لأصحابها وتُذكر لأغراض المقارنة فقط.
+  </footer>
+</div>

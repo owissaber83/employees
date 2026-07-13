@@ -1,0 +1,150 @@
+<title>مقارنة شؤون الموظفين — بُنيان مقابل أفضل برامج HR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--ground:#eef1f5;--surface:#fff;--surface-2:#f7f9fb;--line:#dde3ea;--ink:#16283d;--muted:#5c6b7d;--faint:#8a97a6;--navy:#1a3a5c;--amber:#d97a1a;--amber-soft:#fbe9d3;--good:#1e8449;--good-bg:#e6f4ec;--part:#c9821a;--part-bg:#fbefdb;--miss:#c0392b;--miss-bg:#fbe6e4;--shadow:0 1px 3px rgba(20,40,61,.08),0 6px 18px rgba(20,40,61,.05)}
+  @media (prefers-color-scheme:dark){:root{--ground:#0e1621;--surface:#16222f;--surface-2:#1b2836;--line:#28384a;--ink:#e7eef5;--muted:#9fb0c0;--faint:#6f8093;--navy:#8fb4d9;--amber:#e79a4c;--amber-soft:#3a2a17;--good:#4cc38a;--good-bg:#12261c;--part:#e0a23c;--part-bg:#2c2210;--miss:#e26d63;--miss-bg:#2c1613;--shadow:0 1px 3px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35)}}
+  :root[data-theme="dark"]{--ground:#0e1621;--surface:#16222f;--surface-2:#1b2836;--line:#28384a;--ink:#e7eef5;--muted:#9fb0c0;--faint:#6f8093;--navy:#8fb4d9;--amber:#e79a4c;--amber-soft:#3a2a17;--good:#4cc38a;--good-bg:#12261c;--part:#e0a23c;--part-bg:#2c2210;--miss:#e26d63;--miss-bg:#2c1613;--shadow:0 1px 3px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35)}
+  :root[data-theme="light"]{--ground:#eef1f5;--surface:#fff;--surface-2:#f7f9fb;--line:#dde3ea;--ink:#16283d;--muted:#5c6b7d;--faint:#8a97a6;--navy:#1a3a5c;--amber:#d97a1a;--amber-soft:#fbe9d3;--good:#1e8449;--good-bg:#e6f4ec;--part:#c9821a;--part-bg:#fbefdb;--miss:#c0392b;--miss-bg:#fbe6e4;--shadow:0 1px 3px rgba(20,40,61,.08),0 6px 18px rgba(20,40,61,.05)}
+  *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+  body{margin:0;direction:rtl;background:var(--ground);color:var(--ink);font-family:"Segoe UI","Tahoma","Noto Naskh Arabic",system-ui,sans-serif;line-height:1.65;font-size:16px}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 20px 80px}
+  header{background:linear-gradient(135deg,var(--navy),#12283f);color:#eaf1f8;padding:44px 20px 40px;border-bottom:4px solid var(--amber)}
+  .head-inner{max-width:1160px;margin:0 auto}
+  .eyebrow{font-size:12.5px;letter-spacing:.18em;font-weight:700;color:#9dc0e0;text-transform:uppercase;margin:0 0 10px}
+  header h1{font-size:clamp(24px,4.4vw,38px);font-weight:900;margin:0 0 12px;line-height:1.2;text-wrap:balance;color:#fff}
+  header p{margin:0;max-width:72ch;color:#c4d6e6;font-size:15.5px}
+  .head-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+  .head-meta span{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;color:#dbe8f4}
+  section{margin-top:38px}
+  h2{font-size:21px;font-weight:900;margin:0 0 6px;color:var(--ink);display:flex;align-items:center;gap:9px}
+  h2 .bar{width:5px;height:22px;background:var(--amber);border-radius:3px;display:inline-block}
+  .lead{color:var(--muted);font-size:14.5px;margin:0 0 18px;max-width:82ch}
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .score{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .score .n{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+  .score .l{font-size:12.5px;color:var(--muted);margin-top:7px;font-weight:600}
+  .score.g .n{color:var(--good)}.score.p .n{color:var(--part)}.score.m .n{color:var(--miss)}.score.b .n{color:var(--navy)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 20px;font-size:13px;color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:7px;padding:2px 9px;font-size:12.5px}
+  .pill.g{background:var(--good-bg);color:var(--good)}.pill.p{background:var(--part-bg);color:var(--part)}.pill.m{background:var(--miss-bg);color:var(--miss)}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:860px;font-size:13.5px}
+  thead th{position:sticky;top:0;background:var(--navy);color:#fff;font-weight:800;padding:11px 8px;text-align:center;font-size:12px;white-space:nowrap}
+  thead th:first-child{text-align:right}
+  thead th.us{background:#12283f;border-bottom:3px solid var(--amber)}
+  .area td{background:var(--surface-2);font-weight:900;color:var(--navy);font-size:13px;padding:9px 14px;border-top:1px solid var(--line)}
+  tbody td{padding:8px 8px;border-top:1px solid var(--line);text-align:center;vertical-align:middle}
+  tbody td:first-child{text-align:right;color:var(--ink);font-weight:600;position:sticky;right:0;background:var(--surface);min-width:230px;box-shadow:1px 0 0 var(--line)}
+  .area td:first-child{position:sticky;right:0;background:var(--surface-2)}
+  td.us{background:color-mix(in srgb,var(--amber-soft) 55%,transparent)}
+  :root[data-theme="dark"] td.us{background:rgba(231,154,76,.09)}
+  @media (prefers-color-scheme:dark){td.us{background:rgba(231,154,76,.09)}}
+  .mk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:13px;font-weight:900}
+  .mk.g{background:var(--good-bg);color:var(--good)}.mk.p{background:var(--part-bg);color:var(--part)}.mk.m{background:var(--miss-bg);color:var(--miss)}
+  .note{display:block;font-size:10px;color:var(--faint);font-weight:500;margin-top:3px}
+  .gaps{display:flex;flex-direction:column;gap:12px}
+  .gapbox{background:var(--surface);border:1px solid var(--line);border-right:4px solid var(--miss);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+  .gapbox.done{border-right-color:var(--good)}
+  .gapbox h4{margin:0 0 4px;font-size:14.5px;font-weight:800}
+  .gapbox p{margin:0;font-size:13px;color:var(--muted)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+  .card.strong{border-top:3px solid var(--good)}
+  .card h3{margin:0 0 10px;font-size:15.5px;font-weight:800}
+  .card ul{margin:0;padding:0 16px 0 0;list-style:none}
+  .card li{position:relative;padding:4px 0;font-size:13.5px;color:var(--muted)}
+  .card li::before{content:"✓";position:absolute;right:-15px;top:4px;color:var(--good);font-weight:900}
+  .callout{background:linear-gradient(135deg,var(--amber-soft),transparent);border:1px solid var(--amber);border-radius:14px;padding:18px 20px;margin-top:22px;font-size:14px}
+  :root[data-theme="dark"] .callout{background:rgba(231,154,76,.08)}
+  @media (prefers-color-scheme:dark){.callout{background:rgba(231,154,76,.08)}}
+  .callout b{color:var(--ink)}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--faint);font-size:12px;text-align:center}
+  a{color:var(--amber)}
+</style>
+
+<header><div class="head-inner">
+  <p class="eyebrow">تحليل تنافسي · شؤون الموظفين (HR)</p>
+  <h1>بُنيان مقابل أفضل برامج إدارة شؤون الموظفين</h1>
+  <p>مقارنة تفصيلية لوحدة الموارد البشرية (الحضور والغياب · الإجازات · الأذونات · الرواتب · الأداء · الخدمة الذاتية) مع البرامج الرائدة إقليمياً وعالمياً — لتحديد ما ينقصنا وإضافته.</p>
+  <div class="head-meta"><span>🟢 جِسر Jisr</span><span>🔵 بيزات Bayzat</span><span>🟣 ZenHR</span><span>🟠 BambooHR</span><span>🔷 SAP SuccessFactors</span><span>📅 يوليو 2026</span></div>
+</div></header>
+
+<div class="wrap">
+  <section>
+    <h2><span class="bar"></span>الخلاصة</h2>
+    <p class="lead">وحدتنا قوية في <b>ملف الموظف · الرواتب (ثابت/ساعات/أيام + WPS + نهاية الخدمة + السلف) · تنبيهات المستندات · الأداء · التكامل المحاسبي</b>. لكن مقابل برامج HR المتخصصة (خصوصاً <b>جِسر</b> السعودي) تظهر فجوات في <b>الأذونات (مفقودة تماماً) · التسجيل الذاتي للحضور (بصمة/GPS) · الخدمة الذاتية للموظف · تقويم الإجازات وترحيل الأرصدة · تكامل GOSI/قوى</b>.</p>
+    <div class="scores">
+      <div class="score g"><div class="n">✅ 14</div><div class="l">قدرة قوية لدينا</div></div>
+      <div class="score p"><div class="n">🟡 5</div><div class="l">جزئية</div></div>
+      <div class="score m"><div class="n">❌ 3</div><div class="l">فجوة (بصمة · ATS · خدمة ذاتية)</div></div>
+      <div class="score b"><div class="n">5</div><div class="l">أُنجز: أذونات · GPS · ربط · تقويم · استحقاق</div></div>
+    </div>
+    <div class="legend" style="margin-top:20px"><span class="pill g">✅ قوي</span><span class="pill p">🟡 جزئي</span><span class="pill m">❌ غير موجود</span></div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>مصفوفة المقارنة</h2>
+    <p class="lead">بُنيان (نحن) · جِسر · بيزات · ZenHR · BambooHR · SAP SF. مرّر أفقياً على الجوال.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>القدرة</th><th class="us">بُنيان</th><th>جِسر</th><th>بيزات</th><th>ZenHR</th><th>Bamboo</th><th>SAP</th></tr></thead>
+      <tbody>
+        <tr class="area"><td colspan="7">ملف الموظف والمستندات</td></tr>
+        <tr><td>بيانات شاملة · عقود · معالون · مرفقات</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>تنبيهات انتهاء المستندات (إقامة/جواز/رخص)</td><td class="us"><span class="mk g">✅</span><span class="note">قوي</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="7">الحضور والانصراف — تركيز</td></tr>
+        <tr><td>تسجيل حضور يدوي + ساعات + وقت إضافي + استيراد Excel</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>احتساب الغياب + خصمه (خيار) + تنبيه</td><td class="us"><span class="mk g">✅</span><span class="note">مُحدَّث يوليو</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>التسجيل الذاتي للحضور (جوال/GPS/بصمة/QR)</td><td class="us"><span class="mk p">🟡</span><span class="note">ذاتي + GPS · بلا بصمة</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>الورديات والجداول (Shifts/Rostering) وقواعد التأخير</td><td class="us"><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>ربط أجهزة البصمة (Biometric Devices)</td><td class="us"><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="7">الإجازات</td></tr>
+        <tr><td>أنواع إجازات + أرصدة + سير اعتماد</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>استحقاق تلقائي + ترحيل الرصيد (Accrual/Carry-over)</td><td class="us"><span class="mk g">✅</span><span class="note">تراكمي · نظام العمل</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>تقويم إجازات الفريق + سياسات مخصّصة</td><td class="us"><span class="mk p">🟡</span><span class="note">تقويم منجز · بلا سياسات</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="7">الأذونات (الاستئذان) — ✅ منجز يوليو</td></tr>
+        <tr><td>طلبات إذن/استئذان بالساعة + اعتماد</td><td class="us"><span class="mk g">✅</span><span class="note">منجز يوليو</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>ربط الإذن بالحضور/الخصم/المأموريات</td><td class="us"><span class="mk g">✅</span><span class="note">يُخصم من الراتب · منجز</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="7">الرواتب ونهاية الخدمة</td></tr>
+        <tr><td>مسير رواتب (ثابت/ساعات/أيام) + خصومات + سلف + مكافآت</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>ملف حماية الأجور WPS/مِدد</td><td class="us"><span class="mk g">✅</span><span class="note">منجز يوليو</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td></tr>
+        <tr><td>نهاية الخدمة (EOSB) + التكامل المحاسبي للرواتب</td><td class="us"><span class="mk g">✅</span><span class="note">قيود تلقائية</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>تكامل GOSI (التأمينات) وقوى المباشر</td><td class="us"><span class="mk p">🟡</span><span class="note">حقل فقط</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td></tr>
+
+        <tr class="area"><td colspan="7">الأداء والتوظيف والخدمة الذاتية</td></tr>
+        <tr><td>تقييمات الأداء + المكافآت</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>التوظيف (ATS) والإلحاق (Onboarding)</td><td class="us"><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>الخدمة الذاتية للموظف (طلبات/رصيد/قسيمة)</td><td class="us"><span class="mk m">❌</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>تطبيق جوال</td><td class="us"><span class="mk p">🟡</span><span class="note">PWA</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>عربي/RTL + توطين سعودي</td><td class="us"><span class="mk g">✅</span><span class="note">حصننا</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td></tr>
+        <tr><td>التكلفة/سهولة التبنّي + تكامل مع المحاسبة</td><td class="us"><span class="mk g">✅</span><span class="note">ERP موحّد</span></td><td><span class="mk p">🟡</span><span class="note">HR فقط</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk m">❌</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>ما لدينا (قوّتنا)</h2>
+    <div class="cards">
+      <div class="card strong"><h3>💵 الرواتب</h3><ul><li>3 أوضاع احتساب (ثابت/ساعات/أيام)</li><li>خصومات · سلف بأقساط · مكافآت أداء</li><li>WPS/مِدد · نهاية خدمة EOSB</li><li>قيود محاسبية تلقائية (تكامل ERP)</li></ul></div>
+      <div class="card strong"><h3>🕐 الحضور والإجازات</h3><ul><li>حضور + ساعات + وقت إضافي + استيراد</li><li>احتساب غياب + خصم اختياري + تنبيه</li><li>إجازات بأنواع وأرصدة واعتماد</li></ul></div>
+      <div class="card strong"><h3>📇 الموظف والتحليل</h3><ul><li>ملف شامل · عقود · معالون · مرفقات</li><li>تنبيهات انتهاء المستندات</li><li>تقييمات أداء · لوحات HR · تحليل تكلفة العمالة · كشف حساب الموظف</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>ما ينقصنا — بأولوية التنفيذ</h2>
+    <div class="gaps">
+      <div class="gapbox done"><h4>1. الأذونات / الاستئذان بالساعة ✅ — أُنجزت يوليو</h4><p><b>أُطلقت صفحة «🕘 الأذونات والاستئذان»</b>: طلبات إذن (خروج مبكر · تأخير · إذن شخصي · مأمورية · أخرى) بوقت من/إلى واحتساب ساعات تلقائي، سير اعتماد (قيد/معتمد/مرفوض)، علامة «قابل للخصم» (تُزال للمأموريات الرسمية)، ولوحة مؤشرات وفلاتر بالشهر/الموظف/الحالة.</p></div>
+      <div class="gapbox done"><h4>2. التسجيل الذاتي للحضور عبر الجوال + GPS ✅ — أُنجز يوليو</h4><p><b>تعزيز التسجيل الذاتي بالتقاط الموقع (Geolocation):</b> عند «سجّل حضوري/انصرافي» يُلتقط الوقت + الإحداثيات (أفضل جهد، لا يعطّل عند الرفض)، ويُخزَّن مع السجل، ويظهر 📍 رابط خريطة في جدول الحضور للتحقّق من موقع التسجيل. المتبقّي: ربط أجهزة البصمة (يحتاج أجهزة).</p></div>
+      <div class="gapbox done"><h4>3. الإجازات: تقويم الفريق ✅ + الاستحقاق والترحيل ✅ — أُنجزا</h4><p><b>تقويم الفريق</b> (شبكة شهرية ملوّنة بالإجازات المعتمدة) + <b>رصيد الإجازة السنوية بالاستحقاق التراكمي والترحيل</b>: يُحسب المستحق منذ التعيين وفق نظام العمل السعودي (21 يوماً أول 5 سنوات ثم 30، مع التناسب والمعدّل المخصّص) ناقص المستخدم كلياً = الرصيد المتاح شامل المرحّل — بجدول أرصدة للفريق. تحقّقت الرياضيات (7 سنوات = 165 يوماً).</p></div>
+      <div class="gapbox"><h4>4. الخدمة الذاتية للموظف (Employee Self-Service)</h4><p>شاشة «طلباتي» داخل التطبيق (تقديم إذن/إجازة، عرض الرصيد والقسيمة). البوابة الخارجية بمصادقة تحتاج باكند، لكن العرض الداخلي ممكن.</p></div>
+      <div class="gapbox"><h4>5. الورديات وربط أجهزة البصمة وتكامل GOSI/قوى</h4><p>جداول ورديات وقواعد تأخير، واستيراد من أجهزة البصمة، وتكامل التأمينات — بعضها يحتاج باكند/أجهزة.</p></div>
+    </div>
+    <div class="callout"><b>خطة التنفيذ:</b> نبدأ بـ <b>وحدة الأذونات</b> (الأعلى قيمة وبلا باكند)، ثم <b>التسجيل الذاتي للحضور عبر الجوال (GPS)</b> مستفيدين من الـPWA، ثم تحسينات الإجازات. هذا يغلق أكثر ما يميّز برامج HR المتخصصة عنّا — مع بقاء تفوّقنا في تكامل الرواتب مع المحاسبة (ما لا يوفّره جِسر/بيزات المتخصصان في HR فقط).</div>
+  </section>
+
+  <footer>تحليل داخلي لتطوير المنتج · نظام بُنيان للمقاولات · يوليو 2026. أسماء البرامج الأخرى علاماتها لأصحابها للمقارنة فقط.</footer>
+</div>

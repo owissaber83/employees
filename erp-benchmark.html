@@ -1,0 +1,283 @@
+<title>مقارنة شاملة — بُنيان مقابل أنظمة ERP العالمية (كل الأقسام)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#eef1f5; --surface:#ffffff; --surface-2:#f7f9fb; --line:#dde3ea;
+    --ink:#16283d; --muted:#5c6b7d; --faint:#8a97a6;
+    --navy:#1a3a5c; --amber:#d97a1a; --amber-soft:#fbe9d3;
+    --good:#1e8449; --good-bg:#e6f4ec; --part:#c9821a; --part-bg:#fbefdb; --miss:#c0392b; --miss-bg:#fbe6e4; --na:#8a97a6; --na-bg:#eceff2;
+    --shadow:0 1px 3px rgba(20,40,61,.08),0 6px 18px rgba(20,40,61,.05);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0e1621; --surface:#16222f; --surface-2:#1b2836; --line:#28384a;
+    --ink:#e7eef5; --muted:#9fb0c0; --faint:#6f8093;
+    --navy:#8fb4d9; --amber:#e79a4c; --amber-soft:#3a2a17;
+    --good:#4cc38a; --good-bg:#12261c; --part:#e0a23c; --part-bg:#2c2210; --miss:#e26d63; --miss-bg:#2c1613; --na:#7d8ea0; --na-bg:#202a35;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35);
+  }}
+  :root[data-theme="dark"]{
+    --ground:#0e1621; --surface:#16222f; --surface-2:#1b2836; --line:#28384a;
+    --ink:#e7eef5; --muted:#9fb0c0; --faint:#6f8093;
+    --navy:#8fb4d9; --amber:#e79a4c; --amber-soft:#3a2a17;
+    --good:#4cc38a; --good-bg:#12261c; --part:#e0a23c; --part-bg:#2c2210; --miss:#e26d63; --miss-bg:#2c1613; --na:#7d8ea0; --na-bg:#202a35;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --ground:#eef1f5; --surface:#ffffff; --surface-2:#f7f9fb; --line:#dde3ea;
+    --ink:#16283d; --muted:#5c6b7d; --faint:#8a97a6;
+    --navy:#1a3a5c; --amber:#d97a1a; --amber-soft:#fbe9d3;
+    --good:#1e8449; --good-bg:#e6f4ec; --part:#c9821a; --part-bg:#fbefdb; --miss:#c0392b; --miss-bg:#fbe6e4; --na:#8a97a6; --na-bg:#eceff2;
+    --shadow:0 1px 3px rgba(20,40,61,.08),0 6px 18px rgba(20,40,61,.05);
+  }
+  *{box-sizing:border-box} html{-webkit-text-size-adjust:100%}
+  body{margin:0;direction:rtl;background:var(--ground);color:var(--ink);font-family:"Segoe UI","Tahoma","Noto Naskh Arabic",system-ui,-apple-system,sans-serif;line-height:1.65;font-size:16px}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 20px 80px}
+  header{background:linear-gradient(135deg,var(--navy),#12283f);color:#eaf1f8;padding:44px 20px 40px;border-bottom:4px solid var(--amber)}
+  .head-inner{max-width:1160px;margin:0 auto}
+  .eyebrow{font-size:12.5px;letter-spacing:.18em;font-weight:700;color:#9dc0e0;text-transform:uppercase;margin:0 0 10px}
+  header h1{font-size:clamp(24px,4.4vw,38px);font-weight:900;margin:0 0 12px;line-height:1.2;text-wrap:balance;color:#fff}
+  header p{margin:0;max-width:72ch;color:#c4d6e6;font-size:15.5px}
+  .head-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+  .head-meta span{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;color:#dbe8f4}
+  section{margin-top:38px}
+  h2{font-size:21px;font-weight:900;margin:0 0 6px;color:var(--ink);display:flex;align-items:center;gap:9px}
+  h2 .bar{width:5px;height:22px;background:var(--amber);border-radius:3px;display:inline-block}
+  .lead{color:var(--muted);font-size:14.5px;margin:0 0 18px;max-width:82ch}
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .score{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .score .n{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+  .score .l{font-size:12.5px;color:var(--muted);margin-top:7px;font-weight:600}
+  .score.g .n{color:var(--good)} .score.p .n{color:var(--part)} .score.m .n{color:var(--miss)} .score.b .n{color:var(--navy)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 20px;font-size:13px;color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:7px;padding:2px 9px;font-size:12.5px}
+  .pill.g{background:var(--good-bg);color:var(--good)} .pill.p{background:var(--part-bg);color:var(--part)} .pill.m{background:var(--miss-bg);color:var(--miss)} .pill.n{background:var(--na-bg);color:var(--na)}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:840px;font-size:13.5px}
+  thead th{position:sticky;top:0;background:var(--navy);color:#fff;font-weight:800;padding:11px 10px;text-align:center;font-size:12.5px;white-space:nowrap}
+  thead th:first-child{text-align:right}
+  thead th.us{background:#12283f;border-bottom:3px solid var(--amber)}
+  .area td{background:var(--surface-2);font-weight:900;color:var(--navy);font-size:13px;padding:9px 14px;border-top:1px solid var(--line)}
+  tbody td{padding:8px 10px;border-top:1px solid var(--line);text-align:center;vertical-align:middle}
+  tbody td:first-child{text-align:right;color:var(--ink);font-weight:600;position:sticky;right:0;background:var(--surface);min-width:220px;box-shadow:1px 0 0 var(--line)}
+  .area td:first-child{position:sticky;right:0;background:var(--surface-2)}
+  td.us{background:color-mix(in srgb,var(--amber-soft) 55%,transparent)}
+  :root[data-theme="dark"] td.us{background:rgba(231,154,76,.09)}
+  @media (prefers-color-scheme:dark){td.us{background:rgba(231,154,76,.09)}}
+  .mk{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:14px;font-weight:900}
+  .mk.g{background:var(--good-bg);color:var(--good)} .mk.p{background:var(--part-bg);color:var(--part)} .mk.m{background:var(--miss-bg);color:var(--miss)} .mk.n{background:var(--na-bg);color:var(--na)}
+  .note{display:block;font-size:10.5px;color:var(--faint);font-weight:500;margin-top:3px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .mod{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+  .mod h3{margin:0 0 4px;font-size:16px;font-weight:900;display:flex;align-items:center;gap:8px}
+  .mod .verdict{font-size:12px;font-weight:800;padding:2px 10px;border-radius:999px;display:inline-block;margin-bottom:10px}
+  .verdict.strong{background:var(--good-bg);color:var(--good)} .verdict.ok{background:var(--part-bg);color:var(--part)}
+  .mod .grp{font-size:11.5px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 5px}
+  .mod ul{margin:0;padding:0 16px 0 0;list-style:none}
+  .mod li{position:relative;padding:3px 0;font-size:13px;color:var(--muted)}
+  .mod li.have::before{content:"✓";position:absolute;right:-16px;top:3px;color:var(--good);font-weight:900}
+  .mod li.gap::before{content:"◻";position:absolute;right:-16px;top:3px;color:var(--miss);font-weight:900}
+  .callout{background:linear-gradient(135deg,var(--amber-soft),transparent);border:1px solid var(--amber);border-radius:14px;padding:18px 20px;margin-top:22px;font-size:14px}
+  :root[data-theme="dark"] .callout{background:rgba(231,154,76,.08)}
+  @media (prefers-color-scheme:dark){.callout{background:rgba(231,154,76,.08)}}
+  .callout b{color:var(--ink)}
+  .gapbox{background:var(--surface);border:1px solid var(--line);border-right:4px solid var(--miss);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+  .gapbox h4{margin:0 0 4px;font-size:14.5px;font-weight:800}
+  .gapbox p{margin:0;font-size:13px;color:var(--muted)}
+  .gaps{display:flex;flex-direction:column;gap:12px}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--faint);font-size:12px;text-align:center}
+  a{color:var(--amber)}
+</style>
+
+<header>
+  <div class="head-inner">
+    <p class="eyebrow">تحليل تنافسي شامل · كل أقسام النظام</p>
+    <h1>بُنيان مقابل أنظمة ERP العالمية — أين نقف في كل قسم؟</h1>
+    <p>مقارنة قسماً بقسم لكل وحدات النظام (~100 صفحة وظيفية) مع أكبر أنظمة ERP: Odoo · SAP · Oracle NetSuite · Microsoft Dynamics 365. لأن برامج المقاولات (Procore/Primavera) لا تملك محاسبة/موارد بشرية، فالمقارنة هنا مع أنظمة ERP الكاملة. (مقارنة قسم المشاريع التفصيلية مع الأربعة الكبار في <a href="https://claude.ai/code/artifact/c1af8893-a93f-4428-b7cc-13435f049fc8">مستند منفصل</a>.)</p>
+    <div class="head-meta"><span>🟣 Odoo</span><span>🔷 SAP</span><span>🔴 Oracle NetSuite</span><span>🟦 Dynamics 365</span><span>📅 يوليو 2026</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <h2><span class="bar"></span>الخلاصة</h2>
+    <p class="lead">بُنيان نظام <b>ERP كامل فعلاً</b> — محاسبة بمستوى Oracle، ضرائب سعودية متكاملة، مشتريات، مخزون، موارد بشرية ورواتب، أصول ثابتة، مشاريع مقاولات عميقة، وتحليلات. <b>نُطابق أو نقترب من الأنظمة العالمية في جوهر ERP للمنشأة المتوسطة</b>، و<b>نتفوّق عليها في التوطين السعودي</b> (عربي + ZATCA + زكاة + WHT). فجواتنا الحقيقية ليست وظيفية بل <b>منصّية/مؤسسية</b>: تكاملات وبوابات دفع، إشعارات خارجية، توحيد شركات، وعمق سلسلة الإمداد — ومعظمها مؤجّل بقرار (باكند Blaze) أو غير مطلوب لهدفنا (مقاولات).</p>
+    <div class="scores">
+      <div class="score g"><div class="n">✅ 12</div><div class="l">قسم قوي/مطابق</div></div>
+      <div class="score p"><div class="n">🟡 5</div><div class="l">قسم جزئي (فجوات محدّدة)</div></div>
+      <div class="score m"><div class="n">❌ 1</div><div class="l">فجوة منصّية (تكاملات/API)</div></div>
+      <div class="score b"><div class="n">➖ 2</div><div class="l">غير مطلوب لهدفنا (POS/تصنيع)</div></div>
+    </div>
+    <div class="legend" style="margin-top:20px">
+      <span class="pill g">✅ قوي/مطابق</span><span class="pill p">🟡 جزئي</span><span class="pill m">❌ غير موجود</span><span class="pill n">➖ غير مطلوب لهدفنا</span>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>مصفوفة الأقسام</h2>
+    <p class="lead">مستوى التغطية لكل قسم: بُنيان (نحن) مقابل الأنظمة الأربعة. مرّر أفقياً على الجوال.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>القسم / الوحدة</th><th class="us">بُنيان</th><th>Odoo</th><th>SAP</th><th>Oracle</th><th>Dynamics</th></tr></thead>
+      <tbody>
+        <tr class="area"><td colspan="6">المالية والمحاسبة</td></tr>
+        <tr><td>الدفتر العام والقيود (قيد مزدوج · عكسي · متكرر · قوالب · إقفال)</td><td class="us"><span class="mk g">✅</span><span class="note">Oracle-grade</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>الذمم: عملاء/موردون · فواتير · سندات · إشعارات دائن/مدين · أعمار</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>القوائم المالية والتحليل (IFRS · نسب · Altman · مولّد قوائم · موازنات)</td><td class="us"><span class="mk g">✅</span><span class="note">IFRS 18</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>التتبّع الهرمي (Drill-down) وتحليل الحسابات</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>توحيد الشركات (Multi-entity Consolidation)</td><td class="us"><span class="mk m">❌</span><span class="note">مستأجر واحد</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="6">الضرائب والامتثال السعودي — تميّزنا</td></tr>
+        <tr><td>ضريبة القيمة المضافة · WHT · الزكاة · ضريبة الدخل · مركز الضرائب</td><td class="us"><span class="mk g">✅</span><span class="note">متكامل + تقويم</span></td><td><span class="mk p">🟡</span><span class="note">توطين</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+        <tr><td>الفوترة الإلكترونية ZATCA (المرحلة 1: QR/التجزئة)</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+        <tr><td>ZATCA المرحلة 2 (الربط والتكامل الفوري)</td><td class="us"><span class="mk m">❌</span><span class="note">يحتاج باكند</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td></tr>
+
+        <tr class="area"><td colspan="6">الخزينة والبنوك</td></tr>
+        <tr><td>التسوية البنكية · الخزينة (ضمانات/شيكات آجلة/محتجزات) · الدفعات المجمّعة · رأس المال العامل</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>الربط البنكي المباشر (Bank Feeds/Open Banking) وبوابات الدفع</td><td class="us"><span class="mk m">❌</span><span class="note">استيراد يدوي</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="6">المشتريات وسلسلة الإمداد</td></tr>
+        <tr><td>طلبات المواد · عروض الأسعار · أوامر الشراء · الاستلام (GRN) · فواتير الموردين · المطابقة الثلاثية</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>بوابة موردين · المزادات العكسية (e-Sourcing)</td><td class="us"><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td></tr>
+
+        <tr class="area"><td colspan="6">المخزون والمخازن</td></tr>
+        <tr><td>الأصناف · الحركات · التقارير · المخازن · التقييم · حد إعادة الطلب</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>الباركود · الدفعات/تواريخ الانتهاء · MRP</td><td class="us"><span class="mk p">🟡</span><span class="note">باركود+ملصق QR·دفعات/انتهاء·بلا MRP/تسلسلي</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="6">المبيعات وعلاقات العملاء</td></tr>
+        <tr><td>العملاء · فواتير المبيعات · المتحصلات · CRM (خط أنابيب الفرص)</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>المتجر الإلكتروني · أتمتة التسويق · بوابة العميل</td><td class="us"><span class="mk p">🟡</span><span class="note">تقرير مشاركة</span></td><td><span class="mk g">✅</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="6">الموارد البشرية والرواتب</td></tr>
+        <tr><td>الموظفون · الحضور · الرواتب · الإجازات · الأداء · السلف · نهاية الخدمة · تنبيهات المستندات</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk p">🟡</span><span class="note">HR أساسي</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>حماية الأجور WPS/مدد · GOSI · التوظيف (ATS) · الخدمة الذاتية للموظف</td><td class="us"><span class="mk p">🟡</span><span class="note">ملف WPS مُنجز · GOSI/ATS لاحقاً</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+
+        <tr class="area"><td colspan="6">المشاريع والأصول</td></tr>
+        <tr><td>إدارة مشاريع المقاولات (EVM · مستخلصات · ميدان · CPM · Takeoff)</td><td class="us"><span class="mk g">✅</span><span class="note">عميق — انظر المستند المنفصل</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk g">✅</span><span class="note">Primavera</span></td><td><span class="mk p">🟡</span></td></tr>
+        <tr><td>الأصول الثابتة (سجل · إهلاك تلقائي · صيانة · تخريد · لوحة)</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+
+        <tr class="area"><td colspan="6">التحليلات والمنصّة</td></tr>
+        <tr><td>لوحات القيادة والتحليلات (استوديو تحليل · لوحات تنفيذية)</td><td class="us"><span class="mk p">🟡</span><span class="note">قوي لكن بلا BI ذاتي كامل</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>تعدّد المستأجرين والأمان + عزل البيانات</td><td class="us"><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>تطبيق جوال + العمل دون اتصال</td><td class="us"><span class="mk p">🟡</span><span class="note">PWA</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>التكاملات · API عام · Webhooks · بوابات دفع</td><td class="us"><span class="mk m">❌</span><span class="note">فجوة منصّية</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>الإشعارات الخارجية (بريد · SMS · واتساب)</td><td class="us"><span class="mk p">🟡</span><span class="note">بريد EmailJS</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>العربية / RTL + التوطين السعودي</td><td class="us"><span class="mk g">✅</span><span class="note">حصننا</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td><td><span class="mk p">🟡</span></td></tr>
+        <tr><td>التصنيع/MRP · نقاط البيع (POS)</td><td class="us"><span class="mk n">➖</span><span class="note">غير مطلوب للمقاولات</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td><td><span class="mk g">✅</span></td></tr>
+        <tr><td>التكلفة / سهولة التبنّي للمنشأة المتوسطة</td><td class="us"><span class="mk g">✅</span><span class="note">منخفضة</span></td><td><span class="mk p">🟡</span></td><td><span class="mk m">❌</span><span class="note">مرتفعة</span></td><td><span class="mk m">❌</span></td><td><span class="mk p">🟡</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>لكل قسم: ما لدينا · وما ينقصنا</h2>
+    <div class="cards">
+      <div class="mod">
+        <h3>💰 المالية والمحاسبة</h3><span class="verdict strong">قوي — مستوى Oracle</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">دفتر عام بقيد مزدوج · قيود عكسية ومتكررة وقوالب</li>
+          <li class="have">تتبّع هرمي Drill-down · تحليل حسابات · سير اعتماد القيود</li>
+          <li class="have">قوائم مالية IFRS (دخل/مركز/تدفقات/حقوق ملكية) + IFRS 18</li>
+          <li class="have">مولّد قوائم مخصّص · موازنات شهرية · تحليل انحراف · نسب وAltman</li>
+          <li class="have">إقفال الفترات والسنة · سجل تدقيق</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="gap">توحيد شركات متعددة (Consolidation)</li>
+          <li class="gap">تعدّد دفاتر/معايير (Multi-book / Multi-GAAP)</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <h3>🧾 الضرائب والامتثال</h3><span class="verdict strong">تميّز — يفوق العالمية محلياً</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">إقرار ضريبة القيمة المضافة (شهري/ربعي/سنوي)</li>
+          <li class="have">ضريبة الاستقطاع WHT + تقرير ZATCA · الزكاة · ضريبة الدخل</li>
+          <li class="have">مركز ضرائب موحّد + تقويم مواعيد الهيئة</li>
+          <li class="have">فوترة ZATCA المرحلة 1 (QR/عرض التجزئة)</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="gap">ZATCA المرحلة 2 (الربط الفوري) — يحتاج باكند Blaze</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <h3>🏦 الخزينة والبنوك</h3><span class="verdict strong">قوي</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">تسوية بنكية · خزينة (ضمانات/شيكات آجلة/محتجزات) بتنبيهات</li>
+          <li class="have">دفعات مجمّعة للموردين · توقّع التدفق النقدي · رأس المال العامل (DSO/DPO/DIO)</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="gap">ربط بنكي مباشر (Bank Feeds) واستيراد كشوف آلي</li>
+          <li class="gap">بوابة دفع / توليد ملفات دفع بنكية — يحتاج باكند</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <h3>🛒 المشتريات والمخزون</h3><span class="verdict strong">قوي</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">دورة كاملة: طلب مواد → عرض أسعار → أمر شراء → استلام → فاتورة (مطابقة ثلاثية)</li>
+          <li class="have">كتالوج مواد وموردين · مخازن · حركات · تقارير · تقييم مخزون</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="have">باركود + ملصق QR للأصناف · دفعات وتواريخ انتهاء + تنبيهات · حد إعادة الطلب · جرد فعلي — <b>موجود</b></li>
+          <li class="gap">الأرقام التسلسلية (Serial) · MRP وتخطيط الطلب · بوابة موردين</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <h3>👥 الموارد البشرية والرواتب</h3><span class="verdict strong">قوي</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">موظفون · حضور · رواتب · إجازات · أداء · سلف · نهاية خدمة (EOSB)</li>
+          <li class="have">تنبيهات انتهاء المستندات · تحليل تكلفة العمالة · لوحة رواتب</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="have">ملف حماية الأجور WPS/مِدد — <b>مُنجز يوليو</b> (تصدير من مسير معتمد)</li>
+          <li class="gap">تكامل GOSI المباشر (السعودية)</li>
+          <li class="gap">التوظيف (ATS) · بوابة الخدمة الذاتية للموظف · التدريب</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <h3>📁 المشاريع والأصول</h3><span class="verdict strong">تميّز — عميق جداً</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">مشاريع مقاولات: EVM · مستخلصات · عقود باطن · تعاون ميداني · CPM · Takeoff</li>
+          <li class="have">أصول ثابتة: سجل · إهلاك تلقائي · صيانة · تخريد · لوحة تحليلات</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="gap">BIM/كشف تعارض (حصن Autodesk) · تسوية موارد آلية (P6)</li>
+          <li class="gap">محاسبة الإيجارات IFRS 16 للأصول (تحسين)</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <h3>📊 التحليلات والمنصّة</h3><span class="verdict ok">جزئي — فجوات منصّية</span>
+        <div class="grp">✓ لدينا</div><ul>
+          <li class="have">استوديو تحليل (Looker-style) · لوحات تنفيذية · تعدّد مستأجرين وأمان</li>
+          <li class="have">PWA (تثبيت/دون اتصال) · نسخ احتياطي JSON · رفع ملفات (Cloudinary) · بريد EmailJS</li>
+          <li class="have">عربي/RTL أصيل — ميزة لا توفّرها العالمية بنفس العمق</li>
+        </ul>
+        <div class="grp">◻ ينقصنا</div><ul>
+          <li class="gap">API عام · Webhooks · تكاملات · بوابة دفع (كلها تحتاج باكند)</li>
+          <li class="gap">إشعارات SMS/واتساب · تطبيق جوال أصيل · SSO/2FA</li>
+          <li class="gap">BI ذاتي كامل + جدولة تقارير خارجية</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="bar"></span>أهم 5 فجوات عرضية — مرتّبة</h2>
+    <div class="gaps">
+      <div class="gapbox"><h4>1. المنصّة: تكاملات · API · بوابات دفع · إشعارات خارجية</h4><p>الفجوة الأكبر والوحيدة ذات الأثر التجاري المباشر. معظمها مؤجّل بقرار معماري (Firebase مجاني بلا Blaze). الحل التدريجي: EmailJS (منجز) → بوّابة دفع محلية (Tap/HyperPay) + API عبر Functions عند الترقية لـ Blaze.</p></div>
+      <div class="gapbox" style="border-right-color:var(--good)"><h4>2. رواتب الامتثال السعودي: WPS/مدد ✅ + GOSI ◻︎</h4><p><b>ملف حماية الأجور (WPS/مِدد) أُنجز</b> — يُصدَّر CSV من أي مسير معتمد بحقول المنشأة والموظفين (هوية/آيبان/أساسي/سكن/بدلات/استقطاعات/صافي) مع تنبيه للناقص. المتبقّي: تكامل GOSI المباشر (يفيد منه باكند لاحقاً).</p></div>
+      <div class="gapbox"><h4>3. المخزون المتقدّم: باركود · دفعات/تسلسلي · MRP</h4><p>مهم للمقاولين ذوي المستودعات الكبيرة. الباركود والدفعات قابلان للتنفيذ ببيانات فقط؛ MRP الكامل أثقل.</p></div>
+      <div class="gapbox"><h4>4. توحيد الشركات (Multi-entity Consolidation)</h4><p>لمجموعات المقاولات متعددة الكيانات. بنيتنا متعدّدة المستأجرين (عزل) لا موحّدة؛ إضافة تقرير موحّد عبر كيانات ممكنة لكنها متوسطة الجهد.</p></div>
+      <div class="gapbox"><h4>5. الجوال الأصيل والخدمة الذاتية والبوابات</h4><p>PWA يغطّي الجزء الأكبر؛ التطبيق الأصيل وبوابات الموظف/العميل/المورد بمصادقة تحتاج باكند — تأتي بعد بوابة الدفع.</p></div>
+    </div>
+
+    <div class="callout">
+      <b>التوصية الاستراتيجية:</b> وظيفياً، بُنيان <b>يضاهي Odoo ويقترب من SAP/Oracle/Dynamics</b> لاحتياجات المقاول السعودي المتوسط، <b>ويتفوّق عليها جميعاً في التوطين</b> (عربي + ZATCA + زكاة/WHT + عمق المقاولات). لا نطارد اتساعها المؤسسي (تصنيع/POS/توحيد ضخم) — فهو خارج هدفنا. الاستثمار الأعلى عائداً الآن هو <b>سدّ الفجوة المنصّية</b>: بوابة دفع محلية + WPS/مدد + إشعارات SMS/واتساب — لأنها تحوّل النظام من «قوي وظيفياً» إلى «جاهز تجارياً للبيع كخدمة» في السوق السعودي.
+    </div>
+  </section>
+
+  <footer>تحليل داخلي لتطوير المنتج · نظام بُنيان للمقاولات · يوليو 2026. أسماء الأنظمة الأخرى علاماتها لأصحابها وتُذكر لأغراض المقارنة فقط.</footer>
+</div>
