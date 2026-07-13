@@ -1152,6 +1152,7 @@ window.opsRenderList = function () {
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn" onclick="opsOpenTenant('${e.tid}')" title="فتح نظام الشركة للعرض (دعم — قراءة فقط)" style="background:#8e44ad;color:#fff">👁️ افتح</button>
+                <button class="btn" onclick="opsOpenModules('${e.tid}')" title="التحكم في أقسام/باقة هذه الشركة" style="background:#16679a;color:#fff">🧩 الأقسام</button>
                 <button class="btn" onclick="opsOpenErrorLog('${e.tid}')" title="صفحة سجل أخطاء هذه الشركة" style="background:#c0392b;color:#fff">🐞 الأخطاء</button>
                 <button class="btn" onclick="opsSetTrial('${e.tid}')" title="تحديد مدة الفترة التجريبية يدوياً" style="background:#f39c12;color:#fff">🎁 تجربة</button>
                 <button class="btn b-g" onclick="opsActivate('${e.tid}',12)" title="تفعيل اشتراك سنة">✅ تفعيل سنة</button>
@@ -1352,6 +1353,36 @@ window.opsSetTrial = async function (tid) {
         renderOperatorConsole();
     } catch (e) { toast('❌ ' + (e.message || e), 'er'); }
 };
+
+// 🧩 محرّر أقسام/باقة الشركة (للمالك) — يكتب tenants/{tid}/meta/modules
+window.opsOpenModules = function (tid) {
+    const meta = (window.__opsTenants && window.__opsTenants[tid] && window.__opsTenants[tid].meta) || {};
+    const mods = { ...MODULE_DEFAULTS, ...(meta.modules || {}) };
+    let ov = document.getElementById('opsModModal');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'opsModModal'; ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px'; document.body.appendChild(ov); }
+    const preset = (on) => Object.keys(MODULE_DEFS).map(k => `document.getElementById('opsmod_${k}').checked=${on}`).join(';');
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:22px" dir="rtl">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0;color:#16679a;font-size:18px">🧩 أقسام الشركة</h3><button onclick="document.getElementById('opsModModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <div style="font-size:12.5px;color:#666;margin-bottom:12px">🏢 <b>${(meta.companyName || tid)}</b> — فعّل الأقسام المشمولة في باقة هذه الشركة. المعطّلة تختفي من قائمتها ولا يمكن فتحها.</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn" onclick="${preset('true')}" style="background:#eafaf1;color:#1e8449;font-weight:700;font-size:12px">✓ الكل</button><button class="btn" onclick="${preset('false')}" style="background:#fdecea;color:#c0392b;font-weight:700;font-size:12px">✗ الكل</button>
+        <button class="btn" onclick="document.getElementById('opsmod_hr').checked=true;document.getElementById('opsmod_projects').checked=true;${Object.keys(MODULE_DEFS).filter(k=>k!=='hr'&&k!=='projects').map(k=>`document.getElementById('opsmod_${k}').checked=false`).join(';')}" style="background:#eef5fb;color:#2d6a9f;font-weight:700;font-size:12px">📦 باقة HR + مشاريع</button></div>
+        <div style="display:grid;grid-template-columns:1fr;gap:9px;margin-bottom:16px">
+            ${Object.entries(MODULE_DEFS).map(([k, d]) => `<label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #d0d7e0;border-radius:9px;padding:11px 13px;cursor:pointer;font-size:13.5px;font-weight:600;color:#334"><input type="checkbox" id="opsmod_${k}" ${mods[k] !== false ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer"> ${d.label}</label>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px"><button class="btn b-g" onclick="opsSaveModules('${tid}')" style="flex:1;font-weight:800">💾 حفظ باقة الشركة</button><button class="btn" onclick="document.getElementById('opsModModal').remove()" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+};
+window.opsSaveModules = async function (tid) {
+    const data = {}; Object.keys(MODULE_DEFS).forEach(k => { data[k] = !!document.getElementById('opsmod_' + k)?.checked; });
+    try {
+        await update(_rawRef(db, `tenants/${tid}/meta`), { modules: data });
+        if (window.__opsTenants && window.__opsTenants[tid]) { window.__opsTenants[tid].meta = { ...(window.__opsTenants[tid].meta || {}), modules: data }; }
+        const en = Object.entries(data).filter(([, v]) => v).length;
+        toast(`✓ حُفظت الباقة (${en}/${Object.keys(MODULE_DEFS).length} قسم مُفعّل)`, 'ok');
+        const m = document.getElementById('opsModModal'); if (m) m.remove();
+    } catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+};
+
 // 👁️ يفتح المالك نظام شركة للعرض (دعم فنّي) — قراءة فقط. صلاحيات الواجهة admin لإظهار كل الأقسام،
 // لكن أي كتابة محظورة (واجهةً عبر _blockWriteIfSupport، وخادماً لعدم وجود دور للمالك في الشركة).
 window.opsOpenTenant = function (tid) {
@@ -1465,7 +1496,7 @@ onAuthStateChanged(auth, async fbU => {
             }
             // 🏢 اقرأ اسم الشركة (المستأجر) لعرضه بوضوح في الواجهة
             let meta = {};
-            try { const mSn = await get(_rawRef(db, `tenants/${tid}/meta`)); meta = mSn.exists() ? mSn.val() : {}; window.currentTenantName = meta.companyName || ''; window.currentTenantMeta = meta; }
+            try { const mSn = await get(_rawRef(db, `tenants/${tid}/meta`)); meta = mSn.exists() ? mSn.val() : {}; window.currentTenantName = meta.companyName || ''; window.currentTenantMeta = meta; window.appModules = { ...MODULE_DEFAULTS, ...(meta.modules || {}) }; }
             catch (e) { window.currentTenantName = ''; }
             // 💳 تحقّق من اشتراك الشركة (تجربة ضمنية 14 يوم أو اشتراك يحدّده المالك)
             const subState = tenantSubState(meta);
@@ -1667,6 +1698,8 @@ function initApp() {
 
     if (myP?.role === 'admin') { $('adSec').style.display = 'block'; $('n-us').style.display = 'flex'; if ($('n-perms')) $('n-perms').style.display = 'flex'; if ($('n-errlog')) $('n-errlog').style.display = 'flex'; if ($('n-onboard')) $('n-onboard').style.display = 'flex'; }
     if (can('add_transaction')) { const el = $('bATr'); if (el) el.style.display = 'inline-flex'; }
+    // 🧩 باقة العميل (يتحكم بها المالك من لوحة المشغّل) — تُخفي الأقسام غير المفعّلة بعد إخفاء الصلاحيات
+    if (typeof applyModuleVisibility === 'function') applyModuleVisibility();
     // bASp is now rendered dynamically inside renderSpL() — no static element
     if (myP?.role === 'admin') $('bCA').style.display = 'inline-flex';
 
@@ -2133,6 +2166,8 @@ window.nav = function (pg, el) {
     const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', recruitment: 'view_employees', disciplinary: 'view_employees', orgchart: 'view_employees', shifts: 'view_employees', leavepolicies: 'view_leaves' };
     if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const p = pm[pg]; if (p && !can(p)) { toast('ليس لديك صلاحية', 'er'); return }
+    // 🧩 حارس الباقة: امنع فتح صفحة تابعة لوحدة غير مُفعّلة في باقة العميل
+    if (typeof isPageModuleEnabled === 'function' && !isPageModuleEnabled(pg)) { toast('هذا القسم غير مُفعّل في باقتك — تواصل مع مزوّد الخدمة', 'er'); return }
 
     // 🔙 سجلّ التنقل — لإظهار زر "رجوع" للصفحة السابقة من أي مكان
     const curActive = document.querySelector('.pg.act');
@@ -4334,6 +4369,64 @@ function loadCfgUI() {
     if ($('sJrnApprovalEnabled')) $('sJrnApprovalEnabled').checked = !!ja.enabled;
     if ($('sJrnApprovalThreshold')) $('sJrnApprovalThreshold').value = ja.threshold || '';
 }
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   🧩  [MODULES]  مفاتيح الوحدات (باقات) — تفعيل/إخفاء أقسام كاملة لكل عميل    ║
+// ║   يُخزَّن في ledger/settings/modules (يُحدَّد للمدير). يُخفي مجموعات القائمة.   ║
+// ║   الافتراضي: كل الوحدات مُفعّلة — فلا يتغيّر سلوك العملاء الحاليين.            ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const MODULE_DEFS = {
+    hr:          { label: '👷 الموارد البشرية', bodies: ['grpEmp'] },
+    projects:    { label: '📁 المشاريع والمقاولون', bodies: ['grpProjectsBody', 'grpSubcBody'] },
+    procurement: { label: '🛒 المشتريات والموردون', bodies: ['grpProcurementBody'] },
+    accounting:  { label: '💰 المحاسبة والتحليل المالي', bodies: ['grpAccountingBody', 'grpFinAnalysisBody'] },
+    sales:       { label: '🧾 المبيعات وإدارة العملاء (CRM)', bodies: ['grpSalesBody'] },
+    inventory:   { label: '📦 المخزون والمخازن', bodies: ['grpInventoryBody'] },
+    assets:      { label: '🏭 الأصول الثابتة', bodies: ['grpAssetsBody'] },
+    study:       { label: '📚 أدوات الدراسة والاختبارات (CMA)', bodies: ['grpStudyBody', 'grpExamsBody'] }
+};
+const MODULE_DEFAULTS = Object.fromEntries(Object.keys(MODULE_DEFS).map(k => [k, true]));
+window.appModules = { ...MODULE_DEFAULTS };
+
+// إخفاء مجموعات القائمة للوحدات المعطّلة فقط (لا نُظهر شيئاً حتى لا نتعارض مع إخفاء الصلاحيات)
+// تُخفي مجموعات الوحدات المعطّلة في الباقة للجميع (الباقة يحدّدها المالك، وتُفرَض حتى على مدير العميل).
+// لا تُظهر شيئاً — الإظهار يبقى محكوماً بإخفاء الصلاحيات لكل مستخدم.
+function applyModuleVisibility() {
+    const mods = window.appModules || MODULE_DEFAULTS;
+    Object.entries(MODULE_DEFS).forEach(([key, def]) => {
+        if (mods[key] !== false) return; // مُفعّلة → لا تلمسها
+        def.bodies.forEach(bid => {
+            const body = document.getElementById(bid); if (!body) return;
+            const grp = body.closest('.sb-grp'); if (!grp) return;
+            grp.style.display = 'none';
+            const prev = grp.previousElementSibling;
+            if (prev && prev.classList.contains('sb-sec')) prev.style.display = 'none';
+        });
+    });
+}
+window.applyModuleVisibility = applyModuleVisibility;
+
+// خريطة الصفحة → الوحدة (تُبنى مرة من عناصر التنقّل داخل مجموعات كل وحدة)
+function buildPageModuleMap() {
+    const map = {};
+    Object.entries(MODULE_DEFS).forEach(([key, def]) => {
+        def.bodies.forEach(bid => {
+            const body = document.getElementById(bid); if (!body) return;
+            body.querySelectorAll('[onclick*="nav("]').forEach(el => {
+                const m = String(el.getAttribute('onclick') || '').match(/nav\('([^']+)'/);
+                if (m) map[m[1]] = key;
+            });
+        });
+    });
+    return map;
+}
+// حارس التنقّل: يمنع فتح صفحة تابعة لوحدة معطّلة (لغير المدير) من أي مسار
+window.isPageModuleEnabled = function (pg) {
+    if (!window._pageModuleMap) window._pageModuleMap = buildPageModuleMap();
+    const mod = window._pageModuleMap[pg];
+    if (!mod) return true; // صفحة غير تابعة لوحدة (رئيسية/إدارة) — مسموحة دائماً
+    return (window.appModules || MODULE_DEFAULTS)[mod] !== false;
+};
 
 window.updProfile = async function () {
     const nm = $('myNm').value.trim(), np = $('myPs').value;

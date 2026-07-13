@@ -30,6 +30,9 @@
           },
           "accessUntil": {
             ".write": "auth != null && root.child('operators').child(auth.uid).val() === true"
+          },
+          "modules": {
+            ".write": "auth != null && root.child('operators').child(auth.uid).val() === true"
           }
         },
 
