@@ -320,6 +320,7 @@
                         <div class="sb-grp-body" id="grpEmp">
                             <div class="sb-it sub" id="n-hrd"       onclick="nav('hrdashboard',this)"     style="border-right:3px solid #16a085"><span class="ic">📊</span><span>لوحة تحكم HR</span></div>
                             <div class="sb-it sub" id="n-em"        onclick="nav('employees',this)"><span class="ic">📇</span><span>الموظفون</span></div>
+                            <div class="sb-it sub" id="n-recruit"   onclick="nav('recruitment',this)"><span class="ic">🧲</span><span>التوظيف والتعيين</span></div>
                             <div class="sb-it sub" id="n-dp"        onclick="nav('departments',this)"><span class="ic">🏢</span><span>الإدارات والأقسام</span></div>
                             <div class="sb-it sub" id="n-at"        onclick="nav('attendance',this)"><span class="ic">🕐</span><span>الحضور والانصراف</span></div>
                             <div style="height:1px;background:#f0f0f0;margin:4px 10px"></div>
@@ -331,6 +332,8 @@
                             <div class="sb-it sub" id="n-perm"      onclick="nav('permissions',this)"><span class="ic">🕘</span><span>الأذونات والاستئذان</span></div>
                             <div class="sb-it sub" id="n-ln"        onclick="nav('loans',this)"><span class="ic">💳</span><span>السلف والقروض</span></div>
                             <div class="sb-it sub" id="n-pf"        onclick="nav('performance',this)"><span class="ic">⭐</span><span>تقييمات الأداء</span></div>
+                            <div class="sb-it sub" id="n-disc"      onclick="nav('disciplinary',this)"><span class="ic">⚖️</span><span>الجزاءات والإنذارات</span></div>
+                            <div class="sb-it sub" id="n-org"       onclick="nav('orgchart',this)"><span class="ic">🏛️</span><span>الهيكل التنظيمي</span></div>
                             <div class="sb-it sub" id="n-da"        onclick="nav('docalerts',this)"><span class="ic">⏰</span><span>تنبيهات المستندات</span></div>
                             <div class="sb-it sub" id="n-empstmt"   onclick="nav('empstatement',this)"><span class="ic">📋</span><span>كشف حساب الموظف</span></div>
                             <div class="sb-it sub" id="n-hrg"       onclick="nav('hrguide',this)"        style="color:#f39c12;border-right:2px solid #f39c12"><span class="ic">📖</span><span>دليل الاستخدام</span></div>
@@ -1279,6 +1282,7 @@
                                 <button class="btn" style="background:#c0392b;color:white" onclick="exportEmpsToPdf()">📄 تصدير PDF</button>
                                 <button class="btn b-b" onclick="downloadEmpTemplate()">⬇️ تحميل قالب فارغ</button>
                                 <button class="btn" style="background:#8e44ad;color:white" onclick="openEmpImportDialog()">📥 استيراد من Excel</button>
+                                <button class="btn" style="background:#16679a;color:white" onclick="openGosiBulk()">🏛️ احتساب GOSI للجميع</button>
                                 <input type="file" id="empImportFile" accept=".xlsx,.xls" style="display:none" onchange="handleEmpImport(this)">
                             </div>
                         </div>
@@ -13125,6 +13129,15 @@
                     <!-- المحتوى يُولّد ديناميكياً من renderWorkload() في timesheets.js -->
                 </div>
 
+                <!-- PAGE: RECRUITMENT (التوظيف والتعيين) — يُولّد ديناميكياً من renderRecruitment() في recruitment.js -->
+                <div class="pg" id="pg-recruitment"></div>
+
+                <!-- PAGE: DISCIPLINARY (الجزاءات والإنذارات) — hr-extra.js -->
+                <div class="pg" id="pg-disciplinary"></div>
+
+                <!-- PAGE: ORG CHART (الهيكل التنظيمي) — hr-extra.js -->
+                <div class="pg" id="pg-orgchart"></div>
+
                 <!-- PAGE: INDIRECT COSTS (إهلاك، إيجارات... وتوزيعها على المشاريع) -->
                 <div class="pg" id="pg-indirectcosts">
                     <!-- المحتوى يُولّد ديناميكياً من renderIndirectCosts() في accounting.js -->
@@ -15220,6 +15233,48 @@
         </div>
     </div>
 
+    <!-- 🏛️ الاحتساب الجماعي للتأمينات الاجتماعية (GOSI) -->
+    <div class="ov" id="ovGosiBulk">
+        <div class="modal" style="max-width:900px">
+            <div class="m-tl">🏛️ احتساب التأمينات الاجتماعية (GOSI) لكل الموظفين</div>
+            <div style="background:#eef5fb;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#16679a;line-height:1.7">
+                أساس الاشتراك = <b>الراتب الأساسي + بدل السكن</b> (بحدّ أدنى/أقصى). سعودي: تقاعد + ساند + أخطار مهنية. غير سعودي: أخطار مهنية على الشركة فقط.
+                <br>النسبة المحفوظة لكل موظف تُحسب <b>مكافئةً للأساسي</b> لتُعطي المبلغ النظامي الصحيح داخل معادلة المسير الحالية (قد تختلف عن 9.75% إن وُجد بدل سكن).
+            </div>
+            <div class="fgr" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-bottom:6px">
+                <div class="fg"><label>حصة الموظف % (سعودي)</label><input type="number" id="gbEmpRate" value="9.75" step="0.01" oninput="renderGosiPreview()"></div>
+                <div class="fg"><label>حصة الشركة % (سعودي)</label><input type="number" id="gbCompRate" value="11.75" step="0.01" oninput="renderGosiPreview()"></div>
+                <div class="fg"><label>حصة الشركة % (غير سعودي)</label><input type="number" id="gbNonSaudiRate" value="2" step="0.01" oninput="renderGosiPreview()"></div>
+                <div class="fg"><label>حد أدنى للأساس</label><input type="number" id="gbMinBase" value="1500" step="1" oninput="renderGosiPreview()"></div>
+                <div class="fg"><label>حد أقصى للأساس</label><input type="number" id="gbMaxBase" value="45000" step="1" oninput="renderGosiPreview()"></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" id="gbOnlyActive" checked onchange="renderGosiPreview()"> الموظفون النشطون فقط
+            </label>
+            <div style="max-height:340px;overflow:auto;border:1px solid #eee;border-radius:8px">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead style="position:sticky;top:0;background:#f4f7fa;z-index:1">
+                        <tr style="text-align:right">
+                            <th style="padding:7px 8px">الموظف</th>
+                            <th style="padding:7px 8px;text-align:center">الجنسية</th>
+                            <th style="padding:7px 8px;text-align:left">الأساسي</th>
+                            <th style="padding:7px 8px;text-align:left">أساس الاشتراك</th>
+                            <th style="padding:7px 8px;text-align:left">خصم موظف</th>
+                            <th style="padding:7px 8px;text-align:left">حصة شركة</th>
+                            <th style="padding:7px 8px;text-align:center">نسبة الموظف (قبل←بعد)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gbPreviewBody"></tbody>
+                </table>
+            </div>
+            <div id="gbTotals" style="margin-top:10px;font-size:12px;color:#555"></div>
+            <div class="m-act">
+                <button class="btn-s" onclick="applyGosiBulk()">💾 تطبيق وحفظ النِسَب</button>
+                <button class="btn-c" onclick="cov('ovGosiBulk')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 🧾 محرر مطالبة مصروف موظف -->
     <div class="ov" id="ovEmpExp">
         <div class="modal" style="max-width:560px">
@@ -15721,6 +15776,10 @@
                     </div>
                     <div class="fg"><label>التأمينات الاجتماعية - حصة الموظف %</label><input type="number"
                             id="eSocialEmp" value="0" step="0.01" placeholder="مثال: 9.75" oninput="calcEmpSummary()">
+                    </div>
+                    <div class="fg" style="grid-column:1/-1;align-self:end">
+                        <button type="button" class="btn b-b" style="width:100%" onclick="autoFillGosiEmp()">🏛️ احتساب GOSI تلقائياً</button>
+                        <div style="font-size:11px;color:#888;margin-top:4px">يملأ النسبتين وفق الجنسية على أساس (الأساسي + السكن). النسبة الظاهرة مكافئة للأساسي لتُعطي المبلغ النظامي الصحيح.</div>
                     </div>
                     <div class="fg"><label>التأمين الطبي - تكلفة شهرية (ريال)</label><input type="number" id="eMedIns"
                             value="0" step="0.01" oninput="calcEmpSummary()"></div>
@@ -19289,13 +19348,15 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260713-hrdocs3"></script>
+    <script type="module" src="app.js?v=20260713-gosi1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260712-invlbl1"></script>
     <script defer src="tasks.js?v=20260707-bunyan"></script>
     <script defer src="crm.js?v=20260627-5"></script>
-    <script defer src="timesheets.js?v=20260711-field6"></script>
+    <script defer src="timesheets.js?v=20260713-attgen1"></script>
+    <script defer src="recruitment.js?v=20260713-rec1"></script>
+    <script defer src="hr-extra.js?v=20260713-hrx1"></script>
     <script defer src="presentation.js?v=20260627-pres3"></script>
     <script defer src="finmodels.js?v=20260707-bunyan"></script>
     <!-- 📁 وحدة ملف المشروع المتكامل -->

@@ -36,6 +36,7 @@
 // │                                                                          │
 // │   👥 [HR MODULE]  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━        │
 // │       [HR1]  Employees Core                                ~1584        │
+// │       [HR-GOSI] GOSI Engine (auto social insurance)        ~4980        │
 // │       [HR2]  Monthly Deductions                            ~2779        │
 // │       [HR3]  Loans & Advances                              ~2847        │
 // │       [HR4]  Payroll                                       ~3100        │
@@ -297,6 +298,10 @@ function buildRefs() {
     guarantees: ref(db, 'ledger/guarantees'),        // 🛡️ خطابات الضمان
     cheques: ref(db, 'ledger/cheques'),              // 🧾 الشيكات والشيكات الآجلة (PDC)
     retentions: ref(db, 'ledger/retentions'),        // 🔒 محتجزات الضمان (من العملاء/لمقاولي الباطن)
+    jobPostings: ref(db, 'ledger/jobPostings'),      // 🧲 الشواغر { key:{ title, dept, projectId, count, type, location, status, description, requirements, postedDate } }
+    candidates: ref(db, 'ledger/candidates'),        // 🧑‍💼 المرشّحون { key:{ name, jobKey, phone, email, nationality, source, expectedSalary, stage, rating, notes, cvUrl, appliedDate, interviews:[], hiredEmpKey } }
+    onboardings: ref(db, 'ledger/onboardings'),      // 📋 قوائم التعيين/إخلاء الطرف { empKey:{ type:'onboarding'|'offboarding', startDate, status, items:{id:{label,done,doneAt,note}} } }
+    disciplinary: ref(db, 'ledger/disciplinary'),    // ⚖️ الجزاءات والإنذارات { key:{ empKey, empName, date, type, description, action, penaltyAmount, penaltyDays, status, issuedBy, acknowledged } }
     con: ref(db, '.info/connected')
     };
     window.R = R;
@@ -2102,7 +2107,7 @@ window.renderApprovalsInbox = function () {
 
 // ── Navigate ──────────────────────────────
 window.nav = function (pg, el) {
-    const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects' };
+    const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', recruitment: 'view_employees', disciplinary: 'view_employees', orgchart: 'view_employees' };
     if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const p = pm[pg]; if (p && !can(p)) { toast('ليس لديك صلاحية', 'er'); return }
 
@@ -2139,7 +2144,7 @@ window.nav = function (pg, el) {
         }
     }
 
-    const tt = { dashboard: ['📊 لوحة التحكم', 'نظرة عامة على النظام'], tasks: ['🗓️ المهام والتنبيهات', 'مهام رئيسية وفرعية + تذكيرات مجدولة (مرة/يومي/أسبوعي/شهري) تظهر داخل البرنامج'], approvalsinbox: ['✅ صندوق الموافقات', 'كل المهام والطلبات بانتظار قرارك في مكان واحد'], execdashboard: ['🏛️ اللوحة التنفيذية', 'مؤشرات شاملة: مالية، مشاريع، وموارد بشرية في صفحة واحدة'], statement: ['📋 كشف حساب الموردين', 'الحركات المالية مع الموردين'], custstatement: ['📋 كشف حساب العملاء', 'الفواتير والمتحصلات لكل عميل'], suppliers: ['🏢 الموردون', 'إدارة بيانات الموردين'], suppliers_catalog: ['🏭 كتالوج الموردين', 'كتالوج موردين تفصيلي مع تقييمات وشروط'], materials: ['📦 كتالوج المواد', 'كتالوج المواد المركزي مع أسعار الموردين'], matrequests: ['📨 طلبات المواد', 'طلبات المواد من المواقع والموافقات'], quotations: ['💼 عروض الأسعار', 'إدارة عروض الموردين ومقارنتها'], purchaseorders: ['📄 أوامر الشراء', 'إصدار واعتماد أوامر الشراء'], grn: ['📥 استلام البضاعة', 'تسجيل استلام البضاعة من الموردين'], invoices: ['🧾 فواتير الموردين', 'تسجيل ومطابقة فواتير الموردين'], employees: ['👷 الموظفون', 'إدارة بيانات الموظفين'], departments: ['🏢 الإدارات والأقسام', 'إدارة الإدارات والأقسام الوظيفية'], projects: ['📁 المشاريع', 'إدارة المشاريع والموظفين'], prjtasks: ['✅ متابعة المهام', 'كل مهام المشاريع في مكان واحد — حسب المشروع، المسؤول، الأولوية'], users: ['👥 المستخدمون', 'الصلاحيات والأدوار'], perms: ['🔐 صلاحيات المستخدمين', 'مصفوفة كاملة: امنح أو امنع أي صلاحية لأي مستخدم عبر كل أقسام البرنامج'], index: ['🗂️ فهرس البرنامج', 'كل أقسام النظام في صفحة واحدة — انقر أي قسم للانتقال إليه مباشرة'], onboarding: ['🚀 إعداد البرنامج', 'خطوات سريعة لتجهيز شركتك للعمل: شجرة الحسابات، بيانات الشركة، الأرصدة الافتتاحية، المستخدمون'], settings: ['⚙️ الإعدادات', 'إعدادات النظام'], pdfexport: ['📄 تصدير PDF', 'إنشاء ملفات PDF احترافية'], attendance: ['🕐 الحضور والانصراف', 'تسجيل ومتابعة الحضور اليومي'], payroll: ['💵 مسير الرواتب', 'إنشاء واعتماد مسيرات الرواتب الشهرية'], deferredreport: ['⏸️ تقرير المُؤجَّلون', 'الموظفون الذين لم يُنشأ لهم مسير بعد — جاهز للمتابعة والسداد'], laborcostreport: ['📈 تحليل تكلفة العمالة', 'تقرير استراتيجي لتكاليف الرواتب — حسب المشروع/الإدارة/الفترة'], payrolldashboard: ['📊 لوحة تحكم الرواتب المحاسبية', 'مركز قيادة شامل: المستحقات، المدفوعات، التنبيهات، والإجراءات السريعة'], projectdetail: ['📂 ملف المشروع', 'عرض كامل لبيانات المشروع: مستخلصات، مصروفات، رواتب، بنود'], boq: ['📋 بنود العقود (BOQ)', 'إدارة بنود العقد لكل مشروع — الأساس لإنشاء المستخلصات'], progressbillings: ['📑 المستخلصات (Progress Billings)', 'إنشاء واعتماد المستخلصات الدورية للمشاريع — مع تتبع التراكمي'], loans: ['💳 السلف والقروض', 'إدارة سلف الموظفين والأقساط الشهرية'], docalerts: ['⏰ تنبيهات المستندات', 'متابعة تواريخ انتهاء مستندات الموظفين'], empstatement: ['📋 كشف حساب الموظف', 'كل بيانات الموظف في مكان واحد: العقد، الإجازات، السلف، العُهد، ونهاية الخدمة'], leaves: ['🌴 طلبات الإجازات', 'مراجعة واعتماد طلبات إجازات الموظفين'], permissions: ['🕘 الأذونات والاستئذان', 'طلبات الاستئذان بالساعة (خروج مبكر/تأخير/مأمورية) — تسجيل واعتماد ومتابعة'], performance: ['⭐ تقييمات الأداء', 'تقييم أداء الموظفين الشهري ومكافآتهم'], hrguide: ['📖 دليل الموارد البشرية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], hrdashboard: ['📊 لوحة تحكم HR', 'نظرة شاملة ومؤشرات أداء قسم الموارد البشرية'], prjdashboard: ['📊 لوحة تحكم المشاريع', 'تكاليف، ميزانية، انحرافات، وربحية المشاريع'], prjhealth: ['🚦 صحة المحفظة (EVM)', 'مصفوفة تنفيذية: مؤشرات أداء التكلفة (CPI) والجدول (SPI) وإشارات الصحة لكل مشروع — أي مشاريع متعثّرة'], prjreports: ['📈 التقارير المالية', '6 تقارير احترافية للمشاريع — تدفقات، ربحية، موردين، وأكثر'], projectcosts: ['💰 تكاليف المشاريع الشهرية', 'إدخال تكاليف المشاريع شهرياً (مواد، أجور، معدات، إلخ)'], indirectcosts: ['📊 التكاليف غير المباشرة', 'تسجيل التكاليف غير المباشرة (إهلاك، إيجارات، رواتب إدارية...) وتوزيعها على المشاريع شهرياً وسنوياً بنسب محددة'], accdashboard: ['💰 المحاسبة والإدارة المالية', 'قسم المحاسبة المتكامل — قيد البناء'], chartofaccounts: ['🌳 شجرة الحسابات', 'إدارة شجرة الحسابات المحاسبية'], costcenters: ['🎯 مراكز التكلفة', 'هيكلة مراكز التكلفة الرئيسية والفرعية — تظهر مع المشاريع في القيود والتقارير'], journalentries: ['📒 قيود اليومية', 'إدارة القيود المحاسبية اليومية بنظام القيد المزدوج'], recurringjournals: ['🔁 القيود المتكررة', 'قوالب قيود دورية (إيجارات، اشتراكات، استحقاقات) تُولّد تلقائياً كل شهر'], revrecognition: ['📐 إثبات الإيراد بنسبة الإنجاز', 'احتساب الإيراد المعترف به بطريقة نسبة الإنجاز (Cost-to-Cost) وتسوية الفوترة الزائدة/الناقصة وفق IFRS 15'], fxrevaluation: ['💱 إعادة تقييم العملات', 'إعادة تقييم أرصدة العملاء والموردين بالعملات الأجنبية بأسعار الصرف الحالية وإثبات فروق العملة غير المحققة'], cashforecast: ['💧 التدفق النقدي المتوقع', 'توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات القادمة'], finmodels: ['📊 النماذج المالية والتخطيط', 'الإيرادات المتوقعة (المستخلصات) والمصروفات والتدفقات النقدية ودفعات التحصيل والسداد — مع لوحة مجمّعة وتصدير/استيراد Excel وطباعة'], amortization: ['📆 إطفاء المصروفات المؤجلة', 'توزيع المصاريف المدفوعة مقدماً (إيجارات، تأمين، اشتراكات) على أشهرها تلقائياً بقيود إطفاء شهرية'], empexpenses: ['🧾 مصروفات الموظفين', 'تسجيل واعتماد مطالبات مصروفات الموظفين وربطها بالقيود المحاسبية'], generalledger: ['📖 دفتر الأستاذ', 'عرض حركات كل حساب مع الأرصدة الافتتاحية والختامية'], trialbalance: ['⚖️ ميزان المراجعة', 'التحقق من توازن النظام المحاسبي — كل الأرصدة في صفحة واحدة'], finstatements: ['📑 القوائم المالية', 'المركز المالي، الدخل، التدفق النقدي، التغير في حقوق الملكية + التحليل المالي والنسب'], bankrec: ['🏦 التسوية البنكية', 'مطابقة حركات البنوك في النظام مع كشف الحساب البنكي'], vatreturn: ['🧾 الإقرار الضريبي', 'احتساب ضريبة القيمة المضافة وإعداد الإقرار — شهري، ربع سنوي، سنوي، أو فترة مخصصة'], treasury: ['🛡️ الخزينة والضمانات', 'خطابات الضمان، الشيكات والآجلة (PDC)، ومحتجزات الضمان — مع تنبيهات الاستحقاق والانتهاء'], incometax: ['💰 ضريبة الدخل', 'احتساب ضريبة الدخل السنوية (20%) على حصة المستثمرين الأجانب من صافي الربح'], zakat: ['🕌 الزكاة', 'احتساب وعاء الزكاة والإقرار السنوي (2.5%) — مع قيد محاسبي تلقائي'], wht: ['🌐 ضريبة الاستقطاع', 'المبالغ المستقطعة من مدفوعات غير المقيمين — مع التقرير الشهري للهيئة ومتابعة التوريد'], closing: ['✅ قائمة الإقفال', 'خطوات منظّمة لإغلاق الفترة المحاسبية (شهري/سنوي) — مع متابعة نسبة الإنجاز'], taxcenter: ['🧮 مركز الضرائب والامتثال', 'لوحة موحّدة لكل الالتزامات الضريبية (قيمة مضافة، استقطاع، زكاة، دخل) مع تقويم مواعيد الهيئة'], glbudget: ['📊 الموازنة الشهرية الشاملة', 'موازنة 12 شهراً لكل الحسابات + تحليل الانحراف الفعلي مقابل الموازنة (Budget vs Actual)'], fsg: ['🧱 مولّد القوائم المالية', 'تصميم تقارير مالية مخصّصة بصفوف وأعمدة تحدّدها (Financial Statement Generator)'], acctanalysis: ['🔎 تحليل الحسابات', 'استعلام مرن عبر نطاق أو نوع حسابات دفعة واحدة — كل الحركات مع التتبّع والتصدير'], paymentrun: ['💸 الدفعات المجمّعة', 'سداد فواتير الموردين المستحقة دفعة واحدة — إنشاء سندات الصرف وقيودها تلقائياً'], workingcapital: ['♻️ رأس المال العامل', 'مؤشرات DSO/DPO/DIO ودورة التحويل النقدي مع اتجاه شهري'], segmentpl: ['🧭 قائمة الدخل المقارنة', 'مقارنة الربحية عبر مراكز التكلفة أو المشاريع جنباً إلى جنب'], jrntemplates: ['📋 قوالب القيود', 'قوالب جاهزة للقيود اليدوية المتكررة — تُملأ بنقرة'], periodlock: ['🔒 إقفال الفترات المحاسبية', 'منع الإضافة أو التعديل على القيود في الفترات المقفلة بعد اعتمادها'], yearclosing: ['🗓️ إقفال السنة المالية', 'ترحيل صافي الربح/الخسارة للأرباح المحتجزة، وإنشاء قيد افتتاحي للسنة الجديدة، وإقفال السنة المنتهية'], aging: ['⏳ أعمار الديون', 'تحليل أعمار ذمم العملاء والموردين حسب فترات التأخر'], auditlog: ['🕵️ سجل التدقيق', 'سجل شامل لكل العمليات الحساسة في النظام مع المستخدم والتاريخ'], customers: ['🧑‍💼 العملاء', 'إدارة بيانات العملاء وأرصدتهم وفواتيرهم'], crm: ['🤝 إدارة علاقات العملاء (CRM)', 'فرص البيع وخط الأنابيب — من العميل المحتمل حتى الإغلاق'], timesheets: ['⏱️ تسجيل الأوقات', 'تسجيل ساعات العمل على المشاريع والمهام — تكلفة عمالة فعلية دقيقة'], workload: ['👥 عبء العمل والموارد', 'توزيع المهام والساعات على الموظفين — من مشغول ومن متفرّغ ومن متجاوز طاقته'], salesinvoices: ['🧾 فواتير المبيعات', 'إصدار وإدارة فواتير المبيعات مع الربط التلقائي بالقيود'], vendors: ['🏭 الموردون (محاسبي)', 'إدارة بيانات الموردين وأرصدتهم وفواتيرهم'], purchaseinvoices: ['📋 فواتير المشتريات', 'إصدار وإدارة فواتير المشتريات مع الربط التلقائي بالقيود'], receipts: ['💵 سندات القبض', 'تسجيل المتحصلات من العملاء مع الربط التلقائي بالقيود وتحديث رصيد العميل'], payments: ['💸 سندات الصرف', 'تسجيل المدفوعات للموردين مع الربط التلقائي بالقيود وتحديث رصيد المورد'], inventory: ['📦 المخزون والأصناف', 'إدارة كتالوج الأصناف (مواد وخدمات) مع الأرصدة والحركات'], inventorymovements: ['📋 حركات المخزون', 'سجل دخول وخروج الأصناف مع الأرصدة الجارية'], inventoryreports: ['📊 تقارير المخزون', 'تقارير احترافية: الأرصدة، الحركات، تحت الحد الأدنى، التقييم'], warehouses: ['🏬 المخازن', 'إدارة المخازن الرئيسية والفرعية والربط بالمشاريع والمناطق'], accguide: ['📖 دليل المحاسبة والإدارة المالية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], invguide: ['📖 دليل المخزون والمخازن', 'شرح كامل لكل وحدة وكيفية الاستخدام'], prjguide: ['📖 دليل المشاريع', 'شرح كامل لكل وحدة وكيفية الاستخدام'], procguide: ['📖 دليل المشتريات والموردين', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assets: ['🏭 سجل الأصول الثابتة', 'الأصول والمعدات، الإهلاك التلقائي، الصيانة، والتخريد/البيع'], assetdetail: ['🏭 ملف الأصل', 'الإهلاك، النقل، الصيانة، والتخريد/البيع لهذا الأصل'], assetguide: ['📖 دليل إدارة الأصول الثابتة', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assetdashboard: ['📊 لوحة تحليلات الأصول', 'الفئات، القيمة الدفترية، الإهلاك، والأعمار'], finanalysisguide: ['📖 دليل التحليل المالي', 'شرح كل أقسام التحليل المالي: النماذج والتخطيط، التدفق النقدي، استوديو التحليل، القوائم المالية، أعمار الديون، واللوحات'] };
+    const tt = { dashboard: ['📊 لوحة التحكم', 'نظرة عامة على النظام'], tasks: ['🗓️ المهام والتنبيهات', 'مهام رئيسية وفرعية + تذكيرات مجدولة (مرة/يومي/أسبوعي/شهري) تظهر داخل البرنامج'], approvalsinbox: ['✅ صندوق الموافقات', 'كل المهام والطلبات بانتظار قرارك في مكان واحد'], execdashboard: ['🏛️ اللوحة التنفيذية', 'مؤشرات شاملة: مالية، مشاريع، وموارد بشرية في صفحة واحدة'], statement: ['📋 كشف حساب الموردين', 'الحركات المالية مع الموردين'], custstatement: ['📋 كشف حساب العملاء', 'الفواتير والمتحصلات لكل عميل'], suppliers: ['🏢 الموردون', 'إدارة بيانات الموردين'], suppliers_catalog: ['🏭 كتالوج الموردين', 'كتالوج موردين تفصيلي مع تقييمات وشروط'], materials: ['📦 كتالوج المواد', 'كتالوج المواد المركزي مع أسعار الموردين'], matrequests: ['📨 طلبات المواد', 'طلبات المواد من المواقع والموافقات'], quotations: ['💼 عروض الأسعار', 'إدارة عروض الموردين ومقارنتها'], purchaseorders: ['📄 أوامر الشراء', 'إصدار واعتماد أوامر الشراء'], grn: ['📥 استلام البضاعة', 'تسجيل استلام البضاعة من الموردين'], invoices: ['🧾 فواتير الموردين', 'تسجيل ومطابقة فواتير الموردين'], employees: ['👷 الموظفون', 'إدارة بيانات الموظفين'], recruitment: ['🧲 التوظيف والتعيين', 'الشواغر والمرشّحون ومراحل التوظيف + قوائم التعيين وإخلاء الطرف'], disciplinary: ['⚖️ الجزاءات والإنذارات', 'سجل المخالفات والإنذارات والجزاءات وفق لائحة تنظيم العمل'], orgchart: ['🏛️ الهيكل التنظيمي', 'الهيكل التنظيمي للشركة — الإدارات ومديروها والموظفون'], departments: ['🏢 الإدارات والأقسام', 'إدارة الإدارات والأقسام الوظيفية'], projects: ['📁 المشاريع', 'إدارة المشاريع والموظفين'], prjtasks: ['✅ متابعة المهام', 'كل مهام المشاريع في مكان واحد — حسب المشروع، المسؤول، الأولوية'], users: ['👥 المستخدمون', 'الصلاحيات والأدوار'], perms: ['🔐 صلاحيات المستخدمين', 'مصفوفة كاملة: امنح أو امنع أي صلاحية لأي مستخدم عبر كل أقسام البرنامج'], index: ['🗂️ فهرس البرنامج', 'كل أقسام النظام في صفحة واحدة — انقر أي قسم للانتقال إليه مباشرة'], onboarding: ['🚀 إعداد البرنامج', 'خطوات سريعة لتجهيز شركتك للعمل: شجرة الحسابات، بيانات الشركة، الأرصدة الافتتاحية، المستخدمون'], settings: ['⚙️ الإعدادات', 'إعدادات النظام'], pdfexport: ['📄 تصدير PDF', 'إنشاء ملفات PDF احترافية'], attendance: ['🕐 الحضور والانصراف', 'تسجيل ومتابعة الحضور اليومي'], payroll: ['💵 مسير الرواتب', 'إنشاء واعتماد مسيرات الرواتب الشهرية'], deferredreport: ['⏸️ تقرير المُؤجَّلون', 'الموظفون الذين لم يُنشأ لهم مسير بعد — جاهز للمتابعة والسداد'], laborcostreport: ['📈 تحليل تكلفة العمالة', 'تقرير استراتيجي لتكاليف الرواتب — حسب المشروع/الإدارة/الفترة'], payrolldashboard: ['📊 لوحة تحكم الرواتب المحاسبية', 'مركز قيادة شامل: المستحقات، المدفوعات، التنبيهات، والإجراءات السريعة'], projectdetail: ['📂 ملف المشروع', 'عرض كامل لبيانات المشروع: مستخلصات، مصروفات، رواتب، بنود'], boq: ['📋 بنود العقود (BOQ)', 'إدارة بنود العقد لكل مشروع — الأساس لإنشاء المستخلصات'], progressbillings: ['📑 المستخلصات (Progress Billings)', 'إنشاء واعتماد المستخلصات الدورية للمشاريع — مع تتبع التراكمي'], loans: ['💳 السلف والقروض', 'إدارة سلف الموظفين والأقساط الشهرية'], docalerts: ['⏰ تنبيهات المستندات', 'متابعة تواريخ انتهاء مستندات الموظفين'], empstatement: ['📋 كشف حساب الموظف', 'كل بيانات الموظف في مكان واحد: العقد، الإجازات، السلف، العُهد، ونهاية الخدمة'], leaves: ['🌴 طلبات الإجازات', 'مراجعة واعتماد طلبات إجازات الموظفين'], permissions: ['🕘 الأذونات والاستئذان', 'طلبات الاستئذان بالساعة (خروج مبكر/تأخير/مأمورية) — تسجيل واعتماد ومتابعة'], performance: ['⭐ تقييمات الأداء', 'تقييم أداء الموظفين الشهري ومكافآتهم'], hrguide: ['📖 دليل الموارد البشرية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], hrdashboard: ['📊 لوحة تحكم HR', 'نظرة شاملة ومؤشرات أداء قسم الموارد البشرية'], prjdashboard: ['📊 لوحة تحكم المشاريع', 'تكاليف، ميزانية، انحرافات، وربحية المشاريع'], prjhealth: ['🚦 صحة المحفظة (EVM)', 'مصفوفة تنفيذية: مؤشرات أداء التكلفة (CPI) والجدول (SPI) وإشارات الصحة لكل مشروع — أي مشاريع متعثّرة'], prjreports: ['📈 التقارير المالية', '6 تقارير احترافية للمشاريع — تدفقات، ربحية، موردين، وأكثر'], projectcosts: ['💰 تكاليف المشاريع الشهرية', 'إدخال تكاليف المشاريع شهرياً (مواد، أجور، معدات، إلخ)'], indirectcosts: ['📊 التكاليف غير المباشرة', 'تسجيل التكاليف غير المباشرة (إهلاك، إيجارات، رواتب إدارية...) وتوزيعها على المشاريع شهرياً وسنوياً بنسب محددة'], accdashboard: ['💰 المحاسبة والإدارة المالية', 'قسم المحاسبة المتكامل — قيد البناء'], chartofaccounts: ['🌳 شجرة الحسابات', 'إدارة شجرة الحسابات المحاسبية'], costcenters: ['🎯 مراكز التكلفة', 'هيكلة مراكز التكلفة الرئيسية والفرعية — تظهر مع المشاريع في القيود والتقارير'], journalentries: ['📒 قيود اليومية', 'إدارة القيود المحاسبية اليومية بنظام القيد المزدوج'], recurringjournals: ['🔁 القيود المتكررة', 'قوالب قيود دورية (إيجارات، اشتراكات، استحقاقات) تُولّد تلقائياً كل شهر'], revrecognition: ['📐 إثبات الإيراد بنسبة الإنجاز', 'احتساب الإيراد المعترف به بطريقة نسبة الإنجاز (Cost-to-Cost) وتسوية الفوترة الزائدة/الناقصة وفق IFRS 15'], fxrevaluation: ['💱 إعادة تقييم العملات', 'إعادة تقييم أرصدة العملاء والموردين بالعملات الأجنبية بأسعار الصرف الحالية وإثبات فروق العملة غير المحققة'], cashforecast: ['💧 التدفق النقدي المتوقع', 'توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات القادمة'], finmodels: ['📊 النماذج المالية والتخطيط', 'الإيرادات المتوقعة (المستخلصات) والمصروفات والتدفقات النقدية ودفعات التحصيل والسداد — مع لوحة مجمّعة وتصدير/استيراد Excel وطباعة'], amortization: ['📆 إطفاء المصروفات المؤجلة', 'توزيع المصاريف المدفوعة مقدماً (إيجارات، تأمين، اشتراكات) على أشهرها تلقائياً بقيود إطفاء شهرية'], empexpenses: ['🧾 مصروفات الموظفين', 'تسجيل واعتماد مطالبات مصروفات الموظفين وربطها بالقيود المحاسبية'], generalledger: ['📖 دفتر الأستاذ', 'عرض حركات كل حساب مع الأرصدة الافتتاحية والختامية'], trialbalance: ['⚖️ ميزان المراجعة', 'التحقق من توازن النظام المحاسبي — كل الأرصدة في صفحة واحدة'], finstatements: ['📑 القوائم المالية', 'المركز المالي، الدخل، التدفق النقدي، التغير في حقوق الملكية + التحليل المالي والنسب'], bankrec: ['🏦 التسوية البنكية', 'مطابقة حركات البنوك في النظام مع كشف الحساب البنكي'], vatreturn: ['🧾 الإقرار الضريبي', 'احتساب ضريبة القيمة المضافة وإعداد الإقرار — شهري، ربع سنوي، سنوي، أو فترة مخصصة'], treasury: ['🛡️ الخزينة والضمانات', 'خطابات الضمان، الشيكات والآجلة (PDC)، ومحتجزات الضمان — مع تنبيهات الاستحقاق والانتهاء'], incometax: ['💰 ضريبة الدخل', 'احتساب ضريبة الدخل السنوية (20%) على حصة المستثمرين الأجانب من صافي الربح'], zakat: ['🕌 الزكاة', 'احتساب وعاء الزكاة والإقرار السنوي (2.5%) — مع قيد محاسبي تلقائي'], wht: ['🌐 ضريبة الاستقطاع', 'المبالغ المستقطعة من مدفوعات غير المقيمين — مع التقرير الشهري للهيئة ومتابعة التوريد'], closing: ['✅ قائمة الإقفال', 'خطوات منظّمة لإغلاق الفترة المحاسبية (شهري/سنوي) — مع متابعة نسبة الإنجاز'], taxcenter: ['🧮 مركز الضرائب والامتثال', 'لوحة موحّدة لكل الالتزامات الضريبية (قيمة مضافة، استقطاع، زكاة، دخل) مع تقويم مواعيد الهيئة'], glbudget: ['📊 الموازنة الشهرية الشاملة', 'موازنة 12 شهراً لكل الحسابات + تحليل الانحراف الفعلي مقابل الموازنة (Budget vs Actual)'], fsg: ['🧱 مولّد القوائم المالية', 'تصميم تقارير مالية مخصّصة بصفوف وأعمدة تحدّدها (Financial Statement Generator)'], acctanalysis: ['🔎 تحليل الحسابات', 'استعلام مرن عبر نطاق أو نوع حسابات دفعة واحدة — كل الحركات مع التتبّع والتصدير'], paymentrun: ['💸 الدفعات المجمّعة', 'سداد فواتير الموردين المستحقة دفعة واحدة — إنشاء سندات الصرف وقيودها تلقائياً'], workingcapital: ['♻️ رأس المال العامل', 'مؤشرات DSO/DPO/DIO ودورة التحويل النقدي مع اتجاه شهري'], segmentpl: ['🧭 قائمة الدخل المقارنة', 'مقارنة الربحية عبر مراكز التكلفة أو المشاريع جنباً إلى جنب'], jrntemplates: ['📋 قوالب القيود', 'قوالب جاهزة للقيود اليدوية المتكررة — تُملأ بنقرة'], periodlock: ['🔒 إقفال الفترات المحاسبية', 'منع الإضافة أو التعديل على القيود في الفترات المقفلة بعد اعتمادها'], yearclosing: ['🗓️ إقفال السنة المالية', 'ترحيل صافي الربح/الخسارة للأرباح المحتجزة، وإنشاء قيد افتتاحي للسنة الجديدة، وإقفال السنة المنتهية'], aging: ['⏳ أعمار الديون', 'تحليل أعمار ذمم العملاء والموردين حسب فترات التأخر'], auditlog: ['🕵️ سجل التدقيق', 'سجل شامل لكل العمليات الحساسة في النظام مع المستخدم والتاريخ'], customers: ['🧑‍💼 العملاء', 'إدارة بيانات العملاء وأرصدتهم وفواتيرهم'], crm: ['🤝 إدارة علاقات العملاء (CRM)', 'فرص البيع وخط الأنابيب — من العميل المحتمل حتى الإغلاق'], timesheets: ['⏱️ تسجيل الأوقات', 'تسجيل ساعات العمل على المشاريع والمهام — تكلفة عمالة فعلية دقيقة'], workload: ['👥 عبء العمل والموارد', 'توزيع المهام والساعات على الموظفين — من مشغول ومن متفرّغ ومن متجاوز طاقته'], salesinvoices: ['🧾 فواتير المبيعات', 'إصدار وإدارة فواتير المبيعات مع الربط التلقائي بالقيود'], vendors: ['🏭 الموردون (محاسبي)', 'إدارة بيانات الموردين وأرصدتهم وفواتيرهم'], purchaseinvoices: ['📋 فواتير المشتريات', 'إصدار وإدارة فواتير المشتريات مع الربط التلقائي بالقيود'], receipts: ['💵 سندات القبض', 'تسجيل المتحصلات من العملاء مع الربط التلقائي بالقيود وتحديث رصيد العميل'], payments: ['💸 سندات الصرف', 'تسجيل المدفوعات للموردين مع الربط التلقائي بالقيود وتحديث رصيد المورد'], inventory: ['📦 المخزون والأصناف', 'إدارة كتالوج الأصناف (مواد وخدمات) مع الأرصدة والحركات'], inventorymovements: ['📋 حركات المخزون', 'سجل دخول وخروج الأصناف مع الأرصدة الجارية'], inventoryreports: ['📊 تقارير المخزون', 'تقارير احترافية: الأرصدة، الحركات، تحت الحد الأدنى، التقييم'], warehouses: ['🏬 المخازن', 'إدارة المخازن الرئيسية والفرعية والربط بالمشاريع والمناطق'], accguide: ['📖 دليل المحاسبة والإدارة المالية', 'شرح كامل لكل وحدة وكيفية الاستخدام'], invguide: ['📖 دليل المخزون والمخازن', 'شرح كامل لكل وحدة وكيفية الاستخدام'], prjguide: ['📖 دليل المشاريع', 'شرح كامل لكل وحدة وكيفية الاستخدام'], procguide: ['📖 دليل المشتريات والموردين', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assets: ['🏭 سجل الأصول الثابتة', 'الأصول والمعدات، الإهلاك التلقائي، الصيانة، والتخريد/البيع'], assetdetail: ['🏭 ملف الأصل', 'الإهلاك، النقل، الصيانة، والتخريد/البيع لهذا الأصل'], assetguide: ['📖 دليل إدارة الأصول الثابتة', 'شرح كامل لكل وحدة وكيفية الاستخدام'], assetdashboard: ['📊 لوحة تحليلات الأصول', 'الفئات، القيمة الدفترية، الإهلاك، والأعمار'], finanalysisguide: ['📖 دليل التحليل المالي', 'شرح كل أقسام التحليل المالي: النماذج والتخطيط، التدفق النقدي، استوديو التحليل، القوائم المالية، أعمار الديون، واللوحات'] };
     const t = tt[pg] || [pg, '']; $('pgT').textContent = t[0]; $('pgS').textContent = t[1];
     if (pg === 'dashboard') renderDB();
     if (pg === 'approvalsinbox') renderApprovalsInbox();
@@ -2156,6 +2161,9 @@ window.nav = function (pg, el) {
     if (pg === 'workingcapital') { if (typeof renderWorkingCapital === 'function') renderWorkingCapital(); }
     if (pg === 'segmentpl') { if (typeof renderSegmentPL === 'function') renderSegmentPL(); }
     if (pg === 'jrntemplates') { if (typeof renderJrnTemplates === 'function') renderJrnTemplates(); }
+    if (pg === 'recruitment') { if (typeof renderRecruitment === 'function') renderRecruitment(); }
+    if (pg === 'disciplinary') { if (typeof renderDisciplinary === 'function') renderDisciplinary(); }
+    if (pg === 'orgchart') { if (typeof renderOrgChart === 'function') renderOrgChart(); }
     if (pg === 'timesheets') { if (typeof renderTimesheets === 'function') renderTimesheets(); }
     if (pg === 'workload') { if (typeof renderWorkload === 'function') renderWorkload(); }
     if (pg === 'statement') renderSt();
@@ -2517,7 +2525,7 @@ function startListeners() {
         } catch (e) { console.warn('Migration skipped:', e.message) }
     })();
 
-    onValue(R.cfg, sn => { if (sn.exists()) { cfg = { ...cfg, ...sn.val() }; window.gbrCfg = cfg; loadCfgUI() } });
+    onValue(R.cfg, sn => { if (sn.exists()) { cfg = { ...cfg, ...sn.val() }; window.gbrCfg = cfg; if (cfg.gosi) window.gosiRates = { ...GOSI_DEFAULTS, ...cfg.gosi }; loadCfgUI() } });
     onValue(R.sup, sn => {
         sup = sn.exists() ? sn.val() : {};
         window.sup = sup;
@@ -2703,6 +2711,12 @@ function startListeners() {
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'timesheets' && typeof pdRenderTimesheets === 'function') pdRenderTimesheets(window._pd.projectId);
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'tasks' && typeof pdRenderTab === 'function') pdRenderTab('tasks');
     });
+    // 🧲 التوظيف والتعيين (recruitment.js)
+    onValue(R.jobPostings, sn => { window.jobPostings = sn.exists() ? sn.val() : {}; if ($('pg-recruitment')?.classList.contains('act') && typeof renderRecruitment === 'function') renderRecruitment(); });
+    onValue(R.candidates, sn => { window.candidates = sn.exists() ? sn.val() : {}; if ($('pg-recruitment')?.classList.contains('act') && typeof renderRecruitment === 'function') renderRecruitment(); });
+    onValue(R.onboardings, sn => { window.onboardings = sn.exists() ? sn.val() : {}; if ($('pg-recruitment')?.classList.contains('act') && typeof renderRecruitment === 'function') renderRecruitment(); });
+    // ⚖️ الجزاءات والإنذارات (hr-extra.js)
+    onValue(R.disciplinary, sn => { window.disciplinary = sn.exists() ? sn.val() : {}; if ($('pg-disciplinary')?.classList.contains('act') && typeof renderDisciplinary === 'function') renderDisciplinary(); });
     // 🛡️ الخزينة والضمانات — مستمعات مبكّرة (لتعمل التنبيهات في الجرس واللوحة بدون فتح القسم)
     window._treListenersDone = true; // يمنع المستمع الكسول في accounting.js من التكرار
     window._tre = window._tre || { guarantees: {}, cheques: {}, retentions: {} };
@@ -4976,6 +4990,125 @@ function empFinance(e) {
         monthlyCosts, totalCost, workDaysPerMonth, dailyHours
     };
 }
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   🏛️  [HR-GOSI]   ━━━━   GOSI ENGINE   ━━━━                               ║
+// ║        محرّك التأمينات الاجتماعية — احتساب آلي وفق النظام السعودي            ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+// أساس الاشتراك = الراتب الأساسي + بدل السكن، بحدّ أدنى/أقصى قابلين للتعديل.
+//   • سعودي:      خصم موظف (تقاعد 9% + ساند 0.75% = 9.75%) + حصة شركة (9% + 0.75% + أخطار مهنية 2% = 11.75%).
+//   • غير سعودي:  لا خصم من الموظف، حصة شركة = أخطار مهنية 2% فقط.
+// ⚠️ المعادلة الحالية في empFinance تحسب: sal(الأساسي) × النسبة% ÷ 100.
+//    لذلك نحسب المبلغ الصحيح (على أساس الأساسي+السكن المحدود) ثم نعكسه إلى «نسبة مكافئة من الأساسي»
+//    تُعطي نفس المبلغ داخل المعادلة القائمة — فلا نكسر المسيرات المحفوظة ولا نغيّر منطق الحساب.
+const GOSI_DEFAULTS = { empRate: 9.75, compRate: 11.75, nonSaudiCompRate: 2, minBase: 1500, maxBase: 45000 };
+window.gosiRates = { ...GOSI_DEFAULTS };
+
+// هل الجنسية سعودية؟ (يُبنى عليه تطبيق التقاعد/ساند مقابل الأخطار المهنية فقط)
+function isSaudiNat(nat) { return /^\s*(سعودي|سعوديه|سعودية|saudi|ksa)/i.test(String(nat || '')); }
+
+// احتساب GOSI لموظف — يُرجع المبلغ الصحيح + النسبة المكافئة من الأساسي
+function gosiCalc(nationality, basic, housing, rates) {
+    const r = rates || window.gosiRates || GOSI_DEFAULTS;
+    basic = parseFloat(basic) || 0; housing = parseFloat(housing) || 0;
+    const saudi = isSaudiNat(nationality);
+    // بلا راتب أساسي = لا يمكن عكس المبلغ إلى نسبة داخل المعادلة الحالية → يُتجاوَز
+    if (basic <= 0) return { base: 0, isSaudi: saudi, empAmt: 0, compAmt: 0, empPct: 0, compPct: 0, empRate: 0, compRate: 0 };
+    let base = basic + housing;
+    if (base < (r.minBase || 0)) base = r.minBase || 0;
+    if (r.maxBase && base > r.maxBase) base = r.maxBase;
+    const empRate = saudi ? (r.empRate || 0) : 0;
+    const compRate = saudi ? (r.compRate || 0) : (r.nonSaudiCompRate || 0);
+    const empAmt = base * empRate / 100;
+    const compAmt = base * compRate / 100;
+    // عكس المبلغ إلى نسبة من الأساسي (المعادلة الحالية تضربها في الأساسي)
+    const empPct = basic > 0 ? +(empAmt / basic * 100).toFixed(4) : 0;
+    const compPct = basic > 0 ? +(compAmt / basic * 100).toFixed(4) : 0;
+    return { base, isSaudi: saudi, empAmt, compAmt, empPct, compPct, empRate, compRate };
+}
+window.gosiCalc = gosiCalc;
+
+// زر داخل نموذج الموظف: احتساب GOSI من قيم النموذج الحالية
+window.autoFillGosiEmp = function () {
+    const basic = parseFloat($('eSalary')?.value) || 0;
+    if (basic <= 0) { toast('أدخل الراتب الأساسي أولاً لاحتساب GOSI', 'er'); return; }
+    const g = gosiCalc($('eNat')?.value, basic, $('eHouseAllow')?.value);
+    if ($('eSocialEmp')) $('eSocialEmp').value = g.empPct;
+    if ($('eSocialComp')) $('eSocialComp').value = g.compPct;
+    if (typeof calcEmpSummary === 'function') calcEmpSummary();
+    toast(`GOSI (${g.isSaudi ? 'سعودي' : 'غير سعودي'}) — أساس ${fmt(g.base)}: خصم موظف ${fmt(g.empAmt)} / شركة ${fmt(g.compAmt)}`, 'ok');
+};
+
+// قراءة النِسَب من حقول مودال الاحتساب الجماعي
+function gosiRatesFromForm() {
+    return {
+        empRate: parseFloat($('gbEmpRate')?.value) || 0,
+        compRate: parseFloat($('gbCompRate')?.value) || 0,
+        nonSaudiCompRate: parseFloat($('gbNonSaudiRate')?.value) || 0,
+        minBase: parseFloat($('gbMinBase')?.value) || 0,
+        maxBase: parseFloat($('gbMaxBase')?.value) || 0
+    };
+}
+
+// فتح مودال الاحتساب الجماعي
+window.openGosiBulk = function () {
+    const r = window.gosiRates || GOSI_DEFAULTS;
+    if ($('gbEmpRate')) $('gbEmpRate').value = r.empRate;
+    if ($('gbCompRate')) $('gbCompRate').value = r.compRate;
+    if ($('gbNonSaudiRate')) $('gbNonSaudiRate').value = r.nonSaudiCompRate;
+    if ($('gbMinBase')) $('gbMinBase').value = r.minBase;
+    if ($('gbMaxBase')) $('gbMaxBase').value = r.maxBase;
+    renderGosiPreview();
+    ov('ovGosiBulk');
+};
+
+// إعادة بناء جدول المعاينة (يُستدعى عند تغيير أي نسبة)
+window.renderGosiPreview = function () {
+    const rates = gosiRatesFromForm();
+    const onlyActive = $('gbOnlyActive')?.checked;
+    const list = Object.entries(emp).filter(([, e]) => !onlyActive || (e.status || 'active') === 'active');
+    let totEmp = 0, totComp = 0, noBasic = 0;
+    const rows = list.map(([, e]) => {
+        const basic = parseFloat(e.salary) || 0;
+        const g = gosiCalc(e.nationality, basic, e.houseAllow, rates);
+        totEmp += g.empAmt; totComp += g.compAmt;
+        if (basic <= 0) noBasic++;
+        const curEmp = parseFloat(e.socialEmp) || 0;
+        const changed = Math.abs(curEmp - g.empPct) > 0.01;
+        return `<tr style="${basic <= 0 ? 'opacity:.45' : ''}">
+            <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${e.name || '-'}</td>
+            <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f0f0f0">${g.isSaudi ? '🇸🇦 سعودي' : (e.nationality || '—')}</td>
+            <td style="padding:5px 8px;text-align:left;border-bottom:1px solid #f0f0f0">${fmt(basic)}</td>
+            <td style="padding:5px 8px;text-align:left;border-bottom:1px solid #f0f0f0">${fmt(g.base)}</td>
+            <td style="padding:5px 8px;text-align:left;color:#c0392b;border-bottom:1px solid #f0f0f0">${fmt(g.empAmt)}</td>
+            <td style="padding:5px 8px;text-align:left;color:#e67e22;border-bottom:1px solid #f0f0f0">${fmt(g.compAmt)}</td>
+            <td style="padding:5px 8px;text-align:center;color:#999;font-size:11px;border-bottom:1px solid #f0f0f0">${curEmp.toFixed(2)} ← <b style="color:${changed ? '#1a3a5c' : '#bbb'}">${g.empPct.toFixed(2)}%</b></td>
+        </tr>`;
+    }).join('');
+    if ($('gbPreviewBody')) $('gbPreviewBody').innerHTML = rows || '<tr><td colspan="7" style="padding:14px;text-align:center;color:#999">لا يوجد موظفون</td></tr>';
+    if ($('gbTotals')) $('gbTotals').innerHTML = `العدد: <b>${list.length}</b> · إجمالي خصم الموظفين: <b style="color:#c0392b">${fmt(totEmp)}</b> · إجمالي حصة الشركة: <b style="color:#e67e22">${fmt(totComp)}</b>${noBasic ? ` · <span style="color:#c0392b">${noBasic} بلا راتب أساسي (تُتجاوز)</span>` : ''}`;
+};
+
+// تطبيق الاحتساب على كل الموظفين + حفظ النِسَب كإعداد
+window.applyGosiBulk = async function () {
+    const rates = gosiRatesFromForm();
+    const onlyActive = $('gbOnlyActive')?.checked;
+    const updates = {}; let n = 0;
+    Object.entries(emp).forEach(([k, e]) => {
+        if (onlyActive && (e.status || 'active') !== 'active') return;
+        const g = gosiCalc(e.nationality, e.salary, e.houseAllow, rates);
+        updates[`${k}/socialEmp`] = g.empPct;
+        updates[`${k}/socialComp`] = g.compPct;
+        n++;
+    });
+    try {
+        await update(R.emp, updates);
+        await set(ref(db, 'ledger/settings/gosi'), rates);
+        window.gosiRates = { ...rates };
+        toast(`✅ تم احتساب GOSI لـ ${n} موظف وحفظ النِسَب`, 'ok');
+        cov('ovGosiBulk');
+    } catch (err) { toast('خطأ: ' + err.message, 'er'); }
+};
 
 function updateEmpKPIs() {
     const ea = Object.values(emp);
@@ -8156,8 +8289,8 @@ window.printPayroll = function (key) { viewPayrollDetail(key) };
 // 🧾 قسيمة الراتب الفردية (Payslip) — يبني HTML قابلاً لإعادة الاستخدام (يُستدعى من الصفحة الأم أو يُحقن داخل نافذة المسير لتفادي حجب النوافذ)
 function buildPayslipHTML(p, it, e) {
     e = e || {};
-    const cA = cfg.companyAr || 'اسم الشركة';
-    const cE = cfg.companyEn || '';
+    const cA = window.currentTenantName || cfg.companyAr || 'اسم الشركة';
+    const cE = window.currentTenantName ? '' : (cfg.companyEn || '');
     const ad = cfg.address || '', ph = cfg.phone || '', rg = cfg.reg || '', vt = cfg.vat || '';
     const monthLbl = formatMonthLabel(p.month);
     const statusMap = { draft: '📝 مسودة', review: '🔍 قيد المراجعة', approved: '✅ معتمد' };
@@ -8916,7 +9049,7 @@ window.openFinalSettlement = function (key) {
     const duesTotal = (eos.amount || 0) + leaveEncash;
     const netSettle = duesTotal - loansRemaining;
 
-    const cA = cfg.companyAr || 'اسم الشركة', cE = cfg.companyEn || '';
+    const cA = window.currentTenantName || cfg.companyAr || 'اسم الشركة', cE = window.currentTenantName ? '' : (cfg.companyEn || '');
     const ad = cfg.address || '', ph = cfg.phone || '', rg = cfg.reg || '', vt = cfg.vat || '';
     const tenureText = `${Math.floor(eos.years)} سنة و ${Math.round((eos.years % 1) * 12)} شهر`;
     const money = v => `${fmt(v)} ريال`;
@@ -8985,7 +9118,7 @@ table{width:100%;border-collapse:collapse}
 window.openSalaryCertificate = function (key) {
     const e = emp[key]; if (!e) { toast('اختر موظفاً', 'er'); return }
     const f = empFinance(e);
-    const cA = cfg.companyAr || 'اسم الشركة', cE = cfg.companyEn || '';
+    const cA = window.currentTenantName || cfg.companyAr || 'اسم الشركة', cE = window.currentTenantName ? '' : (cfg.companyEn || '');
     const ad = cfg.address || '', ph = cfg.phone || '', rg = cfg.reg || '', vt = cfg.vat || '';
     const today = new Date().toLocaleDateString('ar-SA');
     const refNo = 'HR-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-5);
@@ -9016,6 +9149,8 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef1f4;padding:2
 .body{padding:26px 40px;flex:1;font-size:14.5px;color:#222}
 .body h1{text-align:center;font-size:19px;color:#1a3a5c;margin:6px 0 24px;text-decoration:underline}
 .body p{margin:0 0 14px}
+[contenteditable="true"]:hover{background:#fffef6}
+[contenteditable="true"]:focus{outline:2px dashed #b9d4ea;outline-offset:3px;border-radius:4px;background:#fffdf2}
 .edit{background:#fffbe6;border-bottom:1px dashed #d4a72c;padding:0 4px;outline:none;min-width:120px;display:inline-block}
 .sal{margin:18px 0;border:1px solid #e0e8f0;border-radius:10px;overflow:hidden}
 .sal table{width:100%;border-collapse:collapse}
@@ -9030,12 +9165,12 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef1f4;padding:2
 </style></head><body>
 <div class="wrap">
   <div class="hd">
-    <div><div class="co">${cA}</div>${cE ? `<div class="coe">${cE}</div>` : ''}</div>
-    <div class="meta">${ad ? ad + '<br>' : ''}${ph ? '📞 ' + ph : ''}${rg ? '<br>س.ت: ' + rg : ''}${vt ? '<br>الرقم الضريبي: ' + vt : ''}</div>
+    <div><div class="co" contenteditable="true">${cA}</div>${cE ? `<div class="coe" contenteditable="true">${cE}</div>` : `<div class="coe" contenteditable="true" style="color:#c0cbd6">— أضف الاسم بالإنجليزية —</div>`}</div>
+    <div class="meta" contenteditable="true">${ad ? ad + '<br>' : ''}${ph ? '📞 ' + ph : ''}${rg ? '<br>س.ت: ' + rg : ''}${vt ? '<br>الرقم الضريبي: ' + vt : ''}${(!ad && !ph && !rg && !vt) ? '— أضف العنوان · الهاتف · السجل التجاري · الرقم الضريبي —' : ''}</div>
   </div>
-  <div class="meta-row"><span>الرقم المرجعي: <b>${refNo}</b></span><span>التاريخ: <b>${today}</b></span></div>
-  <div class="hint noprint">💡 يمكنك النقر على الحقول المظللة (الجهة/الغرض) لتعديلها قبل الطباعة</div>
-  <div class="body">
+  <div class="meta-row"><span>الرقم المرجعي: <b contenteditable="true">${refNo}</b></span><span>التاريخ: <b contenteditable="true">${today}</b></span></div>
+  <div class="hint noprint">✏️ هذا المستند <b>قابل للتعديل بالكامل</b> — انقر على أي نص (اسم الشركة · البيانات · الراتب · نص الخطاب) لتعديله، أو اضغط Enter لإضافة أسطر جديدة قبل الطباعة.</div>
+  <div class="body" contenteditable="true">
     <h1>خطاب تعريف بالراتب</h1>
     <p><b>إلى:</b> <span class="edit" contenteditable="true">من يهمه الأمر</span></p>
     <p>تشهد <b>${cA}</b> بأن ${genderWord} أدناه ${worksWord}:</p>
@@ -9244,17 +9379,11 @@ window.renderEmpStatement = function (key) {
         <!-- سجل تغيّرات الراتب -->
         ${salRevs.length ? `
         <div class="card" style="margin-top:16px;border-right:4px solid #d68910">
-            <div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🕓 سجل تغيّرات الراتب</div>
-            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-                <thead><tr style="background:#f8fafc"><th style="padding:6px 10px;text-align:right">التاريخ</th><th style="padding:6px 10px;text-align:center">الأساسي (قبل ← بعد)</th><th style="padding:6px 10px;text-align:center">الإجمالي (قبل ← بعد)</th><th style="padding:6px 10px;text-align:center">الفرق</th><th style="padding:6px 10px;text-align:right">بواسطة</th></tr></thead>
-                <tbody>${salRevs.map(r => `<tr>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${r.date || '-'}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${fmt(r.oldBasic)} ← <b>${fmt(r.newBasic)}</b></td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center">${fmt(r.oldGross)} ← <b>${fmt(r.newGross)}</b></td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:center;font-weight:800;color:${r.diff > 0 ? '#27ae60' : r.diff < 0 ? '#e74c3c' : '#888'}">${r.diff > 0 ? '+' : ''}${fmt(r.diff)}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:11px;color:#888">${r.byName || '-'}</td>
-                </tr>`).join('')}</tbody>
-            </table></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                <div style="font-size:14px;font-weight:800;color:#1a3a5c">🕓 سجل تغيّرات الراتب</div>
+                <span style="background:#fef5e7;color:#9a6400;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">عدد التغييرات: ${salRevs.length}</span>
+            </div>
+            ${esTblToolbar('esTbl-revisions', { searchPlaceholder: '🔍 ابحث بالتاريخ أو بواسطة...' })}<div id="esTbl-revisions-body"></div>
         </div>` : ''}
 
         <!-- الإجازات -->
@@ -9344,7 +9473,18 @@ window.renderEmpStatement = function (key) {
             { h: 'إجراءات', align: 'center', cell: r => `<span style="white-space:nowrap">${r.status !== 'returned' ? `<button class="btn b-b" style="padding:2px 8px;font-size:10px" onclick="returnCustodyItem('${r.key}')">↩️ استلام</button> ` : ''}<button class="btn" style="padding:2px 8px;font-size:10px;background:#f39c12;color:white" onclick="openCustodyModal('${key}','${r.key}')">✏️</button> <button class="btn b-r" style="padding:2px 8px;font-size:10px" onclick="deleteCustodyItem('${r.key}')">🗑️</button></span>` }
         ]
     };
-    ['esTbl-salaries', 'esTbl-leaves', 'esTbl-loans', 'esTbl-custody'].forEach(id => { if (document.getElementById(id + '-body')) esTblRenderBody(id); });
+    window._esTbl['esTbl-revisions'] = {
+        rows: salRevs, pageSize: 8, dateKey: 'date', emptyMsg: 'لا توجد تغييرات مطابقة', q: '', from: '', to: '', page: 1,
+        searchText: r => `${r.date || ''} ${r.byName || ''} ${r.diff}`,
+        cols: [
+            { h: 'التاريخ', cell: r => r.date || '-' },
+            { h: 'الأساسي (قبل ← بعد)', align: 'center', cell: r => `${fmt(r.oldBasic)} ← <b>${fmt(r.newBasic)}</b>` },
+            { h: 'الإجمالي (قبل ← بعد)', align: 'center', cell: r => `${fmt(r.oldGross)} ← <b>${fmt(r.newGross)}</b>` },
+            { h: 'الفرق', align: 'center', cell: r => `<span style="font-weight:800;color:${r.diff > 0 ? '#27ae60' : r.diff < 0 ? '#e74c3c' : '#888'}">${r.diff > 0 ? '+' : ''}${fmt(r.diff)}</span>` },
+            { h: 'بواسطة', cell: r => `<span style="font-size:11px;color:#888">${r.byName || '-'}</span>` }
+        ]
+    };
+    ['esTbl-salaries', 'esTbl-leaves', 'esTbl-loans', 'esTbl-custody', 'esTbl-revisions'].forEach(id => { if (document.getElementById(id + '-body')) esTblRenderBody(id); });
 };
 
 // ── مودال إضافة/تعديل عُهدة ──

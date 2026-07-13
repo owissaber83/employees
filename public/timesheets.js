@@ -39,7 +39,7 @@ window.renderTimesheets = function () {
     c.innerHTML = `<div style="padding:0 4px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
             <div style="font-size:16px;font-weight:800;color:#1a3a5c">⏱️ تسجيل الأوقات</div>
-            <div style="display:flex;gap:8px"><button class="btn" onclick="tsExportExcel()" style="background:#f0f5fa;border:1.5px solid #d0d7e0">📊 Excel</button><button class="btn b-g" onclick="tsOpenEditor()" style="font-weight:800">➕ تسجيل وقت</button></div>
+            <div style="display:flex;gap:8px"><button class="btn" onclick="tsExportExcel()" style="background:#f0f5fa;border:1.5px solid #d0d7e0">📊 Excel</button><button class="btn" onclick="tsOpenAttImport()" style="background:#eaf4fb;border:1.5px solid #b9dcf2;color:#2d6a9f;font-weight:700">🔄 توليد من الحضور</button><button class="btn b-g" onclick="tsOpenEditor()" style="font-weight:800">➕ تسجيل وقت</button></div>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
             ${kpi('⏱️', 'إجمالي الساعات', totalHours.toFixed(1), '#2980b9')}
@@ -170,6 +170,102 @@ window.tsExportExcel = function () {
     toast('✅ تم التصدير', 'ok');
 };
 
+// ── 🔄 توليد الأوقات من سجل الحضور ──────────────────────────────────────────
+// يحوّل سجلات الحضور (check-in/out ⇒ totalHours) إلى إدخالات Timesheet.
+// المشروع = تجاوز يدوي إن حُدّد، وإلا مشروع الموظف. التكرار يُمنع عبر attKey + source.
+function tsAttModalEl() { return document.getElementById('tsAttModal'); }
+function tsEmpProject(id) { const e = (window.emp || {})[id]; return e && e.projectId ? e.projectId : ''; }
+function tsImportedAttKeys() { const s = new Set(); Object.values(tsAll()).forEach(t => { if (t.source === 'attendance' && t.attKey) s.add(t.attKey); }); return s; }
+function tsAttCandidates() {
+    const from = document.getElementById('tsAtFrom')?.value || '';
+    const to = document.getElementById('tsAtTo')?.value || '';
+    const empF = document.getElementById('tsAtEmp')?.value || '';
+    const override = document.getElementById('tsAtPrj')?.value || '';
+    const done = tsImportedAttKeys();
+    return Object.entries(window.attendance || {}).map(([k, a]) => {
+        const hours = parseFloat(a.totalHours) || 0;
+        const pid = override || tsEmpProject(a.employeeId);
+        const rate = window.tsEmpRate(a.employeeId);
+        return { attKey: k, employeeId: a.employeeId, employeeName: a.employeeName || tsEmpName(a.employeeId), date: a.date || '', hours, pid, rate, cost: Math.round(hours * rate * 100) / 100, already: done.has(k) };
+    }).filter(r => r.hours > 0 && (!from || r.date >= from) && (!to || r.date <= to) && (!empF || r.employeeId === empF))
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+}
+function tsEnsureAttModal() {
+    if (tsAttModalEl()) return;
+    const d = document.createElement('div');
+    d.id = 'tsAttModal';
+    d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
+    const inp = 'padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px';
+    d.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0;color:#2d6a9f;font-size:18px">🔄 توليد الأوقات من الحضور</h3><button onclick="tsCloseAttImport()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <div style="background:#eaf4fb;border-radius:10px;padding:10px 14px;font-size:12px;color:#2d6a9f;margin-bottom:14px;line-height:1.7">تُحوَّل الأيام ذات الساعات المسجّلة إلى إدخالات وقت. تكلفة الساعة تُشتق من راتب الموظف. المشروع من التجاوز أدناه أو مشروع الموظف. الأيام المولّدة سابقاً تُتجاوز تلقائياً.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px">
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">من</label><input type="date" id="tsAtFrom" oninput="tsRenderAttPreview()" style="${inp}"></div>
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">إلى</label><input type="date" id="tsAtTo" oninput="tsRenderAttPreview()" style="${inp}"></div>
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الموظف</label><select id="tsAtEmp" onchange="tsRenderAttPreview()" style="${inp}"></select></div>
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">تجاوز المشروع</label><select id="tsAtPrj" onchange="tsRenderAttPreview()" style="${inp}"></select></div>
+        </div>
+        <div id="tsAtPreview" style="max-height:340px;overflow:auto;border:1px solid #eee;border-radius:8px"></div>
+        <div id="tsAtSummary" style="margin-top:10px;font-size:12.5px;color:#555"></div>
+        <div style="display:flex;gap:8px;margin-top:14px"><button class="btn b-g" id="tsAtApplyBtn" onclick="tsApplyAttImport()" style="flex:1;font-weight:800">💾 توليد الإدخالات</button><button class="btn" onclick="tsCloseAttImport()" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+    document.body.appendChild(d);
+}
+window.tsCloseAttImport = function () { const m = tsAttModalEl(); if (m) m.style.display = 'none'; };
+window.tsOpenAttImport = function (presetProject) {
+    tsEnsureAttModal();
+    const now = new Date();
+    document.getElementById('tsAtFrom').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    document.getElementById('tsAtTo').value = new Date().toISOString().slice(0, 10);
+    const emps = Object.entries(window.emp || {}).filter(([, e]) => e.active !== false).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
+    document.getElementById('tsAtEmp').innerHTML = '<option value="">كل الموظفين</option>' + emps.map(([k, e]) => `<option value="${k}">${tsEsc(e.name)}</option>`).join('');
+    const prjs = Object.entries(window.projects || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
+    document.getElementById('tsAtPrj').innerHTML = '<option value="">— حسب مشروع الموظف —</option>' + prjs.map(([k, p]) => `<option value="${k}" ${presetProject === k ? 'selected' : ''}>${tsEsc(p.name)}</option>`).join('');
+    tsRenderAttPreview();
+    tsAttModalEl().style.display = 'flex';
+};
+window.tsRenderAttPreview = function () {
+    const cand = tsAttCandidates();
+    const willCreate = cand.filter(r => !r.already && r.pid);
+    const noPrj = cand.filter(r => !r.already && !r.pid).length;
+    const dup = cand.filter(r => r.already).length;
+    const totHours = willCreate.reduce((s, r) => s + r.hours, 0);
+    const totCost = willCreate.reduce((s, r) => s + r.cost, 0);
+    const badge = r => r.already ? '<span style="color:#95a5a6">موجود مسبقاً</span>' : (!r.pid ? '<span style="color:#c0392b">⚠️ بلا مشروع</span>' : '<span style="color:#16a085">سيُنشأ</span>');
+    const body = cand.length ? cand.map(r => `<tr style="${r.already || !r.pid ? 'opacity:.5' : ''}">
+        <td style="padding:5px 8px;border-bottom:1px solid #f2f2f2;white-space:nowrap">${r.date || '—'}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #f2f2f2">${tsEsc(r.employeeName)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #f2f2f2">${r.pid ? tsEsc(tsPrjName(r.pid)) : '—'}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #f2f2f2;text-align:center;font-weight:700">${r.hours.toFixed(1)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #f2f2f2;text-align:left;color:#16a085">${tsMoney(r.cost)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #f2f2f2;text-align:center">${badge(r)}</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="padding:16px;text-align:center;color:#aaa">لا سجلات حضور مطابقة في هذه الفترة</td></tr>';
+    document.getElementById('tsAtPreview').innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead style="position:sticky;top:0;background:#f4f7fa"><tr style="text-align:right"><th style="padding:7px 8px">التاريخ</th><th style="padding:7px 8px">الموظف</th><th style="padding:7px 8px">المشروع</th><th style="padding:7px 8px;text-align:center">الساعات</th><th style="padding:7px 8px;text-align:left">التكلفة</th><th style="padding:7px 8px;text-align:center">الحالة</th></tr></thead>
+        <tbody>${body}</tbody></table>`;
+    document.getElementById('tsAtSummary').innerHTML = `سيُنشأ: <b style="color:#16a085">${willCreate.length}</b> (${totHours.toFixed(1)} ساعة · ${tsMoney(totCost)}) · موجود مسبقاً: <b>${dup}</b>${noPrj ? ` · <span style="color:#c0392b">${noPrj} بلا مشروع (تُتجاوز — حدّد تجاوز المشروع أو اربط الموظف بمشروع)</span>` : ''}`;
+    const btn = document.getElementById('tsAtApplyBtn'); if (btn) { btn.disabled = willCreate.length === 0; btn.style.opacity = willCreate.length === 0 ? '.5' : '1'; }
+};
+window.tsApplyAttImport = async function () {
+    const willCreate = tsAttCandidates().filter(r => !r.already && r.pid);
+    if (!willCreate.length) { toast('⚠️ لا سجلات جديدة للتوليد', 'er'); return; }
+    let n = 0;
+    try {
+        for (const r of willCreate) {
+            await window.push(window.R.timesheets, {
+                date: r.date, employeeId: r.employeeId, employeeName: r.employeeName,
+                projectId: r.pid, projectName: tsPrjName(r.pid), taskKey: '', taskTitle: '',
+                hours: r.hours, hourlyRate: r.rate, cost: r.cost, billable: false,
+                description: 'مولّد من الحضور', source: 'attendance', attKey: r.attKey,
+                createdAt: new Date().toISOString(), createdBy: (window.curU && window.curU.uid) || ''
+            });
+            n++;
+        }
+        toast(`✅ تم توليد ${n} إدخال من الحضور`, 'ok');
+        tsCloseAttImport();
+    } catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+};
+
 // ── تبويب الأوقات في ملف المشروع ────────────────────────────────────────────
 window.tsProjectData = function (pid) {
     const rows = Object.values(tsAll()).filter(t => t.projectId === pid);
@@ -188,7 +284,7 @@ window.pdRenderTimesheets = function (pid) {
     pane.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
             <div style="font-size:15px;font-weight:800;color:#1a3a5c">⏱️ الأوقات المسجّلة على المشروع</div>
-            <button class="btn b-g" onclick="tsOpenEditor('', '${pid}')">➕ تسجيل وقت لهذا المشروع</button>
+            <div style="display:flex;gap:8px"><button class="btn" onclick="tsOpenAttImport('${pid}')" style="background:#eaf4fb;border:1.5px solid #b9dcf2;color:#2d6a9f;font-weight:700">🔄 توليد من الحضور</button><button class="btn b-g" onclick="tsOpenEditor('', '${pid}')">➕ تسجيل وقت لهذا المشروع</button></div>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
             ${kpi('⏱️', 'إجمالي الساعات', hours.toFixed(1), '#2980b9')}
