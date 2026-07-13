@@ -198,6 +198,7 @@
                     <div class="sb-it act" id="n-db" onclick="nav('dashboard',this)"><span class="ic">📊</span><span>لوحة التحكم</span></div>
                     <div class="sb-it" id="n-appr" onclick="nav('approvalsinbox',this)"><span class="ic">✅</span><span>صندوق الموافقات</span><span class="sb-badge" id="apprBadge" style="display:none"></span></div>
                     <div class="sb-it" id="n-tasks" onclick="nav('tasks',this)"><span class="ic">🗓️</span><span>المهام والتنبيهات</span><span class="sb-badge" id="tasksBadge" style="display:none"></span></div>
+                    <div class="sb-it" id="n-ess" onclick="nav('selfservice',this)" style="background:linear-gradient(135deg,rgba(22,160,133,.14),transparent);border-right:3px solid #16a085"><span class="ic">🙋</span><span>خدمتي الذاتية</span></div>
 
                     <!-- ══ التحليل المالي (قسم مُجمّع) ══ -->
                     <div class="sb-grp collapsed" id="grpFinAnalysis">
@@ -323,12 +324,14 @@
                             <div class="sb-it sub" id="n-recruit"   onclick="nav('recruitment',this)"><span class="ic">🧲</span><span>التوظيف والتعيين</span></div>
                             <div class="sb-it sub" id="n-dp"        onclick="nav('departments',this)"><span class="ic">🏢</span><span>الإدارات والأقسام</span></div>
                             <div class="sb-it sub" id="n-at"        onclick="nav('attendance',this)"><span class="ic">🕐</span><span>الحضور والانصراف</span></div>
+                            <div class="sb-it sub" id="n-shifts"    onclick="nav('shifts',this)"><span class="ic">🕗</span><span>الورديات والجداول</span></div>
                             <div style="height:1px;background:#f0f0f0;margin:4px 10px"></div>
                             <div class="sb-it sub" id="n-pr2"       onclick="nav('payroll',this)"><span class="ic">💵</span><span>مسير الرواتب</span></div>
                             <div class="sb-it sub" id="n-payrolldash" onclick="nav('payrolldashboard',this)"><span class="ic">📊</span><span>لوحة الرواتب</span></div>
                             <div class="sb-it sub" id="n-deferred"  onclick="nav('deferredreport',this)"><span class="ic">⏸️</span><span>المُؤجَّلون</span></div>
                             <div style="height:1px;background:#f0f0f0;margin:4px 10px"></div>
                             <div class="sb-it sub" id="n-lv"        onclick="nav('leaves',this)"><span class="ic">🌴</span><span>طلبات الإجازات</span></div>
+                            <div class="sb-it sub" id="n-lvpol"     onclick="nav('leavepolicies',this)"><span class="ic">🌴</span><span>سياسات الإجازات</span></div>
                             <div class="sb-it sub" id="n-perm"      onclick="nav('permissions',this)"><span class="ic">🕘</span><span>الأذونات والاستئذان</span></div>
                             <div class="sb-it sub" id="n-ln"        onclick="nav('loans',this)"><span class="ic">💳</span><span>السلف والقروض</span></div>
                             <div class="sb-it sub" id="n-pf"        onclick="nav('performance',this)"><span class="ic">⭐</span><span>تقييمات الأداء</span></div>
@@ -1340,6 +1343,7 @@
                         </div>
                         <div class="card-actions">
                             <button class="btn b-g" onclick="doAdminAddAttendance()">💾 حفظ السجل</button>
+                            <button class="btn" style="background:#16679a;color:white" onclick="openBiometricImport()">🖐️ استيراد بصمة</button>
                             <div id="atAdminStatus" class="stat"></div>
                         </div>
                     </div>
@@ -13129,6 +13133,9 @@
                     <!-- المحتوى يُولّد ديناميكياً من renderWorkload() في timesheets.js -->
                 </div>
 
+                <!-- PAGE: SELF-SERVICE (خدمتي الذاتية) — يُولّد ديناميكياً من renderSelfService() [HR-ESS] -->
+                <div class="pg" id="pg-selfservice"></div>
+
                 <!-- PAGE: RECRUITMENT (التوظيف والتعيين) — يُولّد ديناميكياً من renderRecruitment() في recruitment.js -->
                 <div class="pg" id="pg-recruitment"></div>
 
@@ -13137,6 +13144,12 @@
 
                 <!-- PAGE: ORG CHART (الهيكل التنظيمي) — hr-extra.js -->
                 <div class="pg" id="pg-orgchart"></div>
+
+                <!-- PAGE: SHIFTS (الورديات والجداول) — shifts.js -->
+                <div class="pg" id="pg-shifts"></div>
+
+                <!-- PAGE: LEAVE POLICIES (سياسات الإجازات) — leave-policies.js -->
+                <div class="pg" id="pg-leavepolicies"></div>
 
                 <!-- PAGE: INDIRECT COSTS (إهلاك، إيجارات... وتوزيعها على المشاريع) -->
                 <div class="pg" id="pg-indirectcosts">
@@ -19348,7 +19361,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260713-gosi1"></script>
+    <script type="module" src="app.js?v=20260713-perm1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260712-invlbl1"></script>
@@ -19357,6 +19370,9 @@
     <script defer src="timesheets.js?v=20260713-attgen1"></script>
     <script defer src="recruitment.js?v=20260713-rec1"></script>
     <script defer src="hr-extra.js?v=20260713-hrx1"></script>
+    <script defer src="shifts.js?v=20260713-shf1"></script>
+    <script defer src="leave-policies.js?v=20260713-lvp1"></script>
+    <script defer src="biometric-import.js?v=20260713-bio1"></script>
     <script defer src="presentation.js?v=20260627-pres3"></script>
     <script defer src="finmodels.js?v=20260707-bunyan"></script>
     <!-- 📁 وحدة ملف المشروع المتكامل -->
