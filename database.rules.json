@@ -173,6 +173,11 @@
             ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
           },
 
+          "geofence": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+
           "myData": {
             "$eid": {
               ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $eid || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",

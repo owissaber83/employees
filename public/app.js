@@ -228,6 +228,7 @@ function buildRefs() {
     fsgReports: ref(db, 'ledger/fsgReports'), // 🧱 تقارير مولّد القوائم المالية المخصّصة: { id: { name, rows:[...] } }
     jrnTemplates: ref(db, 'ledger/jrnTemplates'), // 📋 قوالب القيود اليدوية: { id: { name, lines:[{accountCode,debit,credit}] } }
     periodLocks: ref(db, 'ledger/periodLocks'),    // 🔒 إقفال الفترات المحاسبية: { 'YYYY-MM': { locked, lockedAt, lockedBy } }
+    geofence: ref(db, 'ledger/geofence'),          // 🎯 نطاق الحضور الجغرافي: { enabled, mode, fences:{ id:{ name, lat, lng, radius } } }
     yearClosings: ref(db, 'ledger/yearClosings'),  // 🗓️ إقفالات السنوات المالية: { year: { closingEntryKey, openingEntryKey, netIncome, closedAt, closedBy } }
     auditLog: ref(db, 'ledger/auditLog'),          // 🕵️ سجل التدقيق الشامل: { key: { at, by, byName, module, action, description } }
     bankStmts: ref(db, 'ledger/bankStatements'),   // 🏦 سطور كشوف البنك المستوردة: { accountCode: { sessionKey: { lineKey: {...} } } }
@@ -2783,6 +2784,10 @@ function startListeners() {
     onValue(R.periodLocks, sn => {
         window.periodLocks = sn.exists() ? sn.val() : {};
         if ($('pg-periodlock')?.classList.contains('act') && typeof renderPeriodLock === 'function') renderPeriodLock();
+    });
+    onValue(R.geofence, sn => {
+        window.geofence = sn.exists() ? sn.val() : null;
+        if ($('pg-attendance')?.classList.contains('act') && typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin();
     });
     onValue(R.yearClosings, sn => {
         window.yearClosings = sn.exists() ? sn.val() : {};
@@ -21610,6 +21615,68 @@ function getGeoLoc(timeoutMs = 8000) {
 }
 function geoLink(loc) { return loc && loc.lat != null ? `<a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank" rel="noopener" title="عرض موقع التسجيل على الخريطة (دقة ~${loc.acc}م)" style="color:#2980b9;font-weight:700;font-size:11px">📍</a>` : ''; }
 
+// 🎯 المسافة بين نقطتين بالأمتار (Haversine)
+function geoDistanceM(lat1, lng1, lat2, lng2) {
+    const R = 6371000, toR = x => x * Math.PI / 180;
+    const dLat = toR(lat2 - lat1), dLng = toR(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+// 🎯 تحقّق من وقوع الموقع داخل أحد النطاقات المسموح بها
+function geoCheckLoc(loc) {
+    const gf = window.geofence;
+    if (!gf || !gf.enabled) return { ok: true, off: true };            // النطاق غير مُفعّل
+    const fences = Object.values(gf.fences || {}).filter(f => f && f.lat != null);
+    if (!fences.length) return { ok: true, off: true };
+    if (!loc || loc.lat == null) return { ok: false, reason: 'no-loc', msg: '⚠️ تعذّر تحديد موقعك — فعّل GPS واسمح للمتصفح بالوصول للموقع، ثم أعد المحاولة.' };
+    let nearest = null, minD = Infinity;
+    fences.forEach(f => { const d = geoDistanceM(loc.lat, loc.lng, f.lat, f.lng); if (d < minD) { minD = d; nearest = f; } });
+    const rad = (nearest.radius || 150) + (loc.acc || 0);              // نتساهل بمقدار دقّة الـGPS
+    if (minD <= rad) return { ok: true, fence: nearest, dist: Math.round(minD) };
+    return { ok: false, reason: 'outside', dist: Math.round(minD), fence: nearest, msg: `🚫 أنت خارج نطاق العمل المسموح للحضور.\nأقرب موقع: «${nearest.name}» — يبعد ${Math.round(minD)} م (المسموح ${nearest.radius} م).` };
+}
+// 🎯 لوحة إدارة النطاق الجغرافي (للمسؤول) داخل صفحة الحضور
+window.renderGeofenceAdmin = function () {
+    const c = $('geofenceAdminCard'); if (!c) return;
+    const canManage = myP?.role === 'admin' || myP?.role === 'hr_officer' || (typeof can === 'function' && can('edit_settings'));
+    if (!canManage) { c.innerHTML = ''; return; }
+    const gf = window.geofence || {};
+    const enabled = !!gf.enabled, mode = gf.mode || 'block';
+    const fences = Object.entries(gf.fences || {}).filter(([, f]) => f && f.lat != null);
+    c.innerHTML = `<div class="card" style="margin-bottom:16px;border-right:5px solid #16a085">
+        <div class="c-tl">🎯 نطاق الحضور الجغرافي (Geofencing)</div>
+        <div class="hr-info">💡 عند التفعيل، لن يتمكّن الموظف من تسجيل الحضور/الانصراف إلا إذا كان داخل أحد المواقع المسموح بها. يُتساهَل تلقائياً بمقدار دقّة إشارة الـGPS.</div>
+        <div class="opt-row">
+            <label class="opt-chk"><input type="checkbox" ${enabled ? 'checked' : ''} onchange="geofenceToggle(this.checked)"> تفعيل النطاق الجغرافي</label>
+            <label class="opt-chk"><input type="radio" name="gfmode" ${mode === 'block' ? 'checked' : ''} onchange="geofenceSetMode('block')"> 🚫 منع خارج النطاق</label>
+            <label class="opt-chk"><input type="radio" name="gfmode" ${mode === 'warn' ? 'checked' : ''} onchange="geofenceSetMode('warn')"> ⚠️ سماح مع تنبيه</label>
+            <button class="btn b-g" onclick="geofenceAddCurrent()">📍 إضافة موقعي الحالي</button>
+        </div>
+        ${fences.length ? `<div style="margin-top:12px;display:grid;gap:8px">${fences.map(([id, f]) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:10px 12px;flex-wrap:wrap">
+                <div><b style="color:#1a3a5c">${f.name || 'موقع'}</b> <span style="color:#16a085;font-size:12px;font-weight:700">— نطاق ${f.radius} م</span><br><a href="https://www.google.com/maps?q=${f.lat},${f.lng}" target="_blank" rel="noopener" style="font-size:11px;color:#2980b9;direction:ltr;display:inline-block">📍 ${f.lat}, ${f.lng}</a></div>
+                <button class="btn b-r" style="padding:4px 10px;font-size:11px" onclick="geofenceDelete('${id}')">🗑️ حذف</button>
+            </div>`).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:14px;font-size:12px">لا مواقع مُضافة بعد — قف في مقر العمل واضغط «📍 إضافة موقعي الحالي».</div>`}
+    </div>`;
+};
+window.geofenceToggle = async function (on) { try { await update(ref(db, 'ledger/geofence'), { enabled: !!on, mode: window.geofence?.mode || 'block' }); toast(on ? '✅ فُعّل النطاق الجغرافي' : '⏸️ أُوقف النطاق الجغرافي', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } };
+window.geofenceSetMode = async function (mode) { try { await update(ref(db, 'ledger/geofence'), { mode }); toast(mode === 'block' ? '🚫 وضع المنع' : '⚠️ وضع التنبيه', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } };
+window.geofenceAddCurrent = async function () {
+    toast('📍 جارٍ تحديد موقعك الحالي…', 'ok');
+    const loc = await getGeoLoc();
+    if (!loc || loc.lat == null) { toast('تعذّر تحديد الموقع — فعّل GPS واسمح للمتصفح بالوصول للموقع', 'er', 6000); return; }
+    const name = prompt('اسم الموقع (مثال: المقر الرئيسي / موقع المشروع):', 'المقر الرئيسي'); if (name === null) return;
+    const radStr = prompt('نصف قطر النطاق المسموح بالأمتار (مثال: 150):', '150'); if (radStr === null) return;
+    const radius = Math.max(20, parseInt(radStr) || 150);
+    const id = 'gf_' + Date.now();
+    try {
+        await update(ref(db, 'ledger/geofence'), { enabled: window.geofence?.enabled ?? true, mode: window.geofence?.mode || 'block' });
+        await set(ref(db, 'ledger/geofence/fences/' + id), { name: (name || 'موقع').trim(), lat: loc.lat, lng: loc.lng, radius, acc: loc.acc || 0, createdAt: new Date().toISOString(), createdBy: myP?.name || '' });
+        toast(`✅ أُضيف الموقع «${name}» (نطاق ${radius}م، دقّة ~${loc.acc}م)`, 'ok', 5000);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.geofenceDelete = function (id) { cf2('حذف هذا الموقع من النطاق المسموح؟', async () => { try { await set(ref(db, 'ledger/geofence/fences/' + id), null); toast('🗑️ حُذف الموقع', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
+
 // 🙋 سياق الموظف الحالي — يعمل لدور «موظف» (عبر myData/empKey) ولبقية الأدوار (عبر سجل الموظف)
 function myEmpContext() {
     if (myP?.role === 'employee') {
@@ -21632,7 +21699,14 @@ window.doCheckIn = async function () {
     try {
         setSt('📍 جارٍ تحديد الموقع...');
         const loc = await getGeoLoc();
-        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: new Date().toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null });
+        // 🎯 التحقق من النطاق الجغرافي المسموح
+        const gc = geoCheckLoc(loc);
+        if (!gc.ok) {
+            const strict = (window.geofence?.mode || 'block') === 'block';
+            if (strict) { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
+            toast('⚠️ ' + gc.msg + '\n(سُجّل مع تنبيه — خارج النطاق)', 'wn', 8000);
+        }
+        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: new Date().toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true });
         setSt('✅ تم تسجيل الدخول في ' + new Date().toLocaleTimeString('ar-SA') + (loc ? ' · 📍 تم تسجيل الموقع' : ' · ⚠️ تعذّر الموقع'));
         toast('✅ تم تسجيل الدخول' + (loc ? ' مع الموقع' : ''), 'ok');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
@@ -21652,9 +21726,12 @@ window.doCheckOut = async function () {
     try {
         setSt('📍 جارٍ تحديد الموقع...');
         const loc = await getGeoLoc();
+        // 🎯 التحقق من النطاق الجغرافي المسموح (للانصراف أيضاً)
+        const gc = geoCheckLoc(loc);
+        if (!gc.ok && (window.geofence?.mode || 'block') === 'block') { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
         const checkOutTime = new Date().toISOString();
         const hours = parseFloat(((new Date(checkOutTime) - new Date(data.checkIn)) / (1000 * 60 * 60)).toFixed(2));
-        await update(ref(db, 'ledger/attendance/' + key), { checkOut: checkOutTime, totalHours: hours, checkOutLoc: loc || null });
+        await update(ref(db, 'ledger/attendance/' + key), { checkOut: checkOutTime, totalHours: hours, checkOutLoc: loc || null, checkOutOutside: gc.ok ? false : true });
         setSt('🚪 تم تسجيل الخروج في ' + new Date(checkOutTime).toLocaleTimeString('ar-SA') + ' | المجموع: ' + hours.toFixed(2) + ' س' + (loc ? ' · 📍' : ''));
         toast('✅ تم تسجيل الخروج', 'ok');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
@@ -22030,6 +22107,7 @@ function totalCalendarDaysInRange(from, to) {
 // عرض الجدول + الملخص + الراتب
 window.renderAttendance = function () {
     const tb = $('attendanceTable'); if (!tb) return;
+    if (typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin();
     fillAtEmpFilter();
 
     const empF = $('atFilterEmp')?.value || '';

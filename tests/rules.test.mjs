@@ -154,6 +154,11 @@ await test('مدير A يكتب قناة الموظف myData/E1', assertSucceeds
 await test('غريب لا يقرأ قناة موظف A', assertFails(get(ref(db.stranger, 'tenants/A/ledger/myData/E1'))));
 await test('موظف A لا يقرأ قناة موظف في B (عزل المستأجر)', assertFails(get(ref(db.empU, 'tenants/B/ledger/myData/E1'))));
 
+console.log('\n🎯 النطاق الجغرافي (geofence):');
+await test('موظف A يقرأ إعداد النطاق (للتحقق من موقعه)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/geofence'))));
+await test('موظف A لا يعبث بإعداد النطاق (للإدارة فقط)', assertFails(set(ref(db.empU, 'tenants/A/ledger/geofence'), { enabled: false })));
+await test('مدير A يضبط النطاق الجغرافي', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/geofence'), { enabled: true, mode: 'block' })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
