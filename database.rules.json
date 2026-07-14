@@ -44,7 +44,7 @@
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin'",
             "$uid": {
               ".read": "auth != null && (auth.uid === $uid || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin')",
-              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && newData.child('role').val() === 'admin' && !root.child('tenants').child($tid).child('ledger/users').exists()))"
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('operators').child(auth.uid).val() === true || (auth.uid === $uid && newData.child('role').val() === 'admin' && !root.child('tenants').child($tid).child('ledger/users').exists()))"
             }
           },
 
