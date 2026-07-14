@@ -67,6 +67,7 @@ function shRenderDefs() {
             <div style="padding:12px 14px;font-size:12.5px;color:#555;line-height:1.9">
                 ⏰ <b>${s.startTime || '—'}</b> ← <b>${s.endTime || '—'}</b>${s.breakMins ? ` · استراحة ${s.breakMins}د` : ''}<br>
                 🟢 سماح تأخير: <b>${s.graceMins || 0}</b> دقيقة<br>
+                🎛️ نافذة الحضور: <b>${s.openBefore ?? 30}د</b> قبل ← <b>${s.lateLimit ?? 120}د</b> بعد · خروج حتى <b>${s.closeOut ?? 120}د</b> بعد النهاية<br>
                 ⏱️ الإضافي: <b>${s.otAllowed ? (s.otAfter ? `بعد ${s.otAfter}د` : 'مسموح') : 'غير مسموح'}</b><br>
                 📅 ${days}<br>
                 👥 مُسنَد إليها: <b>${cntByShift[s.k] || 0}</b> موظف
@@ -86,6 +87,9 @@ window.shOpenShift = function (key) {
     document.getElementById('shBreak').value = s?.breakMins ?? 60;
     document.getElementById('shGrace').value = s?.graceMins ?? 15;
     document.getElementById('shColor').value = s?.color || '#2980b9';
+    document.getElementById('shOpenBefore').value = s?.openBefore ?? 30;
+    document.getElementById('shLateLimit').value = s?.lateLimit ?? 120;
+    document.getElementById('shCloseOut').value = s?.closeOut ?? 120;
     const otOn = !!s?.otAllowed;
     document.getElementById('shOtAllowed').checked = otOn;
     document.getElementById('shOtAfter').value = s?.otAfter ?? 0;
@@ -113,6 +117,14 @@ function shEnsureShiftModal() {
             ${fg('سماح التأخير (دقائق)', `<input id="shGrace" type="number" min="0" style="width:100%;${shInp()}">`)}
         </div>
         ${fg('أيام العمل', `<div style="display:flex;flex-wrap:wrap;gap:6px">${days}</div>`)}
+        <div style="background:#fbfcfe;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+            <div style="font-size:12px;font-weight:800;color:#5b6b7b;margin-bottom:8px">🎛️ نوافذ الحضور/الانصراف</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                ${fg('يظهر زر الحضور قبل الدوام بـ (دقائق)', `<input id="shOpenBefore" type="number" min="0" placeholder="30" style="width:100%;${shInp()}">`)}
+                ${fg('آخر وقت للحضور بعد البداية بـ (دقائق)', `<input id="shLateLimit" type="number" min="0" placeholder="120" style="width:100%;${shInp()}">`)}
+                ${fg('يختفي زر الانصراف بعد النهاية بـ (دقائق)', `<input id="shCloseOut" type="number" min="0" placeholder="120" style="width:100%;${shInp()}">`)}
+            </div>
+        </div>
         <div style="background:#f7fbff;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2d6a9f;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="shOtAllowed" onchange="document.getElementById('shOtRow').style.display=this.checked?'block':'none'"> ⏱️ السماح بالعمل الإضافي</label>
             <div id="shOtRow" style="display:none">
@@ -132,6 +144,7 @@ window.shSaveShift = async function () {
     const data = {
         name, startTime: document.getElementById('shStart').value, endTime: document.getElementById('shEnd').value,
         breakMins: parseInt(document.getElementById('shBreak').value) || 0, graceMins: parseInt(document.getElementById('shGrace').value) || 0,
+        openBefore: parseInt(document.getElementById('shOpenBefore').value) || 0, lateLimit: parseInt(document.getElementById('shLateLimit').value) || 0, closeOut: parseInt(document.getElementById('shCloseOut').value) || 0,
         otAllowed: !!document.getElementById('shOtAllowed').checked, otAfter: parseInt(document.getElementById('shOtAfter').value) || 0,
         workDays: workDays.length ? workDays : SH_DEFAULT_WORKDAYS, color: document.getElementById('shColor').value, active: true, updatedAt: new Date().toISOString()
     };
