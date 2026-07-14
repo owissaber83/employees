@@ -263,3 +263,100 @@ window.essRequestLetter = async function () {
 // خيارات نوع الخطاب للخدمة الذاتية (تُستخدم في app.js)
 window.hsLetterTypeOptions = function () { return Object.entries(HS_LETTER_TYPES).map(([t, d]) => `<option value="${t}">${d.label}</option>`).join(''); };
 window.hsLetterLabel = function (t) { return (HS_LETTER_TYPES[t] || HS_LETTER_TYPES.employment).label; };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  📊 تحليلات الموارد البشرية + السعودة (نطاقات)
+// ═══════════════════════════════════════════════════════════════════════════
+function hsIsSaudi(nat) { return /^\s*(سعودي|سعوديه|سعودية|saudi|ksa)/i.test(String(nat || '')); }
+function hsIsActive(e) { return (e.status || 'active') === 'active'; }
+function hsTenureYears(e) { const h = e.hireDate || e.joinDate; if (!h) return null; const d = new Date(h); if (isNaN(d)) return null; return (Date.now() - d.getTime()) / (365.25 * 86400000); }
+// نطاق السعودة التقريبي (يعتمد فعلياً على نشاط المنشأة وحجمها لدى وزارة الموارد البشرية)
+function hsNitaqatBand(pct) {
+    if (pct >= 40) return { label: 'بلاتيني', color: '#7f8c8d', bg: '#ecf0f1' };
+    if (pct >= 30) return { label: 'أخضر مرتفع', color: '#1e8449', bg: '#eafaf1' };
+    if (pct >= 20) return { label: 'أخضر متوسط', color: '#27ae60', bg: '#eafaf1' };
+    if (pct >= 10) return { label: 'أخضر منخفض', color: '#2ecc71', bg: '#f0faf3' };
+    if (pct >= 5)  return { label: 'أصفر', color: '#b9770e', bg: '#fef9e7' };
+    return { label: 'أحمر', color: '#c0392b', bg: '#fdecea' };
+}
+
+window.renderHrAnalytics = function () {
+    const c = document.getElementById('pg-hranalytics'); if (!c) return;
+    if (!hsCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية فقط</div>'; return; }
+    const allEmp = Object.values(window.emp || {});
+    const active = allEmp.filter(hsIsActive);
+    const inactive = allEmp.filter(e => !hsIsActive(e));
+    const total = active.length;
+    const saudis = active.filter(e => hsIsSaudi(e.nationality)).length;
+    const nonSaudis = total - saudis;
+    const satzPct = total ? Math.round((saudis / total) * 1000) / 10 : 0;
+    const band = hsNitaqatBand(satzPct);
+    // تكلفة الرواتب الشهرية (المكوّنات المخزّنة)
+    let salaryCost = 0; active.forEach(e => salaryCost += hsSalaryParts(e).total);
+    const avgSalary = total ? salaryCost / total : 0;
+    // متوسط مدة الخدمة
+    const tenures = active.map(hsTenureYears).filter(v => v != null);
+    const avgTenure = tenures.length ? (tenures.reduce((a, b) => a + b, 0) / tenures.length) : 0;
+    // معدل دوران تقريبي (المنتهية خدمتهم ÷ إجمالي)
+    const turnoverPct = allEmp.length ? Math.round((inactive.length / allEmp.length) * 1000) / 10 : 0;
+    // انتهاء الإقامات
+    const dTo = ds => { if (!ds) return null; const d = new Date(ds); if (isNaN(d)) return null; return Math.ceil((d - new Date(new Date().toISOString().slice(0, 10))) / 86400000); };
+    const iqExp = { d30: 0, d60: 0, expired: 0 };
+    active.forEach(e => { const dd = dTo(e.iqamaExp); if (dd == null) return; if (dd < 0) iqExp.expired++; else if (dd <= 30) iqExp.d30++; else if (dd <= 60) iqExp.d60++; });
+
+    // تفصيل حسب القسم
+    const byDept = {}; active.forEach(e => { const d = e.dept || 'غير محدّد'; (byDept[d] = byDept[d] || { n: 0, s: 0, cost: 0 }); byDept[d].n++; if (hsIsSaudi(e.nationality)) byDept[d].s++; byDept[d].cost += hsSalaryParts(e).total; });
+    // تفصيل حسب الجنسية
+    const byNat = {}; active.forEach(e => { const n = hsIsSaudi(e.nationality) ? '🇸🇦 سعودي' : (e.nationality || 'غير محدّد'); byNat[n] = (byNat[n] || 0) + 1; });
+
+    const kpi = (icon, label, val, col, sub) => `<div style="background:#fff;border-radius:12px;padding:14px 16px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div>${sub ? `<div style="font-size:10.5px;color:#95a5a6;margin-top:2px">${sub}</div>` : ''}</div>`;
+    const bar = (pct, col) => `<div style="background:#eef2f6;border-radius:6px;height:8px;overflow:hidden;min-width:70px"><div style="width:${Math.min(100, pct)}%;height:100%;background:${col}"></div></div>`;
+
+    c.innerHTML = `<div style="padding:0 4px" id="hsAnalyticsPrint">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800;color:#1a3a5c">📊 تحليلات الموارد البشرية والسعودة</div>
+            <button class="btn" onclick="window.print()" style="background:#eef5fb;color:#2d6a9f;font-weight:700">🖨️ طباعة</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            ${kpi('👷', 'إجمالي الموظفين', total, '#2980b9', `${inactive.length ? inactive.length + ' منتهية خدمتهم' : 'الكل على رأس العمل'}`)}
+            ${kpi('🇸🇦', 'نسبة السعودة', satzPct + '%', band.color, `${saudis} سعودي / ${nonSaudis} غير سعودي`)}
+            ${kpi('💰', 'تكلفة الرواتب/شهر', hsMoney(salaryCost), '#16a085', `متوسط ${hsMoney(avgSalary)} ر`)}
+            ${kpi('⏳', 'متوسط مدة الخدمة', avgTenure.toFixed(1) + ' سنة', '#8e44ad')}
+            ${kpi('🔄', 'معدل الدوران', turnoverPct + '%', turnoverPct > 15 ? '#e67e22' : '#95a5a6', 'تقريبي (تراكمي)')}
+        </div>
+
+        <div class="card" style="margin-bottom:16px;border-right:5px solid ${band.color};background:${band.bg}">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                <div>
+                    <div style="font-size:14px;font-weight:800;color:${band.color}">🇸🇦 نطاق السعودة التقريبي: ${band.label}</div>
+                    <div style="font-size:12px;color:#5b6b7b;margin-top:4px">نسبة السعودة الحالية <b>${satzPct}%</b> (${saudis} من ${total}). النطاق الفعلي يعتمد على نشاط المنشأة وحجمها لدى وزارة الموارد البشرية.</div>
+                </div>
+                <div style="font-size:34px;font-weight:900;color:${band.color}">${satzPct}%</div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
+            <div class="card">
+                <div class="c-tl">🏢 التوزيع حسب القسم</div>
+                <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                    <thead><tr style="background:#f0f5fa;text-align:right;color:#1a3a5c"><th style="padding:7px 9px">القسم</th><th style="padding:7px 9px;text-align:center">العدد</th><th style="padding:7px 9px;text-align:center">السعودة</th><th style="padding:7px 9px;text-align:left">التكلفة/شهر</th></tr></thead>
+                    <tbody>${Object.entries(byDept).sort((a, b) => b[1].n - a[1].n).map(([d, v]) => `<tr style="border-bottom:1px solid #f2f5f8"><td style="padding:6px 9px;font-weight:700">${hsEsc(d)}</td><td style="padding:6px 9px;text-align:center">${v.n}</td><td style="padding:6px 9px;text-align:center">${v.n ? Math.round(v.s / v.n * 100) : 0}%</td><td style="padding:6px 9px;text-align:left">${hsMoney(v.cost)}</td></tr>`).join('') || '<tr><td colspan="4" style="padding:14px;text-align:center;color:#aaa">لا بيانات</td></tr>'}</tbody>
+                </table></div>
+            </div>
+            <div class="card">
+                <div class="c-tl">🌍 التوزيع حسب الجنسية</div>
+                ${Object.entries(byNat).sort((a, b) => b[1] - a[1]).map(([n, v]) => `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:120px;font-size:12.5px;font-weight:600">${hsEsc(n)}</div>${bar(total ? v / total * 100 : 0, hsIsSaudi(n) ? '#16a085' : '#2980b9')}<div style="font-size:12px;font-weight:700;color:#555;min-width:28px">${v}</div></div>`).join('') || '<div style="color:#aaa;text-align:center;padding:14px">لا بيانات</div>'}
+            </div>
+        </div>
+
+        <div class="card" style="border-right:5px solid #e67e22">
+            <div class="c-tl">📋 انتهاء الإقامات (الموظفون على رأس العمل)</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                ${kpi('🔴', 'منتهية', iqExp.expired, iqExp.expired ? '#c0392b' : '#95a5a6')}
+                ${kpi('🟠', 'خلال 30 يوم', iqExp.d30, iqExp.d30 ? '#e67e22' : '#95a5a6')}
+                ${kpi('🟡', 'خلال 60 يوم', iqExp.d60, iqExp.d60 ? '#b9770e' : '#95a5a6')}
+            </div>
+            <div style="font-size:11.5px;color:#8a97a5;margin-top:8px">للتفاصيل والتنبيهات الكاملة راجع صفحة «⏰ تنبيهات المستندات».</div>
+        </div>
+    </div>`;
+};
