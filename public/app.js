@@ -21721,8 +21721,10 @@ function normShift(s) {
 }
 function getEmpShiftForDate(empKey, date) {
     const roster = window.roster || {}, shifts = window.shifts || {};
-    const a = Object.values(roster).find(r => r.empKey === empKey && (r.from || '') <= date && date <= (r.to || ''));
-    if (!a || !shifts[a.shiftId]) return null;
+    // shifts.js يخزّن الإسناد كـ roster/{empKey} = { shiftId, effectiveFrom }
+    const a = roster[empKey];
+    if (!a || !a.shiftId || !shifts[a.shiftId]) return null;
+    if (a.effectiveFrom && date < a.effectiveFrom) return null; // الإسناد لم يبدأ بعد في هذا التاريخ
     const sh = normShift({ id: a.shiftId, ...shifts[a.shiftId] });
     // احترام أيام العمل إن حُدّدت (0=الأحد … 6=السبت بترتيب JS)
     if (sh.workDays && sh.workDays.length) { const dow = new Date(date + 'T00:00:00').getDay(); if (!sh.workDays.includes(dow)) return null; }
@@ -21885,8 +21887,14 @@ window.doCheckIn = async function () {
         } else {
             lateMin = attendanceLateMinutes(nowDt);
         }
-        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: nowDt.toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true, lateMinutes: lateMin, shiftId, shiftName });
-        setSt('✅ تم تسجيل الدخول في ' + nowDt.toLocaleTimeString('ar-SA') + (shiftName ? ` · وردية ${shiftName}` : '') + (lateMin > 0 ? ` · ⏰ متأخر ${lateMin} دقيقة` : '') + (loc ? ' · 📍' : ' · ⚠️ تعذّر الموقع'));
+        // 🕘 إذن تأخير معتمد لهذا اليوم يُلغي احتساب التأخير (لا يُسجَّل متأخراً)
+        let lateWaived = false;
+        if (lateMin > 0) {
+            const hasLatePerm = Object.values(window.permissions || {}).some(p => p && p.empKey === myEmpRec.key && p.type === 'late_arrival' && p.status === 'approved' && (p.date || '') === todayStr);
+            if (hasLatePerm) { lateMin = 0; lateWaived = true; }
+        }
+        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: nowDt.toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true, lateMinutes: lateMin, lateWaivedByPermit: lateWaived, shiftId, shiftName });
+        setSt('✅ تم تسجيل الدخول في ' + nowDt.toLocaleTimeString('ar-SA') + (shiftName ? ` · وردية ${shiftName}` : '') + (lateMin > 0 ? ` · ⏰ متأخر ${lateMin} دقيقة` : lateWaived ? ' · 🕘 إذن تأخير معتمد (لا يُحتسب تأخيراً)' : '') + (loc ? ' · 📍' : ' · ⚠️ تعذّر الموقع'));
         toast('✅ تم تسجيل الدخول' + (lateMin > 0 ? ` — ⏰ تأخير ${lateMin} دقيقة` : '') + (loc ? ' مع الموقع' : ''), lateMin > 0 ? 'wn' : 'ok', lateMin > 0 ? 5000 : 3000);
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
