@@ -4395,6 +4395,10 @@ window.renderPermsMatrix = function (rebuild) {
                 </div>
             </div>
         </div>
+        ${window.__impersonating ? `<div class="card" style="margin-bottom:14px;background:#f4ecfa;border:1.5px solid #8e44ad">
+            <div style="font-weight:800;color:#6c3483;font-size:14px">👑 وضع دعم المالك — تعديل الصلاحيات مسموح</div>
+            <div style="font-size:12.5px;color:#6c3483;margin-top:6px;line-height:1.9">أنت تتصفّح <b>${esc(window.currentTenantName || 'الشركة')}</b> في وضع الدعم (بقيّة الأقسام للقراءة فقط). يمكنك هنا تعديل صلاحيات مستخدمي هذه الشركة وحفظها نيابةً عن مديرها.</div>
+        </div>` : ''}
         ${users.filter(([, u]) => u.role !== 'admin').length ? '' : `<div class="card" style="margin-bottom:14px;background:#fef9e7;border:1.5px solid #f0c419">
             <div style="font-weight:800;color:#7d4e00;font-size:14px">ℹ️ لا يوجد مستخدمون لتخصيص صلاحياتهم بعد</div>
             <div style="font-size:12.5px;color:#7d4e00;margin-top:6px;line-height:1.9">حسابك الحالي بدور <b>مدير النظام</b>، ويملك <b>كل الصلاحيات تلقائياً</b> — ولا يمكن تقييده حتى لا تُغلق على نفسك، لذا تظهر خاناته بعلامة ✓ مقفلة.<br>لتفعيل التحكم بالصلاحيات فعلياً: <b>أضِف مستخدماً بدور غير المدير</b> (محاسب، موظف موارد بشرية، مشاهد…). عندها يظهر له عمود بخانات قابلة للتفعيل والإلغاء هنا، وتتحكّم في كل ما يراه ويفعله.</div>
@@ -4460,12 +4464,17 @@ window.permsSave = async function () {
     const st = window._permsState;
     if (!st.dirty.size) { toast('لا توجد تغييرات للحفظ', 'wn'); return; }
     let ok = 0, fail = 0;
+    // 👑 في وضع دعم المالك: نكتب عبر _rawUpdate لتجاوز حاجز «القراءة فقط» (الخادم يسمح للمشغّل عبر قواعد قاعدة البيانات)
+    const saveUser = (uid, vals) => window.__impersonating
+        ? _rawUpdate(ref(db, `ledger/users/${uid}`), vals)
+        : update(ref(db, `ledger/users/${uid}`), vals);
     for (const uid of [...st.dirty]) {
         if ((window.us || {})[uid] && window.us[uid].role === 'admin') { continue; } // المدير لا تُحفظ له قائمة (دوره يتجاوزها)
-        try { await update(ref(db, `ledger/users/${uid}`), { permissions: [...(st.perms[uid] || [])], updatedAt: new Date().toISOString() }); ok++; }
+        try { await saveUser(uid, { permissions: [...(st.perms[uid] || [])], updatedAt: new Date().toISOString() }); ok++; }
         catch (e) { fail++; }
     }
-    if (typeof logAudit === 'function') logAudit('تعديل صلاحيات', 'المستخدمون', `تحديث صلاحيات ${ok} مستخدم`);
+    // سجل التدقيق داخل الشركة يرفض كتابة المشغّل (ليس عضواً) — نتجاوزه في وضع الدعم
+    if (!window.__impersonating && typeof logAudit === 'function') logAudit('تعديل صلاحيات', 'المستخدمون', `تحديث صلاحيات ${ok} مستخدم`);
     toast(`✅ حُفظت صلاحيات ${ok} مستخدم${fail ? ` — فشل ${fail}` : ''}`, fail ? 'er' : 'ok');
     st.dirty.clear(); permsPaintTable();
 };
