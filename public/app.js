@@ -21610,10 +21610,21 @@ function getGeoLoc(timeoutMs = 8000) {
 }
 function geoLink(loc) { return loc && loc.lat != null ? `<a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank" rel="noopener" title="عرض موقع التسجيل على الخريطة (دقة ~${loc.acc}م)" style="color:#2980b9;font-weight:700;font-size:11px">📍</a>` : ''; }
 
+// 🙋 سياق الموظف الحالي — يعمل لدور «موظف» (عبر myData/empKey) ولبقية الأدوار (عبر سجل الموظف)
+function myEmpContext() {
+    if (myP?.role === 'employee') {
+        const md = window.myData;
+        const k = (md && md.empKey) || myP?.empKey || '';
+        if (!k) return null;
+        return { key: k, data: (md && md.profile) || { name: myP?.name || '' } };
+    }
+    const r = findCurrentEmpRecord();
+    return r ? { key: r.key, data: r.data } : null;
+}
 window.doCheckIn = async function () {
     const setSt = t => { const el = $('atStatus'); if (el) el.textContent = t; };
     if (!curU) { toast('يجب تسجيل الدخول أولاً', 'er'); return }
-    const myEmpRec = findCurrentEmpRecord();
+    const myEmpRec = myEmpContext();
     if (!myEmpRec) { setSt('⚠️ حسابك غير مرتبط بسجل موظف. تواصل مع شؤون الموظفين'); toast('⚠️ حسابك غير مرتبط بسجل موظف', 'er'); return }
     const todayStr = today();
     const existing = Object.values(attendance).find(a => a.employeeId === myEmpRec.key && a.date === todayStr);
@@ -21631,7 +21642,7 @@ window.doCheckIn = async function () {
 window.doCheckOut = async function () {
     const setSt = t => { const el = $('atStatus'); if (el) el.textContent = t; };
     if (!curU) { toast('يجب تسجيل الدخول أولاً', 'er'); return }
-    const myEmpRec = findCurrentEmpRecord();
+    const myEmpRec = myEmpContext();
     if (!myEmpRec) { setSt('⚠️ حسابك غير مرتبط بسجل موظف'); toast('⚠️ حسابك غير مرتبط بسجل موظف', 'er'); return }
     const todayStr = today();
     const entry = Object.entries(attendance).find(([, a]) => a.employeeId === myEmpRec.key && a.date === todayStr);
@@ -21864,7 +21875,7 @@ window.renderSelfService = function () {
     const tabs = [['home', '🏠', 'الرئيسية'], ['leave', '🌴', 'إجازة'], ['perm', '🕘', 'إذن'], ['pay', '💰', 'الراتب'], ['file', '📁', 'ملفّي']];
     c.innerHTML = `<div style="max-width:460px;margin:0 auto;padding-bottom:14px">
         <!-- ترويسة التطبيق -->
-        <div style="background:linear-gradient(140deg,#1a3a5c,#2d6a9f);border-radius:0 0 26px 26px;padding:20px 20px 40px;color:#fff;position:relative">
+        <div style="background:linear-gradient(140deg,#1a3a5c,#2d6a9f);border-radius:0 0 26px 26px;padding:18px 18px 52px;color:#fff;position:relative">
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;opacity:.9;margin-bottom:14px"><span>${dateStr}</span><span style="display:flex;align-items:center;gap:10px">🟢 متصل<button onclick="doLogout()" title="تسجيل الخروج" style="background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:9px;padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">🚪 خروج</button></span></div>
             <div style="display:flex;align-items:center;gap:13px">
                 <div style="width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;border:1.5px solid rgba(255,255,255,.25)">${initial}</div>
@@ -21872,10 +21883,10 @@ window.renderSelfService = function () {
             </div>
         </div>
         <div style="padding:0 12px">
-            <!-- بطاقة الحضور (تتداخل مع الترويسة) -->
-            <div style="background:#fff;border-radius:17px;padding:15px 16px;box-shadow:0 6px 20px rgba(20,50,80,.1);margin:-26px 0 14px">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-                    <div style="min-width:0"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم</div>
+            <!-- بطاقة الحضور (تتداخل مع الترويسة برفق) -->
+            <div style="background:#fff;border-radius:17px;padding:14px 16px;box-shadow:0 6px 20px rgba(20,50,80,.1);margin:-30px 0 14px;position:relative;z-index:2">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="min-width:0;flex:1"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم</div>
                     <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}</div></div>
                     ${!checkedIn ? `<button onclick="doCheckIn()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#27ae60,#1e8e50);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(39,174,96,.32)">🟢 حضور</button>`
                 : !checkedOut ? `<button onclick="doCheckOut()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(230,126,34,.32)">🔴 انصراف</button>`
@@ -21892,7 +21903,7 @@ window.renderSelfService = function () {
 };
 // تقديم طلب إجازة من الخدمة الذاتية
 window.essSubmitLeave = async function () {
-    const me = findCurrentEmpRecord(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
+    const me = myEmpContext(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
     const key = me.key, type = $('essLvType')?.value, from = $('essLvFrom')?.value, to = $('essLvTo')?.value;
     if (!from || !to) { toast('⚠️ أدخل تاريخي البداية والنهاية', 'er'); return; }
     const d1 = new Date(from), d2 = new Date(to);
@@ -21910,7 +21921,7 @@ window.essSubmitLeave = async function () {
 };
 // تقديم إذن من الخدمة الذاتية
 window.essSubmitPerm = async function () {
-    const me = findCurrentEmpRecord(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
+    const me = myEmpContext(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
     const date = $('essPmDate')?.value; if (!date) { toast('⚠️ اختر التاريخ', 'er'); return; }
     const fromTime = $('essPmFrom')?.value || '', toTime = $('essPmTo')?.value || '';
     const type = $('essPmType')?.value || 'other';
@@ -21927,7 +21938,7 @@ window.essSubmitPerm = async function () {
 };
 // تقديم مطالبة مصروفات من الخدمة الذاتية (مسودّة يكملها/يعتمدها المحاسب لاحقاً)
 window.essSubmitExpense = async function () {
-    const me = findCurrentEmpRecord(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
+    const me = myEmpContext(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
     const amount = parseFloat($('essExpAmount')?.value) || 0;
     const description = $('essExpDesc')?.value.trim();
     if (amount <= 0) { toast('⚠️ أدخل مبلغ المصروف', 'er'); return; }
@@ -22302,7 +22313,7 @@ window.atResetFilter = function () {
 // حالة المستخدم الحالي
 function refreshCheckInStatus() {
     if (!curU || !$('atStatus')) return;
-    const myEmpRec = findCurrentEmpRecord();
+    const myEmpRec = myEmpContext();
     if (!myEmpRec) {
         $('atStatus').textContent = '⚠️ حسابك غير مرتبط بسجل موظف — تسجيل الحضور الشخصي معطّل';
         if ($('checkInBtn')) $('checkInBtn').disabled = true;
