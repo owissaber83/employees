@@ -1684,6 +1684,8 @@ function initApp() {
         if (grpHead) {
             const grp = grpHead.closest('.sb-grp');
             if (grp) grp.style.display = 'none';
+            const prevSec = grp?.previousElementSibling;
+            if (prevSec && prevSec.classList.contains('sb-sec')) prevSec.style.display = 'none';
         }
     }
 
