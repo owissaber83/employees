@@ -359,7 +359,10 @@ PG.push({
         { k: 'add_employee', l: 'إضافة موظف جديد' },
         { k: 'edit_employee', l: 'تعديل بيانات موظف' },
         { k: 'delete_employee', l: 'حذف موظف' },
-        { k: 'manage_departments', l: 'إدارة الإدارات والأقسام' }
+        { k: 'manage_departments', l: 'إدارة الإدارات والأقسام' },
+        { k: 'view_recruitment', l: '🧲 التوظيف والتعيين (الشواغر والمرشّحون)' },
+        { k: 'view_disciplinary', l: '⚖️ الجزاءات والإنذارات' },
+        { k: 'view_org_chart', l: '🏛️ الهيكل التنظيمي' }
     ]
 });
 PG.push({
@@ -394,7 +397,8 @@ PG.push({
 PG.push({
     t: '🕐 الحضور والانصراف', p: [
         { k: 'view_attendance', l: 'عرض الحضور' },
-        { k: 'manage_attendance', l: 'إدارة سجلات الحضور (مدير)' }
+        { k: 'manage_attendance', l: 'إدارة سجلات الحضور (مدير)' },
+        { k: 'manage_shifts', l: '🕗 الورديات والجداول وتحليل التأخير' }
     ]
 });
 PG.push({
@@ -412,7 +416,8 @@ PG.push({
     t: '🌴 الإجازات', p: [
         { k: 'view_leaves', l: 'عرض الإجازات' },
         { k: 'request_leave', l: 'تسجيل طلب إجازة' },
-        { k: 'approve_leave', l: 'اعتماد/رفض طلبات الإجازات (مدير)' }
+        { k: 'approve_leave', l: 'اعتماد/رفض طلبات الإجازات (مدير)' },
+        { k: 'manage_leave_policies', l: '🌴 إدارة سياسات الإجازات' }
     ]
 });
 PG.push({
@@ -549,8 +554,9 @@ const PRESETS = {
     hr_officer: [
         'view_dashboard', 'view_employees', 'add_employee', 'edit_employee', 'delete_employee',
         'manage_departments',
-        'view_attendance', 'manage_attendance',
-        'view_leaves', 'request_leave', 'approve_leave',
+        'view_recruitment', 'view_disciplinary', 'view_org_chart',
+        'view_attendance', 'manage_attendance', 'manage_shifts',
+        'view_leaves', 'request_leave', 'approve_leave', 'manage_leave_policies',
         'view_payroll', 'create_payroll',
         'view_loans', 'manage_loans',
         'view_performance', 'add_performance', 'edit_performance',
@@ -1361,11 +1367,14 @@ window.opsOpenModules = function (tid) {
     let ov = document.getElementById('opsModModal');
     if (!ov) { ov = document.createElement('div'); ov.id = 'opsModModal'; ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px'; document.body.appendChild(ov); }
     const preset = (on) => Object.keys(MODULE_DEFS).map(k => `document.getElementById('opsmod_${k}').checked=${on}`).join(';');
+    // يفعّل الوحدات المُمرّرة فقط ويُطفئ الباقي (لأزرار الباقات)
+    const modulePreset = (onKeys) => Object.keys(MODULE_DEFS).map(k => `document.getElementById('opsmod_${k}').checked=${onKeys.includes(k)}`).join(';');
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:22px" dir="rtl">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0;color:#16679a;font-size:18px">🧩 أقسام الشركة</h3><button onclick="document.getElementById('opsModModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
         <div style="font-size:12.5px;color:#666;margin-bottom:12px">🏢 <b>${(meta.companyName || tid)}</b> — فعّل الأقسام المشمولة في باقة هذه الشركة. المعطّلة تختفي من قائمتها ولا يمكن فتحها.</div>
-        <div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn" onclick="${preset('true')}" style="background:#eafaf1;color:#1e8449;font-weight:700;font-size:12px">✓ الكل</button><button class="btn" onclick="${preset('false')}" style="background:#fdecea;color:#c0392b;font-weight:700;font-size:12px">✗ الكل</button>
-        <button class="btn" onclick="document.getElementById('opsmod_hr').checked=true;document.getElementById('opsmod_projects').checked=true;${Object.keys(MODULE_DEFS).filter(k=>k!=='hr'&&k!=='projects').map(k=>`document.getElementById('opsmod_${k}').checked=false`).join(';')}" style="background:#eef5fb;color:#2d6a9f;font-weight:700;font-size:12px">📦 باقة HR + مشاريع</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn" onclick="${preset('true')}" style="background:#eafaf1;color:#1e8449;font-weight:700;font-size:12px">✓ الكل</button><button class="btn" onclick="${preset('false')}" style="background:#fdecea;color:#c0392b;font-weight:700;font-size:12px">✗ الكل</button>
+        <button class="btn" onclick="${modulePreset(['hr', 'projects'])}" style="background:#eef5fb;color:#2d6a9f;font-weight:700;font-size:12px">📦 HR + مشاريع (تشغيلي)</button>
+        <button class="btn" onclick="${modulePreset(['hr', 'projects', 'sales', 'procurement'])}" style="background:#eef5fb;color:#2d6a9f;font-weight:700;font-size:12px">📦 مقاولات مالية</button></div>
         <div style="display:grid;grid-template-columns:1fr;gap:9px;margin-bottom:16px">
             ${Object.entries(MODULE_DEFS).map(([k, d]) => `<label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #d0d7e0;border-radius:9px;padding:11px 13px;cursor:pointer;font-size:13.5px;font-weight:600;color:#334"><input type="checkbox" id="opsmod_${k}" ${mods[k] !== false ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer"> ${d.label}</label>`).join('')}
         </div>
@@ -1600,6 +1609,12 @@ function initApp() {
     if (!can('view_leaves') && myP?.role !== 'admin') $('n-lv').style.display = 'none';
     if (!can('view_leaves') && myP?.role !== 'admin') { const _np = $('n-perm'); if (_np) _np.style.display = 'none'; }
     if (!can('view_performance') && myP?.role !== 'admin') $('n-pf').style.display = 'none';
+    // الأقسام الجديدة (توظيف/جزاءات/هيكل/ورديات/سياسات إجازات)
+    if (!can('view_recruitment') && myP?.role !== 'admin') { const _n = $('n-recruit'); if (_n) _n.style.display = 'none'; }
+    if (!can('view_disciplinary') && myP?.role !== 'admin') { const _n = $('n-disc'); if (_n) _n.style.display = 'none'; }
+    if (!can('view_org_chart') && myP?.role !== 'admin') { const _n = $('n-org'); if (_n) _n.style.display = 'none'; }
+    if (!can('manage_shifts') && myP?.role !== 'admin') { const _n = $('n-shifts'); if (_n) _n.style.display = 'none'; }
+    if (!can('manage_leave_policies') && myP?.role !== 'admin') { const _n = $('n-lvpol'); if (_n) _n.style.display = 'none'; }
     if (!can('view_employees') && myP?.role !== 'admin') $('n-em').style.display = 'none';
     if (!can('manage_departments') && myP?.role !== 'admin') $('n-dp').style.display = 'none';
     if (!can('view_materials') && myP?.role !== 'admin') $('n-mc').style.display = 'none';
@@ -1671,7 +1686,7 @@ function initApp() {
     }
 
     // إذا لم يكن للمستخدم أي صلاحية في مجموعة "الموارد البشرية" أخفِ المجموعة + العنوان
-    const hrItems = ['n-em', 'n-dp', 'n-at', 'n-pr2', 'n-deferred', 'n-payrolldash', 'n-lv', 'n-ln', 'n-pf', 'n-da'];
+    const hrItems = ['n-em', 'n-dp', 'n-at', 'n-pr2', 'n-deferred', 'n-payrolldash', 'n-lv', 'n-ln', 'n-pf', 'n-da', 'n-recruit', 'n-disc', 'n-org', 'n-shifts', 'n-lvpol'];
     const visibleHrItems = hrItems.filter(id => $(id) && $(id).style.display !== 'none');
     if (!visibleHrItems.length) {
         const grpHead = $('grpEmpHead');
@@ -1700,6 +1715,14 @@ function initApp() {
     if (can('add_transaction')) { const el = $('bATr'); if (el) el.style.display = 'inline-flex'; }
     // 🧩 باقة العميل (يتحكم بها المالك من لوحة المشغّل) — تُخفي الأقسام غير المفعّلة بعد إخفاء الصلاحيات
     if (typeof applyModuleVisibility === 'function') applyModuleVisibility();
+
+    // 🙋 وضع الموظف: تطبيق خالص — يُخفى هيكل النظام بالكامل ويُفتح مباشرة على «خدمتي الذاتية»
+    if (myP?.role === 'employee') {
+        const sb = $('SB'); if (sb) sb.style.display = 'none';
+        const mc = $('MC'); if (mc) { const tb = mc.querySelector('.tb'); if (tb) tb.style.display = 'none'; mc.style.padding = '0'; }
+        $('APP')?.classList.add('emp-portal');
+        setTimeout(() => nav('selfservice'), 0);
+    }
     // bASp is now rendered dynamically inside renderSpL() — no static element
     if (myP?.role === 'admin') $('bCA').style.display = 'inline-flex';
 
@@ -2163,7 +2186,7 @@ window.renderApprovalsInbox = function () {
 
 // ── Navigate ──────────────────────────────
 window.nav = function (pg, el) {
-    const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', recruitment: 'view_employees', disciplinary: 'view_employees', orgchart: 'view_employees', shifts: 'view_employees', leavepolicies: 'view_leaves' };
+    const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', recruitment: 'view_recruitment', disciplinary: 'view_disciplinary', orgchart: 'view_org_chart', shifts: 'manage_shifts', leavepolicies: 'manage_leave_policies' };
     if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const p = pm[pg]; if (p && !can(p)) { toast('ليس لديك صلاحية', 'er'); return }
     // 🧩 حارس الباقة: امنع فتح صفحة تابعة لوحدة غير مُفعّلة في باقة العميل
@@ -21509,94 +21532,109 @@ window.renderSelfService = function () {
     const c = $('pg-selfservice'); if (!c) return;
     const me = findCurrentEmpRecord();
     if (!me) {
-        c.innerHTML = `<div style="max-width:560px;margin:40px auto;background:#fff;border-radius:14px;padding:28px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,.06)">
-            <div style="font-size:44px">🙋</div>
-            <div style="font-size:17px;font-weight:800;color:#1a3a5c;margin:10px 0">الخدمة الذاتية للموظف</div>
-            <div style="color:#666;font-size:13.5px;line-height:1.9">حسابك غير مرتبط بسجل موظف بعد.<br>اطلب من شؤون الموظفين ربط بريدك <b style="direction:ltr;display:inline-block">${(curU?.email || '')}</b> بسجلك (حقل البريد ببطاقة الموظف) لتفعيل خدمتك الذاتية.</div>
+        c.innerHTML = `<div style="max-width:440px;margin:30px auto;background:#fff;border-radius:20px;padding:36px 26px;text-align:center;box-shadow:0 6px 26px rgba(0,0,0,.08)">
+            <div style="font-size:58px">🙋</div>
+            <div style="font-size:18px;font-weight:800;color:#1a3a5c;margin:12px 0">الخدمة الذاتية للموظف</div>
+            <div style="color:#666;font-size:13.5px;line-height:2">حسابك غير مرتبط بسجل موظف بعد.<br>اطلب من شؤون الموظفين ربط بريدك<br><b style="direction:ltr;display:inline-block;color:#2d6a9f;margin-top:4px">${(curU?.email || '')}</b><br>بسجلك لتفعيل خدمتك الذاتية.</div>
         </div>`;
         return;
     }
     const key = me.key, e = me.data;
+    window._essTab = window._essTab || 'home';
+    const tab = window._essTab;
     const todayStr = today();
     const todayRec = Object.values(attendance).find(a => a.employeeId === key && a.date === todayStr);
     const checkedIn = !!(todayRec && todayRec.checkIn), checkedOut = !!(todayRec && todayRec.checkOut);
     const bal = getLeaveBalance(key);
-    const myLeaves = Object.entries(leaves).filter(([, l]) => l.empKey === key).map(([k, l]) => ({ k, ...l })).sort((a, b) => (b.from || '').localeCompare(a.from || '')).slice(0, 8);
-    const myPerms = Object.entries(window.permissions || {}).filter(([, p]) => p.empKey === key).map(([k, p]) => ({ k, ...p })).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 8);
+    const myLeaves = Object.entries(leaves).filter(([, l]) => l.empKey === key).map(([k, l]) => ({ k, ...l })).sort((a, b) => (b.from || '').localeCompare(a.from || '')).slice(0, 20);
+    const myPerms = Object.entries(window.permissions || {}).filter(([, p]) => p.empKey === key).map(([k, p]) => ({ k, ...p })).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 20);
     const myLoans = Object.values(loans).filter(l => l.empKey === key);
     const loanOutstanding = myLoans.reduce((s, l) => s + (parseFloat(l.remaining ?? l.amount) || 0), 0);
     const myPayrolls = Object.entries(payrolls).map(([k, p]) => ({ k, p, it: (p.items || []).find(i => i.empKey === key) })).filter(x => x.it).sort((a, b) => (b.p.month || '').localeCompare(a.p.month || '')).slice(0, 12);
+    const myAtt = Object.values(attendance).filter(a => a.employeeId === key && a.checkIn).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
+    const pendingCount = myLeaves.filter(l => l.status === 'pending').length + myPerms.filter(p => (p.status || 'pending') === 'pending').length;
 
-    const inp = 'padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box;width:100%';
-    const card = (inner, extra = '') => `<div style="background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.05);${extra}">${inner}</div>`;
-    const balBox = (label, b, col) => `<div style="flex:1;min-width:120px;background:${col}0e;border:1px solid ${col}33;border-radius:12px;padding:12px 14px;text-align:center"><div style="font-size:12px;color:#777">${label}</div><div style="font-size:24px;font-weight:900;color:${col};margin-top:2px">${b ? b.remaining : '—'}</div><div style="font-size:10.5px;color:#999">متبقٍ من ${b ? b.total : '—'} يوم</div></div>`;
-    const leaveTypeOpts = Object.entries(LEAVE_TYPE_LABELS).map(([k, v]) => `<option value="${k}">${v.label || k}</option>`).join('');
+    const hr = new Date().getHours();
+    const greet = hr < 12 ? '☀️ صباح الخير' : hr < 18 ? '🌤️ مساءٌ سعيد' : '🌙 مساء الخير';
+    const initial = ((e.name || '؟').trim().charAt(0)) || '؟';
+    const dateStr = new Date().toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long' });
+    const inp = 'padding:12px;border:1.5px solid #d9e0e8;border-radius:11px;font-family:inherit;font-size:14px;box-sizing:border-box;width:100%;background:#fbfcfd';
+    const lbl = t => `<label style="font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:5px">${t}</label>`;
+    const secTitle = t => `<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin:2px 0 12px">${t}</div>`;
+    const scard = (inner, extra = '') => `<div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(20,50,80,.06);${extra}">${inner}</div>`;
+    const bigBtn = (onclick, txt, grad, shadow) => `<button onclick="${onclick}" style="width:100%;border:none;cursor:pointer;font-family:inherit;background:${grad};color:#fff;font-weight:800;font-size:15px;padding:14px;border-radius:13px;box-shadow:0 4px 14px ${shadow}">${txt}</button>`;
+    const balCard = (label, b, col, icon) => `<div style="flex:1;background:linear-gradient(160deg,${col}14,${col}05);border:1px solid ${col}2b;border-radius:15px;padding:13px 6px;text-align:center"><div style="font-size:19px">${icon}</div><div style="font-size:26px;font-weight:900;color:${col};line-height:1;margin:3px 0">${b ? b.remaining : '—'}</div><div style="font-size:11px;color:#54606e;font-weight:800">${label}</div><div style="font-size:9.5px;color:#9aa7b3">من ${b ? b.total : '—'} يوم</div></div>`;
+    const listRow = (main, sub, right) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid #f2f5f8"><div style="min-width:0"><div style="font-weight:800;color:#243b53;font-size:13px">${main}</div><div style="color:#8a97a5;font-size:11.5px;margin-top:2px">${sub}</div></div><div style="flex-shrink:0">${right}</div></div>`;
+    const empty = t => `<div style="color:#b3bdc7;font-size:12.5px;text-align:center;padding:22px">${t}</div>`;
 
-    c.innerHTML = `<div style="padding:0 4px;max-width:1000px;margin:0 auto">
-        <!-- ترويسة -->
-        ${card(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <div><div style="font-size:19px;font-weight:900;color:#1a3a5c">🙋 مرحباً، ${e.name || ''}</div>
-            <div style="font-size:12.5px;color:#888;margin-top:3px">${e.job || ''}${e.dept ? ' · ' + e.dept : ''}${e.empId ? ' · رقم وظيفي ' + e.empId : ''}</div></div>
-            <div style="text-align:center">
-                <div style="font-size:11px;color:#999;margin-bottom:5px">حضور اليوم</div>
-                ${!checkedIn ? `<button class="btn b-g" onclick="doCheckIn()" style="font-weight:800">🟢 تسجيل حضور</button>`
-            : !checkedOut ? `<button class="btn" onclick="doCheckOut()" style="background:#e67e22;color:#fff;font-weight:800">🔴 تسجيل انصراف</button>`
-                : `<span style="color:#27ae60;font-weight:700;font-size:13px">✅ مكتمل (${(todayRec.totalHours || 0).toFixed(1)} س)</span>`}
-                ${checkedIn && !checkedOut ? `<div style="font-size:11px;color:#888;margin-top:4px">حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
+    const balancesRow = `<div style="display:flex;gap:9px">${balCard('سنوية', bal?.annual, '#16a085', '🏖️')}${balCard('مرضية', bal?.sick, '#e67e22', '🏥')}${balCard('اضطرارية', bal?.emergency, '#8e44ad', '⚡')}</div>`;
+
+    // ── محتوى التبويبات ──
+    let body = '';
+    if (tab === 'home') {
+        body = `
+        ${scard(`${secTitle('🌴 أرصدة إجازاتي')}${balancesRow}`, 'margin-bottom:13px')}
+        ${scard(`<div style="display:flex;gap:10px">
+            <div style="flex:1;text-align:center"><div style="font-size:24px;font-weight:900;color:${pendingCount ? '#e67e22' : '#27ae60'}">${pendingCount}</div><div style="font-size:11px;color:#7a8896;font-weight:700">طلبات قيد الاعتماد</div></div>
+            <div style="width:1px;background:#eef2f6"></div>
+            <div style="flex:1;text-align:center"><div style="font-size:24px;font-weight:900;color:#2d6a9f">${myPayrolls.length}</div><div style="font-size:11px;color:#7a8896;font-weight:700">قسائم راتب</div></div>
+            <div style="width:1px;background:#eef2f6"></div>
+            <div style="flex:1;text-align:center"><div style="font-size:24px;font-weight:900;color:${loanOutstanding > 0 ? '#c0392b' : '#27ae60'}">${loanOutstanding > 0 ? fmt(loanOutstanding) : '0'}</div><div style="font-size:11px;color:#7a8896;font-weight:700">متبقي السلف</div></div>
+        </div>`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('🕐 آخر سجلات حضوري')}${myAtt.length ? myAtt.map(a => listRow(a.date || '—', `${a.checkIn ? new Date(a.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'} ← ${a.checkOut ? new Date(a.checkOut).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'}`, `<span style="font-weight:800;color:#16a085;font-size:13px">${(a.totalHours || 0).toFixed(1)} س</span>`)).join('') : empty('لا سجلات حضور بعد')}`, 'margin-bottom:13px')}
+        <div style="background:linear-gradient(135deg,#eef5fb,#f8fbfe);border:1px dashed #b9d4ea;border-radius:14px;padding:13px 15px;font-size:11.5px;color:#2d6a9f;line-height:1.8;text-align:center">📲 <b>ثبّت الخدمة كتطبيق:</b> من متصفح جوالك اختر «إضافة إلى الشاشة الرئيسية» لفتحها كتطبيق بنقرة.</div>`;
+    } else if (tab === 'leave') {
+        const leaveTypeOpts = Object.entries(LEAVE_TYPE_LABELS).map(([k, v]) => `<option value="${k}">${v.lb || k}</option>`).join('');
+        body = `
+        ${scard(`${secTitle('🌴 أرصدة إجازاتي')}${balancesRow}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('📤 تقديم طلب إجازة')}
+            <div style="margin-bottom:11px">${lbl('نوع الإجازة')}<select id="essLvType" style="${inp}">${leaveTypeOpts}</select></div>
+            <div style="display:flex;gap:10px;margin-bottom:11px"><div style="flex:1">${lbl('من')}<input id="essLvFrom" type="date" style="${inp}"></div><div style="flex:1">${lbl('إلى')}<input id="essLvTo" type="date" style="${inp}"></div></div>
+            <div style="margin-bottom:13px">${lbl('السبب (اختياري)')}<input id="essLvReason" placeholder="مثال: ظرف عائلي" style="${inp}"></div>
+            ${bigBtn('essSubmitLeave()', '📤 تقديم الطلب', 'linear-gradient(135deg,#16a085,#0e7c66)', 'rgba(22,160,133,.32)')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('📋 طلباتي السابقة')}${myLeaves.length ? myLeaves.map(l => listRow(`${(LEAVE_TYPE_LABELS[l.type]?.lb) || l.type} · ${l.days || 0} يوم`, `${l.from} ← ${l.to}`, essStatusBadge(l.status))).join('') : empty('لا طلبات إجازة بعد')}`)}`;
+    } else if (tab === 'perm') {
+        body = `
+        ${scard(`${secTitle('📤 تقديم إذن / استئذان')}
+            <div style="margin-bottom:11px">${lbl('نوع الإذن')}<select id="essPmType" style="${inp}">${Object.entries(PERM_TYPES).map(([t, v]) => `<option value="${t}">${v[0]}</option>`).join('')}</select></div>
+            <div style="margin-bottom:11px">${lbl('التاريخ')}<input id="essPmDate" type="date" value="${todayStr}" style="${inp}"></div>
+            <div style="display:flex;gap:10px;margin-bottom:11px"><div style="flex:1">${lbl('من الساعة')}<input id="essPmFrom" type="time" style="${inp}"></div><div style="flex:1">${lbl('إلى الساعة')}<input id="essPmTo" type="time" style="${inp}"></div></div>
+            <div style="margin-bottom:13px">${lbl('السبب (اختياري)')}<input id="essPmReason" placeholder="السبب" style="${inp}"></div>
+            ${bigBtn('essSubmitPerm()', '📤 تقديم الإذن', 'linear-gradient(135deg,#e67e22,#d35400)', 'rgba(230,126,34,.32)')}
+            <div style="font-size:11px;color:#9aa7b3;margin-top:9px;text-align:center">💡 المأمورية الرسمية لا تُخصم من الراتب.</div>`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('🕘 أذوناتي السابقة')}${myPerms.length ? myPerms.map(p => listRow(`${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]} · ${(p.hours || 0)} ساعة`, `${p.date}${p.fromTime ? ' · ' + p.fromTime + (p.toTime ? ' ← ' + p.toTime : '') : ''}`, essStatusBadge(p.status))).join('') : empty('لا أذونات بعد')}`)}`;
+    } else {
+        body = `
+        ${scard(`${secTitle('🧾 قسائم راتبي')}${myPayrolls.length ? myPayrolls.map(x => listRow(formatMonthLabel(x.p.month), `صافٍ: ${fmt(x.it.finalNet ?? x.it.netSalary ?? 0)} ريال`, `<button onclick="essViewPayslip('${x.k}')" style="border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;padding:7px 14px;border-radius:9px;background:#eef5fb;color:#23577f">عرض</button>`)).join('') : empty('لا قسائم راتب بعد')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('💳 سلفي وقروضي')}<div style="text-align:center;padding:6px 0 12px"><div style="font-size:11px;color:#8a97a5;font-weight:700">إجمالي المتبقي</div><div style="font-size:30px;font-weight:900;color:${loanOutstanding > 0 ? '#c0392b' : '#27ae60'}">${fmt(loanOutstanding)}<span style="font-size:14px"> ريال</span></div></div>${myLoans.length ? myLoans.slice(0, 8).map(l => listRow(l.reason || l.type || 'سلفة', l.date || '', `<span style="color:#c0392b;font-weight:800;font-size:13px">${fmt(parseFloat(l.remaining ?? l.amount) || 0)}</span>`)).join('') : empty('لا سلف')}`)}`;
+    }
+
+    const tabs = [['home', '🏠', 'الرئيسية'], ['leave', '🌴', 'إجازة'], ['perm', '🕘', 'إذن'], ['pay', '💰', 'الراتب']];
+    c.innerHTML = `<div style="max-width:460px;margin:0 auto;padding-bottom:14px">
+        <!-- ترويسة التطبيق -->
+        <div style="background:linear-gradient(140deg,#1a3a5c,#2d6a9f);border-radius:0 0 26px 26px;padding:20px 20px 40px;color:#fff;position:relative">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;opacity:.9;margin-bottom:14px"><span>${dateStr}</span><span style="display:flex;align-items:center;gap:10px">🟢 متصل<button onclick="doLogout()" title="تسجيل الخروج" style="background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:9px;padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">🚪 خروج</button></span></div>
+            <div style="display:flex;align-items:center;gap:13px">
+                <div style="width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;border:1.5px solid rgba(255,255,255,.25)">${initial}</div>
+                <div style="min-width:0"><div style="font-size:12px;opacity:.85">${greet}</div><div style="font-size:19px;font-weight:900;line-height:1.2">${e.name || ''}</div><div style="font-size:11.5px;opacity:.82;margin-top:1px">${e.job || 'موظف'}${e.dept ? ' · ' + e.dept : ''}</div></div>
             </div>
-        </div>`, 'margin-bottom:14px')}
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
-            <!-- أرصدة الإجازات + تقديم طلب -->
-            ${card(`<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:12px">🌴 أرصدة إجازاتي</div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-                    ${balBox('سنوية', bal?.annual, '#16a085')}${balBox('مرضية', bal?.sick, '#e67e22')}${balBox('اضطرارية', bal?.emergency, '#8e44ad')}
-                </div>
-                <div style="border-top:1px solid #f0f0f0;padding-top:12px">
-                    <div style="font-size:12.5px;font-weight:700;color:#555;margin-bottom:8px">تقديم طلب إجازة</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-                        <select id="essLvType" style="${inp}">${leaveTypeOpts}</select>
-                        <input id="essLvReason" placeholder="السبب (اختياري)" style="${inp}">
-                        <input id="essLvFrom" type="date" style="${inp}"><input id="essLvTo" type="date" style="${inp}">
-                    </div>
-                    <button class="btn b-g" onclick="essSubmitLeave()" style="width:100%;font-weight:800">📤 تقديم طلب الإجازة</button>
-                </div>`)}
-
-            <!-- تقديم إذن -->
-            ${card(`<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:12px">🕘 تقديم إذن/استئذان</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-                    <select id="essPmType" style="${inp}">${Object.entries(PERM_TYPES).map(([t, v]) => `<option value="${t}">${v[0]}</option>`).join('')}</select>
-                    <input id="essPmDate" type="date" value="${todayStr}" style="${inp}">
-                    <input id="essPmFrom" type="time" style="${inp}"><input id="essPmTo" type="time" style="${inp}">
-                </div>
-                <input id="essPmReason" placeholder="السبب (اختياري)" style="${inp};margin-bottom:8px">
-                <button class="btn b-g" onclick="essSubmitPerm()" style="width:100%;font-weight:800">📤 تقديم الإذن</button>
-                <div style="font-size:11px;color:#999;margin-top:6px">💡 المأمورية الرسمية لا تُخصم من الراتب.</div>`)}
         </div>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px">
-            <!-- طلبات إجازاتي -->
-            ${card(`<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:10px">📋 طلبات إجازاتي</div>
-                ${myLeaves.length ? myLeaves.map(l => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f4f4f4;font-size:12.5px">
-                    <div><b>${(LEAVE_TYPE_LABELS[l.type]?.label) || l.type}</b> · ${l.days || 0} يوم<div style="color:#999;font-size:11px">${l.from} ← ${l.to}</div></div>${essStatusBadge(l.status)}</div>`).join('') : '<div style="color:#aaa;font-size:12.5px;text-align:center;padding:14px">لا طلبات</div>'}`)}
-
-            <!-- أذوناتي -->
-            ${card(`<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🕘 أذوناتي</div>
-                ${myPerms.length ? myPerms.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f4f4f4;font-size:12.5px">
-                    <div><b>${p.date}</b> · ${(p.hours || 0)} ساعة<div style="color:#999;font-size:11px">${p.fromTime || ''}${p.toTime ? ' ← ' + p.toTime : ''}${p.deductible ? ' · قابل للخصم' : ''}</div></div>${essStatusBadge(p.status)}</div>`).join('') : '<div style="color:#aaa;font-size:12.5px;text-align:center;padding:14px">لا أذونات</div>'}`)}
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px">
-            <!-- قسائم راتبي -->
-            ${card(`<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🧾 قسائم راتبي</div>
-                ${myPayrolls.length ? myPayrolls.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f4f4f4;font-size:12.5px">
-                    <div><b>${formatMonthLabel(x.p.month)}</b><div style="color:#16a085;font-size:11px">صافٍ: ${fmt(x.it.finalNet ?? x.it.netSalary ?? 0)} ريال</div></div>
-                    <button class="btn" onclick="essViewPayslip('${x.k}')" style="font-size:11px;padding:4px 10px;background:#eef5fb;color:#23577f">عرض</button></div>`).join('') : '<div style="color:#aaa;font-size:12.5px;text-align:center;padding:14px">لا قسائم بعد</div>'}`)}
-
-            <!-- سلفي -->
-            ${card(`<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:10px">💳 سلفي وقروضي</div>
-                <div style="text-align:center;margin-bottom:10px"><div style="font-size:11px;color:#999">إجمالي المتبقي</div><div style="font-size:22px;font-weight:900;color:${loanOutstanding > 0 ? '#c0392b' : '#27ae60'}">${fmt(loanOutstanding)} ريال</div></div>
-                ${myLoans.length ? myLoans.slice(0, 6).map(l => `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f4f4f4;font-size:12.5px"><span>${l.reason || l.type || 'سلفة'}</span><span style="color:#c0392b;font-weight:700">${fmt(parseFloat(l.remaining ?? l.amount) || 0)}</span></div>`).join('') : '<div style="color:#aaa;font-size:12.5px;text-align:center;padding:10px">لا سلف</div>'}`)}
+        <div style="padding:0 12px">
+            <!-- بطاقة الحضور (تتداخل مع الترويسة) -->
+            <div style="background:#fff;border-radius:17px;padding:15px 16px;box-shadow:0 6px 20px rgba(20,50,80,.1);margin:-26px 0 14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                    <div style="min-width:0"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم</div>
+                    <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}</div></div>
+                    ${!checkedIn ? `<button onclick="doCheckIn()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#27ae60,#1e8e50);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(39,174,96,.32)">🟢 حضور</button>`
+                : !checkedOut ? `<button onclick="doCheckOut()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(230,126,34,.32)">🔴 انصراف</button>`
+                : `<div style="flex-shrink:0;font-size:30px">✅</div>`}
+                </div>
+            </div>
+            <!-- شريط التبويبات -->
+            <div style="display:flex;gap:4px;background:#eaeff4;border-radius:15px;padding:5px;margin-bottom:14px">
+                ${tabs.map(([id, ic, t]) => `<button onclick="window._essTab='${id}';renderSelfService()" style="flex:1;border:none;cursor:pointer;font-family:inherit;padding:8px 2px;border-radius:11px;font-size:11.5px;font-weight:800;background:${tab === id ? '#fff' : 'transparent'};color:${tab === id ? '#2d6a9f' : '#8795a4'};box-shadow:${tab === id ? '0 2px 6px rgba(20,50,80,.12)' : 'none'}"><div style="font-size:18px;line-height:1.3">${ic}</div>${t}</button>`).join('')}
+            </div>
+            ${body}
         </div>
     </div>`;
 };
