@@ -14318,9 +14318,12 @@
                     <div class="card">
                         <div class="tlb">
                             <div class="c-tl" style="margin:0;border:none;padding:0">👥 المستخدمون</div>
-                            <button class="btn b-g" onclick="openAUM()">➕ إضافة مستخدم</button>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn b-b" onclick="syncSelfServiceNow()" title="ربط حسابات الموظفين وتحديث قنوات خدمتهم الذاتية">🔄 مزامنة الخدمة الذاتية</button>
+                                <button class="btn b-g" onclick="openAUM()">➕ إضافة مستخدم</button>
+                            </div>
                         </div>
-                        <div class="inv-info">💡 <strong>ملاحظة:</strong> أنت من يضيف المستخدمين ويحدد صلاحياتهم.</div>
+                        <div class="inv-info">💡 <strong>ملاحظة:</strong> أنت من يضيف المستخدمين ويحدد صلاحياتهم. زر «🔄 مزامنة الخدمة الذاتية» يربط حسابات الموظفين ويجهّز بيانات بواباتهم فوراً.</div>
                         <div id="usL">
                             <div class="empty">
                                 <div class="ei">👥</div>
@@ -19365,7 +19368,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260714-esslink"></script>
+    <script type="module" src="app.js?v=20260714-esssync"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260714-jrnperiod1"></script>

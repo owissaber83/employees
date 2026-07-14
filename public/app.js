@@ -21702,6 +21702,26 @@ window.syncAllSelfData = async function () {
         await syncEmpSelfData(k);
     }
 };
+// 🔄 مزامنة يدوية فورية (زر الإدارة) — ربط empKey + بناء قنوات الموظفين، مع تقرير
+window.syncSelfServiceNow = async function () {
+    if (!(myP?.role === 'admin' || myP?.role === 'hr_officer' || myP?.role === 'accountant')) { toast('للإدارة/الموارد البشرية فقط', 'er'); return; }
+    toast('⏳ جارٍ مزامنة الخدمة الذاتية…', 'ok');
+    let linked = 0, built = 0, unlinked = [];
+    for (const k of Object.keys(emp || {})) {
+        const e = emp[k];
+        if (e && e.userId && us[e.userId]) {
+            if (us[e.userId].empKey !== k) { try { await update(ref(db, `ledger/users/${e.userId}`), { empKey: k }); linked++; } catch (er) { } }
+        } else if (e && (e.name)) {
+            // موظف بلا حساب مستخدم مربوط — نبني قناته على أي حال (تُقرأ عند الربط لاحقاً)
+        }
+        try { const d = buildEmpSelfData(k); if (d) { await update(ref(db, 'ledger/myData/' + k), d); built++; } } catch (er) { }
+    }
+    // موظفون لهم حساب لكن دون ربط empKey (للتنبيه)
+    Object.values(us || {}).forEach(u => { if (u.role === 'employee' && !u.empKey) unlinked.push(u.email || u.name || ''); });
+    let msg = `✅ تمّت المزامنة — رُبط ${linked} حساب، وجُهّزت ${built} قناة موظف.`;
+    if (unlinked.length) msg += `\n⚠️ ${unlinked.length} حساب موظف بلا ربط بسجل موظف: ${unlinked.slice(0, 3).join('، ')}${unlinked.length > 3 ? '…' : ''} — اربطه من سجل الموظف (حقل «ربط بحساب مستخدم») ثم أعد المزامنة.`;
+    toast(msg, unlinked.length ? 'wn' : 'ok', unlinked.length ? 9000 : 5000);
+};
 
 window.renderSelfService = function () {
     const c = $('pg-selfservice'); if (!c) return;
