@@ -2703,6 +2703,7 @@ function startListeners() {
     onValue(R.empExp, sn => {
         window.employeeExpenses = sn.exists() ? sn.val() : {};
         if ($('pg-empexpenses')?.classList.contains('act') && typeof renderEmployeeExpenses === 'function') renderEmployeeExpenses();
+        if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService();
     });
     onValue(R.bankRec, sn => {
         window.bankRecs = sn.exists() ? sn.val() : {};
@@ -3072,7 +3073,7 @@ function startListeners() {
     onValue(R.att, sn => { attendance = sn.exists() ? sn.val() : {}; window.attendance = attendance; if ($('pg-attendance')?.classList.contains('act')) { renderAttendance(); updateAtKPIs(); refreshCheckInStatus() } if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     onValue(R.pay, sn => { payrolls = sn.exists() ? sn.val() : {}; window.payrolls = payrolls; if ($('pg-payroll')?.classList.contains('act')) { renderPayrolls(); updatePayrollKPIs() } if ($('pg-empstatement')?.classList.contains('act')) renderEmpStatement($('esEmpSelect')?.value); });
     onValue(R.loans, sn => { loans = sn.exists() ? sn.val() : {}; window.loans = loans; if ($('pg-loans')?.classList.contains('act')) { renderLoansPage(); updateLoansKPIs() } });
-    onValue(R.custody, sn => { window.empCustody = sn.exists() ? sn.val() : {}; if ($('pg-empstatement')?.classList.contains('act')) renderEmpStatement($('esEmpSelect')?.value); });
+    onValue(R.custody, sn => { window.empCustody = sn.exists() ? sn.val() : {}; if ($('pg-empstatement')?.classList.contains('act')) renderEmpStatement($('esEmpSelect')?.value); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     onValue(R.leaves, sn => { leaves = sn.exists() ? sn.val() : {}; window.leaves = leaves; updateLeaveBadge(); if ($('pg-leaves')?.classList.contains('act')) { renderLeavesPage(); updateLeavesKPIs() } if ($('mEmp')?.classList.contains('show')) { const k = $('mEmpK')?.value; if (k) loadEmpLeaves(k) } if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     onValue(R.permissions, sn => { window.permissions = sn.exists() ? sn.val() : {}; if ($('pg-permissions')?.classList.contains('act') && typeof renderPermissions === 'function') renderPermissions(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); if ($('pg-approvalsinbox')?.classList.contains('act') && typeof renderApprovalsInbox === 'function') renderApprovalsInbox(); if (typeof refreshNotifBell === 'function') refreshNotifBell(); });
     onValue(R.perf, sn => { performance = sn.exists() ? sn.val() : {}; window.performance = performance; if ($('pg-performance')?.classList.contains('act')) { renderPerfPage(); updatePerfKPIs() } if ($('mEmp')?.classList.contains('show')) { const k = $('mEmpK')?.value; if (k) loadEmpPerformance(k) } });
@@ -21553,6 +21554,19 @@ window.renderSelfService = function () {
     const myPayrolls = Object.entries(payrolls).map(([k, p]) => ({ k, p, it: (p.items || []).find(i => i.empKey === key) })).filter(x => x.it).sort((a, b) => (b.p.month || '').localeCompare(a.p.month || '')).slice(0, 12);
     const myAtt = Object.values(attendance).filter(a => a.employeeId === key && a.checkIn).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
     const pendingCount = myLeaves.filter(l => l.status === 'pending').length + myPerms.filter(p => (p.status || 'pending') === 'pending').length;
+    // 📁 مستنداتي (مستندات مرفوعة + إقامة/عقد من الحقول المباشرة)
+    const myDocs = [];
+    if (e.documents) Object.values(e.documents).forEach(d => myDocs.push({ label: (DOC_TYPE_LABELS[d.type] || d.type || '📎 مستند'), name: d.name || '', expiry: d.expiry }));
+    if (e.iqamaExp && !myDocs.some(d => d.expiry === e.iqamaExp)) myDocs.push({ label: DOC_TYPE_LABELS.iqama, name: '', expiry: e.iqamaExp });
+    if (e.contractEnd && !myDocs.some(d => d.expiry === e.contractEnd)) myDocs.push({ label: DOC_TYPE_LABELS.contract, name: '', expiry: e.contractEnd });
+    myDocs.sort((a, b) => (a.expiry || 'zzzz').localeCompare(b.expiry || 'zzzz'));
+    // 📦 عُهدي
+    const myCustody = Object.values(window.empCustody || {}).filter(cu => cu.empKey === key).sort((a, b) => (b.dateGiven || '').localeCompare(a.dateGiven || ''));
+    // 💵 مكوّنات راتبي
+    const fin = (typeof empFinance === 'function') ? empFinance(e) : null;
+    const salComps = fin ? [['الراتب الأساسي', fin.sal], ['بدل السكن', fin.house], ['بدل المواصلات', fin.trans], ['بدل الاتصالات', fin.phone], ['بدل طبيعة العمل', fin.nature], ['بدل التمثيل', fin.rep], ['بدل السيارة', fin.car], ['مكافأة الأداء', fin.perf], ['مكافأة أخرى', fin.bonus]].filter(([, v]) => (parseFloat(v) || 0) > 0) : [];
+    // 🧾 مطالبات مصروفاتي
+    const myExpenses = Object.values(window.employeeExpenses || {}).filter(x => x.empId === key).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 8);
 
     const hr = new Date().getHours();
     const greet = hr < 12 ? '☀️ صباح الخير' : hr < 18 ? '🌤️ مساءٌ سعيد' : '🌙 مساء الخير';
@@ -21603,13 +21617,33 @@ window.renderSelfService = function () {
             ${bigBtn('essSubmitPerm()', '📤 تقديم الإذن', 'linear-gradient(135deg,#e67e22,#d35400)', 'rgba(230,126,34,.32)')}
             <div style="font-size:11px;color:#9aa7b3;margin-top:9px;text-align:center">💡 المأمورية الرسمية لا تُخصم من الراتب.</div>`, 'margin-bottom:13px')}
         ${scard(`${secTitle('🕘 أذوناتي السابقة')}${myPerms.length ? myPerms.map(p => listRow(`${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]} · ${(p.hours || 0)} ساعة`, `${p.date}${p.fromTime ? ' · ' + p.fromTime + (p.toTime ? ' ← ' + p.toTime : '') : ''}`, essStatusBadge(p.status))).join('') : empty('لا أذونات بعد')}`)}`;
+    } else if (tab === 'pay') {
+        body = `
+        ${fin ? scard(`${secTitle('💵 مكوّنات راتبي')}${salComps.map(([l, v]) => listRow(l, '', `<span style="font-weight:800;color:#243b53;font-size:13px">${fmt(v)}</span>`)).join('')}
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 2px;margin-top:4px;border-top:2px solid #eef2f6"><span style="font-weight:900;color:#16a085">الإجمالي</span><span style="font-weight:900;color:#16a085;font-size:16px">${fmt(fin.grossSalary)} ريال</span></div>`, 'margin-bottom:13px') : ''}
+        ${scard(`${secTitle('🧾 قسائم راتبي')}${myPayrolls.length ? myPayrolls.map(x => listRow(formatMonthLabel(x.p.month), `صافٍ: ${fmt(x.it.finalNet ?? x.it.netSalary ?? 0)} ريال`, `<button onclick="essViewPayslip('${x.k}')" style="border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;padding:7px 14px;border-radius:9px;background:#eef5fb;color:#23577f">عرض</button>`)).join('') : empty('لا قسائم راتب بعد')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('💳 سلفي وقروضي')}<div style="text-align:center;padding:6px 0 12px"><div style="font-size:11px;color:#8a97a5;font-weight:700">إجمالي المتبقي</div><div style="font-size:30px;font-weight:900;color:${loanOutstanding > 0 ? '#c0392b' : '#27ae60'}">${fmt(loanOutstanding)}<span style="font-size:14px"> ريال</span></div></div>${myLoans.length ? myLoans.slice(0, 8).map(l => listRow(l.reason || l.type || 'سلفة', l.date || '', `<span style="color:#c0392b;font-weight:800;font-size:13px">${fmt(parseFloat(l.remaining ?? l.amount) || 0)}</span>`)).join('') : empty('لا سلف')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('🧾 تقديم مطالبة مصروفات')}
+            <div style="display:flex;gap:10px;margin-bottom:11px"><div style="flex:1">${lbl('المبلغ (ريال)')}<input id="essExpAmount" type="number" min="0" step="0.01" placeholder="0.00" style="${inp}"></div><div style="flex:1">${lbl('التاريخ')}<input id="essExpDate" type="date" value="${todayStr}" style="${inp}"></div></div>
+            <div style="margin-bottom:13px">${lbl('وصف المصروف')}<input id="essExpDesc" placeholder="مثال: انتقالات مأمورية جدة" style="${inp}"></div>
+            ${bigBtn('essSubmitExpense()', '📤 إرسال المطالبة', 'linear-gradient(135deg,#2d6a9f,#1f4e79)', 'rgba(45,106,159,.32)')}
+            ${myExpenses.length ? `<div style="margin-top:14px">${myExpenses.map(x => listRow(x.description || 'مصروف', x.date || '', `<span style="font-weight:800;font-size:12.5px">${fmt(x.amount || 0)}</span> ${essStatusBadge(x.status === 'paid' ? 'approved' : x.status === 'approved' ? 'approved' : x.status === 'rejected' ? 'rejected' : 'pending')}`)).join('')}</div>` : ''}`)}`;
     } else {
         body = `
-        ${scard(`${secTitle('🧾 قسائم راتبي')}${myPayrolls.length ? myPayrolls.map(x => listRow(formatMonthLabel(x.p.month), `صافٍ: ${fmt(x.it.finalNet ?? x.it.netSalary ?? 0)} ريال`, `<button onclick="essViewPayslip('${x.k}')" style="border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;padding:7px 14px;border-radius:9px;background:#eef5fb;color:#23577f">عرض</button>`)).join('') : empty('لا قسائم راتب بعد')}`, 'margin-bottom:13px')}
-        ${scard(`${secTitle('💳 سلفي وقروضي')}<div style="text-align:center;padding:6px 0 12px"><div style="font-size:11px;color:#8a97a5;font-weight:700">إجمالي المتبقي</div><div style="font-size:30px;font-weight:900;color:${loanOutstanding > 0 ? '#c0392b' : '#27ae60'}">${fmt(loanOutstanding)}<span style="font-size:14px"> ريال</span></div></div>${myLoans.length ? myLoans.slice(0, 8).map(l => listRow(l.reason || l.type || 'سلفة', l.date || '', `<span style="color:#c0392b;font-weight:800;font-size:13px">${fmt(parseFloat(l.remaining ?? l.amount) || 0)}</span>`)).join('') : empty('لا سلف')}`)}`;
+        ${scard(`${secTitle('👤 ملفّي الشخصي')}
+            ${listRow('الاسم', '', `<b style="font-size:12.5px">${e.name || '—'}</b>`)}
+            ${e.empId ? listRow('الرقم الوظيفي', '', e.empId) : ''}
+            ${e.job ? listRow('الوظيفة', '', e.job) : ''}
+            ${e.dept ? listRow('القسم', '', e.dept) : ''}
+            ${e.nationality ? listRow('الجنسية', '', e.nationality) : ''}
+            ${e.hireDate || e.joinDate ? listRow('تاريخ التعيين', '', (e.hireDate || e.joinDate)) : ''}
+            ${e.phone ? listRow('الجوال', '', `<span style="direction:ltr">${e.phone}</span>`) : ''}
+            ${e.iban ? listRow('الآيبان', '', `<span style="direction:ltr;font-size:11px">${e.iban}</span>`) : ''}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('📁 مستنداتي')}${myDocs.length ? myDocs.map(d => { const st = docStatus(d.expiry); return listRow(`${d.label}${d.name ? ' · ' + d.name : ''}`, d.expiry ? 'تنتهي: ' + d.expiry : 'بدون تاريخ', `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:8px;font-size:10.5px;font-weight:800;white-space:nowrap">${st.label}</span>`); }).join('') : empty('لا مستندات مسجّلة')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('📦 عُهدي')}${myCustody.length ? myCustody.map(cu => listRow(`${cu.name || 'عهدة'}${cu.serial ? ' · ' + cu.serial : ''}`, cu.type || '', cu.status === 'returned' ? '<span style="color:#95a5a6;font-size:11px;font-weight:800">↩ مُعادة</span>' : '<span style="color:#16a085;font-size:11px;font-weight:800">بحوزتي</span>')).join('') : empty('لا عُهد بحوزتك')}`)}`;
     }
 
-    const tabs = [['home', '🏠', 'الرئيسية'], ['leave', '🌴', 'إجازة'], ['perm', '🕘', 'إذن'], ['pay', '💰', 'الراتب']];
+    const tabs = [['home', '🏠', 'الرئيسية'], ['leave', '🌴', 'إجازة'], ['perm', '🕘', 'إذن'], ['pay', '💰', 'الراتب'], ['file', '📁', 'ملفّي']];
     c.innerHTML = `<div style="max-width:460px;margin:0 auto;padding-bottom:14px">
         <!-- ترويسة التطبيق -->
         <div style="background:linear-gradient(140deg,#1a3a5c,#2d6a9f);border-radius:0 0 26px 26px;padding:20px 20px 40px;color:#fff;position:relative">
@@ -21671,6 +21705,23 @@ window.essSubmitPerm = async function () {
         });
         toast('✅ تم تقديم الإذن — بانتظار الاعتماد', 'ok');
         if ($('essPmFrom')) $('essPmFrom').value = ''; if ($('essPmTo')) $('essPmTo').value = ''; if ($('essPmReason')) $('essPmReason').value = '';
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+// تقديم مطالبة مصروفات من الخدمة الذاتية (مسودّة يكملها/يعتمدها المحاسب لاحقاً)
+window.essSubmitExpense = async function () {
+    const me = findCurrentEmpRecord(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
+    const amount = parseFloat($('essExpAmount')?.value) || 0;
+    const description = $('essExpDesc')?.value.trim();
+    if (amount <= 0) { toast('⚠️ أدخل مبلغ المصروف', 'er'); return; }
+    if (!description) { toast('⚠️ أدخل وصف المصروف', 'er'); return; }
+    try {
+        await push(R.empExp, {
+            empId: me.key, date: $('essExpDate')?.value || today(), description, amount,
+            projectId: '', status: 'draft', viaSelfService: true,
+            createdAt: new Date().toISOString(), createdBy: curU?.uid || ''
+        });
+        toast('✅ تم إرسال مطالبة المصروفات — بانتظار المراجعة', 'ok');
+        if ($('essExpAmount')) $('essExpAmount').value = ''; if ($('essExpDesc')) $('essExpDesc').value = '';
     } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
 // عرض قسيمة راتب الموظف الحالي
