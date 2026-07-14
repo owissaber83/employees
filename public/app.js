@@ -4323,7 +4323,9 @@ window.saveEU = async function () {
     else if (matchesPreset('accountant')) role = 'accountant';
     else if (matchesPreset('engineer')) role = 'engineer';
     else if (perms.includes('add_transaction')) role = 'accountant';
-    try { await update(ref(db, `ledger/users/${uid}`), { name: nm, role, permissions: perms, active: ac, updatedAt: new Date().toISOString() }); toast('تم التحديث ✓', 'ok'); cov('mEU') }
+    // 👑 وضع دعم المالك: نكتب عبر _rawUpdate لتجاوز حاجز «القراءة فقط» (القواعد تسمح للمشغّل)
+    const _vals = { name: nm, role, permissions: perms, active: ac, updatedAt: new Date().toISOString() };
+    try { await (window.__impersonating ? _rawUpdate(ref(db, `ledger/users/${uid}`), _vals) : update(ref(db, `ledger/users/${uid}`), _vals)); toast('تم التحديث ✓', 'ok'); cov('mEU') }
     catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
 
