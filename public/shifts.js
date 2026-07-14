@@ -118,17 +118,18 @@ function shEnsureShiftModal() {
         </div>
         ${fg('أيام العمل', `<div style="display:flex;flex-wrap:wrap;gap:6px">${days}</div>`)}
         <div style="background:#fbfcfe;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
-            <div style="font-size:12px;font-weight:800;color:#5b6b7b;margin-bottom:8px">🎛️ نوافذ الحضور/الانصراف</div>
+            <div style="font-size:12px;font-weight:800;color:#5b6b7b;margin-bottom:8px">🎛️ نافذة الحضور</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                 ${fg('يظهر زر الحضور قبل الدوام بـ (دقائق)', `<input id="shOpenBefore" type="number" min="0" placeholder="30" style="width:100%;${shInp()}">`)}
                 ${fg('آخر وقت للحضور بعد البداية بـ (دقائق)', `<input id="shLateLimit" type="number" min="0" placeholder="120" style="width:100%;${shInp()}">`)}
-                ${fg('يختفي زر الانصراف بعد النهاية بـ (دقائق)', `<input id="shCloseOut" type="number" min="0" placeholder="120" style="width:100%;${shInp()}">`)}
             </div>
         </div>
         <div style="background:#f7fbff;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2d6a9f;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="shOtAllowed" onchange="document.getElementById('shOtRow').style.display=this.checked?'block':'none'"> ⏱️ السماح بالعمل الإضافي</label>
+            <div style="font-size:12px;font-weight:800;color:#2d6a9f;margin-bottom:8px">⭐ ما بعد نهاية الدوام</div>
+            ${fg('الوقت المسموح للانصراف بعد النهاية بـ (دقائق)', `<input id="shCloseOut" type="number" min="0" placeholder="120" style="width:100%;${shInp()}">`)}
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2d6a9f;cursor:pointer;margin:6px 0 8px"><input type="checkbox" id="shOtAllowed" onchange="document.getElementById('shOtRow').style.display=this.checked?'block':'none'"> ⏱️ يُحتسب العمل بعد الدوام عملاً إضافياً</label>
             <div id="shOtRow" style="display:none">
-                ${fg('يبدأ الإضافي بعد نهاية الدوام بـ (دقائق)', `<input id="shOtAfter" type="number" min="0" placeholder="0 = فوراً بعد الدوام" style="width:100%;${shInp()}">`)}
+                ${fg('يبدأ احتساب الإضافي بعد النهاية بـ (دقائق)', `<input id="shOtAfter" type="number" min="0" placeholder="0 = فوراً بعد الدوام" style="width:100%;${shInp()}">`)}
             </div>
         </div>
         ${fg('اللون', `<input id="shColor" type="color" value="#2980b9" style="width:60px;height:36px;border:1px solid #ddd;border-radius:8px;cursor:pointer">`)}
