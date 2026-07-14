@@ -1721,6 +1721,15 @@ function initApp() {
         const sb = $('SB'); if (sb) sb.style.display = 'none';
         const mc = $('MC'); if (mc) { const tb = mc.querySelector('.tb'); if (tb) tb.style.display = 'none'; mc.style.padding = '0'; }
         $('APP')?.classList.add('emp-portal');
+        // 🙋 قناة الموظف الخاصة — المصدر الوحيد لبياناته (بلا وصول لجداول الرواتب)
+        if (myP.empKey) {
+            try {
+                onValue(ref(db, 'ledger/myData/' + myP.empKey), sn => {
+                    window.myData = sn.exists() ? sn.val() : null;
+                    if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService();
+                });
+            } catch (e) { }
+        }
         setTimeout(() => nav('selfservice'), 0);
     }
     // bASp is now rendered dynamically inside renderSpL() — no static element
@@ -1736,6 +1745,10 @@ function initApp() {
 
     updClock(); setInterval(updClock, 60000);
     startListeners();
+    // 🙋 مزامنة قنوات الموظفين الخاصة (myData) بعد تحميل البيانات — للإدارة/HR/المحاسب فقط
+    if (myP?.role === 'admin' || myP?.role === 'hr_officer' || myP?.role === 'accountant') {
+        setTimeout(() => { if (typeof syncAllSelfData === 'function') syncAllSelfData(); }, 7000);
+    }
     if (typeof updateFYIndicator === 'function') updateFYIndicator();
 
     // 🔒 تأكيد طي القائمة الجانبية افتراضياً
@@ -4199,6 +4212,8 @@ window.doInviteEmployee = async function () {
         await set(_rawRef(db, `userIndex/${uid}`), { tenantId: currentTenantId });
         // اربط سجل الموظف بالحساب (بريد + userId) ليتعرّف عليه التطبيق تلقائياً
         await update(ref(db, `ledger/employees/${empKey}`), { email: em, userId: uid });
+        // 🙋 ابنِ قناة الموظف الخاصة فوراً لتجهيز خدمته الذاتية عند أول دخول
+        if (typeof syncEmpSelfData === 'function') { try { emp[empKey] = { ...emp[empKey], email: em, userId: uid }; await syncEmpSelfData(empKey); } catch (e3) { } }
         toast('✅ تم إنشاء حساب الموظف', 'ok');
         essShowShare(empKey, ps);
     } catch (err) { toast('خطأ: ' + (typeof authEr === 'function' ? authEr(err.code) : err.message), 'er'); }
@@ -4233,11 +4248,35 @@ window.openEU = function (uid) {
     $('euK').value = uid; $('euNm').value = u.name || ''; $('euEm').value = u.email || '';
     $('euAc').value = String(u.active !== false);
     if ($('euNewPwd')) $('euNewPwd').value = '';
-    buildPrmS('euPS', u.permissions || []); ov('mEU');
+    buildPrmS('euPS', u.permissions || []);
+    if ($('euEmpOnly')) { $('euEmpOnly').checked = (u.role === 'employee'); euToggleEmpOnly(); }
+    ov('mEU');
+};
+// 🙋 تبديل «موظف خدمة ذاتية فقط» — يخفي مصفوفة الصلاحيات لأنها غير ذات صلة
+window.euToggleEmpOnly = function () {
+    const on = $('euEmpOnly')?.checked;
+    const ps = $('euPS'); if (ps) ps.style.display = on ? 'none' : '';
+    const rp = document.querySelector('#mEU .role-pre'); if (rp) rp.style.display = on ? 'none' : '';
 };
 
 window.saveEU = async function () {
     const uid = $('euK').value, nm = $('euNm').value.trim(), ac = $('euAc').value === 'true';
+    // 🙋 موظف خدمة ذاتية فقط — يتجاوز اشتقاق الدور من الصلاحيات
+    if ($('euEmpOnly')?.checked) {
+        const u = us[uid] || {};
+        let empKey = u.empKey || '';
+        if (!empKey) { const found = Object.entries(emp).find(([, ee]) => ee.email && ee.email.toLowerCase() === (u.email || '').toLowerCase()); if (found) empKey = found[0]; }
+        const upd = { name: nm, role: 'employee', permissions: [], active: ac, updatedAt: new Date().toISOString() };
+        if (empKey) upd.empKey = empKey;
+        try {
+            await update(ref(db, `ledger/users/${uid}`), upd);
+            if (empKey) { try { await update(ref(db, `ledger/employees/${empKey}`), { userId: uid }); } catch (e2) { } if (typeof syncEmpSelfData === 'function') await syncEmpSelfData(empKey); }
+            toast(empKey ? 'تم الحفظ كموظف خدمة ذاتية ✓' : '⚠️ حُفظ كموظف — لكن لم يُطابَق بريده بسجل موظف. اربط بريده بسجل موظف أولاً.', empKey ? 'ok' : 'wn', empKey ? 3000 : 7000);
+            cov('mEU');
+        }
+        catch (e) { toast('خطأ: ' + e.message, 'er') }
+        return;
+    }
     const perms = getSel('euPS');
     const matchesPreset = (preset) => {
         const presetSet = new Set(PRESETS[preset] || []);
@@ -5739,6 +5778,7 @@ window.saveEmp = async function () {
                 await push(ref(db, 'ledger/employees/' + key + '/salaryRevisions'), rev);
             }
             await update(ref(db, 'ledger/employees/' + key), data); toast('✅ تم تحديث الموظف', 'ok');
+            setTimeout(() => { emp[key] = { ...emp[key], ...data }; if (typeof syncEmpSelfData === 'function') syncEmpSelfData(key); }, 400);
         }
         else { data.createdAt = new Date().toISOString(); await push(R.emp, data); toast('✅ تم إضافة الموظف', 'ok') }
         cov('mEmp');
@@ -8115,6 +8155,9 @@ window.advancePayroll = async function (key, newStatus) {
                     }
                 });
                 if (Object.keys(batchUpd).length) await update(ref(db), batchUpd);
+
+                // 🙋 حدّث قناة الموظف الخاصة (قسائم الراتب) لكل موظف في المسير
+                setTimeout(() => { payrolls[key] = { ...p, ...upd }; (p.items || []).forEach(item => { if (item.empKey && typeof syncEmpSelfData === 'function') syncEmpSelfData(item.empKey); }); }, 600);
 
                 // 🆕 سداد أقساط السلف المرتبطة بهذا المسير
                 let loanResult = { updated: 0, details: [] };
@@ -21602,42 +21645,103 @@ window.essStatusBadge = function (st) {
     const [t, c] = m[st] || m.pending;
     return `<span style="background:${c}15;color:${c};padding:2px 9px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap">${t}</span>`;
 };
+// ── 🙋 قناة الموظف الخاصة (myData): تُبنى من أجهزة الإدارة/HR وتقرؤها القواعد لصاحبها فقط ──
+function buildEmpSelfData(empKey) {
+    const e = emp[empKey]; if (!e) return null;
+    const f = (typeof empFinance === 'function') ? empFinance(e) : null;
+    const bal = (typeof getLeaveBalance === 'function') ? getLeaveBalance(empKey) : null;
+    const salComps = f ? [['الراتب الأساسي', f.sal], ['بدل السكن', f.house], ['بدل المواصلات', f.trans], ['بدل الاتصالات', f.phone], ['بدل طبيعة العمل', f.nature], ['بدل التمثيل', f.rep], ['بدل السيارة', f.car], ['مكافأة الأداء', f.perf], ['مكافأة أخرى', f.bonus]].filter(([, v]) => (parseFloat(v) || 0) > 0) : [];
+    const payslips = {};
+    Object.entries(payrolls || {}).forEach(([k, p]) => {
+        if (p.status !== 'approved') return;
+        const it = (p.items || []).find(i => i.empKey === empKey); if (!it) return;
+        payslips[(p.month || k).replace(/[.#$/\[\]]/g, '-')] = { month: p.month || '', status: p.status, finalNet: (it.finalNet ?? it.netSalary ?? 0), item: it };
+    });
+    const loansArr = Object.values(loans || {}).filter(l => l.empKey === empKey).map(l => ({ reason: l.reason || l.type || 'سلفة', date: l.date || '', remaining: parseFloat(l.remaining ?? l.amount) || 0 }));
+    const custody = Object.values(window.empCustody || {}).filter(cu => cu.empKey === empKey).map(cu => ({ name: cu.name || '', serial: cu.serial || '', type: cu.type || '', status: cu.status || '', dateGiven: cu.dateGiven || '', dateReturned: cu.dateReturned || '' }));
+    const docs = [];
+    if (e.documents) Object.values(e.documents).forEach(d => docs.push({ label: (DOC_TYPE_LABELS[d.type] || d.type || '📎 مستند'), name: d.name || '', expiry: d.expiry || '' }));
+    if (e.iqamaExp) docs.push({ label: DOC_TYPE_LABELS.iqama, name: '', expiry: e.iqamaExp });
+    if (e.contractEnd) docs.push({ label: DOC_TYPE_LABELS.contract, name: '', expiry: e.contractEnd });
+    return {
+        empKey,
+        profile: { name: e.name || '', empId: e.empId || '', job: e.job || '', dept: e.dept || '', nationality: e.nationality || '', hireDate: e.hireDate || e.joinDate || '', phone: e.phone || '', iban: e.iban || '', email: e.email || '' },
+        grossSalary: f ? f.grossSalary : 0,
+        salaryComponents: salComps,
+        balances: bal ? { annual: { remaining: bal.annual.remaining, total: bal.annual.total }, sick: { remaining: bal.sick.remaining, total: bal.sick.total }, emergency: { remaining: bal.emergency.remaining, total: bal.emergency.total } } : null,
+        payslips, loans: loansArr, custody, docs,
+        updatedAt: new Date().toISOString()
+    };
+}
+window.syncEmpSelfData = async function (empKey) {
+    if (!(myP?.role === 'admin' || myP?.role === 'hr_officer' || myP?.role === 'accountant')) return;
+    try { const d = buildEmpSelfData(empKey); if (d) await update(ref(db, 'ledger/myData/' + empKey), d); } catch (e) { }
+};
+window.syncAllSelfData = async function () {
+    if (!(myP?.role === 'admin' || myP?.role === 'hr_officer' || myP?.role === 'accountant')) return;
+    for (const k of Object.keys(emp || {})) { await syncEmpSelfData(k); }
+};
+
 window.renderSelfService = function () {
     const c = $('pg-selfservice'); if (!c) return;
-    const me = findCurrentEmpRecord();
-    if (!me) {
-        c.innerHTML = `<div style="max-width:440px;margin:30px auto;background:#fff;border-radius:20px;padding:36px 26px;text-align:center;box-shadow:0 6px 26px rgba(0,0,0,.08)">
-            <div style="font-size:58px">🙋</div>
-            <div style="font-size:18px;font-weight:800;color:#1a3a5c;margin:12px 0">الخدمة الذاتية للموظف</div>
-            <div style="color:#666;font-size:13.5px;line-height:2">حسابك غير مرتبط بسجل موظف بعد.<br>اطلب من شؤون الموظفين ربط بريدك<br><b style="direction:ltr;display:inline-block;color:#2d6a9f;margin-top:4px">${(curU?.email || '')}</b><br>بسجلك لتفعيل خدمتك الذاتية.</div>
-        </div>`;
-        return;
+    // 🙋 دور «موظف»: المصدر الوحيد قناته الخاصة myData (لا وصول لجداول الرواتب). بقية الأدوار: قراءة مباشرة.
+    const isEmp = myP?.role === 'employee';
+    const md = window.myData || null;
+    let me, key, e;
+    if (isEmp) {
+        if (!md || !md.profile) {
+            c.innerHTML = `<div style="max-width:440px;margin:30px auto;background:#fff;border-radius:20px;padding:36px 26px;text-align:center;box-shadow:0 6px 26px rgba(0,0,0,.08)">
+                <div style="font-size:58px">🙋</div>
+                <div style="font-size:18px;font-weight:800;color:#1a3a5c;margin:12px 0">جارٍ تجهيز خدمتك الذاتية…</div>
+                <div style="color:#666;font-size:13.5px;line-height:2">${myP?.empKey ? 'يتم تحميل بياناتك. إن استمرت هذه الرسالة، اطلب من شؤون الموظفين فتح البرنامج مرة لمزامنة بياناتك.' : 'حسابك غير مرتبط بسجل موظف بعد.<br>اطلب من شؤون الموظفين ربط بريدك بسجلك.'}<br><b style="direction:ltr;display:inline-block;color:#2d6a9f;margin-top:4px">${(curU?.email || '')}</b></div>
+            </div>`;
+            return;
+        }
+        key = md.empKey || myP.empKey; e = md.profile; me = { key, data: e };
+    } else {
+        me = findCurrentEmpRecord();
+        if (!me) {
+            c.innerHTML = `<div style="max-width:440px;margin:30px auto;background:#fff;border-radius:20px;padding:36px 26px;text-align:center;box-shadow:0 6px 26px rgba(0,0,0,.08)">
+                <div style="font-size:58px">🙋</div>
+                <div style="font-size:18px;font-weight:800;color:#1a3a5c;margin:12px 0">الخدمة الذاتية للموظف</div>
+                <div style="color:#666;font-size:13.5px;line-height:2">حسابك غير مرتبط بسجل موظف بعد.<br>اطلب من شؤون الموظفين ربط بريدك<br><b style="direction:ltr;display:inline-block;color:#2d6a9f;margin-top:4px">${(curU?.email || '')}</b><br>بسجلك لتفعيل خدمتك الذاتية.</div>
+            </div>`;
+            return;
+        }
+        key = me.key; e = me.data;
     }
-    const key = me.key, e = me.data;
     window._essTab = window._essTab || 'home';
     const tab = window._essTab;
     const todayStr = today();
+    // الحضور/الإجازات/الأذونات: يقرؤها الموظف مباشرةً (ليست ضمن جداول الرواتب المحجوبة)
     const todayRec = Object.values(attendance).find(a => a.employeeId === key && a.date === todayStr);
     const checkedIn = !!(todayRec && todayRec.checkIn), checkedOut = !!(todayRec && todayRec.checkOut);
-    const bal = getLeaveBalance(key);
+    const bal = isEmp ? md.balances : getLeaveBalance(key);
     const myLeaves = Object.entries(leaves).filter(([, l]) => l.empKey === key).map(([k, l]) => ({ k, ...l })).sort((a, b) => (b.from || '').localeCompare(a.from || '')).slice(0, 20);
     const myPerms = Object.entries(window.permissions || {}).filter(([, p]) => p.empKey === key).map(([k, p]) => ({ k, ...p })).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 20);
-    const myLoans = Object.values(loans).filter(l => l.empKey === key);
+    // البيانات الحسّاسة (الرواتب/السلف/العُهد/المستندات): من القناة الخاصة للموظف، ومن المصدر لبقية الأدوار
+    const myLoans = isEmp ? (md.loans || []) : Object.values(loans).filter(l => l.empKey === key);
     const loanOutstanding = myLoans.reduce((s, l) => s + (parseFloat(l.remaining ?? l.amount) || 0), 0);
-    const myPayrolls = Object.entries(payrolls).map(([k, p]) => ({ k, p, it: (p.items || []).find(i => i.empKey === key) })).filter(x => x.it).sort((a, b) => (b.p.month || '').localeCompare(a.p.month || '')).slice(0, 12);
+    const myPayrolls = isEmp
+        ? Object.values(md.payslips || {}).map(x => ({ k: x.month, p: { month: x.month, status: x.status }, it: x.item })).sort((a, b) => (b.p.month || '').localeCompare(a.p.month || '')).slice(0, 12)
+        : Object.entries(payrolls).map(([k, p]) => ({ k, p, it: (p.items || []).find(i => i.empKey === key) })).filter(x => x.it).sort((a, b) => (b.p.month || '').localeCompare(a.p.month || '')).slice(0, 12);
     const myAtt = Object.values(attendance).filter(a => a.employeeId === key && a.checkIn).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
     const pendingCount = myLeaves.filter(l => l.status === 'pending').length + myPerms.filter(p => (p.status || 'pending') === 'pending').length;
-    // 📁 مستنداتي (مستندات مرفوعة + إقامة/عقد من الحقول المباشرة)
-    const myDocs = [];
-    if (e.documents) Object.values(e.documents).forEach(d => myDocs.push({ label: (DOC_TYPE_LABELS[d.type] || d.type || '📎 مستند'), name: d.name || '', expiry: d.expiry }));
-    if (e.iqamaExp && !myDocs.some(d => d.expiry === e.iqamaExp)) myDocs.push({ label: DOC_TYPE_LABELS.iqama, name: '', expiry: e.iqamaExp });
-    if (e.contractEnd && !myDocs.some(d => d.expiry === e.contractEnd)) myDocs.push({ label: DOC_TYPE_LABELS.contract, name: '', expiry: e.contractEnd });
-    myDocs.sort((a, b) => (a.expiry || 'zzzz').localeCompare(b.expiry || 'zzzz'));
+    // 📁 مستنداتي
+    let myDocs;
+    if (isEmp) { myDocs = (md.docs || []).slice().sort((a, b) => (a.expiry || 'zzzz').localeCompare(b.expiry || 'zzzz')); }
+    else {
+        myDocs = [];
+        if (e.documents) Object.values(e.documents).forEach(d => myDocs.push({ label: (DOC_TYPE_LABELS[d.type] || d.type || '📎 مستند'), name: d.name || '', expiry: d.expiry }));
+        if (e.iqamaExp && !myDocs.some(d => d.expiry === e.iqamaExp)) myDocs.push({ label: DOC_TYPE_LABELS.iqama, name: '', expiry: e.iqamaExp });
+        if (e.contractEnd && !myDocs.some(d => d.expiry === e.contractEnd)) myDocs.push({ label: DOC_TYPE_LABELS.contract, name: '', expiry: e.contractEnd });
+        myDocs.sort((a, b) => (a.expiry || 'zzzz').localeCompare(b.expiry || 'zzzz'));
+    }
     // 📦 عُهدي
-    const myCustody = Object.values(window.empCustody || {}).filter(cu => cu.empKey === key).sort((a, b) => (b.dateGiven || '').localeCompare(a.dateGiven || ''));
+    const myCustody = isEmp ? (md.custody || []) : Object.values(window.empCustody || {}).filter(cu => cu.empKey === key).sort((a, b) => (b.dateGiven || '').localeCompare(a.dateGiven || ''));
     // 💵 مكوّنات راتبي
-    const fin = (typeof empFinance === 'function') ? empFinance(e) : null;
-    const salComps = fin ? [['الراتب الأساسي', fin.sal], ['بدل السكن', fin.house], ['بدل المواصلات', fin.trans], ['بدل الاتصالات', fin.phone], ['بدل طبيعة العمل', fin.nature], ['بدل التمثيل', fin.rep], ['بدل السيارة', fin.car], ['مكافأة الأداء', fin.perf], ['مكافأة أخرى', fin.bonus]].filter(([, v]) => (parseFloat(v) || 0) > 0) : [];
+    const fin = isEmp ? { grossSalary: md.grossSalary || 0 } : ((typeof empFinance === 'function') ? empFinance(e) : null);
+    const salComps = isEmp ? (md.salaryComponents || []) : (fin ? [['الراتب الأساسي', fin.sal], ['بدل السكن', fin.house], ['بدل المواصلات', fin.trans], ['بدل الاتصالات', fin.phone], ['بدل طبيعة العمل', fin.nature], ['بدل التمثيل', fin.rep], ['بدل السيارة', fin.car], ['مكافأة الأداء', fin.perf], ['مكافأة أخرى', fin.bonus]].filter(([, v]) => (parseFloat(v) || 0) > 0) : []);
     // 🧾 مطالبات مصروفاتي
     const myExpenses = Object.values(window.employeeExpenses || {}).filter(x => x.empId === key).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 8);
 
@@ -21798,12 +21902,21 @@ window.essSubmitExpense = async function () {
     } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
 // عرض قسيمة راتب الموظف الحالي
-window.essViewPayslip = function (payrollKey) {
-    const me = findCurrentEmpRecord(); if (!me) return;
-    const p = payrolls[payrollKey]; if (!p) { toast('المسير غير موجود', 'er'); return; }
-    const it = (p.items || []).find(i => i.empKey === me.key);
-    if (!it) { toast('لا قسيمة لك في هذا المسير', 'er'); return; }
-    const html = buildPayslipHTML(p, it, me.data);
+window.essViewPayslip = function (payrollKeyOrMonth) {
+    let p, it, e;
+    if (myP?.role === 'employee') {
+        const md = window.myData || {};
+        const ps = Object.values(md.payslips || {}).find(x => String(x.month) === String(payrollKeyOrMonth));
+        if (!ps || !ps.item) { toast('لا قسيمة متاحة', 'er'); return; }
+        p = { month: ps.month, status: ps.status }; it = ps.item; e = md.profile || {};
+    } else {
+        const me = findCurrentEmpRecord(); if (!me) return;
+        p = payrolls[payrollKeyOrMonth]; if (!p) { toast('المسير غير موجود', 'er'); return; }
+        it = (p.items || []).find(i => i.empKey === me.key);
+        if (!it) { toast('لا قسيمة لك في هذا المسير', 'er'); return; }
+        e = me.data;
+    }
+    const html = buildPayslipHTML(p, it, e);
     const w = window.open('', '_blank');
     if (!w) { toast('اسمح بالنوافذ المنبثقة لعرض القسيمة', 'er'); return; }
     w.document.write(html); w.document.close();

@@ -27,6 +27,10 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   // قيد مُرحَّل (لاختبار الحصانة) + قفل فترة (لاختبار قفل الفترة)
   await set(ref(db, 'tenants/A/ledger/journalEntries/jp'), { number: 'JV-P', status: 'posted', date: '2026-05-10', period: '2026-05', totalDebit: 100, totalCredit: 100 });
   await set(ref(db, 'tenants/A/ledger/periodLocks/2026-03'), { locked: true });
+  // موظف خدمة ذاتية + قناته الخاصة (لاختبار العزل بين الموظفين)
+  await set(ref(db, 'tenants/A/ledger/users/empU'), { role: 'employee', active: true, empKey: 'E1' });
+  await set(ref(db, 'tenants/A/ledger/myData/E1'), { profile: { name: 'موظفي' } });
+  await set(ref(db, 'tenants/A/ledger/myData/E2'), { profile: { name: 'موظف آخر' } });
   await set(ref(db, 'tenants/A/ledger/auditLog/e1'), { action: 'seed' });
   await set(ref(db, 'tenants/A/ledger/_errorLog/err1'), { kind: 'js-error', message: 'seed' });
   // المستأجر B (منفصل تماماً)
@@ -47,6 +51,7 @@ const db = {
   adminE: testEnv.authenticatedContext('adminE').database(),
   stranger: testEnv.authenticatedContext('stranger').database(),  // مصادَق لكن غير عضو في أي مستأجر
   op: testEnv.authenticatedContext('op1').database(),
+  empU: testEnv.authenticatedContext('empU').database(),          // موظف خدمة ذاتية (empKey=E1)
 };
 
 // ── مُشغّل اختبارات مبسّط ───────────────────────────────────────────────────
@@ -138,6 +143,16 @@ await test('محاسب A يكتب قيدًا في فترة غير مقفلة (20
 await test('محاسب A لا يزوّر الفترة (تاريخ 2026-03 وperiod 2026-04)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jforge'), { number: 'JV-F', status: 'posted', date: '2026-03-20', period: '2026-04', totalDebit: 50, totalCredit: 50 })));
 // مدير: يتجاوز قفل الفترة (دور موثوق)
 await test('مدير A يكتب في فترة مقفلة (استثناء المدير)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/journalEntries/jadminlock'), { number: 'JV-AL', status: 'posted', date: '2026-03-25', period: '2026-03', totalDebit: 50, totalCredit: 50 })));
+
+console.log('\n🙋 قناة الموظف الخاصة (myData) — عزل بين الموظفين:');
+await test('موظف E1 يقرأ قناته الخاصة myData/E1', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/myData/E1'))));
+await test('موظف E1 لا يقرأ قناة موظف آخر myData/E2', assertFails(get(ref(db.empU, 'tenants/A/ledger/myData/E2'))));
+await test('موظف E1 لا يكتب في قناته (الكتابة للإدارة فقط)', assertFails(set(ref(db.empU, 'tenants/A/ledger/myData/E1'), { profile: { name: 'عبث' } })));
+await test('موظف E1 لا يقرأ جدول الموظفين (خصوصية الرواتب)', assertFails(get(ref(db.empU, 'tenants/A/ledger/employees'))));
+await test('موظف E1 لا يقرأ المسيرات (خصوصية الرواتب)', assertFails(get(ref(db.empU, 'tenants/A/ledger/payrolls'))));
+await test('مدير A يكتب قناة الموظف myData/E1', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/myData/E1'), { profile: { name: 'محدّث' } })));
+await test('غريب لا يقرأ قناة موظف A', assertFails(get(ref(db.stranger, 'tenants/A/ledger/myData/E1'))));
+await test('موظف A لا يقرأ قناة موظف في B (عزل المستأجر)', assertFails(get(ref(db.empU, 'tenants/B/ledger/myData/E1'))));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);

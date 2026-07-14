@@ -15640,6 +15640,10 @@
                     <button class="rp-btn rp-v" onclick="apPreE('viewer')">👁️ مشاهد فقط</button>
                 </div>
             </div>
+            <label style="display:flex;align-items:center;gap:9px;margin-bottom:14px;padding:11px 14px;background:#eef5fb;border:1.5px solid #cfe2f3;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;color:#23577f">
+                <input type="checkbox" id="euEmpOnly" onchange="euToggleEmpOnly()" style="width:17px;height:17px;flex-shrink:0">
+                🙋 موظف خدمة ذاتية فقط — يفتح على «خدمتي» مباشرةً ولا يرى بقية النظام
+            </label>
             <div id="euPS"></div>
             <div style="margin:14px 0;padding:12px 14px;background:#fdf2f1;border:1px solid #f5cfca;border-radius:10px">
                 <div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:6px">🔒 كلمة المرور</div>
@@ -18738,7 +18742,7 @@
                     <div class="fg"><label>الكمية المعتمدة</label>
                         <input type="number" id="mraQty" min="0.01" step="0.01">
                     </div>
-                    <div class="fg"><label>السعر المعتمد للوحدة (ر)</label>
+                     <div class="fg"><label>السعر المعتمد للوحدة (ر)</label>
                         <input type="number" id="mraPrice" min="0" step="0.01">
                     </div>
                 </div>
@@ -19361,7 +19365,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260714-invite"></script>
+    <script type="module" src="app.js?v=20260714-essmydata"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260714-jrnperiod1"></script>
