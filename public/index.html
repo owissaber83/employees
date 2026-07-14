@@ -340,6 +340,7 @@
                             <div class="sb-it sub" id="n-hrletters" onclick="nav('hrletters',this)"><span class="ic">📄</span><span>خطابات الموارد البشرية</span></div>
                             <div class="sb-it sub" id="n-hranalytics" onclick="nav('hranalytics',this)"><span class="ic">📊</span><span>تحليلات HR والسعودة</span></div>
                             <div class="sb-it sub" id="n-announce"   onclick="nav('announcements',this)"><span class="ic">📢</span><span>إعلانات الشركة</span></div>
+                            <div class="sb-it sub" id="n-probation"  onclick="nav('probation',this)"><span class="ic">⏳</span><span>فترة التجربة والعقود</span></div>
                             <div class="sb-it sub" id="n-da"        onclick="nav('docalerts',this)"><span class="ic">⏰</span><span>تنبيهات المستندات</span></div>
                             <div class="sb-it sub" id="n-empstmt"   onclick="nav('empstatement',this)"><span class="ic">📋</span><span>كشف حساب الموظف</span></div>
                             <div class="sb-it sub" id="n-hrg"       onclick="nav('hrguide',this)"        style="color:#f39c12;border-right:2px solid #f39c12"><span class="ic">📖</span><span>دليل الاستخدام</span></div>
@@ -13166,6 +13167,9 @@
                 <!-- PAGE: ANNOUNCEMENTS (إعلانات الشركة) — hr-suite.js -->
                 <div class="pg" id="pg-announcements"></div>
 
+                <!-- PAGE: PROBATION & CONTRACTS (فترة التجربة والعقود) — hr-suite.js -->
+                <div class="pg" id="pg-probation"></div>
+
                 <!-- PAGE: SHIFTS (الورديات والجداول) — shifts.js -->
                 <div class="pg" id="pg-shifts"></div>
 
@@ -19389,7 +19393,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260714-announce"></script>
+    <script type="module" src="app.js?v=20260715-probation"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260714-jrnperiod1"></script>
@@ -19398,7 +19402,7 @@
     <script defer src="timesheets.js?v=20260713-attgen1"></script>
     <script defer src="recruitment.js?v=20260713-rec1"></script>
     <script defer src="hr-extra.js?v=20260713-hrx1"></script>
-    <script defer src="hr-suite.js?v=20260714-hrs3"></script>
+    <script defer src="hr-suite.js?v=20260715-hrs4"></script>
     <script defer src="shifts.js?v=20260714-shf4"></script>
     <script defer src="leave-policies.js?v=20260713-lvp1"></script>
     <script defer src="biometric-import.js?v=20260713-bio1"></script>
