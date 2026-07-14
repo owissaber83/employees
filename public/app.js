@@ -1722,11 +1722,23 @@ function initApp() {
         const mc = $('MC'); if (mc) { const tb = mc.querySelector('.tb'); if (tb) tb.style.display = 'none'; mc.style.padding = '0'; }
         $('APP')?.classList.add('emp-portal');
         // 🙋 قناة الموظف الخاصة — المصدر الوحيد لبياناته (بلا وصول لجداول الرواتب)
-        if (myP.empKey) {
+        const startMyDataListener = (ek) => {
+            if (!ek || window._mdListenerFor === ek) return;
+            window._mdListenerFor = ek;
             try {
-                onValue(ref(db, 'ledger/myData/' + myP.empKey), sn => {
+                onValue(ref(db, 'ledger/myData/' + ek), sn => {
                     window.myData = sn.exists() ? sn.val() : null;
                     if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService();
+                });
+            } catch (e) { }
+        };
+        if (myP.empKey) startMyDataListener(myP.empKey);
+        // راقب سجل المستخدم نفسه لالتقاط empKey إن ضُبط لاحقاً (ربط الإدارة) بلا حاجة لإعادة تحميل
+        if (curU?.uid) {
+            try {
+                onValue(ref(db, 'ledger/users/' + curU.uid), sn => {
+                    const u = sn.exists() ? sn.val() : {};
+                    if (u.empKey) { myP.empKey = u.empKey; startMyDataListener(u.empKey); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); }
                 });
             } catch (e) { }
         }
@@ -4265,7 +4277,7 @@ window.saveEU = async function () {
     if ($('euEmpOnly')?.checked) {
         const u = us[uid] || {};
         let empKey = u.empKey || '';
-        if (!empKey) { const found = Object.entries(emp).find(([, ee]) => ee.email && ee.email.toLowerCase() === (u.email || '').toLowerCase()); if (found) empKey = found[0]; }
+        if (!empKey) { const found = Object.entries(emp).find(([, ee]) => ee.userId === uid || (ee.email && ee.email.toLowerCase() === (u.email || '').toLowerCase())); if (found) empKey = found[0]; }
         const upd = { name: nm, role: 'employee', permissions: [], active: ac, updatedAt: new Date().toISOString() };
         if (empKey) upd.empKey = empKey;
         try {
@@ -5778,6 +5790,8 @@ window.saveEmp = async function () {
                 await push(ref(db, 'ledger/employees/' + key + '/salaryRevisions'), rev);
             }
             await update(ref(db, 'ledger/employees/' + key), data); toast('✅ تم تحديث الموظف', 'ok');
+            // 🔗 ربط عكسي: إذا رُبط الموظف بحساب مستخدم، اضبط empKey على سجل المستخدم لتعمل بوابته
+            if (data.userId) { try { await update(ref(db, `ledger/users/${data.userId}`), { empKey: key }); } catch (e2) { } }
             setTimeout(() => { emp[key] = { ...emp[key], ...data }; if (typeof syncEmpSelfData === 'function') syncEmpSelfData(key); }, 400);
         }
         else { data.createdAt = new Date().toISOString(); await push(R.emp, data); toast('✅ تم إضافة الموظف', 'ok') }
@@ -21679,7 +21693,14 @@ window.syncEmpSelfData = async function (empKey) {
 };
 window.syncAllSelfData = async function () {
     if (!(myP?.role === 'admin' || myP?.role === 'hr_officer' || myP?.role === 'accountant')) return;
-    for (const k of Object.keys(emp || {})) { await syncEmpSelfData(k); }
+    for (const k of Object.keys(emp || {})) {
+        const e = emp[k];
+        // 🔗 ربط عكسي: اضبط empKey على سجل المستخدم المرتبط (لتعمل بوابته وقواعد القراءة)
+        if (e && e.userId && window.us && window.us[e.userId] && window.us[e.userId].empKey !== k) {
+            try { await update(ref(db, `ledger/users/${e.userId}`), { empKey: k }); } catch (er) { }
+        }
+        await syncEmpSelfData(k);
+    }
 };
 
 window.renderSelfService = function () {
