@@ -265,6 +265,101 @@ window.hsLetterTypeOptions = function () { return Object.entries(HS_LETTER_TYPES
 window.hsLetterLabel = function (t) { return (HS_LETTER_TYPES[t] || HS_LETTER_TYPES.employment).label; };
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  ⏳ فترة التجربة وتجديد العقود
+// ═══════════════════════════════════════════════════════════════════════════
+function hsAddMonths(dateStr, m) { const d = new Date((dateStr || hsToday()) + 'T00:00:00'); if (isNaN(d)) return null; d.setMonth(d.getMonth() + (parseInt(m) || 0)); return d.toISOString().slice(0, 10); }
+function hsDaysTo(dateStr) { if (!dateStr) return null; const d = new Date(dateStr + 'T00:00:00'); if (isNaN(d)) return null; return Math.ceil((d - new Date(hsToday() + 'T00:00:00')) / 86400000); }
+// حساب معلومات فترة التجربة لموظف (وفق نظام العمل السعودي: افتراضياً 90 يوماً)
+function hsProbationInfo(e) {
+    const hire = e.hireDate || e.joinDate; if (!hire) return null;
+    const months = (e.probationMonths != null && e.probationMonths !== '') ? parseInt(e.probationMonths) : 3;
+    if (!months) return null;
+    const end = hsAddMonths(hire, months);
+    return { end, days: hsDaysTo(end), months, confirmed: !!e.probationConfirmed };
+}
+
+window.renderProbation = function () {
+    const c = document.getElementById('pg-probation'); if (!c) return;
+    if (!hsCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية فقط</div>'; return; }
+    const active = Object.entries(window.emp || {}).filter(([, e]) => (e.status || 'active') === 'active');
+    // فترة التجربة: تظهر إن لم تُؤكَّد وباقٍ لها ≤ 30 يوماً أو انتهت
+    const prob = active.map(([k, e]) => ({ k, e, p: hsProbationInfo(e) })).filter(x => x.p && !x.p.confirmed && x.p.days != null && x.p.days <= 30)
+        .sort((a, b) => a.p.days - b.p.days);
+    // العقود: contractEnd خلال 60 يوماً أو منتهٍ
+    const cons = active.map(([k, e]) => ({ k, e, days: hsDaysTo(e.contractEnd) })).filter(x => x.e.contractEnd && x.days != null && x.days <= 60)
+        .sort((a, b) => a.days - b.days);
+
+    const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
+    const daysBadge = d => { const col = d < 0 ? '#c0392b' : d <= 7 ? '#e67e22' : d <= 30 ? '#b9770e' : '#16a085'; const txt = d < 0 ? `منذ ${Math.abs(d)} يوم` : d === 0 ? 'اليوم' : `خلال ${d} يوم`; return `<span style="background:${col}18;color:${col};padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`; };
+
+    c.innerHTML = `<div style="padding:0 4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800;color:#1a3a5c">⏳ فترة التجربة وتجديد العقود</div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            ${kpi('⏳', 'فترات تجربة تنتهي قريباً', prob.length, prob.length ? '#e67e22' : '#95a5a6')}
+            ${kpi('📄', 'عقود تحتاج تجديداً', cons.length, cons.length ? '#c0392b' : '#95a5a6')}
+        </div>
+
+        <div class="card" style="margin-bottom:16px;border-right:5px solid #e67e22">
+            <div class="c-tl">⏳ فترات التجربة (وفق نظام العمل — افتراضياً 90 يوماً)</div>
+            ${prob.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#fef6ee;text-align:right;color:#7d4e00"><th style="padding:8px 10px">الموظف</th><th style="padding:8px 10px">المباشرة</th><th style="padding:8px 10px">مدة التجربة</th><th style="padding:8px 10px">تنتهي في</th><th style="padding:8px 10px;text-align:center">المتبقّي</th><th style="padding:8px 10px;text-align:center">إجراء</th></tr></thead>
+                <tbody>${prob.map(x => `<tr style="border-bottom:1px solid #f2f5f8">
+                    <td style="padding:8px 10px;font-weight:700">${hsEsc(x.e.name || '—')}${x.e.job ? `<div style="font-size:10.5px;color:#95a5a6">${hsEsc(x.e.job)}</div>` : ''}</td>
+                    <td style="padding:8px 10px;color:#666;font-size:12px">${hsEsc(x.e.hireDate || x.e.joinDate || '—')}</td>
+                    <td style="padding:8px 10px;color:#666">${x.p.months} شهر</td>
+                    <td style="padding:8px 10px;font-weight:700">${hsEsc(x.p.end)}</td>
+                    <td style="padding:8px 10px;text-align:center">${daysBadge(x.p.days)}</td>
+                    <td style="padding:8px 10px;text-align:center;white-space:nowrap">
+                        <button class="btn b-g" onclick="hsConfirmProbation('${x.k}')" style="font-size:11px;padding:4px 9px">✅ تثبيت</button>
+                        <button class="btn" onclick="hsExtendProbation('${x.k}')" style="font-size:11px;padding:4px 9px;background:#eef5fb;color:#2d6a9f">➕ تمديد</button>
+                    </td>
+                </tr>`).join('')}</tbody>
+            </table></div>` : '<div style="color:#16a085;text-align:center;padding:18px;font-weight:600">✅ لا فترات تجربة تنتهي قريباً</div>'}
+        </div>
+
+        <div class="card" style="border-right:5px solid #c0392b">
+            <div class="c-tl">📄 العقود التي تحتاج تجديداً (خلال 60 يوماً)</div>
+            ${cons.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#fdeeee;text-align:right;color:#922"><th style="padding:8px 10px">الموظف</th><th style="padding:8px 10px">القسم</th><th style="padding:8px 10px">انتهاء العقد</th><th style="padding:8px 10px;text-align:center">المتبقّي</th><th style="padding:8px 10px;text-align:center">إجراء</th></tr></thead>
+                <tbody>${cons.map(x => `<tr style="border-bottom:1px solid #f2f5f8">
+                    <td style="padding:8px 10px;font-weight:700">${hsEsc(x.e.name || '—')}${x.e.job ? `<div style="font-size:10.5px;color:#95a5a6">${hsEsc(x.e.job)}</div>` : ''}</td>
+                    <td style="padding:8px 10px;color:#666;font-size:12px">${hsEsc(x.e.dept || '—')}</td>
+                    <td style="padding:8px 10px;font-weight:700">${hsEsc(x.e.contractEnd)}</td>
+                    <td style="padding:8px 10px;text-align:center">${daysBadge(x.days)}</td>
+                    <td style="padding:8px 10px;text-align:center"><button class="btn b-g" onclick="hsRenewContract('${x.k}')" style="font-size:11px;padding:4px 9px">🔁 تجديد</button></td>
+                </tr>`).join('')}</tbody>
+            </table></div>` : '<div style="color:#16a085;text-align:center;padding:18px;font-weight:600">✅ لا عقود تحتاج تجديداً قريباً</div>'}
+        </div>
+    </div>`;
+};
+
+function hsUpdateEmp(key, vals) { return window.update(window.ref(window.db, 'ledger/employees/' + key), vals); }
+window.hsConfirmProbation = function (key) {
+    const e = (window.emp || {})[key] || {};
+    cf2(`تثبيت الموظف «${hsEsc(e.name || '')}» واعتماد اجتيازه فترة التجربة؟`, async () => {
+        try { await hsUpdateEmp(key, { probationConfirmed: true, probationConfirmedAt: hsToday(), probationConfirmedBy: hsMyName() }); toast('✅ تم التثبيت', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+    });
+};
+window.hsExtendProbation = async function (key) {
+    const e = (window.emp || {})[key] || {};
+    const cur = (e.probationMonths != null && e.probationMonths !== '') ? parseInt(e.probationMonths) : 3;
+    const v = window.prompt(`إجمالي مدة فترة التجربة بالأشهر للموظف «${e.name || ''}» (الحد النظامي 6 أشهر):`, String(cur));
+    if (v == null) return;
+    const m = parseInt(v); if (isNaN(m) || m < 0) { toast('قيمة غير صحيحة', 'er'); return; }
+    if (m > 6) { toast('⚠️ الحد النظامي لفترة التجربة 180 يوماً (6 أشهر)', 'wn'); }
+    try { await hsUpdateEmp(key, { probationMonths: m }); toast('✅ تم تحديث مدة التجربة', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsRenewContract = async function (key) {
+    const e = (window.emp || {})[key] || {};
+    const v = window.prompt(`تاريخ انتهاء العقد الجديد للموظف «${e.name || ''}» (YYYY-MM-DD):`, e.contractEnd || '');
+    if (v == null) return;
+    const d = String(v).trim(); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { toast('صيغة التاريخ يجب أن تكون YYYY-MM-DD', 'er'); return; }
+    try { await hsUpdateEmp(key, { contractEnd: d }); toast('✅ تم تجديد العقد', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  📢 إعلانات الشركة
 // ═══════════════════════════════════════════════════════════════════════════
 const HS_ANN_PRIORITY = { normal: { label: '🔵 عادي', color: '#2d6a9f' }, important: { label: '🟠 مهم', color: '#e67e22' }, urgent: { label: '🔴 عاجل', color: '#c0392b' } };
