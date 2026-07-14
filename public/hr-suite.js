@@ -265,6 +265,109 @@ window.hsLetterTypeOptions = function () { return Object.entries(HS_LETTER_TYPES
 window.hsLetterLabel = function (t) { return (HS_LETTER_TYPES[t] || HS_LETTER_TYPES.employment).label; };
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  📢 إعلانات الشركة
+// ═══════════════════════════════════════════════════════════════════════════
+const HS_ANN_PRIORITY = { normal: { label: '🔵 عادي', color: '#2d6a9f' }, important: { label: '🟠 مهم', color: '#e67e22' }, urgent: { label: '🔴 عاجل', color: '#c0392b' } };
+function hsAnns() { return window.announcements || {}; }
+// الإعلانات الفعّالة (غير المنتهية) — تُستخدم في الخدمة الذاتية ولوحة التحكم
+window.hsActiveAnnouncements = function () {
+    const today = hsToday();
+    return Object.entries(hsAnns()).map(([k, a]) => ({ k, ...a }))
+        .filter(a => a.active !== false && (!a.expiry || a.expiry >= today))
+        .sort((a, b) => (b.date || b.createdAt || '').localeCompare(a.date || a.createdAt || ''));
+};
+
+window.renderAnnouncements = function () {
+    const c = document.getElementById('pg-announcements'); if (!c) return;
+    if (!hsCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية فقط</div>'; return; }
+    const all = Object.entries(hsAnns()).map(([k, a]) => ({ k, ...a })).sort((a, b) => (b.date || b.createdAt || '').localeCompare(a.date || a.createdAt || ''));
+    const active = window.hsActiveAnnouncements();
+    const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
+    c.innerHTML = `<div style="padding:0 4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800;color:#1a3a5c">📢 إعلانات الشركة</div>
+            <button class="btn b-g" onclick="hsOpenAnnounce()" style="font-weight:800">➕ إعلان جديد</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            ${kpi('📢', 'إعلانات فعّالة', active.length, '#16a085')}
+            ${kpi('🗂️', 'إجمالي الإعلانات', all.length, '#2980b9')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
+        ${all.length ? all.map(a => {
+        const pr = HS_ANN_PRIORITY[a.priority || 'normal'] || HS_ANN_PRIORITY.normal;
+        const expired = a.expiry && a.expiry < hsToday();
+        const off = a.active === false;
+        return `<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;border-top:3px solid ${pr.color};opacity:${off || expired ? '.6' : '1'}">
+            <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                    <div style="font-weight:800;color:${pr.color};font-size:14px">${hsEsc(a.title || 'إعلان')}</div>
+                    <span style="font-size:10px;color:${pr.color};background:${pr.color}18;border-radius:8px;padding:2px 8px;white-space:nowrap">${pr.label}</span>
+                </div>
+                <div style="font-size:10.5px;color:#95a5a6;margin-top:3px">${(a.date || a.createdAt || '').slice(0, 10)}${a.expiry ? ` · ينتهي ${a.expiry}` : ''}${off ? ' · موقوف' : expired ? ' · منتهٍ' : ''}</div>
+            </div>
+            <div style="padding:11px 14px;font-size:12.5px;color:#556;line-height:1.8;white-space:pre-wrap;min-height:42px">${hsEsc(a.body || '')}</div>
+            <div style="padding:8px 14px;border-top:1px solid #f5f5f5;display:flex;gap:6px;justify-content:flex-end">
+                <button class="btn" onclick="hsOpenAnnounce('${a.k}')" style="font-size:11px;padding:4px 9px">✏️ تعديل</button>
+                <button class="btn" onclick="hsToggleAnnounce('${a.k}',${a.active === false})" style="font-size:11px;padding:4px 9px;background:#eef5fb;color:#2d6a9f">${a.active === false ? '▶️ تفعيل' : '⏸️ إيقاف'}</button>
+                <button class="btn b-r" onclick="hsDeleteAnnounce('${a.k}')" style="font-size:11px;padding:4px 9px">🗑️</button>
+            </div>
+        </div>`;
+    }).join('') : '<div style="grid-column:1/-1;text-align:center;color:#aaa;padding:24px">لا إعلانات — أنشئ أول إعلان ليظهر للموظفين في خدمتهم الذاتية.</div>'}
+        </div>
+    </div>`;
+};
+
+function hsEnsureAnnModal() {
+    if (document.getElementById('hsAnnModal')) return;
+    const fg = (label, inner) => `<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:3px">${label}</label>${inner}</div>`;
+    const prOpts = Object.entries(HS_ANN_PRIORITY).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+    const d = document.createElement('div');
+    d.id = 'hsAnnModal';
+    d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
+    d.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 id="hsAnnTitle" style="margin:0;color:#16a085;font-size:18px">📢 إعلان جديد</h3><button onclick="hsCloseAnnounce()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <input id="hsAnnKey" type="hidden">
+        ${fg('العنوان *', `<input id="hsAnnTitleIn" placeholder="مثال: إجازة عيد الأضحى" style="width:100%;${hsInp()}">`)}
+        ${fg('النص', `<textarea id="hsAnnBody" rows="4" placeholder="تفاصيل الإعلان..." style="width:100%;${hsInp()};resize:vertical"></textarea>`)}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${fg('الأهمية', `<select id="hsAnnPr" style="width:100%;${hsInp()}">${prOpts}</select>`)}
+            ${fg('ينتهي في (اختياري)', `<input id="hsAnnExpiry" type="date" style="width:100%;${hsInp()}">`)}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn b-g" onclick="hsSaveAnnounce()" style="flex:1;font-weight:800">💾 نشر</button><button class="btn" onclick="hsCloseAnnounce()" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+    document.body.appendChild(d);
+}
+window.hsOpenAnnounce = function (key) {
+    hsEnsureAnnModal();
+    const a = key ? hsAnns()[key] : null;
+    document.getElementById('hsAnnKey').value = key || '';
+    document.getElementById('hsAnnTitle').textContent = a ? '✏️ تعديل إعلان' : '📢 إعلان جديد';
+    document.getElementById('hsAnnTitleIn').value = a?.title || '';
+    document.getElementById('hsAnnBody').value = a?.body || '';
+    document.getElementById('hsAnnPr').value = a?.priority || 'normal';
+    document.getElementById('hsAnnExpiry').value = a?.expiry || '';
+    document.getElementById('hsAnnModal').style.display = 'flex';
+};
+window.hsCloseAnnounce = function () { const m = document.getElementById('hsAnnModal'); if (m) m.style.display = 'none'; };
+window.hsSaveAnnounce = async function () {
+    const key = document.getElementById('hsAnnKey').value;
+    const title = document.getElementById('hsAnnTitleIn').value.trim();
+    if (!title) { toast('⚠️ العنوان مطلوب', 'er'); return; }
+    const data = { title, body: document.getElementById('hsAnnBody').value.trim(), priority: document.getElementById('hsAnnPr').value, expiry: document.getElementById('hsAnnExpiry').value || '', active: true, updatedAt: new Date().toISOString() };
+    try {
+        if (key) await window.update(window.ref(window.db, 'ledger/announcements/' + key), data);
+        else await window.push(window.R.announcements, { ...data, date: hsToday(), createdBy: hsMyName(), createdAt: new Date().toISOString() });
+        toast('✅ تم النشر', 'ok'); hsCloseAnnounce();
+    } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsToggleAnnounce = async function (key, on) {
+    try { await window.update(window.ref(window.db, 'ledger/announcements/' + key), { active: !!on }); toast(on ? 'فُعّل' : 'أُوقف', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsDeleteAnnounce = function (key) {
+    cf2('حذف هذا الإعلان؟', async () => { try { await window.remove(window.ref(window.db, 'ledger/announcements/' + key)); toast('حُذف', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); } });
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  📊 تحليلات الموارد البشرية + السعودة (نطاقات)
 // ═══════════════════════════════════════════════════════════════════════════
 function hsIsSaudi(nat) { return /^\s*(سعودي|سعوديه|سعودية|saudi|ksa)/i.test(String(nat || '')); }
