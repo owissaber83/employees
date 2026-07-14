@@ -67,6 +67,7 @@ function shRenderDefs() {
             <div style="padding:12px 14px;font-size:12.5px;color:#555;line-height:1.9">
                 ⏰ <b>${s.startTime || '—'}</b> ← <b>${s.endTime || '—'}</b>${s.breakMins ? ` · استراحة ${s.breakMins}د` : ''}<br>
                 🟢 سماح تأخير: <b>${s.graceMins || 0}</b> دقيقة<br>
+                ⏱️ الإضافي: <b>${s.otAllowed ? (s.otAfter ? `بعد ${s.otAfter}د` : 'مسموح') : 'غير مسموح'}</b><br>
                 📅 ${days}<br>
                 👥 مُسنَد إليها: <b>${cntByShift[s.k] || 0}</b> موظف
             </div>
@@ -85,6 +86,10 @@ window.shOpenShift = function (key) {
     document.getElementById('shBreak').value = s?.breakMins ?? 60;
     document.getElementById('shGrace').value = s?.graceMins ?? 15;
     document.getElementById('shColor').value = s?.color || '#2980b9';
+    const otOn = !!s?.otAllowed;
+    document.getElementById('shOtAllowed').checked = otOn;
+    document.getElementById('shOtAfter').value = s?.otAfter ?? 0;
+    document.getElementById('shOtRow').style.display = otOn ? 'block' : 'none';
     const wd = s?.workDays || SH_DEFAULT_WORKDAYS;
     SH_DAYS.forEach((_, i) => { const cb = document.getElementById('shWd' + i); if (cb) cb.checked = wd.includes(i); });
     document.getElementById('shModal').style.display = 'flex';
@@ -108,6 +113,12 @@ function shEnsureShiftModal() {
             ${fg('سماح التأخير (دقائق)', `<input id="shGrace" type="number" min="0" style="width:100%;${shInp()}">`)}
         </div>
         ${fg('أيام العمل', `<div style="display:flex;flex-wrap:wrap;gap:6px">${days}</div>`)}
+        <div style="background:#f7fbff;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2d6a9f;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="shOtAllowed" onchange="document.getElementById('shOtRow').style.display=this.checked?'block':'none'"> ⏱️ السماح بالعمل الإضافي</label>
+            <div id="shOtRow" style="display:none">
+                ${fg('يبدأ الإضافي بعد نهاية الدوام بـ (دقائق)', `<input id="shOtAfter" type="number" min="0" placeholder="0 = فوراً بعد الدوام" style="width:100%;${shInp()}">`)}
+            </div>
+        </div>
         ${fg('اللون', `<input id="shColor" type="color" value="#2980b9" style="width:60px;height:36px;border:1px solid #ddd;border-radius:8px;cursor:pointer">`)}
         <div style="display:flex;gap:8px;margin-top:8px"><button class="btn b-g" onclick="shSaveShift()" style="flex:1;font-weight:800">💾 حفظ</button><button class="btn" onclick="shCloseShift()" style="background:#f0f0f0">إلغاء</button></div>
     </div>`;
@@ -121,6 +132,7 @@ window.shSaveShift = async function () {
     const data = {
         name, startTime: document.getElementById('shStart').value, endTime: document.getElementById('shEnd').value,
         breakMins: parseInt(document.getElementById('shBreak').value) || 0, graceMins: parseInt(document.getElementById('shGrace').value) || 0,
+        otAllowed: !!document.getElementById('shOtAllowed').checked, otAfter: parseInt(document.getElementById('shOtAfter').value) || 0,
         workDays: workDays.length ? workDays : SH_DEFAULT_WORKDAYS, color: document.getElementById('shColor').value, active: true, updatedAt: new Date().toISOString()
     };
     try {

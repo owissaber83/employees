@@ -21691,10 +21691,29 @@ function attendanceLateMinutes(dt) {
 }
 // 🕗 وردية الموظف في تاريخ معيّن (من الإسناد)
 function shiftNum(v, def) { const n = parseInt(v); return isNaN(n) ? def : n; }
+// توحيد شكل الوردية — يدعم الحقول القديمة (startTime/endTime/graceMins) والجديدة (start/end/graceIn)
+function normShift(s) {
+    if (!s) return null;
+    return {
+        id: s.id, name: s.name || 'وردية', color: s.color || '#2d6a9f',
+        start: s.start || s.startTime || '08:00',
+        end: s.end || s.endTime || '17:00',
+        openBefore: s.openBefore != null ? s.openBefore : 30,
+        graceIn: s.graceIn != null ? s.graceIn : (s.graceMins != null ? s.graceMins : 10),
+        lateLimit: s.lateLimit != null ? s.lateLimit : 120,
+        closeOut: s.closeOut != null ? s.closeOut : 120,
+        otAllowed: !!s.otAllowed, otAfter: s.otAfter != null ? s.otAfter : 0,
+        workDays: Array.isArray(s.workDays) ? s.workDays : null, breakMins: s.breakMins || 0
+    };
+}
 function getEmpShiftForDate(empKey, date) {
     const roster = window.roster || {}, shifts = window.shifts || {};
     const a = Object.values(roster).find(r => r.empKey === empKey && (r.from || '') <= date && date <= (r.to || ''));
-    return (a && shifts[a.shiftId]) ? { id: a.shiftId, ...shifts[a.shiftId] } : null;
+    if (!a || !shifts[a.shiftId]) return null;
+    const sh = normShift({ id: a.shiftId, ...shifts[a.shiftId] });
+    // احترام أيام العمل إن حُدّدت (0=الأحد … 6=السبت بترتيب JS)
+    if (sh.workDays && sh.workDays.length) { const dow = new Date(date + 'T00:00:00').getDay(); if (!sh.workDays.includes(dow)) return null; }
+    return sh;
 }
 // 🕗 نوافذ الحضور/الانصراف والتأخير والإضافي وفق الوردية
 function shiftWindowInfo(shift, now) {
@@ -21987,7 +22006,7 @@ window.doCheckOut = async function () {
         if (!gc.ok && (window.geofence?.mode || 'block') === 'block') { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
         const nowDt = new Date();
         // 🕗 احتساب الإضافي وفق الوردية (إن كانت تسمح بالإضافي)
-        const myShift = (data.shiftId && (window.shifts || {})[data.shiftId]) ? { id: data.shiftId, ...(window.shifts)[data.shiftId] } : getEmpShiftForDate(myEmpRec.key, todayStr);
+        const myShift = (data.shiftId && (window.shifts || {})[data.shiftId]) ? normShift({ id: data.shiftId, ...(window.shifts)[data.shiftId] }) : getEmpShiftForDate(myEmpRec.key, todayStr);
         let overtimeMin = 0;
         if (myShift && myShift.otAllowed) { overtimeMin = shiftWindowInfo(myShift, nowDt).overtimeMin; }
         const checkOutTime = nowDt.toISOString();
