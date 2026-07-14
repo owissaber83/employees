@@ -21657,8 +21657,31 @@ window.renderGeofenceAdmin = function () {
                 <div><b style="color:#1a3a5c">${f.name || 'موقع'}</b> <span style="color:#16a085;font-size:12px;font-weight:700">— نطاق ${f.radius} م</span><br><a href="https://www.google.com/maps?q=${f.lat},${f.lng}" target="_blank" rel="noopener" style="font-size:11px;color:#2980b9;direction:ltr;display:inline-block">📍 ${f.lat}, ${f.lng}</a></div>
                 <button class="btn b-r" style="padding:4px 10px;font-size:11px" onclick="geofenceDelete('${id}')">🗑️ حذف</button>
             </div>`).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:14px;font-size:12px">لا مواقع مُضافة بعد — قف في مقر العمل واضغط «📍 إضافة موقعي الحالي».</div>`}
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #eef2f6">
+            <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">🕐 دوام العمل واحتساب التأخير التلقائي</div>
+            <div class="form-grid sm">
+                <div class="fg"><label>بداية الدوام</label><input type="time" id="gfStart" value="${(gf.schedule?.startTime) || '08:00'}"></div>
+                <div class="fg"><label>سماح التأخير (دقائق)</label><input type="number" id="gfGrace" min="0" value="${gf.schedule?.graceMin ?? 15}"></div>
+                <div class="fg"><label>نهاية الدوام</label><input type="time" id="gfEnd" value="${(gf.schedule?.endTime) || '17:00'}"></div>
+                <div class="fg" style="flex-direction:row;align-items:flex-end"><button class="btn b-g" onclick="geofenceSaveSchedule()" style="flex:1">💾 حفظ الدوام</button></div>
+            </div>
+            <div style="font-size:11px;color:#8a97a5;margin-top:6px">💡 يُحتسب التأخير تلقائياً عند تسجيل الدخول بعد (بداية الدوام + مدة السماح)، ويظهر في السجل والخدمة الذاتية.</div>
+        </div>
     </div>`;
 };
+window.geofenceSaveSchedule = async function () {
+    const schedule = { startTime: $('gfStart')?.value || '08:00', graceMin: Math.max(0, parseInt($('gfGrace')?.value) || 0), endTime: $('gfEnd')?.value || '17:00' };
+    try { await update(ref(db, 'ledger/geofence'), { schedule }); toast('✅ حُفظ دوام العمل واحتساب التأخير', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+// حساب دقائق التأخير عند وقت معيّن وفق جدول الدوام
+function attendanceLateMinutes(dt) {
+    const sch = window.geofence?.schedule;
+    if (!sch || !sch.startTime) return 0;
+    const [sh, sm] = sch.startTime.split(':').map(Number);
+    const startMin = sh * 60 + sm + (parseInt(sch.graceMin) || 0);
+    const nowMin = dt.getHours() * 60 + dt.getMinutes();
+    return Math.max(0, nowMin - startMin);
+}
 window.geofenceToggle = async function (on) { try { await update(ref(db, 'ledger/geofence'), { enabled: !!on, mode: window.geofence?.mode || 'block' }); toast(on ? '✅ فُعّل النطاق الجغرافي' : '⏸️ أُوقف النطاق الجغرافي', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } };
 window.geofenceSetMode = async function (mode) { try { await update(ref(db, 'ledger/geofence'), { mode }); toast(mode === 'block' ? '🚫 وضع المنع' : '⚠️ وضع التنبيه', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } };
 window.geofenceAddCurrent = async function () {
@@ -21706,9 +21729,11 @@ window.doCheckIn = async function () {
             if (strict) { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
             toast('⚠️ ' + gc.msg + '\n(سُجّل مع تنبيه — خارج النطاق)', 'wn', 8000);
         }
-        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: new Date().toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true });
-        setSt('✅ تم تسجيل الدخول في ' + new Date().toLocaleTimeString('ar-SA') + (loc ? ' · 📍 تم تسجيل الموقع' : ' · ⚠️ تعذّر الموقع'));
-        toast('✅ تم تسجيل الدخول' + (loc ? ' مع الموقع' : ''), 'ok');
+        const nowDt = new Date();
+        const lateMin = attendanceLateMinutes(nowDt);
+        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: nowDt.toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true, lateMinutes: lateMin });
+        setSt('✅ تم تسجيل الدخول في ' + nowDt.toLocaleTimeString('ar-SA') + (lateMin > 0 ? ` · ⏰ متأخر ${lateMin} دقيقة` : '') + (loc ? ' · 📍' : ' · ⚠️ تعذّر الموقع'));
+        toast('✅ تم تسجيل الدخول' + (lateMin > 0 ? ` — ⏰ تأخير ${lateMin} دقيقة` : '') + (loc ? ' مع الموقع' : ''), lateMin > 0 ? 'wn' : 'ok', lateMin > 0 ? 5000 : 3000);
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
 
@@ -21964,7 +21989,7 @@ window.renderSelfService = function () {
             <div style="background:#fff;border-radius:17px;padding:14px 16px;box-shadow:0 6px 20px rgba(20,50,80,.1);margin:-30px 0 14px;position:relative;z-index:2">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
                     <div style="min-width:0;flex:1"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم</div>
-                    <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}</div></div>
+                    <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}${(todayRec && todayRec.lateMinutes > 0) ? ` <span style="color:#c0392b">· ⏰ متأخر ${todayRec.lateMinutes}د</span>` : ''}</div></div>
                     ${!checkedIn ? `<button onclick="doCheckIn()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#27ae60,#1e8e50);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(39,174,96,.32)">🟢 حضور</button>`
                 : !checkedOut ? `<button onclick="doCheckOut()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(230,126,34,.32)">🔴 انصراف</button>`
                 : `<div style="flex-shrink:0;font-size:30px">✅</div>`}
@@ -22265,9 +22290,11 @@ window.renderAttendance = function () {
         const ciTime = a.checkIn ? new Date(a.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-';
         const coTime = a.checkOut ? new Date(a.checkOut).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-';
         const hrs = a.totalHours ? a.totalHours.toFixed(2) + ' س' : (a.checkOut ? '-' : '⏳ جارٍ');
-        const statusBadge = a.checkOut
+        const lateBadge = (a.lateMinutes > 0) ? `<span style="background:#fdecea;color:#c0392b;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px" title="تأخير عن بداية الدوام">⏰ ${a.lateMinutes}د</span>` : '';
+        const outsideBadge = (a.checkInOutside) ? `<span style="background:#fff3e0;color:#d35400;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px" title="سُجّل خارج النطاق المسموح">📍خارج</span>` : '';
+        const statusBadge = (a.checkOut
             ? `<span style="background:#d5f5e3;color:#1e8449;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">منصرف</span>`
-            : `<span style="background:#fef9e7;color:#d35400;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">حاضر</span>`;
+            : `<span style="background:#fef9e7;color:#d35400;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">حاضر</span>`) + lateBadge + outsideBadge;
         const actionsBtns = isAdmin
             ? `<td style="padding:8px 12px;white-space:nowrap">
                 <button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="openAtEdit('${key}')">✏️</button>
