@@ -229,6 +229,7 @@ function buildRefs() {
     jrnTemplates: ref(db, 'ledger/jrnTemplates'), // 📋 قوالب القيود اليدوية: { id: { name, lines:[{accountCode,debit,credit}] } }
     periodLocks: ref(db, 'ledger/periodLocks'),    // 🔒 إقفال الفترات المحاسبية: { 'YYYY-MM': { locked, lockedAt, lockedBy } }
     geofence: ref(db, 'ledger/geofence'),          // 🎯 نطاق الحضور الجغرافي: { enabled, mode, fences:{ id:{ name, lat, lng, radius } } }
+    attRequests: ref(db, 'ledger/attendanceRequests'), // 🛠️ طلبات تصحيح الحضور: { id:{ empKey, date, checkIn, checkOut, reason, status } }
     yearClosings: ref(db, 'ledger/yearClosings'),  // 🗓️ إقفالات السنوات المالية: { year: { closingEntryKey, openingEntryKey, netIncome, closedAt, closedBy } }
     auditLog: ref(db, 'ledger/auditLog'),          // 🕵️ سجل التدقيق الشامل: { key: { at, by, byName, module, action, description } }
     bankStmts: ref(db, 'ledger/bankStatements'),   // 🏦 سطور كشوف البنك المستوردة: { accountCode: { sessionKey: { lineKey: {...} } } }
@@ -2788,6 +2789,12 @@ function startListeners() {
     onValue(R.geofence, sn => {
         window.geofence = sn.exists() ? sn.val() : null;
         if ($('pg-attendance')?.classList.contains('act') && typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin();
+    });
+    onValue(R.attRequests, sn => {
+        window.attRequests = sn.exists() ? sn.val() : {};
+        if ($('pg-attendance')?.classList.contains('act') && typeof renderAttFixRequests === 'function') renderAttFixRequests();
+        if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService();
+        if (typeof refreshNotifBell === 'function') refreshNotifBell();
     });
     onValue(R.yearClosings, sn => {
         window.yearClosings = sn.exists() ? sn.val() : {};
@@ -21682,6 +21689,175 @@ function attendanceLateMinutes(dt) {
     const nowMin = dt.getHours() * 60 + dt.getMinutes();
     return Math.max(0, nowMin - startMin);
 }
+
+// ── 🛠️ طلبات تصحيح الحضور (Regularization) ──
+window.essSubmitAttFix = async function () {
+    const me = myEmpContext(); if (!me) { toast('حسابك غير مرتبط بسجل موظف', 'er'); return; }
+    const date = $('essFixDate')?.value, ci = $('essFixIn')?.value, co = $('essFixOut')?.value, reason = $('essFixReason')?.value.trim() || '';
+    if (!date) { toast('⚠️ اختر التاريخ', 'er'); return; }
+    if (!ci && !co) { toast('⚠️ أدخل وقت الدخول أو الخروج المطلوب', 'er'); return; }
+    if (!reason) { toast('⚠️ اذكر سبب التصحيح', 'er'); return; }
+    try {
+        await push(R.attRequests, { empKey: me.key, empName: me.data.name || '', date, checkIn: ci || '', checkOut: co || '', reason, status: 'pending', requestedAt: new Date().toISOString(), viaSelfService: true });
+        toast('✅ أُرسل طلب التصحيح — بانتظار اعتماد المسؤول', 'ok');
+        if ($('essFixReason')) $('essFixReason').value = '';
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.renderAttFixRequests = function () {
+    const c = $('attFixCard'); if (!c) return;
+    const canManage = myP?.role === 'admin' || myP?.role === 'hr_officer' || (typeof can === 'function' && (can('edit_settings') || can('manage_attendance')));
+    if (!canManage) { c.innerHTML = ''; return; }
+    const reqs = Object.entries(window.attRequests || {}).map(([id, r]) => ({ id, ...r })).sort((a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || ''));
+    const pending = reqs.filter(r => (r.status || 'pending') === 'pending');
+    c.innerHTML = `<div class="card" style="margin-bottom:16px;border-right:5px solid #e67e22">
+        <div class="c-tl">🛠️ طلبات تصحيح الحضور ${pending.length ? `<span style="background:#e67e22;color:#fff;border-radius:10px;padding:1px 9px;font-size:12px">${pending.length}</span>` : ''}</div>
+        ${reqs.length ? `<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:#f8fafc"><th style="padding:7px 10px;text-align:right">الموظف</th><th style="padding:7px 10px">التاريخ</th><th style="padding:7px 10px">دخول</th><th style="padding:7px 10px">خروج</th><th style="padding:7px 10px;text-align:right">السبب</th><th style="padding:7px 10px">الحالة</th><th style="padding:7px 10px">إجراءات</th></tr></thead>
+            <tbody>${reqs.slice(0, 40).map(r => `<tr>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;font-weight:600">${r.empName || '-'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center">${r.date || '-'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;color:#27ae60;font-weight:700">${r.checkIn || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;color:#e74c3c;font-weight:700">${r.checkOut || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;font-size:11px;color:#666">${r.reason || ''}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center">${typeof essStatusBadge === 'function' ? essStatusBadge(r.status || 'pending') : (r.status || '')}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;white-space:nowrap">${(r.status || 'pending') === 'pending' ? `<button class="btn b-g" style="padding:3px 9px;font-size:10px" onclick="approveAttFix('${r.id}')">✅ اعتماد</button> <button class="btn b-r" style="padding:3px 9px;font-size:10px" onclick="rejectAttFix('${r.id}')">❌</button>` : `<button class="btn" style="padding:3px 9px;font-size:10px;background:#ecf0f1;color:#555" onclick="deleteAttFix('${r.id}')">🗑️</button>`}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>` : `<div style="text-align:center;color:#aaa;padding:14px;font-size:12px">لا طلبات تصحيح حضور</div>`}
+    </div>`;
+};
+window.approveAttFix = function (id) {
+    const r = (window.attRequests || {})[id]; if (!r) return;
+    cf2(`اعتماد تصحيح حضور ${r.empName} ليوم ${r.date}؟\nسيُطبَّق مباشرةً على سجل الحضور.`, async () => {
+        try {
+            const mk = t => t ? new Date(r.date + 'T' + t + ':00').toISOString() : null;
+            const ci = mk(r.checkIn), co = mk(r.checkOut);
+            const existing = Object.entries(attendance).find(([, a]) => a.employeeId === r.empKey && a.date === r.date);
+            const ciFinal = ci || (existing && existing[1].checkIn) || null;
+            const coFinal = co || (existing && existing[1].checkOut) || null;
+            let hours = 0;
+            if (ciFinal && coFinal) hours = Math.max(0, parseFloat(((new Date(coFinal) - new Date(ciFinal)) / 3600000).toFixed(2)));
+            const rec = { employeeId: r.empKey, employeeName: r.empName, date: r.date, checkIn: ciFinal, checkOut: coFinal, totalHours: hours, correctedFrom: id, correctedBy: myP?.name || '', correctedAt: new Date().toISOString() };
+            if (existing) await update(ref(db, 'ledger/attendance/' + existing[0]), rec);
+            else await push(R.att, rec);
+            await update(ref(db, 'ledger/attendanceRequests/' + id), { status: 'approved', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() });
+            toast('✅ اعتُمد التصحيح وطُبّق على السجل', 'ok');
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+window.rejectAttFix = function (id) {
+    const reason = prompt('سبب الرفض (اختياري):', '') ?? '';
+    update(ref(db, 'ledger/attendanceRequests/' + id), { status: 'rejected', rejectReason: reason, reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الرفض', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er'));
+};
+window.deleteAttFix = function (id) { cf2('حذف هذا الطلب؟', async () => { try { await set(ref(db, 'ledger/attendanceRequests/' + id), null); toast('حُذف', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
+
+// ══ 🕗 [SHIFTS] الورديات والجداول ══
+const SHIFT_COLORS = ['#2d6a9f', '#16a085', '#e67e22', '#8e44ad', '#c0392b', '#27ae60', '#d35400', '#2c3e50'];
+window.renderShifts = function () {
+    const c = $('pg-shifts'); if (!c) return;
+    const canManage = myP?.role === 'admin' || myP?.role === 'hr_officer' || (typeof can === 'function' && can('manage_shifts'));
+    const shifts = window.shifts || {}, roster = window.roster || {};
+    const shiftArr = Object.entries(shifts);
+    const emps = Object.entries(emp || {}).filter(([, e]) => e.active !== false).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
+    // أسبوع العرض (يبدأ السبت)
+    if (!window._shiftWeek) { const d = new Date(); const back = (d.getDay() + 1) % 7; d.setDate(d.getDate() - back); window._shiftWeek = d.toISOString().slice(0, 10); }
+    const weekStart = new Date(window._shiftWeek + 'T00:00:00');
+    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(d.getDate() + i); return d.toISOString().slice(0, 10); });
+    const dayNames = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+    const shiftOf = (empKey, date) => { const a = Object.values(roster).find(r => r.empKey === empKey && (r.from || '') <= date && date <= (r.to || '')); return a ? shifts[a.shiftId] : null; };
+    const actOf = (empKey, date) => Object.values(attendance || {}).find(a => a.employeeId === empKey && a.date === date);
+
+    const empOpts = emps.map(([k, e]) => `<option value="${k}">${e.name || k}</option>`).join('');
+    const shiftOpts = shiftArr.map(([id, s]) => `<option value="${id}">${s.name} (${s.start}–${s.end})</option>`).join('');
+
+    c.innerHTML = `
+    <div class="kpi-gr" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));margin-bottom:16px">
+        <div class="kpi k1"><div class="kpi-ic">🕗</div><div class="kpi-lb">الورديات المعرّفة</div><div class="kpi-vl">${shiftArr.length}</div><div class="kpi-sb">وردية</div></div>
+        <div class="kpi k3"><div class="kpi-ic">🗓️</div><div class="kpi-lb">إسنادات نشطة</div><div class="kpi-vl">${Object.keys(roster).length}</div><div class="kpi-sb">إسناد</div></div>
+        <div class="kpi k2"><div class="kpi-ic">👥</div><div class="kpi-lb">الموظفون</div><div class="kpi-vl">${emps.length}</div><div class="kpi-sb">موظف</div></div>
+    </div>
+
+    ${canManage ? `<div class="card" style="margin-bottom:16px;border-right:5px solid #2d6a9f">
+        <div class="c-tl">🕗 تعريف الورديات</div>
+        <div class="form-grid sm">
+            <div class="fg"><label>اسم الوردية *</label><input id="shName" placeholder="صباحية / مسائية"></div>
+            <div class="fg"><label>من الساعة *</label><input id="shStart" type="time" value="08:00"></div>
+            <div class="fg"><label>إلى الساعة *</label><input id="shEnd" type="time" value="17:00"></div>
+            <div class="fg" style="flex-direction:row;align-items:flex-end"><button class="btn b-g" onclick="shiftSave()" style="flex:1">➕ إضافة وردية</button></div>
+        </div>
+        ${shiftArr.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${shiftArr.map(([id, s]) => `<span style="display:inline-flex;align-items:center;gap:6px;background:${s.color || '#2d6a9f'}18;border:1px solid ${s.color || '#2d6a9f'}55;color:${s.color || '#2d6a9f'};border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700">${s.name} · ${s.start}–${s.end}<button onclick="shiftDelete('${id}')" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button></span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px;padding:8px">لا ورديات — أضف وردية أعلاه.</div>'}
+    </div>
+
+    <div class="card" style="margin-bottom:16px;border-right:5px solid #16a085">
+        <div class="c-tl">🗓️ إسناد وردية لموظف</div>
+        <div class="form-grid">
+            <div class="fg"><label>الموظف *</label><select id="rEmp">${empOpts}</select></div>
+            <div class="fg"><label>الوردية *</label><select id="rShift">${shiftOpts || '<option value="">— عرّف وردية أولاً —</option>'}</select></div>
+            <div class="fg"><label>من تاريخ *</label><input id="rFrom" type="date" value="${days[0]}"></div>
+            <div class="fg"><label>إلى تاريخ *</label><input id="rTo" type="date" value="${days[6]}"></div>
+            <div class="fg" style="flex-direction:row;align-items:flex-end"><button class="btn b-g" onclick="rosterAssign()" style="flex:1">✅ إسناد</button></div>
+        </div>
+    </div>` : ''}
+
+    <div class="card">
+        <div class="tlb">
+            <div class="c-tl" style="margin:0;border:none;padding:0">📅 جدول الأسبوع — الفعلي مقابل المجدول</div>
+            <div style="display:flex;gap:6px;align-items:center">
+                <button class="btn b-gr" onclick="shiftWeekNav(-7)">‹ سابق</button>
+                <span style="font-size:12px;font-weight:700;color:#1a3a5c">${days[0]} → ${days[6]}</span>
+                <button class="btn b-gr" onclick="shiftWeekNav(7)">التالي ›</button>
+                <button class="btn b-b" onclick="window._shiftWeek=null;renderShifts()">اليوم</button>
+            </div>
+        </div>
+        <div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:760px">
+            <thead><tr style="background:#f0f5fa"><th style="padding:8px;text-align:right;position:sticky;right:0;background:#f0f5fa">الموظف</th>${days.map((d, i) => `<th style="padding:8px;text-align:center">${dayNames[i]}<br><span style="font-size:9.5px;color:#888">${d.slice(5)}</span></th>`).join('')}</tr></thead>
+            <tbody>${emps.map(([k, e]) => `<tr>
+                <td style="padding:7px 8px;border-bottom:1px solid #f0f4f8;font-weight:600;white-space:nowrap;position:sticky;right:0;background:#fff">${e.name || '-'}</td>
+                ${days.map(d => {
+                    const sh = shiftOf(k, d), act = actOf(k, d);
+                    const isFri = new Date(d + 'T00:00:00').getDay() === 5;
+                    let cell = '';
+                    if (sh) {
+                        const late = act && act.lateMinutes > 0;
+                        const status = act ? (late ? `<span style="color:#c0392b">⏰${act.lateMinutes}د</span>` : '<span style="color:#27ae60">✅</span>') : (d < today() ? '<span style="color:#e74c3c">غائب</span>' : '');
+                        cell = `<div style="background:${sh.color || '#2d6a9f'}14;border:1px solid ${sh.color || '#2d6a9f'}44;border-radius:7px;padding:3px 4px"><div style="font-weight:700;color:${sh.color || '#2d6a9f'}">${sh.name}</div><div style="font-size:9px;color:#888">${sh.start}-${sh.end}</div><div style="font-size:10px;margin-top:1px">${status}</div></div>`;
+                    } else if (act) { cell = `<div style="color:${act.lateMinutes > 0 ? '#c0392b' : '#27ae60'};font-weight:700">${act.lateMinutes > 0 ? `⏰${act.lateMinutes}د` : '✅ حضر'}</div>`; }
+                    else cell = `<span style="color:#dde3ea">—</span>`;
+                    return `<td style="padding:5px 4px;border-bottom:1px solid #f0f4f8;text-align:center;${isFri ? 'background:#fafbfc' : ''}">${cell}</td>`;
+                }).join('')}
+            </tr>`).join('')}</tbody>
+        </table></div>
+        <div style="font-size:11px;color:#8a97a5;margin-top:8px">🟩 حضر · ⏰ متأخر · <span style="color:#e74c3c">غائب</span> (يوم مجدول بلا حضور) · — لا وردية</div>
+        ${canManage && Object.keys(roster).length ? `<div style="margin-top:12px;border-top:1px solid #eef2f6;padding-top:10px"><div style="font-size:12px;font-weight:700;color:#666;margin-bottom:6px">الإسنادات:</div><div style="display:flex;gap:6px;flex-wrap:wrap">${Object.entries(roster).map(([id, r]) => `<span style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:8px;padding:4px 10px;font-size:11px">${emp[r.empKey]?.name || '?'} · ${shifts[r.shiftId]?.name || '?'} · ${r.from}→${r.to}<button onclick="rosterDelete('${id}')" style="border:none;background:none;color:#c0392b;cursor:pointer;margin-right:4px">✕</button></span>`).join('')}</div></div>` : ''}
+    </div>`;
+};
+window.shiftWeekNav = function (delta) { const d = new Date((window._shiftWeek || today()) + 'T00:00:00'); d.setDate(d.getDate() + delta); window._shiftWeek = d.toISOString().slice(0, 10); renderShifts(); };
+window.shiftSave = async function () {
+    const name = $('shName')?.value.trim(), start = $('shStart')?.value, end = $('shEnd')?.value;
+    if (!name || !start || !end) { toast('⚠️ أدخل الاسم ووقتَي البداية والنهاية', 'er'); return; }
+    const color = SHIFT_COLORS[Object.keys(window.shifts || {}).length % SHIFT_COLORS.length];
+    try { await push(R.shifts, { name, start, end, color, createdAt: new Date().toISOString() }); toast('✅ أُضيفت الوردية', 'ok'); if ($('shName')) $('shName').value = ''; } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.shiftDelete = function (id) { cf2('حذف هذه الوردية؟ (لن تتأثر الإسنادات القديمة)', async () => { try { await set(ref(db, 'ledger/shifts/' + id), null); toast('حُذفت', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
+window.rosterAssign = async function () {
+    const empKey = $('rEmp')?.value, shiftId = $('rShift')?.value, from = $('rFrom')?.value, to = $('rTo')?.value;
+    if (!empKey || !shiftId || !from || !to) { toast('⚠️ اختر الموظف والوردية والفترة', 'er'); return; }
+    if (to < from) { toast('⚠️ تاريخ النهاية قبل البداية', 'er'); return; }
+    try { await push(R.roster, { empKey, shiftId, from, to, createdAt: new Date().toISOString(), createdBy: myP?.name || '' }); toast('✅ تم الإسناد', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+window.rosterDelete = function (id) { cf2('حذف هذا الإسناد؟', async () => { try { await set(ref(db, 'ledger/roster/' + id), null); toast('حُذف', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
+
+// 🟢 لوحة «من الحاضر الآن» الحيّة
+window.renderWhosIn = function () {
+    const c = $('whosInCard'); if (!c) return;
+    const todayStr = today();
+    const present = Object.values(attendance || {}).filter(a => a.date === todayStr && a.checkIn && !a.checkOut).sort((a, b) => (b.checkIn || '').localeCompare(a.checkIn || ''));
+    const done = Object.values(attendance || {}).filter(a => a.date === todayStr && a.checkOut).length;
+    c.innerHTML = `<div class="card" style="margin-bottom:16px;border-right:5px solid #27ae60">
+        <div class="c-tl">🟢 من الحاضر الآن (${present.length})</div>
+        ${present.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${present.map(a => `<span style="display:inline-flex;align-items:center;gap:7px;background:#eafaf1;border:1px solid #a9dfbf;border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:#1e8449">🟢 ${a.employeeName || '-'} <span style="color:#8a97a5;font-weight:400">منذ ${new Date(a.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>${a.lateMinutes > 0 ? ` <span style="color:#c0392b">⏰${a.lateMinutes}د</span>` : ''}${a.checkInOutside ? ' <span style="color:#d35400">📍خارج</span>' : ''}</span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px;padding:8px">لا أحد مسجَّل حضوره حالياً.</div>'}
+        ${done ? `<div style="margin-top:8px;font-size:11px;color:#8a97a5">✅ ${done} انصرفوا اليوم</div>` : ''}
+    </div>`;
+};
 window.geofenceToggle = async function (on) { try { await update(ref(db, 'ledger/geofence'), { enabled: !!on, mode: window.geofence?.mode || 'block' }); toast(on ? '✅ فُعّل النطاق الجغرافي' : '⏸️ أُوقف النطاق الجغرافي', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } };
 window.geofenceSetMode = async function (mode) { try { await update(ref(db, 'ledger/geofence'), { mode }); toast(mode === 'block' ? '🚫 وضع المنع' : '⚠️ وضع التنبيه', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } };
 window.geofenceAddCurrent = async function () {
@@ -21873,6 +22049,7 @@ window.renderSelfService = function () {
     const bal = isEmp ? md.balances : getLeaveBalance(key);
     const myLeaves = Object.entries(leaves).filter(([, l]) => l.empKey === key).map(([k, l]) => ({ k, ...l })).sort((a, b) => (b.from || '').localeCompare(a.from || '')).slice(0, 20);
     const myPerms = Object.entries(window.permissions || {}).filter(([, p]) => p.empKey === key).map(([k, p]) => ({ k, ...p })).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 20);
+    const myFixReqs = Object.values(window.attRequests || {}).filter(r => r.empKey === key).sort((a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || '')).slice(0, 8);
     // البيانات الحسّاسة (الرواتب/السلف/العُهد/المستندات): من القناة الخاصة للموظف، ومن المصدر لبقية الأدوار
     const myLoans = isEmp ? (md.loans || []) : Object.values(loans).filter(l => l.empKey === key);
     const loanOutstanding = myLoans.reduce((s, l) => s + (parseFloat(l.remaining ?? l.amount) || 0), 0);
@@ -21947,7 +22124,14 @@ window.renderSelfService = function () {
             <div style="margin-bottom:13px">${lbl('السبب (اختياري)')}<input id="essPmReason" placeholder="السبب" style="${inp}"></div>
             ${bigBtn('essSubmitPerm()', '📤 تقديم الإذن', 'linear-gradient(135deg,#e67e22,#d35400)', 'rgba(230,126,34,.32)')}
             <div style="font-size:11px;color:#9aa7b3;margin-top:9px;text-align:center">💡 المأمورية الرسمية لا تُخصم من الراتب.</div>`, 'margin-bottom:13px')}
-        ${scard(`${secTitle('🕘 أذوناتي السابقة')}${myPerms.length ? myPerms.map(p => listRow(`${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]} · ${(p.hours || 0)} ساعة`, `${p.date}${p.fromTime ? ' · ' + p.fromTime + (p.toTime ? ' ← ' + p.toTime : '') : ''}`, essStatusBadge(p.status))).join('') : empty('لا أذونات بعد')}`)}`;
+        ${scard(`${secTitle('🕘 أذوناتي السابقة')}${myPerms.length ? myPerms.map(p => listRow(`${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]} · ${(p.hours || 0)} ساعة`, `${p.date}${p.fromTime ? ' · ' + p.fromTime + (p.toTime ? ' ← ' + p.toTime : '') : ''}`, essStatusBadge(p.status))).join('') : empty('لا أذونات بعد')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('🛠️ طلب تصحيح حضور')}
+            <div style="font-size:11.5px;color:#8a97a5;margin-bottom:11px">نسيت تسجيل حضورك أو انصرافك؟ اطلب تصحيحاً ليعتمده المسؤول.</div>
+            <div style="margin-bottom:11px">${lbl('التاريخ')}<input id="essFixDate" type="date" value="${todayStr}" style="${inp}"></div>
+            <div style="display:flex;gap:10px;margin-bottom:11px"><div style="flex:1">${lbl('وقت الدخول')}<input id="essFixIn" type="time" style="${inp}"></div><div style="flex:1">${lbl('وقت الخروج')}<input id="essFixOut" type="time" style="${inp}"></div></div>
+            <div style="margin-bottom:13px">${lbl('سبب التصحيح')}<input id="essFixReason" placeholder="مثال: نسيت البصمة / انقطاع الإنترنت" style="${inp}"></div>
+            ${bigBtn('essSubmitAttFix()', '📤 إرسال طلب التصحيح', 'linear-gradient(135deg,#2d6a9f,#1f4e79)', 'rgba(45,106,159,.32)')}
+            ${myFixReqs.length ? `<div style="margin-top:13px">${myFixReqs.map(r => listRow(`${r.date} · ${r.checkIn || '—'} ← ${r.checkOut || '—'}`, r.reason || '', essStatusBadge(r.status || 'pending'))).join('')}</div>` : ''}`)}`;
     } else if (tab === 'pay') {
         body = `
         ${fin ? scard(`${secTitle('💵 مكوّنات راتبي')}${salComps.map(([l, v]) => listRow(l, '', `<span style="font-weight:800;color:#243b53;font-size:13px">${fmt(v)}</span>`)).join('')}
@@ -22132,7 +22316,9 @@ function totalCalendarDaysInRange(from, to) {
 // عرض الجدول + الملخص + الراتب
 window.renderAttendance = function () {
     const tb = $('attendanceTable'); if (!tb) return;
+    if (typeof renderWhosIn === 'function') renderWhosIn();
     if (typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin();
+    if (typeof renderAttFixRequests === 'function') renderAttFixRequests();
     fillAtEmpFilter();
 
     const empF = $('atFilterEmp')?.value || '';
