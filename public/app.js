@@ -4155,6 +4155,78 @@ window.saveNU = async function () {
     } catch (e) { toast('خطأ: ' + authEr(e.code), 'er') }
 };
 
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   📲  [EMP-INVITE]  دعوة الموظف لتطبيق الخدمة الذاتية                        ║
+// ║   يُنشئ حساب دخول بدور «employee» ويولّد رابطًا ورسالة جاهزة للإرسال.         ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+function essPortalUrl() { return window.location.origin + '/#selfservice'; }
+function genPassword() { return 'Emp' + Math.floor(1000 + Math.random() * 9000) + '@'; }
+function waPhone(p) { let d = String(p || '').replace(/\D/g, ''); if (!d) return ''; if (d.startsWith('00')) d = d.slice(2); if (d.startsWith('0')) d = '966' + d.slice(1); else if (d.length === 9 && d.startsWith('5')) d = '966' + d; return d; }
+
+window.inviteEmployee = function (empKey) {
+    if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return; }
+    const e = emp[empKey]; if (!e) return;
+    const existing = e.userId || Object.values(us || {}).find(u => (u.email || '').toLowerCase() === (e.email || '').toLowerCase() && e.email);
+    let ov = document.getElementById('ovEmpInvite');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'ovEmpInvite'; ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px'; document.body.appendChild(ov); }
+    const inp = 'width:100%;padding:10px;border:1.5px solid #d0d7e0;border-radius:9px;font-family:inherit;font-size:13px;box-sizing:border-box';
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:92vh;overflow:auto;padding:22px" dir="rtl">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0;color:#16a085;font-size:18px">📲 دعوة ${e.name || ''} للتطبيق</h3><button onclick="document.getElementById('ovEmpInvite').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <div style="font-size:12.5px;color:#666;margin-bottom:14px;line-height:1.8">يُنشئ حساب دخول للموظف على تطبيق الخدمة الذاتية (حضور · إجازات · أذونات · راتب · مستندات)، ويولّد رابطًا ورسالة جاهزة للإرسال عبر واتساب.</div>
+        <input type="hidden" id="invEmpKey" value="${empKey}">
+        ${existing ? `<div style="background:#eafaf1;border:1px solid #abebc6;border-radius:10px;padding:11px 14px;font-size:12.5px;color:#1e8449;margin-bottom:14px">✅ لهذا الموظف حساب مُفعَّل بالفعل (${e.email || (existing.email || '')}). يمكنك مشاركة الرابط أدناه أو إعادة تعيين كلمة المرور.</div>
+            <div style="margin-bottom:10px"><label style="font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:4px">البريد</label><input id="invEmail" value="${e.email || (existing.email || '')}" disabled style="${inp};background:#f5f5f5"></div>
+            <button class="btn" onclick="essShowShare('${empKey}','')" style="width:100%;background:#16a085;color:#fff;font-weight:800;margin-bottom:8px">🔗 توليد الرابط والرسالة</button>`
+        : `<div style="margin-bottom:10px"><label style="font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:4px">البريد الإلكتروني *</label><input id="invEmail" type="email" value="${e.email || ''}" placeholder="employee@email.com" style="${inp};direction:ltr;text-align:right"></div>
+            <div style="margin-bottom:14px"><label style="font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:4px">كلمة المرور *</label><input id="invPass" value="${genPassword()}" style="${inp};direction:ltr;text-align:right"></div>
+            <button class="btn b-g" onclick="doInviteEmployee()" style="width:100%;font-weight:800;margin-bottom:8px">✅ إنشاء الحساب وتوليد الدعوة</button>`}
+        <div id="invShareBox"></div>
+    </div>`;
+    if (existing) essShowShare(empKey, '');
+};
+window.doInviteEmployee = async function () {
+    const empKey = $('invEmpKey').value; const e = emp[empKey]; if (!e) return;
+    const em = $('invEmail').value.trim(), ps = $('invPass').value;
+    if (!em) { toast('أدخل البريد الإلكتروني', 'er'); return; }
+    if (!ps || ps.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'er'); return; }
+    try {
+        const sec = initializeApp(fbApp.options, 'sec_' + Date.now());
+        const sAuth = getAuth(sec);
+        const cr = await createUserWithEmailAndPassword(sAuth, em, ps);
+        await fbUpP(cr.user, { displayName: e.name || em });
+        const uid = cr.user.uid; await signOut(sAuth);
+        await set(ref(db, `ledger/users/${uid}`), { name: e.name || em, email: em, role: 'employee', permissions: [], active: true, empKey, createdAt: new Date().toISOString() });
+        await set(_rawRef(db, `userIndex/${uid}`), { tenantId: currentTenantId });
+        // اربط سجل الموظف بالحساب (بريد + userId) ليتعرّف عليه التطبيق تلقائياً
+        await update(ref(db, `ledger/employees/${empKey}`), { email: em, userId: uid });
+        toast('✅ تم إنشاء حساب الموظف', 'ok');
+        essShowShare(empKey, ps);
+    } catch (err) { toast('خطأ: ' + (typeof authEr === 'function' ? authEr(err.code) : err.message), 'er'); }
+};
+// يبني لوحة المشاركة (رابط + بيانات + واتساب + نسخ)
+window.essShowShare = function (empKey, pass) {
+    const e = emp[empKey]; if (!e) return;
+    const box = $('invShareBox'); if (!box) return;
+    const url = essPortalUrl();
+    const company = window.currentTenantName || (window.gbrCfg && window.gbrCfg.companyName) || 'الشركة';
+    const email = e.email || '';
+    const msg = `مرحباً ${e.name || ''} 👋\nتم تفعيل حسابك في تطبيق الخدمة الذاتية لموظفي ${company}.\n\n🔗 الرابط: ${url}\n📧 البريد: ${email}${pass ? `\n🔑 كلمة المرور: ${pass}` : ''}\n\nمن التطبيق: سجّل حضورك وانصرافك، اطلب إجازة أو إذن، واطّلع على قسيمة راتبك ومستنداتك.\n\n📲 لتثبيته كتطبيق على جوالك: افتح الرابط في المتصفح ثم اختر «إضافة إلى الشاشة الرئيسية».`;
+    const wa = waPhone(e.phone);
+    const waUrl = (wa ? `https://wa.me/${wa}` : `https://wa.me/`) + `?text=${encodeURIComponent(msg)}`;
+    box.innerHTML = `<div style="border-top:1px solid #eee;margin-top:6px;padding-top:14px">
+        <div style="font-size:11.5px;font-weight:800;color:#7a8896;margin-bottom:5px">🔗 رابط التطبيق</div>
+        <div style="background:#f4f7fa;border-radius:9px;padding:9px 11px;font-size:12px;direction:ltr;text-align:left;word-break:break-all;margin-bottom:12px">${url}</div>
+        <textarea id="invMsg" rows="7" readonly style="width:100%;padding:11px;border:1.5px solid #d9e0e8;border-radius:10px;font-family:inherit;font-size:12px;box-sizing:border-box;background:#fbfcfd;resize:vertical">${msg}</textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+            <a href="${waUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none;text-align:center;background:#25d366;color:#fff;font-weight:800;font-size:13px;padding:12px;border-radius:11px">💬 إرسال عبر واتساب</a>
+            <button onclick="essCopyInvite()" style="flex:1;border:none;cursor:pointer;font-family:inherit;background:#eef5fb;color:#23577f;font-weight:800;font-size:13px;padding:12px;border-radius:11px">📋 نسخ الرسالة</button>
+        </div></div>`;
+};
+window.essCopyInvite = function () {
+    const t = $('invMsg'); if (!t) return;
+    navigator.clipboard?.writeText(t.value).then(() => toast('📋 نُسخت الرسالة', 'ok')).catch(() => { t.select(); document.execCommand('copy'); toast('📋 نُسخت', 'ok'); });
+};
+
 window.openEU = function (uid) {
     if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const u = us[uid]; if (!u) return;
@@ -5454,6 +5526,7 @@ window.renderEmps = function () {
                 <td><div style="display:flex;gap:4px;justify-content:center">
                     <button class="btn b-b" style="padding:4px 8px;font-size:11px" onclick="openEmpM('${k}')">✏️</button>
                     <button class="btn b-o" style="padding:4px 8px;font-size:11px" onclick="viewEmp('${k}')">👁️</button>
+                    ${myP?.role === 'admin' ? `<button class="btn" style="padding:4px 8px;font-size:11px;background:#16a085;color:#fff" title="دعوة الموظف لتطبيق الخدمة الذاتية" onclick="inviteEmployee('${k}')">📲</button>` : ''}
                     ${canEdit ? `<button class="btn b-r" style="padding:4px 8px;font-size:11px" onclick="delEmp('${k}')">🗑️</button>` : ''}
                 </div></td>
             </tr>`;
