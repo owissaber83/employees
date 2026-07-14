@@ -5903,6 +5903,7 @@ window.saveJrnEntry = async function (status) {
     const data = {
         number: $('mJrnNumber').value,
         date: $('mJrnDate').value,
+        period: ($('mJrnDate').value || '').slice(0, 7),  // 🔒 شهر القيد (YYYY-MM) — تفرض عليه القواعد قفل الفترة خادمياً
         reference: $('mJrnRef').value.trim(),
         description,
         lines: storeLines.map(l => {

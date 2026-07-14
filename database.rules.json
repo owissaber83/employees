@@ -110,7 +110,10 @@
           },
           "journalEntries": {
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
-            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+            ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)",
+            "$entryId": {
+              ".validate": "( !data.exists() || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || newData.child('status').val() === 'cancelled' || data.child('status').val() !== 'posted' ) && ( newData.child('status').val() === 'cancelled' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || !newData.child('period').exists() || ( newData.child('date').val().beginsWith(newData.child('period').val()) && root.child('tenants').child($tid).child('ledger/periodLocks').child(newData.child('period').val()).child('locked').val() !== true ) )"
+            }
           },
           "jrnRecon": {
             ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant')",

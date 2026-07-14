@@ -24,6 +24,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
   await set(ref(db, 'tenants/A/ledger/journalEntries/j1'), { number: 'JV-1' });
+  // قيد مُرحَّل (لاختبار الحصانة) + قفل فترة (لاختبار قفل الفترة)
+  await set(ref(db, 'tenants/A/ledger/journalEntries/jp'), { number: 'JV-P', status: 'posted', date: '2026-05-10', period: '2026-05', totalDebit: 100, totalCredit: 100 });
+  await set(ref(db, 'tenants/A/ledger/periodLocks/2026-03'), { locked: true });
   await set(ref(db, 'tenants/A/ledger/auditLog/e1'), { action: 'seed' });
   await set(ref(db, 'tenants/A/ledger/_errorLog/err1'), { kind: 'js-error', message: 'seed' });
   // المستأجر B (منفصل تماماً)
@@ -113,6 +116,28 @@ await test('عضو A يقرأ مقاييس MPM', assertSucceeds(get(ref(db.acctA
 await test('مشاهد A لا يكتب مقياس MPM', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/mpmDefs/m2'), { name: 'x' })));
 await test('اشتراك منتهٍ يمنع كتابة مقياس MPM', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/mpmDefs/m3'), { name: 'x' })));
 await test('عضو A لا يكتب مقياس MPM في B (عزل)', assertFails(set(ref(db.adminA, 'tenants/B/ledger/mpmDefs/hack'), { name: 'x' })));
+
+console.log('\n🔒 حصانة القيد المُرحَّل (posted immutability):');
+// محاسب: يُمنع من تعديل محتوى قيد مُرحَّل (يبقى posted بمحتوى مختلف)
+await test('محاسب A لا يعدّل قيدًا مُرحَّلًا (يبقى posted)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jp'), { number: 'HACK', status: 'posted', date: '2026-05-10', period: '2026-05', totalDebit: 999, totalCredit: 1 })));
+// محاسب: يُمنع من إرجاع قيد مُرحَّل إلى مسودة (un-posting)
+await test('محاسب A لا يُرجع قيدًا مُرحَّلًا إلى مسودة', assertFails(update(ref(db.acctA, 'tenants/A/ledger/journalEntries/jp'), { status: 'draft' })));
+// مدير: يُسمح له بتعديل قيد مُرحَّل (دور موثوق) — قبل الإلغاء ليبقى posted
+await test('مدير A يعدّل قيدًا مُرحَّلًا (مسموح للمدير)', assertSucceeds(update(ref(db.adminA, 'tenants/A/ledger/journalEntries/jp'), { description: 'تعديل إداري' })));
+// محاسب: يُسمح له بإلغاء القيد المُرحَّل (posted → cancelled)
+await test('محاسب A يُلغي قيدًا مُرحَّلًا (posted → cancelled)', assertSucceeds(update(ref(db.acctA, 'tenants/A/ledger/journalEntries/jp'), { status: 'cancelled', cancelReason: 'تصحيح' })));
+// إنشاء قيد جديد وتعديل مسودة لا يتأثران
+await test('محاسب A يُنشئ قيدًا جديدًا (غير متأثر)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jnew'), { number: 'JV-N', status: 'draft', date: '2026-06-01', period: '2026-06' })));
+
+console.log('\n🔒 قفل الفترة (period lock) — للقيود التي تحمل حقل period:');
+// محاسب: يُمنع من الكتابة في فترة مقفلة
+await test('محاسب A لا يكتب قيدًا في فترة مقفلة (2026-03)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jlock'), { number: 'JV-L', status: 'posted', date: '2026-03-15', period: '2026-03', totalDebit: 50, totalCredit: 50 })));
+// محاسب: يُسمح بالكتابة في فترة غير مقفلة
+await test('محاسب A يكتب قيدًا في فترة غير مقفلة (2026-04)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jok'), { number: 'JV-K', status: 'posted', date: '2026-04-15', period: '2026-04', totalDebit: 50, totalCredit: 50 })));
+// تزوير الفترة: تاريخ في فترة مقفلة لكن period مزوّر لفترة أخرى → يُرفض (beginsWith)
+await test('محاسب A لا يزوّر الفترة (تاريخ 2026-03 وperiod 2026-04)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jforge'), { number: 'JV-F', status: 'posted', date: '2026-03-20', period: '2026-04', totalDebit: 50, totalCredit: 50 })));
+// مدير: يتجاوز قفل الفترة (دور موثوق)
+await test('مدير A يكتب في فترة مقفلة (استثناء المدير)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/journalEntries/jadminlock'), { number: 'JV-AL', status: 'posted', date: '2026-03-25', period: '2026-03', totalDebit: 50, totalCredit: 50 })));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
