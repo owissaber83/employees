@@ -2840,8 +2840,8 @@ function startListeners() {
     // ⚖️ الجزاءات والإنذارات (hr-extra.js)
     onValue(R.disciplinary, sn => { window.disciplinary = sn.exists() ? sn.val() : {}; if ($('pg-disciplinary')?.classList.contains('act') && typeof renderDisciplinary === 'function') renderDisciplinary(); });
     // 🕗 الورديات والجداول (shifts.js)
-    onValue(R.shifts, sn => { window.shifts = sn.exists() ? sn.val() : {}; if ($('pg-shifts')?.classList.contains('act') && typeof renderShifts === 'function') renderShifts(); });
-    onValue(R.roster, sn => { window.roster = sn.exists() ? sn.val() : {}; if ($('pg-shifts')?.classList.contains('act') && typeof renderShifts === 'function') renderShifts(); });
+    onValue(R.shifts, sn => { window.shifts = sn.exists() ? sn.val() : {}; if ($('pg-shifts')?.classList.contains('act') && typeof renderShifts === 'function') renderShifts(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); if ($('pg-attendance')?.classList.contains('act') && typeof renderAttendance === 'function') renderAttendance(); });
+    onValue(R.roster, sn => { window.roster = sn.exists() ? sn.val() : {}; if ($('pg-shifts')?.classList.contains('act') && typeof renderShifts === 'function') renderShifts(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     // 🌴 سياسات الإجازات (leave-policies.js)
     onValue(R.leavePolicies, sn => { window.leavePolicies = sn.exists() ? sn.val() : {}; if ($('pg-leavepolicies')?.classList.contains('act') && typeof renderLeavePolicies === 'function') renderLeavePolicies(); });
     // 🛡️ الخزينة والضمانات — مستمعات مبكّرة (لتعمل التنبيهات في الجرس واللوحة بدون فتح القسم)
@@ -21680,7 +21680,7 @@ window.geofenceSaveSchedule = async function () {
     const schedule = { startTime: $('gfStart')?.value || '08:00', graceMin: Math.max(0, parseInt($('gfGrace')?.value) || 0), endTime: $('gfEnd')?.value || '17:00' };
     try { await update(ref(db, 'ledger/geofence'), { schedule }); toast('✅ حُفظ دوام العمل واحتساب التأخير', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
-// حساب دقائق التأخير عند وقت معيّن وفق جدول الدوام
+// حساب دقائق التأخير عند وقت معيّن وفق جدول الدوام العام
 function attendanceLateMinutes(dt) {
     const sch = window.geofence?.schedule;
     if (!sch || !sch.startTime) return 0;
@@ -21689,6 +21689,31 @@ function attendanceLateMinutes(dt) {
     const nowMin = dt.getHours() * 60 + dt.getMinutes();
     return Math.max(0, nowMin - startMin);
 }
+// 🕗 وردية الموظف في تاريخ معيّن (من الإسناد)
+function shiftNum(v, def) { const n = parseInt(v); return isNaN(n) ? def : n; }
+function getEmpShiftForDate(empKey, date) {
+    const roster = window.roster || {}, shifts = window.shifts || {};
+    const a = Object.values(roster).find(r => r.empKey === empKey && (r.from || '') <= date && date <= (r.to || ''));
+    return (a && shifts[a.shiftId]) ? { id: a.shiftId, ...shifts[a.shiftId] } : null;
+}
+// 🕗 نوافذ الحضور/الانصراف والتأخير والإضافي وفق الوردية
+function shiftWindowInfo(shift, now) {
+    const [sh, sm] = (shift.start || '08:00').split(':').map(Number);
+    const [eh, em] = (shift.end || '17:00').split(':').map(Number);
+    let startMin = sh * 60 + sm, endMin = eh * 60 + em;
+    const overnight = endMin <= startMin;               // وردية ليلية تعبر منتصف الليل
+    if (overnight) endMin += 1440;
+    let nowMin = now.getHours() * 60 + now.getMinutes();
+    if (overnight && nowMin < startMin) nowMin += 1440;
+    const openBefore = shiftNum(shift.openBefore, 30), graceIn = shiftNum(shift.graceIn, 10),
+        lateLimit = shiftNum(shift.lateLimit, 120), closeOut = shiftNum(shift.closeOut, 120), otAfter = shiftNum(shift.otAfter, 0);
+    const checkInOpen = nowMin >= (startMin - openBefore) && nowMin <= (startMin + lateLimit);
+    const checkOutOpen = nowMin <= (endMin + closeOut);
+    const lateMin = Math.max(0, nowMin - (startMin + graceIn));
+    const overtimeMin = shift.otAllowed ? Math.max(0, nowMin - (endMin + otAfter)) : 0;
+    return { startMin, endMin, nowMin, checkInOpen, checkOutOpen, lateMin, overtimeMin, openBefore, lateLimit, graceIn, closeOut, otAfter, overnight };
+}
+function fmtMinHM(m) { m = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; }
 
 // ── 🛠️ طلبات تصحيح الحضور (Regularization) ──
 window.essSubmitAttFix = async function () {
@@ -21782,9 +21807,17 @@ window.renderShifts = function () {
             <div class="fg"><label>اسم الوردية *</label><input id="shName" placeholder="صباحية / مسائية"></div>
             <div class="fg"><label>من الساعة *</label><input id="shStart" type="time" value="08:00"></div>
             <div class="fg"><label>إلى الساعة *</label><input id="shEnd" type="time" value="17:00"></div>
-            <div class="fg" style="flex-direction:row;align-items:flex-end"><button class="btn b-g" onclick="shiftSave()" style="flex:1">➕ إضافة وردية</button></div>
+            <div class="fg"><label>يظهر الدخول قبل البداية (د)</label><input id="shOpenBefore" type="number" min="0" value="30"></div>
+            <div class="fg"><label>سماح التأخير (د)</label><input id="shGraceIn" type="number" min="0" value="10"></div>
+            <div class="fg"><label>آخر وقت للدخول بعد البداية (د)</label><input id="shLateLimit" type="number" min="0" value="120"></div>
+            <div class="fg"><label>اختفاء زر الخروج بعد النهاية (د)</label><input id="shCloseOut" type="number" min="0" value="120"></div>
+            <div class="fg"><label>بدء الإضافي بعد النهاية (د)</label><input id="shOtAfter" type="number" min="0" value="0"></div>
         </div>
-        ${shiftArr.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${shiftArr.map(([id, s]) => `<span style="display:inline-flex;align-items:center;gap:6px;background:${s.color || '#2d6a9f'}18;border:1px solid ${s.color || '#2d6a9f'}55;color:${s.color || '#2d6a9f'};border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700">${s.name} · ${s.start}–${s.end}<button onclick="shiftDelete('${id}')" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button></span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px;padding:8px">لا ورديات — أضف وردية أعلاه.</div>'}
+        <div class="opt-row">
+            <label class="opt-chk"><input type="checkbox" id="shOtAllowed"> ⏱️ السماح باحتساب العمل الإضافي</label>
+            <button class="btn b-g" onclick="shiftSave()">➕ إضافة وردية</button>
+        </div>
+        ${shiftArr.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${shiftArr.map(([id, s]) => `<span style="display:inline-flex;align-items:center;gap:6px;background:${s.color || '#2d6a9f'}18;border:1px solid ${s.color || '#2d6a9f'}55;color:${s.color || '#2d6a9f'};border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700" title="دخول من ${fmtMinHM((parseInt(s.start.split(':')[0]) * 60 + parseInt(s.start.split(':')[1])) - shiftNum(s.openBefore, 30))} · سماح تأخير ${shiftNum(s.graceIn, 10)}د · ${s.otAllowed ? 'إضافي مسموح بعد ' + shiftNum(s.otAfter, 0) + 'د' : 'بلا إضافي'}">${s.name} · ${s.start}–${s.end}${s.otAllowed ? ' · ⏱️' : ''}<button onclick="shiftDelete('${id}')" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button></span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px;padding:8px">لا ورديات — أضف وردية أعلاه.</div>'}
     </div>
 
     <div class="card" style="margin-bottom:16px;border-right:5px solid #16a085">
@@ -21835,7 +21868,14 @@ window.shiftSave = async function () {
     const name = $('shName')?.value.trim(), start = $('shStart')?.value, end = $('shEnd')?.value;
     if (!name || !start || !end) { toast('⚠️ أدخل الاسم ووقتَي البداية والنهاية', 'er'); return; }
     const color = SHIFT_COLORS[Object.keys(window.shifts || {}).length % SHIFT_COLORS.length];
-    try { await push(R.shifts, { name, start, end, color, createdAt: new Date().toISOString() }); toast('✅ أُضيفت الوردية', 'ok'); if ($('shName')) $('shName').value = ''; } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    const shift = {
+        name, start, end, color,
+        openBefore: shiftNum($('shOpenBefore')?.value, 30), graceIn: shiftNum($('shGraceIn')?.value, 10),
+        lateLimit: shiftNum($('shLateLimit')?.value, 120), closeOut: shiftNum($('shCloseOut')?.value, 120),
+        otAllowed: !!$('shOtAllowed')?.checked, otAfter: shiftNum($('shOtAfter')?.value, 0),
+        createdAt: new Date().toISOString()
+    };
+    try { await push(R.shifts, shift); toast('✅ أُضيفت الوردية', 'ok'); if ($('shName')) $('shName').value = ''; } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
 window.shiftDelete = function (id) { cf2('حذف هذه الوردية؟ (لن تتأثر الإسنادات القديمة)', async () => { try { await set(ref(db, 'ledger/shifts/' + id), null); toast('حُذفت', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
 window.rosterAssign = async function () {
@@ -21906,9 +21946,24 @@ window.doCheckIn = async function () {
             toast('⚠️ ' + gc.msg + '\n(سُجّل مع تنبيه — خارج النطاق)', 'wn', 8000);
         }
         const nowDt = new Date();
-        const lateMin = attendanceLateMinutes(nowDt);
-        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: nowDt.toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true, lateMinutes: lateMin });
-        setSt('✅ تم تسجيل الدخول في ' + nowDt.toLocaleTimeString('ar-SA') + (lateMin > 0 ? ` · ⏰ متأخر ${lateMin} دقيقة` : '') + (loc ? ' · 📍' : ' · ⚠️ تعذّر الموقع'));
+        // 🕗 التحقق من نافذة الوردية المُسنَدة (إن وُجدت)
+        const myShift = getEmpShiftForDate(myEmpRec.key, todayStr);
+        let lateMin = 0, shiftId = null, shiftName = null;
+        if (myShift) {
+            shiftId = myShift.id; shiftName = myShift.name;
+            const wi = shiftWindowInfo(myShift, nowDt);
+            if (!wi.checkInOpen) {
+                const from = fmtMinHM(wi.startMin - wi.openBefore), to = fmtMinHM(wi.startMin + wi.lateLimit);
+                setSt(`⏰ خارج وقت الدخول لوردية «${myShift.name}»`);
+                toast(`⏰ لا يمكن تسجيل الدخول الآن.\nوردية «${myShift.name}» تسمح بالدخول من ${from} إلى ${to}.`, 'er', 8000);
+                return;
+            }
+            lateMin = wi.lateMin;
+        } else {
+            lateMin = attendanceLateMinutes(nowDt);
+        }
+        await push(R.att, { employeeId: myEmpRec.key, employeeName: myEmpRec.data.name || myP?.name || '', date: todayStr, checkIn: nowDt.toISOString(), checkOut: null, totalHours: 0, checkInLoc: loc || null, checkInFence: gc.fence?.name || null, checkInOutside: gc.ok ? false : true, lateMinutes: lateMin, shiftId, shiftName });
+        setSt('✅ تم تسجيل الدخول في ' + nowDt.toLocaleTimeString('ar-SA') + (shiftName ? ` · وردية ${shiftName}` : '') + (lateMin > 0 ? ` · ⏰ متأخر ${lateMin} دقيقة` : '') + (loc ? ' · 📍' : ' · ⚠️ تعذّر الموقع'));
         toast('✅ تم تسجيل الدخول' + (lateMin > 0 ? ` — ⏰ تأخير ${lateMin} دقيقة` : '') + (loc ? ' مع الموقع' : ''), lateMin > 0 ? 'wn' : 'ok', lateMin > 0 ? 5000 : 3000);
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
@@ -21930,11 +21985,16 @@ window.doCheckOut = async function () {
         // 🎯 التحقق من النطاق الجغرافي المسموح (للانصراف أيضاً)
         const gc = geoCheckLoc(loc);
         if (!gc.ok && (window.geofence?.mode || 'block') === 'block') { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
-        const checkOutTime = new Date().toISOString();
+        const nowDt = new Date();
+        // 🕗 احتساب الإضافي وفق الوردية (إن كانت تسمح بالإضافي)
+        const myShift = (data.shiftId && (window.shifts || {})[data.shiftId]) ? { id: data.shiftId, ...(window.shifts)[data.shiftId] } : getEmpShiftForDate(myEmpRec.key, todayStr);
+        let overtimeMin = 0;
+        if (myShift && myShift.otAllowed) { overtimeMin = shiftWindowInfo(myShift, nowDt).overtimeMin; }
+        const checkOutTime = nowDt.toISOString();
         const hours = parseFloat(((new Date(checkOutTime) - new Date(data.checkIn)) / (1000 * 60 * 60)).toFixed(2));
-        await update(ref(db, 'ledger/attendance/' + key), { checkOut: checkOutTime, totalHours: hours, checkOutLoc: loc || null, checkOutOutside: gc.ok ? false : true });
-        setSt('🚪 تم تسجيل الخروج في ' + new Date(checkOutTime).toLocaleTimeString('ar-SA') + ' | المجموع: ' + hours.toFixed(2) + ' س' + (loc ? ' · 📍' : ''));
-        toast('✅ تم تسجيل الخروج', 'ok');
+        await update(ref(db, 'ledger/attendance/' + key), { checkOut: checkOutTime, totalHours: hours, checkOutLoc: loc || null, checkOutOutside: gc.ok ? false : true, overtimeMinutes: overtimeMin });
+        setSt('🚪 تم تسجيل الخروج في ' + nowDt.toLocaleTimeString('ar-SA') + ' | المجموع: ' + hours.toFixed(2) + ' س' + (overtimeMin > 0 ? ` · ⏱️ إضافي ${overtimeMin}د` : '') + (loc ? ' · 📍' : ''));
+        toast('✅ تم تسجيل الخروج' + (overtimeMin > 0 ? ` — ⏱️ إضافي ${overtimeMin} دقيقة` : ''), 'ok', overtimeMin > 0 ? 5000 : 3000);
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
 
@@ -22046,6 +22106,9 @@ window.renderSelfService = function () {
     // الحضور/الإجازات/الأذونات: يقرؤها الموظف مباشرةً (ليست ضمن جداول الرواتب المحجوبة)
     const todayRec = Object.values(attendance).find(a => a.employeeId === key && a.date === todayStr);
     const checkedIn = !!(todayRec && todayRec.checkIn), checkedOut = !!(todayRec && todayRec.checkOut);
+    // 🕗 وردية اليوم ونافذتها (تتحكّم بظهور أزرار الدخول/الخروج)
+    const myShiftToday = (typeof getEmpShiftForDate === 'function') ? getEmpShiftForDate(key, todayStr) : null;
+    const shiftWin = myShiftToday ? shiftWindowInfo(myShiftToday, new Date()) : null;
     const bal = isEmp ? md.balances : getLeaveBalance(key);
     const myLeaves = Object.entries(leaves).filter(([, l]) => l.empKey === key).map(([k, l]) => ({ k, ...l })).sort((a, b) => (b.from || '').localeCompare(a.from || '')).slice(0, 20);
     const myPerms = Object.entries(window.permissions || {}).filter(([, p]) => p.empKey === key).map(([k, p]) => ({ k, ...p })).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 20);
@@ -22172,11 +22235,21 @@ window.renderSelfService = function () {
             <!-- بطاقة الحضور (تتداخل مع الترويسة برفق) -->
             <div style="background:#fff;border-radius:17px;padding:14px 16px;box-shadow:0 6px 20px rgba(20,50,80,.1);margin:-30px 0 14px;position:relative;z-index:2">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-                    <div style="min-width:0;flex:1"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم</div>
-                    <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}${(todayRec && todayRec.lateMinutes > 0) ? ` <span style="color:#c0392b">· ⏰ متأخر ${todayRec.lateMinutes}د</span>` : ''}</div></div>
-                    ${!checkedIn ? `<button onclick="doCheckIn()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#27ae60,#1e8e50);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(39,174,96,.32)">🟢 حضور</button>`
-                : !checkedOut ? `<button onclick="doCheckOut()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(230,126,34,.32)">🔴 انصراف</button>`
-                : `<div style="flex-shrink:0;font-size:30px">✅</div>`}
+                    <div style="min-width:0;flex:1"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم${myShiftToday ? ` <span style="color:${myShiftToday.color || '#2d6a9f'};background:${myShiftToday.color || '#2d6a9f'}14;border-radius:8px;padding:1px 7px;font-size:10px">🕗 ${myShiftToday.name} ${myShiftToday.start}–${myShiftToday.end}</span>` : ''}</div>
+                    <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة${todayRec.overtimeMinutes > 0 ? ` · ⏱️ إضافي ${todayRec.overtimeMinutes}د` : ''}` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}${(todayRec && todayRec.lateMinutes > 0) ? ` <span style="color:#c0392b">· ⏰ متأخر ${todayRec.lateMinutes}د</span>` : ''}</div></div>
+                    ${(() => {
+                        const gbtn = `<button onclick="doCheckIn()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#27ae60,#1e8e50);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(39,174,96,.32)">🟢 حضور</button>`;
+                        const rbtn = `<button onclick="doCheckOut()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(230,126,34,.32)">🔴 انصراف</button>`;
+                        if (!checkedIn) {
+                            if (shiftWin && !shiftWin.checkInOpen) return `<div style="flex-shrink:0;text-align:center;font-size:10.5px;color:#8a97a5;font-weight:700;background:#f2f5f8;border-radius:11px;padding:9px 12px">⏰ الدخول متاح<br>${fmtMinHM(shiftWin.startMin - shiftWin.openBefore)} – ${fmtMinHM(shiftWin.startMin + shiftWin.lateLimit)}</div>`;
+                            return gbtn;
+                        }
+                        if (!checkedOut) {
+                            if (shiftWin && !shiftWin.checkOutOpen) return `<div style="flex-shrink:0;text-align:center;font-size:10.5px;color:#c0392b;font-weight:700;background:#fdecea;border-radius:11px;padding:9px 12px">⏰ انتهى وقت<br>تسجيل الخروج</div>`;
+                            return rbtn;
+                        }
+                        return `<div style="flex-shrink:0;font-size:30px">✅</div>`;
+                    })()}
                 </div>
             </div>
             <!-- شريط التبويبات -->
@@ -22476,11 +22549,13 @@ window.renderAttendance = function () {
         const ciTime = a.checkIn ? new Date(a.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-';
         const coTime = a.checkOut ? new Date(a.checkOut).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '-';
         const hrs = a.totalHours ? a.totalHours.toFixed(2) + ' س' : (a.checkOut ? '-' : '⏳ جارٍ');
-        const lateBadge = (a.lateMinutes > 0) ? `<span style="background:#fdecea;color:#c0392b;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px" title="تأخير عن بداية الدوام">⏰ ${a.lateMinutes}د</span>` : '';
+        const lateBadge = (a.lateMinutes > 0) ? `<span style="background:#fdecea;color:#c0392b;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px" title="تأخير عن بداية الدوام/الوردية">⏰ ${a.lateMinutes}د</span>` : '';
+        const otBadge = (a.overtimeMinutes > 0) ? `<span style="background:#eafaf1;color:#1e8449;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px" title="عمل إضافي وفق الوردية">⏱️ ${a.overtimeMinutes}د</span>` : '';
         const outsideBadge = (a.checkInOutside) ? `<span style="background:#fff3e0;color:#d35400;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px" title="سُجّل خارج النطاق المسموح">📍خارج</span>` : '';
+        const shiftBadge = (a.shiftName) ? `<span style="background:#eef5fb;color:#23577f;padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;margin-right:4px">🕗 ${a.shiftName}</span>` : '';
         const statusBadge = (a.checkOut
             ? `<span style="background:#d5f5e3;color:#1e8449;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">منصرف</span>`
-            : `<span style="background:#fef9e7;color:#d35400;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">حاضر</span>`) + lateBadge + outsideBadge;
+            : `<span style="background:#fef9e7;color:#d35400;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">حاضر</span>`) + shiftBadge + lateBadge + otBadge + outsideBadge;
         const actionsBtns = isAdmin
             ? `<td style="padding:8px 12px;white-space:nowrap">
                 <button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="openAtEdit('${key}')">✏️</button>
