@@ -951,6 +951,32 @@
       { label: 'تمرين عملي', value: 400, suffix: '+' },
     ];
 
+    // ============ المراجع والأدوات (تفتح داخل برنامج GBR) ============
+    const studyTools = [
+      { icon: '🎓', title: 'دليل CMA', desc: 'مرجع شامل لشهادة المحاسب الإداري بجزأيها.', page: 'cmaguide', color: '#9333EA' },
+      { icon: '📑', title: 'دليل IFRS', desc: 'شرح معايير التقارير المالية الدولية.', page: 'ifrsguide', color: '#06B6D4' },
+      { icon: '🏗️', title: 'دليل محاسبة المقاولات', desc: 'المرجع الكامل لمحاسبة المقاولات.', page: 'conaccguide', color: '#F59E0B' },
+      { icon: '🧮', title: 'حاسبة المقاولات', desc: 'حساب المستخلصات والاحتجاز والدفعات.', page: 'conacccalc', color: '#F59E0B' },
+      { icon: '📝', title: 'اختبار محاسبة المقاولات', desc: 'اختبر معلوماتك في محاسبة المقاولات.', page: 'conaccquiz', color: '#2563EB' },
+      { icon: '📒', title: 'محاكي قيود اليومية', desc: 'تدرّب على القيود المحاسبية تفاعلياً.', page: 'conaccjournals', color: '#9333EA' },
+      { icon: '📖', title: 'مسرد مصطلحات المقاولات', desc: 'قاموس مصطلحات المقاولات الأساسية.', page: 'conaccglossary', color: '#117A65' },
+      { icon: '🗺️', title: 'خريطة دورة عقد المقاولة', desc: 'رحلة العقد من العطاء حتى التسليم.', page: 'conaccmindmap', color: '#EF4444' },
+      { icon: '💰', title: 'مقارنة أنواع العقود', desc: 'السعر الإجمالي مقابل الوحدات مقابل التكلفة+.', page: 'conacccontracts', color: '#1A5276' },
+      { icon: '🧮', title: 'آلة حاسبة الصيغ', desc: 'حاسبة NPV / IRR / WACC والصيغ المالية.', page: 'formulas', color: '#10B981' },
+      { icon: '📅', title: 'خطة المذاكرة', desc: 'نظّم جدول دراستك للشهادات المهنية.', page: 'studyplan', color: '#9333EA' },
+      { icon: '🃏', title: 'بطاقات التعلم CMA', desc: 'مراجعة سريعة ببطاقات فلاش تفاعلية.', page: 'flashcards', color: '#EF4444' },
+      { icon: '🃏', title: 'بطاقات التعلم IFRS', desc: 'بطاقات فلاش لمعايير IFRS.', page: 'ifrsflash', color: '#06B6D4' },
+      { icon: '🎯', title: 'اختبار مطابقة المصطلحات', desc: 'طابق كل مصطلح بتعريفه الصحيح.', page: 'matching', color: '#F97316' },
+      { icon: '⏱️', title: 'مؤقت بومودورو', desc: 'ركّز في دراستك بتقنية بومودورو.', page: 'pomodoro', color: '#EF4444' },
+      { icon: '📊', title: 'سجل النتائج والتقدم', desc: 'تابع تقدّمك ونتائج اختباراتك.', page: 'progress', color: '#2563EB' },
+    ];
+
+    // ============ محاكي الامتحانات ============
+    const examSims = [
+      { icon: '📝', title: 'محاكي CMA & IFRS', desc: 'محاكاة كاملة لامتحان CMA و IFRS بأسئلة موقوتة ونتيجة تفصيلية.', page: 'cmaexam', color: '#F59E0B' },
+      { icon: '⚡', title: 'اختبار سريع عشوائي', desc: 'أسئلة عشوائية سريعة لاختبار معلوماتك في أي وقت.', page: 'quickquiz', color: '#10B981' },
+    ];
+
     // ============ HOOKS ============
     function useMousePosition() {
       const [p, setP] = useState({ x: 0, y: 0 });
@@ -1014,6 +1040,7 @@
       }, []);
       const links = [
         { name: 'الرئيسية', href: '#', page: 'home' }, { name: 'الأكاديمية', href: '#academy', page: 'home' },
+        { name: 'المراجع والأدوات', href: '#tools', page: 'home' }, { name: 'محاكي الامتحانات', href: '#exams', page: 'home' },
         { name: 'نظام ERP', href: '#erp', page: 'home' }, { name: 'الذكاء الاصطناعي', href: '#ai', page: 'home' },
         { name: 'الأسعار', href: '#pricing', page: 'home' }, { name: 'من نحن', href: '#about', page: 'home' },
         { name: 'تواصل معنا', href: '#contact', page: 'home' },
@@ -1314,6 +1341,54 @@
     function ERPModuleCard({ module, index }) { return (<div className="glass p-4 rounded-xl text-center card-hover cursor-pointer group reveal"><div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{module.icon}</div><h3 className="font-bold text-sm group-hover:text-primary">{module.name}</h3></div>); }
     function ERP() { return (<section id="erp" className="py-24 relative"><div className="container mx-auto px-4"><div className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">نظام <span className="gradient-text">ERP</span> المتكامل</h2></div><div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">{erpModules.map((m, i) => <ERPModuleCard key={m.id} module={m} index={i} />)}</div></div></section>); }
 
+    // بطاقة أداة/مرجع تفتح صفحتها داخل البرنامج (كل ملف في مكانه)
+    function ExternalCard({ item }) {
+      return (
+        <a href={`/#${item.page}`} className="glass rounded-2xl p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 group" style={{ borderTop: `3px solid ${item.color}` }}>
+          <div className="flex items-center gap-3">
+            <span className="text-3xl" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.4))' }}>{item.icon}</span>
+            <h3 className="text-lg font-bold group-hover:text-textWhite transition-colors" style={{ color: item.color }}>{item.title}</h3>
+          </div>
+          <p className="text-textGray text-sm leading-relaxed flex-1">{item.desc}</p>
+          <span className="text-sm font-bold flex items-center gap-1 opacity-80 group-hover:opacity-100" style={{ color: item.color }}>افتح في البرنامج <span className="transition-transform group-hover:-translate-x-1">↗</span></span>
+        </a>
+      );
+    }
+
+    function Tools() {
+      const ref = useReveal();
+      return (
+        <section id="tools" className="py-24 relative">
+          <div className="container mx-auto px-4">
+            <div ref={ref} className="text-center mb-16 reveal">
+              <h2 className="text-4xl md:text-5xl font-black mb-4">المراجع <span className="gradient-text">والأدوات</span></h2>
+              <p className="text-textGray max-w-2xl mx-auto">أدلة وحاسبات ومحاكيات وبطاقات تعليمية جاهزة — تفتح مباشرةً داخل برنامج GBR.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {studyTools.map((t, i) => <ExternalCard key={i} item={t} />)}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function Exams() {
+      const ref = useReveal();
+      return (
+        <section id="exams" className="py-24 relative">
+          <div className="container mx-auto px-4">
+            <div ref={ref} className="text-center mb-16 reveal">
+              <h2 className="text-4xl md:text-5xl font-black mb-4">محاكي <span className="gradient-text">الامتحانات</span></h2>
+              <p className="text-textGray max-w-2xl mx-auto">اختبر جاهزيتك بمحاكاة حقيقية لامتحانات CMA و IFRS — أسئلة موقوتة ونتائج تفصيلية.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+              {examSims.map((t, i) => <ExternalCard key={i} item={t} />)}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
     function AIAssistant() {
       const s = ['كيف أقيد فاتورة شراء؟', 'ما هي معايير IFRS؟', 'ساعدني في إعداد ميزانية', 'كيفية تحليل التدفقات النقدية'];
       return (
@@ -1392,7 +1467,7 @@
         <>
           <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
           <main className="min-h-screen">
-            {currentPage === 'home' && (<><Hero /><Stats /><Academy onCourseClick={handleCourseClick} /><LearningPath /><ERP /><AIAssistant /><Testimonials /><FAQ /></>)}
+            {currentPage === 'home' && (<><Hero /><Stats /><Academy onCourseClick={handleCourseClick} /><Tools /><Exams /><LearningPath /><ERP /><AIAssistant /><Testimonials /><FAQ /></>)}
             {currentPage === 'course' && selectedCourse && <CourseDetail courseId={selectedCourse} onBack={handleBackToHome} />}
           </main>
           <Footer />
