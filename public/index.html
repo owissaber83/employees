@@ -324,6 +324,7 @@
                             <div class="sb-it sub" id="n-recruit"   onclick="nav('recruitment',this)"><span class="ic">🧲</span><span>التوظيف والتعيين</span></div>
                             <div class="sb-it sub" id="n-dp"        onclick="nav('departments',this)"><span class="ic">🏢</span><span>الإدارات والأقسام</span></div>
                             <div class="sb-it sub" id="n-at"        onclick="nav('attendance',this)"><span class="ic">🕐</span><span>الحضور والانصراف</span></div>
+                            <div class="sb-it sub" id="n-atset"     onclick="nav('attsettings',this)"><span class="ic">⚙️</span><span>إعدادات الحضور والموقع</span></div>
                             <div class="sb-it sub" id="n-shifts"    onclick="nav('shifts',this)"><span class="ic">🕗</span><span>الورديات والجداول</span></div>
                             <div style="height:1px;background:#f0f0f0;margin:4px 10px"></div>
                             <div class="sb-it sub" id="n-pr2"       onclick="nav('payroll',this)"><span class="ic">💵</span><span>مسير الرواتب</span></div>
@@ -1399,9 +1400,6 @@
                     <!-- 🟢 من الحاضر الآن -->
                     <div id="whosInCard"></div>
 
-                    <!-- 🎯 نطاق الحضور الجغرافي (للمسؤول) -->
-                    <div id="geofenceAdminCard"></div>
-
                     <!-- 🛠️ طلبات تصحيح الحضور (للمسؤول) -->
                     <div id="attFixCard"></div>
 
@@ -1481,6 +1479,12 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- PAGE: ATTENDANCE SETTINGS (النطاق الجغرافي + دوام العمل) -->
+                <div class="pg" id="pg-attsettings">
+                    <div class="hr-info" style="margin-bottom:16px">⚙️ إعدادات الحضور: حدّد <b>مواقع الحضور المسموحة (النطاق الجغرافي)</b>، وأسنِد موقعاً لكل موظف، واضبط <b>دوام العمل واحتساب التأخير</b>. هذه الإعدادات تسري على تسجيل الحضور في صفحة «الحضور والانصراف».</div>
+                    <div id="geofenceAdminCard"></div>
                 </div>
 
                 <!-- PAGE: PAYROLL -->
@@ -19393,7 +19397,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260715-geoemp"></script>
+    <script type="module" src="app.js?v=20260715-attsplit"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260714-jrnperiod1"></script>
