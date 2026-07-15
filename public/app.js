@@ -26097,7 +26097,7 @@ window.openBillingDetail = function (billingKey) {
                             <strong style="color:${(contractInclVAT - cumulativeInclVAT) >= 0 ? '#27ae60' : '#c0392b'}">${fmt(contractInclVAT - cumulativeInclVAT)}</strong>
                         </div>
                         <div style="display:flex;justify-content:space-between;border-top:2px solid #1a3a5c;padding:6px 0;margin-top:8px">
-                            <span style="font-weight:700">% الإنجاز:</span>
+                            <span style="font-weight:700">% الإنجاز <span style="color:#8fa4b8;cursor:help;font-size:11px;font-weight:400" title="نسبة الإنجاز المالي التراكمي للمشروع = الإجمالي التراكمي ÷ قيمة العقد.">ⓘ</span>:</span>
                             <strong style="color:#16a085;font-size:14px" id="billSumPct">${pct}%</strong>
                         </div>
                     </div>`;
@@ -26121,7 +26121,7 @@ window.openBillingDetail = function (billingKey) {
 
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#8e44ad">
                             <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-                                ➕ ضريبة القيمة المضافة
+                                ➕ ضريبة القيمة المضافة <span style="color:#8fa4b8;cursor:help;font-size:11px;font-weight:400" title="ضريبة القيمة المضافة تُضاف على قيمة أعمال هذا المستخلص (النسبة من إعدادات المشروع، عادة 15%).">ⓘ</span>
                                 ${isEditable
                                     ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f4ecf7;border:1.5px solid #8e44ad;border-radius:6px;padding:1px 6px">
                                         <input type="number" id="billVatPct" min="0" max="100" step="0.1" value="${b.vatPct ?? proj?.vatPct ?? 15}" oninput="recalculateBilling()" style="width:44px;border:none;background:transparent;text-align:center;font-size:11px;font-weight:800;color:#8e44ad;outline:none">
@@ -26138,7 +26138,7 @@ window.openBillingDetail = function (billingKey) {
 
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#c0392b">
                             <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-                                ➖ دفعة مقدمة
+                                ➖ دفعة مقدمة <span style="color:#8fa4b8;cursor:help;font-size:11px;font-weight:400" title="نسبة الدفعة المقدمة التي تُخصم من قيمة هذا المستخلص وفق شروط العقد.">ⓘ</span>
                                 ${isEditable
                                     ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#fdecea;border:1.5px solid #c0392b;border-radius:6px;padding:1px 6px">
                                         <input type="number" id="billAdvancePct" min="0" max="100" step="0.1" value="${b.advancePct ?? proj?.advancePct ?? 0}" oninput="recalculateBilling()" style="width:44px;border:none;background:transparent;text-align:center;font-size:11px;font-weight:800;color:#c0392b;outline:none">
@@ -26151,7 +26151,7 @@ window.openBillingDetail = function (billingKey) {
 
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#c0392b">
                             <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-                                ➖ استرداد دفعة مقدمة
+                                ➖ استرداد دفعة مقدمة <span style="color:#8fa4b8;cursor:help;font-size:11px;font-weight:400" title="نسبة تُخصم من هذا المستخلص لاسترداد جزء من الدفعة المقدمة التي صُرفت للمقاول عند توقيع العقد.">ⓘ</span>
                                 ${isEditable
                                     ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#fdecea;border:1.5px solid #c0392b;border-radius:6px;padding:1px 6px">
                                         <input type="number" id="billAdvRecoveryPct" min="0" max="100" step="0.1" value="${b.advRecoveryPct ?? proj?.advRecoveryPct ?? 0}" oninput="recalculateBilling()" style="width:44px;border:none;background:transparent;text-align:center;font-size:11px;font-weight:800;color:#c0392b;outline:none">
@@ -26164,7 +26164,7 @@ window.openBillingDetail = function (billingKey) {
 
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#c0392b">
                             <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-                                ➖ الاحتفاظ
+                                ➖ الاحتفاظ <span style="color:#8fa4b8;cursor:help;font-size:11px;font-weight:400" title="الضمان المحتجز — مبلغ يُحتجز من كل مستخلص كضمان جودة (عادة 5–10%)، ويُفرَج عنه بعد انتهاء فترة الضمان.">ⓘ</span>
                                 ${isEditable
                                     ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#fdecea;border:1.5px solid #c0392b;border-radius:6px;padding:1px 6px">
                                         <input type="number" id="billRetentionPct" min="0" max="100" step="0.1" value="${b.retentionPct ?? proj?.retentionPct ?? 0}" oninput="recalculateBilling()" style="width:44px;border:none;background:transparent;text-align:center;font-size:11px;font-weight:800;color:#c0392b;outline:none">
@@ -26182,7 +26182,7 @@ window.openBillingDetail = function (billingKey) {
                         </div>
 
                         <div style="display:flex;justify-content:space-between;padding:10px;border-top:3px solid #16a085;background:linear-gradient(135deg,#0e4d3a,#16a085);color:white;border-radius:8px;margin-top:8px">
-                            <span style="font-weight:900;font-size:13px">💰 إجمالي المبلغ الصافي:</span>
+                            <span style="font-weight:900;font-size:13px">💰 إجمالي المبلغ الصافي <span style="color:#bfe3d3;cursor:help;font-size:11px;font-weight:400" title="= المبلغ بعد الضريبة − الدفعة المقدمة − الاسترداد − الاحتفاظ − الخصومات الأخرى. هو المبلغ المستحق فعلياً للصرف لهذا المستخلص.">ⓘ</span>:</span>
                             <strong id="billCalcNet" style="font-size:16px">${fmt(b.netAmount || 0)}</strong>
                         </div>
                     </div>
