@@ -2670,8 +2670,9 @@ function startListeners() {
         if ($('pg-projectcosts')?.classList.contains('act') && typeof renderProjectMonthlyCosts === 'function') renderProjectMonthlyCosts();
         if ($('pg-prjhealth')?.classList.contains('act') && typeof renderPortfolioHealth === 'function') renderPortfolioHealth();
         if ($('pg-workload')?.classList.contains('act') && typeof renderWorkload === 'function') renderWorkload();
-        // بعد التحديث (F5): أعِد رسم ملف المشروع فور وصول البيانات ليظهر مباشرةً دون الحاجة لمغادرة الصفحة
+        // بعد التحديث (F5): أعِد رسم ملف المشروع/بنود BOQ فور وصول البيانات ليظهر مباشرةً دون الحاجة لمغادرة الصفحة
         if ($('pg-projectdetail')?.classList.contains('act') && typeof renderProjectDetail === 'function') renderProjectDetail();
+        if ($('pg-boq')?.classList.contains('act') && typeof renderBOQ === 'function') renderBOQ();
     });
     onValue(R.mat, sn => { materials = sn.exists() ? sn.val() : {}; window.materials = materials; fillMatDrp(); if ($('pg-materials')?.classList.contains('act')) { renderMaterialsCatalog(); updateMaterialsKPIs() } });
     onValue(R.mreq, sn => {
@@ -24921,7 +24922,7 @@ console.log('✅ Payroll Accounting Dashboard loaded');
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 window.boqState = {
-    selectedProject: '',
+    selectedProject: (() => { try { return localStorage.getItem('boq_pid') || ''; } catch (e) { return ''; } })(), // بقاء المشروع المختار بعد التحديث (F5)
     searchQuery: ''
 };
 
@@ -24930,8 +24931,8 @@ window.renderBOQ = function () {
     const allProjects = Object.entries(window.projects || {})
         .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
 
-    // اختر المشروع تلقائياً إن لم يُحدد
-    if (!boqState.selectedProject && allProjects.length > 0) {
+    // اختر المشروع تلقائياً إن لم يُحدد (أو إن كان المحفوظ لم يعد موجوداً بعد تحميل البيانات)
+    if ((!boqState.selectedProject || !(window.projects || {})[boqState.selectedProject]) && allProjects.length > 0) {
         boqState.selectedProject = allProjects[0][0];
     }
 
@@ -24973,7 +24974,7 @@ window.renderBOQ = function () {
             <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;align-items:end">
                 <div>
                     <label style="font-size:11px;color:#666;font-weight:700">📁 اختر المشروع</label>
-                    <select onchange="boqState.selectedProject=this.value;renderBOQ()" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:3px">
+                    <select onchange="boqState.selectedProject=this.value;try{localStorage.setItem('boq_pid',this.value)}catch(e){};renderBOQ()" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:3px">
                         <option value="">-- اختر المشروع --</option>
                         ${allProjects.map(([k, p]) => {
                             const boqCount = window.projectBOQ?.[k] ? Object.keys(window.projectBOQ[k]).length : 0;
@@ -28553,6 +28554,7 @@ window.deleteAsset = async function(id) {
 // ══════════════════════════════════════════════════════
 window.openAssetView = function(id) {
     window._assetActiveId = id;
+    try { localStorage.setItem('asset_id', id); } catch (e) { } // بقاء الأصل المختار بعد التحديث (F5)
     nav('assetdetail', $('n-assets'));
     renderAssetDetail();
 };
@@ -28572,7 +28574,9 @@ window.updateAssetMeter = async function(id) {
 };
 
 window.renderAssetDetail = function() {
-    const id = window._assetActiveId;
+    // استعادة الأصل المختار بعد التحديث (F5) إن فُقد من الذاكرة
+    let id = window._assetActiveId;
+    if (!id) { try { id = localStorage.getItem('asset_id') || null; window._assetActiveId = id; } catch (e) { } }
     if (!id) return;
     const a = (window.assets || {})[id] || {};
     $('adName').textContent = `🏭 ${a.name || ''}`;
