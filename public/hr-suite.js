@@ -719,3 +719,153 @@ window.hsDeleteGoal = function (key) {
 };
 // أهداف الموظف الحالي (للخدمة الذاتية)
 window.hsMyGoals = function (empKey) { return Object.entries(hsGoals()).filter(([, g]) => g.empKey === empKey).map(([k, g]) => ({ k, ...g })).sort((a, b) => (b.cycle || '').localeCompare(a.cycle || '')); };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  🎓 التدريب والتطوير — الدورات والشهادات
+// ═══════════════════════════════════════════════════════════════════════════
+const HS_TRN_TYPES = { internal: 'داخلي', external: 'خارجي', online: 'أونلاين', conference: 'مؤتمر/ورشة' };
+const HS_TRN_STATUS = { planned: { label: '📅 مخطّط', color: '#8e44ad' }, ongoing: { label: '🔵 جارٍ', color: '#2980b9' }, completed: { label: '✅ مكتمل', color: '#16a085' }, cancelled: { label: '🚫 ملغى', color: '#95a5a6' } };
+function hsTrn() { return window.training || {}; }
+
+window.renderTraining = function () {
+    const c = document.getElementById('pg-training'); if (!c) return;
+    if (!hsCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية فقط</div>'; return; }
+    window._hsTrn = window._hsTrn || { emp: '', status: '' };
+    const f = window._hsTrn;
+    const all = Object.entries(hsTrn()).map(([k, t]) => ({ k, ...t }));
+    const rows = all.filter(t => (!f.emp || t.empKey === f.emp) && (!f.status || (t.status || 'planned') === f.status))
+        .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+    const completed = all.filter(t => t.status === 'completed').length;
+    const ongoing = all.filter(t => (t.status || 'planned') === 'ongoing').length;
+    const totalCost = all.reduce((s, t) => s + (parseFloat(t.cost) || 0), 0);
+    // شهادات تنتهي خلال 60 يوماً
+    const dTo = ds => { if (!ds) return null; const d = new Date(ds); if (isNaN(d)) return null; return Math.ceil((d - new Date(hsToday() + 'T00:00:00')) / 86400000); };
+    const expCerts = all.filter(t => t.certExpiry && dTo(t.certExpiry) != null && dTo(t.certExpiry) <= 60);
+
+    const empOpts = Object.entries(window.emp || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).map(([k, e]) => `<option value="${k}" ${f.emp === k ? 'selected' : ''}>${hsEsc(e.name)}</option>`).join('');
+    const statusFilterOpts = Object.entries(HS_TRN_STATUS).map(([k, v]) => `<option value="${k}" ${f.status === k ? 'selected' : ''}>${v.label}</option>`).join('');
+    const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
+
+    c.innerHTML = `<div style="padding:0 4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800;color:#1a3a5c">🎓 التدريب والتطوير</div>
+            <button class="btn b-g" onclick="hsOpenTrn()" style="font-weight:800">➕ دورة/شهادة</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            ${kpi('🎓', 'إجمالي الدورات', all.length, '#2980b9')}
+            ${kpi('✅', 'مكتملة', completed, '#16a085')}
+            ${kpi('🔵', 'جارية', ongoing, ongoing ? '#2980b9' : '#95a5a6')}
+            ${kpi('💰', 'تكلفة التدريب', hsMoney(totalCost), '#8e44ad')}
+        </div>
+        ${expCerts.length ? `<div class="card" style="margin-bottom:14px;border-right:5px solid #e67e22;background:#fef9f3">
+            <div style="font-weight:800;color:#b9770e;font-size:13.5px">⚠️ ${expCerts.length} شهادة تنتهي خلال 60 يوماً</div>
+            <div style="font-size:12px;color:#7d4e00;margin-top:5px;line-height:1.9">${expCerts.map(t => `${hsEsc(t.empName || '')} — ${hsEsc(t.certName || t.course || '')} (تنتهي ${t.certExpiry})`).join('<br>')}</div>
+        </div>` : ''}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#fff;padding:12px 14px;border-radius:10px;margin-bottom:14px">
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الموظف</label><select onchange="window._hsTrn.emp=this.value;renderTraining()" style="${hsInp()}"><option value="">الكل</option>${empOpts}</select></div>
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الحالة</label><select onchange="window._hsTrn.status=this.value;renderTraining()" style="${hsInp()}"><option value="">الكل</option>${statusFilterOpts}</select></div>
+        </div>
+        <div class="card">
+            <div class="c-tl">🗂️ سجل التدريب</div>
+            ${rows.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                <thead><tr style="background:#f0f5fa;text-align:right;color:#1a3a5c"><th style="padding:8px 9px">الموظف</th><th style="padding:8px 9px">الدورة</th><th style="padding:8px 9px">النوع</th><th style="padding:8px 9px">الفترة</th><th style="padding:8px 9px;text-align:center">الحالة</th><th style="padding:8px 9px;text-align:center">شهادة</th><th style="padding:8px 9px;text-align:center">إجراء</th></tr></thead>
+                <tbody>${rows.map(t => { const st = HS_TRN_STATUS[t.status || 'planned'] || HS_TRN_STATUS.planned; return `<tr style="border-bottom:1px solid #f2f5f8">
+                    <td style="padding:7px 9px;font-weight:700">${hsEsc(t.empName || '—')}</td>
+                    <td style="padding:7px 9px">${hsEsc(t.course || '—')}${t.provider ? `<div style="font-size:10px;color:#95a5a6">${hsEsc(t.provider)}</div>` : ''}</td>
+                    <td style="padding:7px 9px;color:#666">${HS_TRN_TYPES[t.type] || t.type || '—'}</td>
+                    <td style="padding:7px 9px;color:#666;font-size:11px;white-space:nowrap">${t.startDate || '—'}${t.endDate ? ' ← ' + t.endDate : ''}</td>
+                    <td style="padding:7px 9px;text-align:center"><span style="background:${st.color}18;color:${st.color};padding:2px 8px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap">${st.label}</span></td>
+                    <td style="padding:7px 9px;text-align:center">${t.hasCert ? `<span title="${hsEsc(t.certName || '')}${t.certExpiry ? ' · تنتهي ' + t.certExpiry : ''}" style="cursor:help">📜</span>` : '—'}</td>
+                    <td style="padding:7px 9px;text-align:center;white-space:nowrap"><button class="btn" onclick="hsOpenTrn('${t.k}')" style="font-size:10px;padding:3px 7px">✏️</button> <button class="btn b-r" onclick="hsDeleteTrn('${t.k}')" style="font-size:10px;padding:3px 7px">🗑️</button></td>
+                </tr>`; }).join('')}</tbody>
+            </table></div>` : '<div style="color:#aaa;text-align:center;padding:22px">لا سجلات تدريب — أضف أول دورة/شهادة.</div>'}
+        </div>
+    </div>`;
+};
+
+function hsEnsureTrnModal() {
+    if (document.getElementById('hsTrnModal')) return;
+    const fg = (label, inner) => `<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:3px">${label}</label>${inner}</div>`;
+    const d = document.createElement('div');
+    d.id = 'hsTrnModal';
+    d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
+    d.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 id="hsTrnTitle" style="margin:0;color:#2980b9;font-size:18px">🎓 دورة/شهادة جديدة</h3><button onclick="hsCloseTrn()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <input id="hsTrnKey" type="hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${fg('الموظف *', `<select id="hsTrnEmp" style="width:100%;${hsInp()}"></select>`)}
+            ${fg('اسم الدورة *', `<input id="hsTrnCourse" placeholder="مثال: إدارة المشاريع PMP" style="width:100%;${hsInp()}">`)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            ${fg('الجهة المقدّمة', `<input id="hsTrnProvider" placeholder="المعهد/المزوّد" style="width:100%;${hsInp()}">`)}
+            ${fg('النوع', `<select id="hsTrnType" style="width:100%;${hsInp()}">${Object.entries(HS_TRN_TYPES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>`)}
+            ${fg('التكلفة (ر.س)', `<input id="hsTrnCost" type="number" min="0" placeholder="0" style="width:100%;${hsInp()}">`)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            ${fg('من تاريخ', `<input id="hsTrnStart" type="date" style="width:100%;${hsInp()}">`)}
+            ${fg('إلى تاريخ', `<input id="hsTrnEnd" type="date" style="width:100%;${hsInp()}">`)}
+            ${fg('الحالة', `<select id="hsTrnStatus" style="width:100%;${hsInp()}">${Object.entries(HS_TRN_STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>`)}
+        </div>
+        <div style="background:#f7fbff;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2980b9;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="hsTrnHasCert" onchange="document.getElementById('hsTrnCertRow').style.display=this.checked?'grid':'none'"> 📜 نتج عنها شهادة</label>
+            <div id="hsTrnCertRow" style="display:none;grid-template-columns:1fr 1fr;gap:10px">
+                ${fg('اسم الشهادة', `<input id="hsTrnCertName" placeholder="اسم/رقم الشهادة" style="width:100%;${hsInp()}">`)}
+                ${fg('تنتهي في (إن وُجد)', `<input id="hsTrnCertExpiry" type="date" style="width:100%;${hsInp()}">`)}
+            </div>
+        </div>
+        ${fg('ملاحظات', `<input id="hsTrnNotes" placeholder="اختياري" style="width:100%;${hsInp()}">`)}
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn b-g" onclick="hsSaveTrn()" style="flex:1;font-weight:800">💾 حفظ</button><button class="btn" onclick="hsCloseTrn()" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+    document.body.appendChild(d);
+}
+window.hsOpenTrn = function (key) {
+    hsEnsureTrnModal();
+    const t = key ? hsTrn()[key] : null;
+    const empSel = document.getElementById('hsTrnEmp');
+    empSel.innerHTML = '<option value="">— اختر —</option>' + Object.entries(window.emp || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).map(([k, e]) => `<option value="${k}">${hsEsc(e.name)}</option>`).join('');
+    document.getElementById('hsTrnKey').value = key || '';
+    document.getElementById('hsTrnTitle').textContent = t ? '✏️ تعديل دورة/شهادة' : '🎓 دورة/شهادة جديدة';
+    empSel.value = t?.empKey || (window._hsTrn?.emp || '');
+    document.getElementById('hsTrnCourse').value = t?.course || '';
+    document.getElementById('hsTrnProvider').value = t?.provider || '';
+    document.getElementById('hsTrnType').value = t?.type || 'external';
+    document.getElementById('hsTrnCost').value = t?.cost ?? '';
+    document.getElementById('hsTrnStart').value = t?.startDate || '';
+    document.getElementById('hsTrnEnd').value = t?.endDate || '';
+    document.getElementById('hsTrnStatus').value = t?.status || 'planned';
+    const hc = !!t?.hasCert;
+    document.getElementById('hsTrnHasCert').checked = hc;
+    document.getElementById('hsTrnCertRow').style.display = hc ? 'grid' : 'none';
+    document.getElementById('hsTrnCertName').value = t?.certName || '';
+    document.getElementById('hsTrnCertExpiry').value = t?.certExpiry || '';
+    document.getElementById('hsTrnNotes').value = t?.notes || '';
+    document.getElementById('hsTrnModal').style.display = 'flex';
+};
+window.hsCloseTrn = function () { const m = document.getElementById('hsTrnModal'); if (m) m.style.display = 'none'; };
+window.hsSaveTrn = async function () {
+    const key = document.getElementById('hsTrnKey').value;
+    const empKey = document.getElementById('hsTrnEmp').value;
+    const course = document.getElementById('hsTrnCourse').value.trim();
+    if (!empKey) { toast('⚠️ اختر الموظف', 'er'); return; }
+    if (!course) { toast('⚠️ اسم الدورة مطلوب', 'er'); return; }
+    const e = (window.emp || {})[empKey] || {};
+    const hasCert = document.getElementById('hsTrnHasCert').checked;
+    const data = {
+        empKey, empName: e.name || '', course, provider: document.getElementById('hsTrnProvider').value.trim(),
+        type: document.getElementById('hsTrnType').value, cost: parseFloat(document.getElementById('hsTrnCost').value) || 0,
+        startDate: document.getElementById('hsTrnStart').value || '', endDate: document.getElementById('hsTrnEnd').value || '',
+        status: document.getElementById('hsTrnStatus').value, hasCert,
+        certName: hasCert ? document.getElementById('hsTrnCertName').value.trim() : '', certExpiry: hasCert ? (document.getElementById('hsTrnCertExpiry').value || '') : '',
+        notes: document.getElementById('hsTrnNotes').value.trim(), updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) await window.update(window.ref(window.db, 'ledger/training/' + key), data);
+        else await window.push(window.R.training, { ...data, createdBy: hsMyName(), createdAt: new Date().toISOString() });
+        toast('✅ تم الحفظ', 'ok'); hsCloseTrn();
+    } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsDeleteTrn = function (key) {
+    cf2('حذف سجل التدريب؟', async () => { try { await window.remove(window.ref(window.db, 'ledger/training/' + key)); toast('حُذف', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); } });
+};
+// تدريب الموظف الحالي (للخدمة الذاتية)
+window.hsMyTraining = function (empKey) { return Object.entries(hsTrn()).filter(([, t]) => t.empKey === empKey).map(([k, t]) => ({ k, ...t })).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '')); };
