@@ -869,3 +869,159 @@ window.hsDeleteTrn = function (key) {
 };
 // تدريب الموظف الحالي (للخدمة الذاتية)
 window.hsMyTraining = function (empKey) { return Object.entries(hsTrn()).filter(([, t]) => t.empKey === empKey).map(([k, t]) => ({ k, ...t })).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '')); };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  📝 استبيانات رضا الموظفين (eNPS + تقييم)
+// ═══════════════════════════════════════════════════════════════════════════
+function hsSurveys() { return window.surveys || {}; }
+function hsSurveyResp() { return window.surveyResponses || {}; }
+const HS_ENPS_Q = 'ما مدى احتمال أن توصي بالعمل في هذه الشركة لصديق؟ (0 = مستبعد تماماً، 10 = مؤكّد)';
+function hsRespOf(sid) { return Object.values(hsSurveyResp()).filter(r => r.surveyId === sid); }
+// حساب eNPS من إجابات سؤال 0..10
+function hsCalcENPS(resps) {
+    const vals = resps.map(r => parseFloat((r.answers || {}).enps)).filter(v => !isNaN(v));
+    if (!vals.length) return { score: null, prom: 0, pass: 0, det: 0, n: 0 };
+    const prom = vals.filter(v => v >= 9).length, det = vals.filter(v => v <= 6).length, pass = vals.length - prom - det;
+    return { score: Math.round((prom / vals.length - det / vals.length) * 100), prom, pass, det, n: vals.length };
+}
+function hsHasResponded(sid, empKey) { return Object.values(hsSurveyResp()).some(r => r.surveyId === sid && r.empKey === empKey); }
+
+window.renderSurveys = function () {
+    const c = document.getElementById('pg-surveys'); if (!c) return;
+    if (!hsCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية فقط</div>'; return; }
+    const all = Object.entries(hsSurveys()).map(([k, s]) => ({ k, ...s })).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const activeEmps = Object.values(window.emp || {}).filter(e => (e.status || 'active') === 'active').length;
+    const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
+
+    c.innerHTML = `<div style="padding:0 4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800;color:#1a3a5c">📝 استبيانات رضا الموظفين</div>
+            <button class="btn b-g" onclick="hsOpenSurvey()" style="font-weight:800">➕ استبيان جديد</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            ${kpi('📝', 'إجمالي الاستبيانات', all.length, '#2980b9')}
+            ${kpi('🟢', 'مفتوحة الآن', all.filter(s => s.active !== false).length, '#16a085')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+        ${all.length ? all.map(s => {
+        const resps = hsRespOf(s.k); const rate = activeEmps ? Math.round(resps.length / activeEmps * 100) : 0;
+        const isEnps = s.type === 'enps';
+        const enps = isEnps ? hsCalcENPS(resps) : null;
+        let scoreHtml = '';
+        if (isEnps) { const sc = enps.score; const col = sc == null ? '#95a5a6' : sc >= 30 ? '#16a085' : sc >= 0 ? '#e67e22' : '#c0392b'; scoreHtml = `<div style="font-size:28px;font-weight:900;color:${col}">${sc == null ? '—' : (sc > 0 ? '+' : '') + sc}</div><div style="font-size:10px;color:#95a5a6">eNPS</div>`; }
+        else { const avg = hsSurveyAvg(s, resps); const col = avg == null ? '#95a5a6' : avg >= 4 ? '#16a085' : avg >= 3 ? '#e67e22' : '#c0392b'; scoreHtml = `<div style="font-size:28px;font-weight:900;color:${col}">${avg == null ? '—' : avg.toFixed(1)}</div><div style="font-size:10px;color:#95a5a6">من 5</div>`; }
+        const off = s.active === false;
+        return `<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;border-top:3px solid ${isEnps ? '#8e44ad' : '#2980b9'};opacity:${off ? '.7' : '1'}">
+            <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <div><div style="font-weight:800;color:#1a3a5c;font-size:14px">${hsEsc(s.title || 'استبيان')}</div><div style="font-size:10.5px;color:#95a5a6;margin-top:2px">${isEnps ? '💜 eNPS' : '⭐ تقييم'}${s.anonymous ? ' · مجهول' : ''}${off ? ' · مغلق' : ''}</div></div>
+                <div style="text-align:center">${scoreHtml}</div>
+            </div>
+            <div style="padding:11px 14px;font-size:12px;color:#556">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>الردود</span><b>${resps.length} / ${activeEmps} (${rate}%)</b></div>
+                ${isEnps && enps.n ? `<div style="display:flex;gap:4px;height:8px;border-radius:5px;overflow:hidden;margin-top:5px"><div style="flex:${enps.prom};background:#16a085" title="مروّجون ${enps.prom}"></div><div style="flex:${enps.pass};background:#f1c40f" title="محايدون ${enps.pass}"></div><div style="flex:${enps.det};background:#c0392b" title="منتقدون ${enps.det}"></div></div><div style="font-size:10px;color:#95a5a6;margin-top:3px">🟢 ${enps.prom} مروّج · 🟡 ${enps.pass} محايد · 🔴 ${enps.det} منتقد</div>` : ''}
+            </div>
+            <div style="padding:8px 14px;border-top:1px solid #f5f5f5;display:flex;gap:6px;justify-content:flex-end">
+                <button class="btn" onclick="hsSurveyResults('${s.k}')" style="font-size:11px;padding:4px 9px;background:#eef5fb;color:#2d6a9f">📊 النتائج</button>
+                <button class="btn" onclick="hsToggleSurvey('${s.k}',${off})" style="font-size:11px;padding:4px 9px;background:#f4f6f9;color:#555">${off ? '▶️ فتح' : '⏸️ إغلاق'}</button>
+                <button class="btn b-r" onclick="hsDeleteSurvey('${s.k}')" style="font-size:11px;padding:4px 9px">🗑️</button>
+            </div>
+        </div>`;
+    }).join('') : '<div style="grid-column:1/-1;text-align:center;color:#aaa;padding:24px">لا استبيانات — أنشئ أول استبيان رضا (eNPS) ليجيب عليه الموظفون في خدمتهم الذاتية.</div>'}
+        </div>
+    </div>`;
+};
+function hsSurveyAvg(s, resps) {
+    const qs = (s.questions || []).map(q => q.id);
+    if (!qs.length || !resps.length) return null;
+    let sum = 0, n = 0;
+    resps.forEach(r => qs.forEach(qid => { const v = parseFloat((r.answers || {})[qid]); if (!isNaN(v)) { sum += v; n++; } }));
+    return n ? sum / n : null;
+}
+window.hsSurveyResults = function (sid) {
+    const s = hsSurveys()[sid]; if (!s) return;
+    const resps = hsRespOf(sid);
+    let body = '';
+    if (s.type === 'enps') {
+        const e = hsCalcENPS(resps);
+        body = `<div style="text-align:center;padding:10px"><div style="font-size:40px;font-weight:900;color:${e.score == null ? '#95a5a6' : e.score >= 0 ? '#16a085' : '#c0392b'}">${e.score == null ? '—' : (e.score > 0 ? '+' : '') + e.score}</div><div style="color:#888">صافي نقاط ترشيح الموظف (eNPS) · ${e.n} رد</div></div>`;
+    } else {
+        body = (s.questions || []).map(q => {
+            const vals = resps.map(r => parseFloat((r.answers || {})[q.id])).filter(v => !isNaN(v));
+            const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+            const col = avg == null ? '#95a5a6' : avg >= 4 ? '#16a085' : avg >= 3 ? '#e67e22' : '#c0392b';
+            return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f2f5f8"><span style="font-size:13px">${hsEsc(q.text)}</span><b style="color:${col}">${avg == null ? '—' : avg.toFixed(1)} / 5</b></div>`;
+        }).join('');
+    }
+    const comments = resps.filter(r => (r.comment || '').trim()).map(r => `<div style="background:#f8fafc;border-radius:8px;padding:8px 11px;margin-bottom:6px;font-size:12px;color:#556">💬 ${hsEsc(r.comment)}${!s.anonymous && r.empName ? `<div style="font-size:10px;color:#95a5a6;margin-top:2px">${hsEsc(r.empName)}</div>` : ''}</div>`).join('');
+    hsModal(`📊 نتائج: ${hsEsc(s.title || '')}`, `${body}<div style="margin-top:12px;font-size:12px;color:#888;font-weight:700">${resps.length} رد${s.anonymous ? ' · الردود مجهولة' : ''}</div>${comments ? `<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px">التعليقات:</div>${comments}</div>` : ''}`);
+};
+
+// مودال عام بسيط للعرض
+function hsModal(title, html) {
+    let m = document.getElementById('hsGenModal');
+    if (!m) { m = document.createElement('div'); m.id = 'hsGenModal'; m.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px'; m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; }); document.body.appendChild(m); }
+    m.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0;color:#2d6a9f;font-size:17px">${title}</h3><button onclick="document.getElementById('hsGenModal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>${html}</div>`;
+    m.style.display = 'flex';
+}
+
+function hsEnsureSurveyModal() {
+    if (document.getElementById('hsSurveyModal')) return;
+    const fg = (label, inner) => `<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:3px">${label}</label>${inner}</div>`;
+    const d = document.createElement('div');
+    d.id = 'hsSurveyModal';
+    d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
+    d.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:540px;width:100%;max-height:92vh;overflow:auto;padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0;color:#8e44ad;font-size:18px">📝 استبيان جديد</h3><button onclick="hsCloseSurvey()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        ${fg('عنوان الاستبيان *', `<input id="hsSvTitle" placeholder="مثال: استبيان رضا الربع الثالث" style="width:100%;${hsInp()}">`)}
+        ${fg('وصف (اختياري)', `<input id="hsSvDesc" placeholder="غرض الاستبيان" style="width:100%;${hsInp()}">`)}
+        ${fg('النوع', `<select id="hsSvType" onchange="document.getElementById('hsSvQRow').style.display=this.value==='rating'?'block':'none'" style="width:100%;${hsInp()}"><option value="enps">💜 eNPS — صافي نقاط ترشيح الموظف (سؤال 0–10)</option><option value="rating">⭐ تقييم — أسئلة من 1 إلى 5</option></select>`)}
+        <div id="hsSvQRow" style="display:none">${fg('الأسئلة (سؤال في كل سطر)', `<textarea id="hsSvQuestions" rows="4" placeholder="مثال:\nبيئة العمل مريحة\nالإدارة تستمع لملاحظاتي\nالراتب عادل مقابل الجهد" style="width:100%;${hsInp()};resize:vertical"></textarea>`)}</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;cursor:pointer;margin:6px 0 10px"><input type="checkbox" id="hsSvAnon" checked style="width:16px;height:16px"> إخفاء هوية المجيبين (استبيان مجهول)</label>
+        <div style="display:flex;gap:8px;margin-top:4px"><button class="btn b-g" onclick="hsSaveSurvey()" style="flex:1;font-weight:800">📤 نشر الاستبيان</button><button class="btn" onclick="hsCloseSurvey()" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+    document.body.appendChild(d);
+}
+window.hsOpenSurvey = function () { hsEnsureSurveyModal(); document.getElementById('hsSurveyModal').style.display = 'flex'; };
+window.hsCloseSurvey = function () { const m = document.getElementById('hsSurveyModal'); if (m) m.style.display = 'none'; };
+window.hsSaveSurvey = async function () {
+    const title = document.getElementById('hsSvTitle').value.trim();
+    if (!title) { toast('⚠️ العنوان مطلوب', 'er'); return; }
+    const type = document.getElementById('hsSvType').value;
+    let questions = [];
+    if (type === 'rating') {
+        questions = document.getElementById('hsSvQuestions').value.split('\n').map(l => l.trim()).filter(Boolean).map((text, i) => ({ id: 'q' + (i + 1), text, scale: 5 }));
+        if (!questions.length) { toast('⚠️ أضف سؤالاً واحداً على الأقل', 'er'); return; }
+    }
+    const data = { title, description: document.getElementById('hsSvDesc').value.trim(), type, questions, anonymous: document.getElementById('hsSvAnon').checked, active: true, createdBy: hsMyName(), createdAt: new Date().toISOString() };
+    try { await window.push(window.R.surveys, data); toast('✅ نُشر الاستبيان', 'ok'); hsCloseSurvey(); document.getElementById('hsSvTitle').value = ''; document.getElementById('hsSvQuestions').value = ''; } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsToggleSurvey = async function (sid, open) { try { await window.update(window.ref(window.db, 'ledger/surveys/' + sid), { active: !!open }); toast(open ? 'فُتح' : 'أُغلق', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); } };
+window.hsDeleteSurvey = function (sid) { cf2('حذف الاستبيان وكل ردوده؟', async () => { try { await window.remove(window.ref(window.db, 'ledger/surveys/' + sid)); const resps = Object.entries(hsSurveyResp()).filter(([, r]) => r.surveyId === sid); for (const [rk] of resps) { try { await window.remove(window.ref(window.db, 'ledger/surveyResponses/' + rk)); } catch (e) {} } toast('حُذف', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); } }); };
+
+// ── الخدمة الذاتية: الاستبيانات المفتوحة التي لم يجب عليها الموظف ──
+window.hsOpenSurveysFor = function (empKey) { return Object.entries(hsSurveys()).filter(([sid, s]) => s.active !== false && !hsHasResponded(sid, empKey)).map(([k, s]) => ({ k, ...s })); };
+window.hsAnswerSurvey = function (sid) {
+    const s = hsSurveys()[sid]; if (!s) return;
+    let qHtml = '';
+    if (s.type === 'enps') {
+        qHtml = `<div style="font-size:13px;font-weight:700;color:#243b53;margin-bottom:8px">${hsEsc(HS_ENPS_Q)}</div>
+        <div id="hsAnsEnps" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">${Array.from({ length: 11 }, (_, i) => `<button type="button" onclick="hsPickEnps(${i},this)" style="width:34px;height:34px;border:1.5px solid #d0d7e0;background:#fff;border-radius:8px;cursor:pointer;font-weight:800;font-family:inherit">${i}</button>`).join('')}</div>`;
+    } else {
+        qHtml = (s.questions || []).map(q => `<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;color:#243b53;margin-bottom:6px">${hsEsc(q.text)}</div><div style="display:flex;gap:6px" data-qid="${q.id}">${[1, 2, 3, 4, 5].map(n => `<button type="button" onclick="hsPickRate('${q.id}',${n},this)" style="flex:1;height:38px;border:1.5px solid #d0d7e0;background:#fff;border-radius:8px;cursor:pointer;font-weight:800;font-family:inherit">${n}</button>`).join('')}</div></div>`).join('');
+    }
+    window._hsAns = { surveyId: sid, answers: {} };
+    hsModal(`📝 ${hsEsc(s.title || 'استبيان')}`, `${s.description ? `<div style="font-size:12px;color:#888;margin-bottom:10px">${hsEsc(s.description)}</div>` : ''}${qHtml}<div style="margin:6px 0 12px"><textarea id="hsAnsComment" rows="2" placeholder="تعليق (اختياري)" style="width:100%;${hsInp()};resize:vertical"></textarea></div><button class="btn b-g" onclick="hsSubmitSurvey()" style="width:100%;font-weight:800">📤 إرسال</button>${s.anonymous ? '<div style="font-size:10.5px;color:#95a5a6;text-align:center;margin-top:6px">🔒 هذا الاستبيان مجهول — لن تُعرض هويتك في النتائج</div>' : ''}`);
+};
+window.hsPickEnps = function (v, btn) { window._hsAns.answers.enps = v; Array.from(btn.parentElement.children).forEach(b => { b.style.background = '#fff'; b.style.color = '#000'; b.style.borderColor = '#d0d7e0'; }); btn.style.background = '#8e44ad'; btn.style.color = '#fff'; btn.style.borderColor = '#8e44ad'; };
+window.hsPickRate = function (qid, v, btn) { window._hsAns.answers[qid] = v; Array.from(btn.parentElement.children).forEach(b => { b.style.background = '#fff'; b.style.color = '#000'; b.style.borderColor = '#d0d7e0'; }); btn.style.background = '#16a085'; btn.style.color = '#fff'; btn.style.borderColor = '#16a085'; };
+window.hsSubmitSurvey = async function () {
+    const a = window._hsAns; if (!a) return;
+    const s = hsSurveys()[a.surveyId]; if (!s) return;
+    if (s.type === 'enps' && a.answers.enps == null) { toast('⚠️ اختر تقييماً من 0 إلى 10', 'er'); return; }
+    if (s.type === 'rating' && (s.questions || []).some(q => a.answers[q.id] == null)) { toast('⚠️ أجب على كل الأسئلة', 'er'); return; }
+    const me = (typeof myEmpContext === 'function') ? myEmpContext() : null;
+    const empKey = me ? me.key : (window.myP?.empKey || '');
+    if (empKey && hsHasResponded(a.surveyId, empKey)) { toast('لقد أجبت على هذا الاستبيان مسبقاً', 'wn'); document.getElementById('hsGenModal').style.display = 'none'; return; }
+    const rec = { surveyId: a.surveyId, empKey: empKey || null, empName: s.anonymous ? '' : (me?.data?.name || ''), answers: a.answers, comment: document.getElementById('hsAnsComment')?.value.trim() || '', submittedAt: new Date().toISOString() };
+    try { await window.push(window.R.surveyResponses, rec); toast('✅ شكراً — تم إرسال ردّك', 'ok'); document.getElementById('hsGenModal').style.display = 'none'; if (typeof renderSelfService === 'function') renderSelfService(); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
