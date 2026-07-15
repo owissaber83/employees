@@ -4161,14 +4161,14 @@ function pdCertFormHtml(pid) {
         <div style="display:grid;grid-template-columns:130px 150px 1fr;gap:10px;margin-bottom:10px">
             <div><label style="${lblStyle()}">رقم المستخلص</label><input id="cert-no" placeholder="IPC-1" style="${inputStyle()}"></div>
             <div><label style="${lblStyle()}">التاريخ</label><input type="date" id="cert-date" style="${inputStyle()}"></div>
-            <div><label style="${lblStyle()}">قيمة أعمال الفترة *</label><input type="number" id="cert-value" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">قيمة أعمال الفترة * <span style="color:#8fa4b8;cursor:help;font-size:11px" title="قيمة الأعمال التي نفّذها مقاول الباطن خلال هذه الفترة فقط (غير تراكمية).">ⓘ</span></label><input type="number" id="cert-value" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div><label style="${lblStyle()}">الضمان المحتجز <button type="button" onclick="pdCertAutoRet()" style="border:0;background:#eef3f8;color:#2980b9;border-radius:5px;padding:1px 7px;cursor:pointer;font-size:10px;font-weight:700">⟳ احسب</button></label><input type="number" id="cert-ret" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
-            <div><label style="${lblStyle()}">استرداد الدفعة المقدمة</label><input type="number" id="cert-adv" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">الضمان المحتجز <span style="color:#8fa4b8;cursor:help;font-size:11px" title="مبلغ يُحتجز من هذا المستخلص كضمان جودة، ويُحرَّر بعد التسليم. زر ⟳ يحسبه تلقائياً من نسبة الضمان في العقد.">ⓘ</span> <button type="button" onclick="pdCertAutoRet()" style="border:0;background:#eef3f8;color:#2980b9;border-radius:5px;padding:1px 7px;cursor:pointer;font-size:10px;font-weight:700">⟳ احسب</button></label><input type="number" id="cert-ret" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
+            <div><label style="${lblStyle()}">استرداد الدفعة المقدمة <span style="color:#8fa4b8;cursor:help;font-size:11px" title="مبلغ يُخصم من هذا المستخلص لاسترداد جزء من الدفعة المقدمة المصروفة سابقاً للمقاول.">ⓘ</span></label><input type="number" id="cert-adv" oninput="pdCertCalc()" placeholder="0.00" style="${inputStyle()}"></div>
         </div>
         <div style="background:#eafaf1;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:13px;font-weight:700;color:#1e8449">💰 الصافي المستحق للدفع</span>
+            <span style="font-size:13px;font-weight:700;color:#1e8449">💰 الصافي المستحق للدفع <span style="color:#5fa877;cursor:help;font-size:11px" title="= قيمة أعمال الفترة − الضمان المحتجز − استرداد الدفعة المقدمة.">ⓘ</span></span>
             <span id="pd-cert-net" style="font-size:20px;font-weight:900;color:#27ae60;font-variant-numeric:tabular-nums">0.00</span>
         </div>
         <div style="display:grid;grid-template-columns:180px 1fr;gap:10px;margin-bottom:12px">
