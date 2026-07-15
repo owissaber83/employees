@@ -402,7 +402,8 @@ PG.push({
     t: '🕐 الحضور والانصراف', p: [
         { k: 'view_attendance', l: 'عرض الحضور' },
         { k: 'manage_attendance', l: 'إدارة سجلات الحضور (مدير)' },
-        { k: 'manage_shifts', l: '🕗 الورديات والجداول وتحليل التأخير' }
+        { k: 'manage_shifts', l: '🕗 الورديات والجداول وتحليل التأخير' },
+        { k: 'manage_geofence', l: '🎯 إدارة مواقع الحضور (نطاق جغرافي)' }
     ]
 });
 PG.push({
@@ -559,7 +560,7 @@ const PRESETS = {
         'view_dashboard', 'view_employees', 'add_employee', 'edit_employee', 'delete_employee',
         'manage_departments',
         'view_recruitment', 'view_disciplinary', 'view_org_chart',
-        'view_attendance', 'manage_attendance', 'manage_shifts',
+        'view_attendance', 'manage_attendance', 'manage_shifts', 'manage_geofence',
         'view_leaves', 'request_leave', 'approve_leave', 'manage_leave_policies',
         'view_payroll', 'create_payroll',
         'view_loans', 'manage_loans',
@@ -21670,7 +21671,7 @@ function geoCheckLoc(loc) {
 // 🎯 لوحة إدارة النطاق الجغرافي (للمسؤول) داخل صفحة الحضور
 window.renderGeofenceAdmin = function () {
     const c = $('geofenceAdminCard'); if (!c) return;
-    const canManage = myP?.role === 'admin' || myP?.role === 'hr_officer' || (typeof can === 'function' && can('edit_settings'));
+    const canManage = myP?.role === 'admin' || myP?.role === 'hr_officer' || (typeof can === 'function' && (can('manage_geofence') || can('manage_attendance') || can('edit_settings')));
     if (!canManage) { c.innerHTML = ''; return; }
     const gf = window.geofence || {};
     const enabled = !!gf.enabled, mode = gf.mode || 'block';
