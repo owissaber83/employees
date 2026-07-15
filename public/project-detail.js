@@ -11,7 +11,9 @@
 //   db, ref, push, update, remove, R, $, toast, fmt, cf2, ov, cov
 
 // ── State ──────────────────────────────────────────────────────────────────
-window._pd = { projectId: null, tab: 'overview', billingPage: 1, billView: 'table', docsSubTab: 'docs' };
+window._pd = { projectId: (() => { try { return localStorage.getItem('pd_pid') || null; } catch (e) { return null; } })(), tab: 'overview', billingPage: 1, billView: 'table', docsSubTab: 'docs' };
+// حفظ/استعادة المشروع المختار عبر التحديث (F5)
+window.pdRememberProject = function (projectId) { try { if (projectId) localStorage.setItem('pd_pid', projectId); } catch (e) { } };
 
 // ── أوامر التغيير — مصدران: بنود BOQ في أقسام VO + سجلات projectChangeOrders المعتمدة ──
 function pdNetApprovedCOs(projectId, asOfDate) {
@@ -59,6 +61,7 @@ window.pdGoToDemoTab = function (tab) {
     if (!keys.length) { toast('لا توجد مشاريع لعرضها بعد', 'er'); return; }
     const pid = (window._pd.projectId && window.projects[window._pd.projectId]) ? window._pd.projectId : keys[0];
     window._pd.projectId = pid;
+    window.pdRememberProject(pid);
     window._pd.tab = tab;
     window._pd.billingPage = 1;
     if (window.nav) nav('projectdetail', null);
@@ -68,6 +71,7 @@ window.pdGoToDemoTab = function (tab) {
 // ── Entry Point ────────────────────────────────────────────────────────────
 window.openProjectDetail = function (projectId) {
     window._pd.projectId = projectId;
+    window.pdRememberProject(projectId);
     window._pd.tab = 'overview';
     window._pd.billingPage = 1;
     // Update nav title
@@ -91,7 +95,14 @@ window.renderProjectDetail = function () {
     const projectId = window._pd.projectId;
     if (!projectId) { pg.innerHTML = '<div class="empty"><div class="ei">📁</div><p>لم يتم اختيار مشروع</p></div>'; return; }
     const p = (window.projects || {})[projectId];
-    if (!p) { pg.innerHTML = '<div class="empty"><div class="ei">📁</div><p>المشروع غير موجود</p></div>'; return; }
+    if (!p) {
+        // البيانات قد لا تكون وصلت بعد عند التحديث (F5) — أظهر حالة تحميل بدل "غير موجود"
+        const loaded = window.projects && Object.keys(window.projects).length > 0;
+        pg.innerHTML = loaded
+            ? '<div class="empty"><div class="ei">📁</div><p>المشروع غير موجود</p></div>'
+            : '<div class="empty"><div class="ei">⏳</div><p>جارٍ تحميل بيانات المشروع…</p></div>';
+        return;
+    }
 
     // ── KPI حسابات ──
     const boqItems = window.projectBOQ?.[projectId] ? Object.values(window.projectBOQ[projectId]) : [];

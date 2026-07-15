@@ -2670,6 +2670,8 @@ function startListeners() {
         if ($('pg-projectcosts')?.classList.contains('act') && typeof renderProjectMonthlyCosts === 'function') renderProjectMonthlyCosts();
         if ($('pg-prjhealth')?.classList.contains('act') && typeof renderPortfolioHealth === 'function') renderPortfolioHealth();
         if ($('pg-workload')?.classList.contains('act') && typeof renderWorkload === 'function') renderWorkload();
+        // بعد التحديث (F5): أعِد رسم ملف المشروع فور وصول البيانات ليظهر مباشرةً دون الحاجة لمغادرة الصفحة
+        if ($('pg-projectdetail')?.classList.contains('act') && typeof renderProjectDetail === 'function') renderProjectDetail();
     });
     onValue(R.mat, sn => { materials = sn.exists() ? sn.val() : {}; window.materials = materials; fillMatDrp(); if ($('pg-materials')?.classList.contains('act')) { renderMaterialsCatalog(); updateMaterialsKPIs() } });
     onValue(R.mreq, sn => {
