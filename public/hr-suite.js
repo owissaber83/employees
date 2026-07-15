@@ -558,3 +558,164 @@ window.renderHrAnalytics = function () {
         </div>
     </div>`;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  🎯 الأداء المتقدم — الأهداف ومؤشرات الأداء (OKR/KPI) + دورات التقييم
+// ═══════════════════════════════════════════════════════════════════════════
+const HS_GOAL_TYPES = { okr: { label: '🎯 هدف (OKR)', color: '#8e44ad' }, kpi: { label: '📊 مؤشر (KPI)', color: '#2980b9' } };
+function hsGoals() { return window.goals || {}; }
+function hsCanPerf() { const p = window.myP; return p && (p.role === 'admin' || p.role === 'hr_officer' || (typeof can === 'function' && (can('view_performance') || can('view_employees')))); }
+// الدورة الافتراضية (ربع السنة الحالي)
+function hsCurCycle() { const d = new Date(); return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`; }
+function hsGoalScore(list) { let w = 0, s = 0; list.forEach(g => { const gw = parseFloat(g.weight) || 0; w += gw; s += gw * (parseFloat(g.progress) || 0); }); return w ? Math.round(s / w) : (list.length ? Math.round(list.reduce((a, g) => a + (parseFloat(g.progress) || 0), 0) / list.length) : 0); }
+
+window.renderGoals = function () {
+    const c = document.getElementById('pg-goals'); if (!c) return;
+    if (!hsCanPerf()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية فقط</div>'; return; }
+    window._hsGoal = window._hsGoal || { emp: '', cycle: hsCurCycle() };
+    const f = window._hsGoal;
+    const all = Object.entries(hsGoals()).map(([k, g]) => ({ k, ...g }));
+    const cycles = [...new Set(all.map(g => g.cycle).filter(Boolean))].sort().reverse();
+    if (!cycles.includes(f.cycle)) cycles.unshift(f.cycle);
+    const inCycle = all.filter(g => g.cycle === f.cycle && (!f.emp || g.empKey === f.emp));
+    const active = inCycle.filter(g => (g.status || 'active') === 'active');
+    const done = inCycle.filter(g => g.status === 'done');
+    const avgProg = inCycle.length ? Math.round(inCycle.reduce((a, g) => a + (parseFloat(g.progress) || 0), 0) / inCycle.length) : 0;
+
+    const empOpts = Object.entries(window.emp || {}).filter(([, e]) => (e.status || 'active') === 'active')
+        .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
+        .map(([k, e]) => `<option value="${k}" ${f.emp === k ? 'selected' : ''}>${hsEsc(e.name)}</option>`).join('');
+    const cycleOpts = cycles.map(cy => `<option value="${cy}" ${f.cycle === cy ? 'selected' : ''}>${hsEsc(cy)}</option>`).join('');
+    const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
+    const bar = (pct, col) => `<div style="background:#eef2f6;border-radius:6px;height:9px;overflow:hidden;flex:1;min-width:90px"><div style="width:${Math.min(100, Math.max(0, pct))}%;height:100%;background:${col};transition:width .3s"></div></div>`;
+
+    // تجميع حسب الموظف لعرض النتيجة المرجّحة (بطاقة تقييم الدورة)
+    const byEmp = {}; inCycle.forEach(g => { (byEmp[g.empKey] = byEmp[g.empKey] || []).push(g); });
+
+    c.innerHTML = `<div style="padding:0 4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800;color:#1a3a5c">🎯 الأهداف ومؤشرات الأداء (OKR/KPI)</div>
+            <button class="btn b-g" onclick="hsOpenGoal()" style="font-weight:800">➕ هدف/مؤشر جديد</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#fff;padding:12px 14px;border-radius:10px;margin-bottom:14px">
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">دورة التقييم</label><select onchange="window._hsGoal.cycle=this.value;renderGoals()" style="${hsInp()}">${cycleOpts}</select></div>
+            <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الموظف</label><select onchange="window._hsGoal.emp=this.value;renderGoals()" style="${hsInp()}"><option value="">الكل</option>${empOpts}</select></div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            ${kpi('🎯', 'أهداف نشطة', active.length, '#8e44ad')}
+            ${kpi('✅', 'مكتملة', done.length, '#16a085')}
+            ${kpi('📈', 'متوسط الإنجاز', avgProg + '%', avgProg >= 70 ? '#16a085' : avgProg >= 40 ? '#e67e22' : '#c0392b')}
+        </div>
+
+        ${Object.keys(byEmp).length ? Object.entries(byEmp).sort((a, b) => hsGoalScore(b[1]) - hsGoalScore(a[1])).map(([ek, list]) => {
+        const e = (window.emp || {})[ek] || {}; const score = hsGoalScore(list);
+        const scol = score >= 70 ? '#16a085' : score >= 40 ? '#e67e22' : '#c0392b';
+        return `<div class="card" style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+                <div style="font-weight:800;color:#1a3a5c;font-size:14px">👤 ${hsEsc(e.name || '—')} <span style="font-size:11px;color:#95a5a6;font-weight:600">${hsEsc(e.job || '')}</span></div>
+                <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#888">نتيجة الدورة المرجّحة</span><span style="font-size:20px;font-weight:900;color:${scol}">${score}%</span></div>
+            </div>
+            ${list.sort((a, b) => (b.weight || 0) - (a.weight || 0)).map(g => {
+            const t = HS_GOAL_TYPES[g.type || 'kpi'] || HS_GOAL_TYPES.kpi; const pr = parseFloat(g.progress) || 0;
+            const pcol = pr >= 70 ? '#16a085' : pr >= 40 ? '#e67e22' : '#c0392b';
+            const st = g.status === 'done' ? '✅' : g.status === 'cancelled' ? '🚫' : '';
+            return `<div style="border:1px solid #eef2f6;border-radius:9px;padding:10px 12px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                    <div style="font-weight:700;font-size:13px;color:#243b53">${st} <span style="color:${t.color}">${t.label.split(' ')[0]}</span> ${hsEsc(g.title || '')}${g.target ? ` <span style="font-size:11px;color:#95a5a6">(الهدف: ${hsEsc(g.target)}${g.unit ? ' ' + hsEsc(g.unit) : ''})</span>` : ''}</div>
+                    <div style="font-size:11px;color:#95a5a6">وزن ${g.weight || 0}%${g.dueDate ? ` · ${g.dueDate}` : ''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    ${bar(pr, pcol)}
+                    <span style="font-weight:800;color:${pcol};font-size:13px;min-width:38px">${pr}%</span>
+                    <input type="range" min="0" max="100" step="5" value="${pr}" onchange="hsSetGoalProgress('${g.k}',this.value)" style="width:120px;cursor:pointer" title="اسحب لتحديث نسبة الإنجاز">
+                    <button class="btn" onclick="hsOpenGoal('${g.k}')" style="font-size:10px;padding:3px 7px">✏️</button>
+                    <button class="btn b-r" onclick="hsDeleteGoal('${g.k}')" style="font-size:10px;padding:3px 7px">🗑️</button>
+                </div>
+            </div>`;
+        }).join('')}
+        </div>`;
+    }).join('') : '<div class="card" style="text-align:center;color:#aaa;padding:26px">لا أهداف في هذه الدورة — أضف أول هدف/مؤشر للموظفين.</div>'}
+    </div>`;
+};
+
+function hsEnsureGoalModal() {
+    if (document.getElementById('hsGoalModal')) return;
+    const fg = (label, inner) => `<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:3px">${label}</label>${inner}</div>`;
+    const d = document.createElement('div');
+    d.id = 'hsGoalModal';
+    d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
+    d.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:540px;width:100%;max-height:92vh;overflow:auto;padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 id="hsGoalTitle" style="margin:0;color:#8e44ad;font-size:18px">🎯 هدف/مؤشر جديد</h3><button onclick="hsCloseGoal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <input id="hsGoalKey" type="hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${fg('الموظف *', `<select id="hsGoalEmp" style="width:100%;${hsInp()}"></select>`)}
+            ${fg('دورة التقييم *', `<input id="hsGoalCycle" placeholder="2026-Q3 / 2026-سنوي" style="width:100%;${hsInp()}">`)}
+        </div>
+        ${fg('العنوان *', `<input id="hsGoalName" placeholder="مثال: رفع رضا العملاء" style="width:100%;${hsInp()}">`)}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            ${fg('النوع', `<select id="hsGoalType" style="width:100%;${hsInp()}">${Object.entries(HS_GOAL_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>`)}
+            ${fg('الوزن %', `<input id="hsGoalWeight" type="number" min="0" max="100" placeholder="25" style="width:100%;${hsInp()}">`)}
+            ${fg('تاريخ الاستحقاق', `<input id="hsGoalDue" type="date" style="width:100%;${hsInp()}">`)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${fg('القيمة المستهدفة', `<input id="hsGoalTarget" placeholder="مثال: 90" style="width:100%;${hsInp()}">`)}
+            ${fg('الوحدة', `<input id="hsGoalUnit" placeholder="% / عميل / يوم..." style="width:100%;${hsInp()}">`)}
+        </div>
+        ${fg('نسبة الإنجاز الحالية %', `<input id="hsGoalProgress" type="number" min="0" max="100" value="0" style="width:100%;${hsInp()}">`)}
+        ${fg('الحالة', `<select id="hsGoalStatus" style="width:100%;${hsInp()}"><option value="active">نشط</option><option value="done">مكتمل</option><option value="cancelled">ملغى</option></select>`)}
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn b-g" onclick="hsSaveGoal()" style="flex:1;font-weight:800">💾 حفظ</button><button class="btn" onclick="hsCloseGoal()" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+    document.body.appendChild(d);
+}
+window.hsOpenGoal = function (key) {
+    hsEnsureGoalModal();
+    const g = key ? hsGoals()[key] : null;
+    const empSel = document.getElementById('hsGoalEmp');
+    empSel.innerHTML = '<option value="">— اختر —</option>' + Object.entries(window.emp || {}).filter(([, e]) => (e.status || 'active') === 'active').sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).map(([k, e]) => `<option value="${k}">${hsEsc(e.name)}</option>`).join('');
+    document.getElementById('hsGoalKey').value = key || '';
+    document.getElementById('hsGoalTitle').textContent = g ? '✏️ تعديل هدف/مؤشر' : '🎯 هدف/مؤشر جديد';
+    empSel.value = g?.empKey || (window._hsGoal?.emp || '');
+    document.getElementById('hsGoalCycle').value = g?.cycle || (window._hsGoal?.cycle || hsCurCycle());
+    document.getElementById('hsGoalName').value = g?.title || '';
+    document.getElementById('hsGoalType').value = g?.type || 'kpi';
+    document.getElementById('hsGoalWeight').value = g?.weight ?? '';
+    document.getElementById('hsGoalDue').value = g?.dueDate || '';
+    document.getElementById('hsGoalTarget').value = g?.target || '';
+    document.getElementById('hsGoalUnit').value = g?.unit || '';
+    document.getElementById('hsGoalProgress').value = g?.progress ?? 0;
+    document.getElementById('hsGoalStatus').value = g?.status || 'active';
+    document.getElementById('hsGoalModal').style.display = 'flex';
+};
+window.hsCloseGoal = function () { const m = document.getElementById('hsGoalModal'); if (m) m.style.display = 'none'; };
+window.hsSaveGoal = async function () {
+    const key = document.getElementById('hsGoalKey').value;
+    const empKey = document.getElementById('hsGoalEmp').value;
+    const title = document.getElementById('hsGoalName').value.trim();
+    const cycle = document.getElementById('hsGoalCycle').value.trim();
+    if (!empKey) { toast('⚠️ اختر الموظف', 'er'); return; }
+    if (!title) { toast('⚠️ العنوان مطلوب', 'er'); return; }
+    if (!cycle) { toast('⚠️ دورة التقييم مطلوبة', 'er'); return; }
+    const e = (window.emp || {})[empKey] || {};
+    const data = {
+        empKey, empName: e.name || '', cycle, title, type: document.getElementById('hsGoalType').value,
+        weight: parseFloat(document.getElementById('hsGoalWeight').value) || 0,
+        dueDate: document.getElementById('hsGoalDue').value || '',
+        target: document.getElementById('hsGoalTarget').value.trim(), unit: document.getElementById('hsGoalUnit').value.trim(),
+        progress: Math.max(0, Math.min(100, parseFloat(document.getElementById('hsGoalProgress').value) || 0)),
+        status: document.getElementById('hsGoalStatus').value, updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) await window.update(window.ref(window.db, 'ledger/goals/' + key), data);
+        else await window.push(window.R.goals, { ...data, createdBy: hsMyName(), createdAt: new Date().toISOString() });
+        toast('✅ تم الحفظ', 'ok'); hsCloseGoal();
+    } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsSetGoalProgress = async function (key, val) {
+    const p = Math.max(0, Math.min(100, parseInt(val) || 0));
+    try { await window.update(window.ref(window.db, 'ledger/goals/' + key), { progress: p, status: p >= 100 ? 'done' : 'active', updatedAt: new Date().toISOString() }); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+};
+window.hsDeleteGoal = function (key) {
+    cf2('حذف هذا الهدف/المؤشر؟', async () => { try { await window.remove(window.ref(window.db, 'ledger/goals/' + key)); toast('حُذف', 'ok'); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); } });
+};
+// أهداف الموظف الحالي (للخدمة الذاتية)
+window.hsMyGoals = function (empKey) { return Object.entries(hsGoals()).filter(([, g]) => g.empKey === empKey).map(([k, g]) => ({ k, ...g })).sort((a, b) => (b.cycle || '').localeCompare(a.cycle || '')); };
