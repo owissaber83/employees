@@ -646,11 +646,20 @@ const HELP_CONTENT = {
         const searchRes = document.getElementById('helpSearchResults');
         if (searchRes) searchRes.style.display = 'none';
         if (content) content.style.display = '';
+        // 📖 ربط بالدليل الكامل للقسم
+        const guideMap = {
+            projects: 'prjguide', projectdetail: 'prjguide', boq: 'prjguide', progressbillings: 'prjguide', projectcosts: 'prjguide', indirectcosts: 'prjguide', prjtasks: 'prjguide', prjdashboard: 'prjguide', prjhealth: 'prjguide', prjreports: 'prjguide', timesheets: 'prjguide', workload: 'prjguide',
+            employees: 'hrguide', attendance: 'hrguide', attsettings: 'hrguide', payroll: 'hrguide', leaves: 'hrguide', permissions: 'hrguide', performance: 'hrguide', loans: 'hrguide', shifts: 'hrguide', empstatement: 'hrguide', recruitment: 'hrguide', disciplinary: 'hrguide', probation: 'hrguide',
+            inventory: 'invguide', inventorymovements: 'invguide', inventoryreports: 'invguide', warehouses: 'invguide',
+            suppliers: 'procguide', materials: 'procguide', matrequests: 'procguide', quotations: 'procguide', purchaseorders: 'procguide', grn: 'procguide', invoices: 'procguide'
+        };
+        const guidePage = guideMap[page];
+        const guideBtn = guidePage ? `<div style="padding:10px 12px"><button onclick="(window.bcNav||window.nav)('${guidePage}');toggleHelpPanel()" style="width:100%;background:linear-gradient(135deg,#2d6a9f,#1a3a5c);color:#fff;border:none;border-radius:10px;padding:11px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:800">📖 افتح الدليل الكامل لهذا القسم (خطوة بخطوة)</button></div>` : '';
         if (!h || !content) {
-            if (content) content.innerHTML = `<div style="padding:30px;text-align:center;color:#aaa"><div style="font-size:40px;margin-bottom:10px">📄</div><p>لا يوجد دليل محدد لهذه الصفحة بعد.</p></div>`;
+            if (content) content.innerHTML = `<div style="padding:24px;text-align:center;color:#aaa"><div style="font-size:40px;margin-bottom:10px">📄</div><p>لا يوجد شرح مختصر لهذه الصفحة بعد.</p></div>${guideBtn}`;
             return;
         }
-        content.innerHTML = buildHelpHTML(h);
+        content.innerHTML = buildHelpHTML(h) + guideBtn;
     };
 
     window.showHelpSection = function (sec, pages, color) {

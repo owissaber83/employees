@@ -12462,6 +12462,18 @@
                                 <div style="font-size:13px;font-weight:700">🚦 مسار العمل الكامل خطوة بخطوة</div>
                                 <div style="font-size:10px;opacity:.95;margin-top:2px">من الصفر حتى التقارير — 10 مراحل</div>
                             </a>
+                            <a href="#pg-checklist" style="background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border-radius:10px;padding:12px;text-decoration:none;border-right:3px solid #145a32">
+                                <div style="font-size:13px;font-weight:700">✅ قائمة البدء التفاعلية</div>
+                                <div style="font-size:10px;opacity:.95;margin-top:2px">تابع تجهيز أول مشروع خطوة بخطوة</div>
+                            </a>
+                            <a href="#pg-example" style="background:linear-gradient(135deg,#e67e22,#ca6f1e);color:white;border-radius:10px;padding:12px;text-decoration:none;border-right:3px solid #935116">
+                                <div style="font-size:13px;font-weight:700">🧮 مثال محلول بالأرقام</div>
+                                <div style="font-size:10px;opacity:.95;margin-top:2px">عقد 500 ألف — أول مستخلص كاملاً</div>
+                            </a>
+                            <a href="#pg-glossary" style="background:linear-gradient(135deg,#7d3c98,#5b2c6f);color:white;border-radius:10px;padding:12px;text-decoration:none;border-right:3px solid #4a235a">
+                                <div style="font-size:13px;font-weight:700">📖 مسرد المصطلحات</div>
+                                <div style="font-size:10px;opacity:.95;margin-top:2px">BOQ · مستخلص · محتجز · EVM · CPI…</div>
+                            </a>
                         </div>
                     </div>
 
@@ -12615,6 +12627,83 @@
                             </div>
                         </div>
                         <div style="margin-top:14px;background:#fff3e0;border-right:4px solid #f39c12;border-radius:8px;padding:12px;font-size:12px;color:#7d4e00;line-height:1.8">💡 <strong>القاعدة الذهبية:</strong> رتّب الإدخال هكذا دائماً — <strong>عميل ← مشروع ← بنود العقد (BOQ) ← مهام/جدول ← تكاليف ← مستخلصات ← تقارير</strong>. أي بيانات ناقصة في مرحلة سابقة تُضعف دقّة ما بعدها.</div>
+                    </div>
+
+                    <!-- ✅ قائمة البدء التفاعلية -->
+                    <div class="card" id="pg-checklist" style="margin-bottom:16px;border-right:5px solid #27ae60">
+                        <div class="c-tl">✅ قائمة البدء السريع — تفاعلية</div>
+                        <div style="background:#eafaf1;border-radius:10px;padding:12px 14px;margin-top:12px;border-right:4px solid #27ae60;font-size:12.5px;color:#1b5e20;line-height:1.85">علّم كل خطوة عند إتمامها. تُحفظ حالتها على جهازك تلقائياً — لتعرف أين وصلت في تجهيز أول مشروع.</div>
+                        <div style="display:grid;gap:7px;margin-top:12px">
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="1" onchange="prjGuideChk(this)" style="width:17px;height:17px">1️⃣ ضبطتُ بيانات الشركة والرقم الضريبي (الإعدادات)</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="2" onchange="prjGuideChk(this)" style="width:17px;height:17px">2️⃣ أضفتُ العميل (صاحب المشروع)</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="3" onchange="prjGuideChk(this)" style="width:17px;height:17px">3️⃣ أنشأتُ المشروع (الاسم · العميل · القيمة · المدة)</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="4" onchange="prjGuideChk(this)" style="width:17px;height:17px">4️⃣ أدخلتُ بنود العقد (BOQ) ومجموعها = قيمة العقد</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="5" onchange="prjGuideChk(this)" style="width:17px;height:17px">5️⃣ أنشأتُ المهام والجدول الزمني وحفظتُ خط الأساس</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="6" onchange="prjGuideChk(this)" style="width:17px;height:17px">6️⃣ ربطتُ الموظفين بالمشروع (حقل التبعية)</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="7" onchange="prjGuideChk(this)" style="width:17px;height:17px">7️⃣ سجّلتُ أول تكاليف شهرية للمشروع</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="8" onchange="prjGuideChk(this)" style="width:17px;height:17px">8️⃣ أنشأتُ أول مستخلص واعتمدتُه</label>
+                            <label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:#1a3a5c;font-weight:600"><input type="checkbox" data-prjchk data-k="9" onchange="prjGuideChk(this)" style="width:17px;height:17px">9️⃣ راجعتُ لوحة التحكم والتقارير المالية</label>
+                        </div>
+                        <script>
+                            window.prjGuideChk = function (el) { try { localStorage.setItem('prjg_chk_' + el.getAttribute('data-k'), el.checked ? '1' : '0'); el.parentElement.style.opacity = el.checked ? '.55' : '1'; } catch (e) { } };
+                            (function () { try { document.querySelectorAll('#pg-checklist input[data-prjchk]').forEach(function (el) { if (localStorage.getItem('prjg_chk_' + el.getAttribute('data-k')) === '1') { el.checked = true; el.parentElement.style.opacity = '.55'; } }); } catch (e) { } })();
+                        </script>
+                    </div>
+
+                    <!-- 🧮 مثال محلول -->
+                    <div class="card" id="pg-example" style="margin-bottom:16px;border-right:5px solid #e67e22">
+                        <div class="c-tl">🧮 مثال محلول كامل بالأرقام</div>
+                        <div style="background:#fef2e7;border-radius:10px;padding:12px 14px;margin-top:12px;border-right:4px solid #e67e22;font-size:12.5px;color:#a04000;line-height:1.9">مشروع «تشطيب فيلا» بقيمة عقد <strong>500,000 ريال</strong> — نتابع أول مستخلص خطوة بخطوة.</div>
+                        <div style="margin-top:14px;overflow-x:auto">
+                            <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">① بنود العقد (BOQ)</div>
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px">
+                                <thead><tr style="background:#f0f5fa;color:#1a3a5c"><th style="padding:7px 10px;text-align:right">البند</th><th style="padding:7px">الوحدة</th><th style="padding:7px">الكمية</th><th style="padding:7px">سعر الوحدة</th><th style="padding:7px">القيمة</th></tr></thead>
+                                <tbody>
+                                    <tr><td style="padding:6px 10px;border-bottom:1px solid #eef2f6">أعمال بلاط</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">م²</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">1,000</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">120</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6;font-weight:700">120,000</td></tr>
+                                    <tr><td style="padding:6px 10px;border-bottom:1px solid #eef2f6">دهانات</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">م²</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">1,500</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">60</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6;font-weight:700">90,000</td></tr>
+                                    <tr><td style="padding:6px 10px;border-bottom:1px solid #eef2f6">كهرباء</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">مقطوعية</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">1</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">140,000</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6;font-weight:700">140,000</td></tr>
+                                    <tr><td style="padding:6px 10px;border-bottom:1px solid #eef2f6">سباكة</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">مقطوعية</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">1</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6">150,000</td><td style="padding:6px;text-align:center;border-bottom:1px solid #eef2f6;font-weight:700">150,000</td></tr>
+                                    <tr style="background:#eafaf1"><td colspan="4" style="padding:8px 10px;font-weight:800;color:#1e8449">إجمالي قيمة العقد</td><td style="padding:8px;text-align:center;font-weight:900;color:#1e8449">500,000</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:16px">
+                            <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">② المستخلص الأول (نهاية الشهر ١) — نِسب الإنجاز</div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:14px;font-size:12.5px;color:#444;line-height:2.1">
+                                نفّذنا: بلاط <strong>40%</strong> (48,000) · دهانات <strong>20%</strong> (18,000) · كهرباء <strong>30%</strong> (42,000) · سباكة <strong>20%</strong> (30,000).<br>
+                                <span style="color:#2471a3;font-weight:700">قيمة الأعمال المنفَّذة هذا الشهر = 138,000 ريال</span> (≈ 27.6% من العقد).
+                            </div>
+                        </div>
+                        <div style="margin-top:16px">
+                            <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">③ صافي المستحق (يحسبه النظام تلقائياً)</div>
+                            <div style="display:grid;gap:6px;max-width:420px;font-size:13px">
+                                <div style="display:flex;justify-content:space-between;padding:7px 12px;background:#f8fafc;border-radius:7px"><span>قيمة الأعمال المنفَّذة</span><b>138,000</b></div>
+                                <div style="display:flex;justify-content:space-between;padding:7px 12px;background:#fdecea;border-radius:7px;color:#c0392b"><span>− محتجز الضمان 10%</span><b>13,800</b></div>
+                                <div style="display:flex;justify-content:space-between;padding:7px 12px;background:#eef5fb;border-radius:7px"><span>الصافي قبل الضريبة</span><b>124,200</b></div>
+                                <div style="display:flex;justify-content:space-between;padding:7px 12px;background:#eef5fb;border-radius:7px"><span>+ ضريبة القيمة المضافة 15%</span><b>18,630</b></div>
+                                <div style="display:flex;justify-content:space-between;padding:9px 12px;background:#1a3a5c;color:#fff;border-radius:8px;font-weight:800"><span>💵 صافي المطالبة</span><b>142,830</b></div>
+                            </div>
+                        </div>
+                        <div style="margin-top:14px;background:#eef7ff;border:1px solid #aed6f1;border-radius:8px;padding:12px;font-size:12px;color:#2471a3;line-height:1.9">📌 عند اعتماد المستخلص: يُنشئ النظام <strong>قيداً محاسبياً</strong> (مدين: ذمم العميل، دائن: إيراد + ضريبة مستحقة + محتجز الضمان)، ويتتبّع <strong>التراكمي</strong> فيبقى للبلاط 60% متبقّية للشهر القادم. تتكرر هذه الخطوة شهرياً حتى 100%.</div>
+                    </div>
+
+                    <!-- 📖 مسرد المصطلحات -->
+                    <div class="card" id="pg-glossary" style="margin-bottom:16px;border-right:5px solid #7d3c98">
+                        <div class="c-tl">📖 مسرد المصطلحات</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:14px;font-size:12px">
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">BOQ — بنود العقد</b><div style="color:#555;margin-top:4px;line-height:1.7">قائمة الكميات المتعاقد عليها (وصف · وحدة · كمية · سعر). أساس الفوترة.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">المستخلص (Progress Billing)</b><div style="color:#555;margin-top:4px;line-height:1.7">مطالبة دورية للعميل بقيمة الأعمال المنفَّذة خلال فترة، بناءً على نِسب الإنجاز.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">نسبة الإنجاز</b><div style="color:#555;margin-top:4px;line-height:1.7">ما نُفِّذ من كل بند حتى الآن مقسوماً على كميته المتعاقد عليها.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">محتجز الضمان (Retention)</b><div style="color:#555;margin-top:4px;line-height:1.7">نسبة (غالباً 5–10%) تُحتجز من كل مستخلص كضمان جودة، وتُحرَّر بعد التسليم.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">أمر التغيير (VO)</b><div style="color:#555;margin-top:4px;line-height:1.7">إضافة/تعديل على نطاق العقد الأصلي (بند جديد أو كمية) يُحدِّث قيمة العقد.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">EVM — القيمة المكتسبة</b><div style="color:#555;margin-top:4px;line-height:1.7">منهج يقيس أداء المشروع بمقارنة المخطَّط بالمنفَّذ بالتكلفة الفعلية.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">CPI / SPI</b><div style="color:#555;margin-top:4px;line-height:1.7">مؤشر أداء التكلفة / الجدول. أكبر من 1 = جيد، أقل من 1 = تجاوز/تأخر.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">CPM — المسار الحرج</b><div style="color:#555;margin-top:4px;line-height:1.7">سلسلة المهام التي أي تأخير فيها يؤخّر المشروع كله.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">خط الأساس (Baseline)</b><div style="color:#555;margin-top:4px;line-height:1.7">لقطة محفوظة للجدول/التكلفة المخطَّطة تُقارَن بالفعلي لقياس الانحراف.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">S-Curve</b><div style="color:#555;margin-top:4px;line-height:1.7">منحنى تراكمي للتكلفة/الإنجاز عبر الزمن — شكل حرف S.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">EAC — التكلفة عند الإكمال</b><div style="color:#555;margin-top:4px;line-height:1.7">التقدير المتوقّع للتكلفة الكلية للمشروع عند انتهائه بناءً على الأداء الحالي.</div></div>
+                            <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:9px;padding:11px"><b style="color:#1a3a5c">الدفعة المقدمة</b><div style="color:#555;margin-top:4px;line-height:1.7">مبلغ يدفعه العميل مقدماً ويُستردّ تدريجياً بالخصم من المستخلصات.</div></div>
+                        </div>
                     </div>
 
                     <!-- Overview -->
@@ -19580,7 +19669,7 @@
     <script defer src="project-detail.js?v=20260711-cpm1"></script>
     <script defer src="markup.js?v=20260711-takeoff1"></script>
     <!-- ❓ نظام دليل المساعدة -->
-    <script defer src="help.js?v=20260619-1802"></script>
+    <script defer src="help.js?v=20260715-guidebridge"></script>
     <!-- 📊 استوديو التحليل -->
     <script defer src="analytics.js?v=20260707-bunyan2"></script>
     <!-- 🎓 شرح منهج CMA Part 1 -->
