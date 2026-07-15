@@ -170,20 +170,20 @@ window.renderProjectDetail = function () {
 
     <!-- ── KPIs — المستخلصات والرصيد ── -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px;background:#8ebeee;padding:12px;border-radius:0 0 10px 10px">
-        ${kpiCard('📑', 'إجمالي المستخلصات (المحصَّل + المستحق)', fmt(totalCertValue), 'ريال', '#16a085')}
-        ${kpiCard('✅', 'محصَّل (مستخلصات تحوّلت لفاتورة)', fmt(collectedCertTotal), 'ريال', '#27ae60', `pdShowBillingListPage('${projectId}','collected')`)}
-        ${kpiCard('⏳', 'مستحق (مستخلصات لم تتحوّل لفاتورة)', fmt(dueCertTotal), 'ريال', dueCertTotal > 0 ? '#e67e22' : '#888', `pdShowBillingListPage('${projectId}','due')`)}
-        ${kpiCard('⚖️', 'الرصيد المتبقي', fmt(balance), 'من إجمالي العقد', balance >= 0 ? '#27ae60' : '#e74c3c')}
+        ${kpiCard('📑', 'إجمالي المستخلصات (المحصَّل + المستحق)', fmt(totalCertValue), 'ريال', '#16a085', null, 'مجموع قيمة كل المستخلصات المعتمدة = المحصَّل + المستحق (بدون ضريبة).')}
+        ${kpiCard('✅', 'محصَّل (مستخلصات تحوّلت لفاتورة)', fmt(collectedCertTotal), 'ريال', '#27ae60', `pdShowBillingListPage('${projectId}','collected')`, 'المستخلصات التي تحوّلت إلى فواتير مبيعات (يُفترض تحصيلها من العميل).')}
+        ${kpiCard('⏳', 'مستحق (مستخلصات لم تتحوّل لفاتورة)', fmt(dueCertTotal), 'ريال', dueCertTotal > 0 ? '#e67e22' : '#888', `pdShowBillingListPage('${projectId}','due')`, 'مستخلصات معتمدة لم تُحوَّل بعد إلى فاتورة مبيعات — بانتظار الإصدار/التحصيل.')}
+        ${kpiCard('⚖️', 'الرصيد المتبقي', fmt(balance), 'من إجمالي العقد', balance >= 0 ? '#27ae60' : '#e74c3c', null, 'قيمة العقد − إجمالي المستخلصات المُقدَّمة = ما تبقّى للفوترة من العقد.')}
     </div>
  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px;background:#8ebeee;padding:12px;border-radius:10px">
-   ${kpiCard('💸', 'إجمالي المصروفات', fmt(totalExp), 'ريال', '#4622e6')}
+   ${kpiCard('💸', 'إجمالي المصروفات', fmt(totalExp), 'ريال', '#4622e6', null, 'كل التكاليف المباشرة المسجّلة على المشروع (مواد، أجور، مقاولو الباطن، معدات...).')}
 ${pmcTotal > 0 ? kpiCard('📦', 'تكاليف التنفيذ (PMC)', fmt(pmcTotal), `${pmcRecords.length} سجل`, '#c0392b') : ''}
 ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباشرة', fmt(indirectCostAnnual), `سنة ${currentYear}`, '#5b2c6f') : ''}
         ${(() => {
             const netProfitLoss = totalCertValue - totalExp - pmcTotal - indirectCostAnnual;
-            return kpiCard(netProfitLoss >= 0 ? '📈' : '📉', netProfitLoss >= 0 ? 'صافي الربح المتوقع' : 'صافي الخسارة المتوقعة', fmt(Math.abs(netProfitLoss)), 'المستخلصات − مصروفات − PMC − غير مباشرة', netProfitLoss >= 0 ? '#27ae60' : '#e74c3c');
+            return kpiCard(netProfitLoss >= 0 ? '📈' : '📉', netProfitLoss >= 0 ? 'صافي الربح المتوقع' : 'صافي الخسارة المتوقعة', fmt(Math.abs(netProfitLoss)), 'المستخلصات − مصروفات − PMC − غير مباشرة', netProfitLoss >= 0 ? '#27ae60' : '#e74c3c', null, 'مؤشر ربحية تقديري = إجمالي المستخلصات − المصروفات − تكاليف التنفيذ (PMC) − التكاليف غير المباشرة.');
         })()}
-          ${kpiCard('📋', 'بنود BOQ', boqItems.length.toString(), 'بند', '#2980b9')}
+          ${kpiCard('📋', 'بنود BOQ', boqItems.length.toString(), 'بند', '#2980b9', null, 'عدد بنود جدول الكميات في العقد — الأساس لإنشاء المستخلصات.')}
         ${(() => {
             const projInvCount = Object.values(window.salesInvoices || {}).filter(inv => inv.projectId === projectId && inv.status !== 'cancelled').length;
             return projInvCount > 0 ? kpiCard('🧾', 'فواتير المبيعات', projInvCount.toString(), 'فاتورة', '#16a085') : '';
@@ -266,11 +266,12 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
 };
 
 // ── مساعد KPI بطاقة ──────────────────────────────────────────────
-function kpiCard(ic, lb, vl, sb, color, onClick) {
+function kpiCard(ic, lb, vl, sb, color, onClick, tip) {
     const clk = !!onClick;
+    const tipIcon = tip ? ` <span style="color:#8fa4b8;cursor:help;font-size:11px" title="${tip}" onclick="event.stopPropagation()">ⓘ</span>` : '';
     return `<div ${clk ? `onclick="${onClick}" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,.05)'"` : ''} style="background:white;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);border-top:3px solid ${color}${clk ? ';cursor:pointer;transition:box-shadow .15s' : ''}">
         <div style="font-size:22px;margin-bottom:6px">${ic}</div>
-        <div style="font-size:11px;color:#888;font-weight:600">${lb}</div>
+        <div style="font-size:11px;color:#888;font-weight:600">${lb}${tipIcon}</div>
         <div style="font-size:16px;font-weight:800;color:${color};margin:4px 0">${vl}</div>
         <div style="font-size:11px;color:#aaa">${sb}${clk ? ' <span style="color:#2d6a9f;font-weight:700">↗ عرض القائمة</span>' : ''}</div>
     </div>`;
@@ -5295,6 +5296,33 @@ window.pdOpenExecSummary = function (pid) {
         .sort((a, b) => new Date(b[1].date || 0) - new Date(a[1].date || 0))
         .slice(0, 5);
 
+    // ── مؤشرات الصحة (EVM مبسّط) + التنبيهات + تحميل الموارد الأسبوعي ──
+    const _bac = (window.calcProjectBudget(pid) || {}).totalBudget || 0;
+    const _pct = (window.calcProjectProgress(pid) || 0) / 100;
+    const _base = (typeof pdActiveBaseline === 'function') ? pdActiveBaseline(pid) : null;
+    const _ps = (_base && _base.plannedStart) || p.startDate || '';
+    const _pe = (_base && _base.plannedEnd) || p.endDate || '';
+    let _plannedPct = 0;
+    if (_ps && _pe) { const s = new Date(_ps).getTime(), e = new Date(_pe).getTime(), n = Date.now(); if (e > s) _plannedPct = Math.max(0, Math.min(1, (n - s) / (e - s))); }
+    const _EV = _bac * _pct, _PV = _bac * _plannedPct;
+    const CPI = actual.total > 0 ? _EV / actual.total : null;
+    const SPI = _PV > 0 ? _EV / _PV : null;
+    const _today = new Date().toISOString().slice(0, 10);
+    const _rfiOv = Object.values((window.rfis || {})[pid] || {}).filter(r => r.status === 'open' && r.dueDate && r.dueDate < _today).length;
+    const _punchOv = Object.values((window.punchItems || {})[pid] || {}).filter(r => r.status !== 'closed' && r.dueDate && r.dueDate < _today).length;
+    const _subOv = Object.values((window.submittals || {})[pid] || {}).filter(r => !['approved', 'approved_noted', 'draft', 'rejected'].includes(r.status) && r.dueDate && r.dueDate < _today).length;
+    const totalOverdue = _rfiOv + _punchOv + _subOv;
+    const openRisks = Object.values((window.projectNotes || {})[pid] || {}).filter(n => n.type === 'risk' && n.status !== 'closed' && n.status !== 'resolved').length;
+    // تحميل الموارد الأسبوعي — آخر 8 أسابيع (بداية الأسبوع السبت)
+    const _MS = 86400000;
+    const _now = new Date(); _now.setHours(0, 0, 0, 0);
+    const _wkStart = new Date(_now.getTime() - ((_now.getDay() + 1) % 7) * _MS);
+    const weeks = [];
+    for (let i = 7; i >= 0; i--) { const ws = new Date(_wkStart.getTime() - i * 7 * _MS); weeks.push({ ws, we: ws.getTime() + 7 * _MS, hours: 0 }); }
+    Object.values(window.timesheets || {}).forEach(t => { if (t.projectId !== pid || !t.date) return; const d = new Date(t.date).getTime(); const wk = weeks.find(w => d >= w.ws.getTime() && d < w.we); if (wk) wk.hours += parseFloat(t.hours) || 0; });
+    const _maxH = Math.max(1, ...weeks.map(w => w.hours));
+    const _totalH = weeks.reduce((s, w) => s + w.hours, 0);
+
     const cell = (label, value, color) => `
         <div style="background:#f8fafc;border-radius:10px;padding:14px;border-right:4px solid ${color}">
             <div style="font-size:11px;color:#666;font-weight:700">${label}</div>
@@ -5326,6 +5354,14 @@ window.pdOpenExecSummary = function (pid) {
         ${cell('⏳ الذمم المدينة (مستحق من العميل)', fmt(billing.totalReceivable) + ' ريال', '#c0392b')}
     </div>
 
+    <!-- Health & Alerts band -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+        ${cell('🎯 مؤشر التكلفة (CPI)', CPI == null ? '—' : CPI.toFixed(2), CPI == null ? '#95a5a6' : (CPI >= 1 ? '#27ae60' : '#c0392b'))}
+        ${cell('🕐 مؤشر الجدول (SPI)', SPI == null ? '—' : SPI.toFixed(2), SPI == null ? '#95a5a6' : (SPI >= 1 ? '#27ae60' : '#c0392b'))}
+        ${cell('⚠️ مخاطر مفتوحة', openRisks, openRisks ? '#e67e22' : '#27ae60')}
+        ${cell('⏰ بنود متأخرة (نواقص/RFI/مستندات)', totalOverdue, totalOverdue ? '#c0392b' : '#27ae60')}
+    </div>
+
     <!-- Progress bar -->
     <div class="card" style="background:white;border:1.5px solid #e0e8f0;border-radius:12px;padding:16px;margin-bottom:18px">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -5335,6 +5371,22 @@ window.pdOpenExecSummary = function (pid) {
         <div style="background:#f0f5fa;border-radius:8px;height:16px;overflow:hidden">
             <div style="background:linear-gradient(90deg,#27ae60,#1e8449);height:100%;width:${Math.min(progress, 100)}%;border-radius:8px"></div>
         </div>
+    </div>
+
+    <!-- Weekly resource-loading histogram -->
+    <div class="card" style="background:white;border:1.5px solid #e0e8f0;border-radius:12px;padding:16px;margin-bottom:18px">
+        <div style="font-size:14px;font-weight:800;margin-bottom:4px">👥 تحميل الموارد الأسبوعي</div>
+        <div style="font-size:11px;color:#888;margin-bottom:12px">ساعات العمل المسجّلة على المشروع — آخر 8 أسابيع (تُظهر ذروة العمالة واتجاه التحميل).</div>
+        ${_totalH === 0 ? '<div style="color:#888;font-size:12px;text-align:center;padding:14px">لا توجد ساعات مسجّلة على هذا المشروع بعد — تُسجَّل من صفحة «تسجيل الأوقات».</div>' : `
+        <div style="display:flex;align-items:flex-end;gap:8px;height:120px;direction:ltr;padding-top:12px">
+            ${weeks.map(w => { const h = Math.round(w.hours); const bh = Math.max(2, Math.round((w.hours / _maxH) * 92)); return `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+                <div style="font-size:10px;font-weight:700;color:#1a5276;font-variant-numeric:tabular-nums">${h || ''}</div>
+                <div style="width:62%;background:linear-gradient(180deg,#2d6a9f,#1a3a5c);border-radius:4px 4px 0 0;height:${bh}px" title="${h} ساعة"></div>
+                <div style="font-size:9px;color:#888;margin-top:5px;direction:ltr">${w.ws.getDate()}/${w.ws.getMonth() + 1}</div>
+            </div>`; }).join('')}
+        </div>
+        <div style="font-size:11px;color:#666;margin-top:10px">إجمالي الساعات في الفترة: <b>${fmt(Math.round(_totalH))}</b> ساعة.</div>`}
     </div>
 
     <!-- Activity log -->
