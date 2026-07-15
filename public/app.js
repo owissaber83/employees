@@ -571,7 +571,7 @@ const PRESETS = {
     // 📋 موظف الشؤون الإدارية — صلاحيات إدارية وتنظيمية
     admin_officer: [
         'view_dashboard', 'view_employees',
-        'view_attendance',
+        'view_attendance', 'manage_geofence',
         'view_leaves', 'request_leave',
         'view_payroll',
         'view_loans',
@@ -21656,11 +21656,16 @@ function geoDistanceM(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 // 🎯 تحقّق من وقوع الموقع داخل أحد النطاقات المسموح بها
-function geoCheckLoc(loc) {
+function geoCheckLoc(loc, empKey) {
     const gf = window.geofence;
     if (!gf || !gf.enabled) return { ok: true, off: true };            // النطاق غير مُفعّل
-    const fences = Object.values(gf.fences || {}).filter(f => f && f.lat != null);
+    let fences = Object.values(gf.fences || {}).filter(f => f && f.lat != null);
     if (!fences.length) return { ok: true, off: true };
+    // 📍 هل لهذا الموظف موقع مُسنَد خاص؟ عندئذٍ نتحقق منه وحده
+    const assignedId = (empKey && gf.empFences) ? gf.empFences[empKey] : null;
+    if (assignedId && gf.fences && gf.fences[assignedId] && gf.fences[assignedId].lat != null) {
+        fences = [gf.fences[assignedId]];
+    }
     if (!loc || loc.lat == null) return { ok: false, reason: 'no-loc', msg: '⚠️ تعذّر تحديد موقعك — فعّل GPS واسمح للمتصفح بالوصول للموقع، ثم أعد المحاولة.' };
     let nearest = null, minD = Infinity;
     fences.forEach(f => { const d = geoDistanceM(loc.lat, loc.lng, f.lat, f.lng); if (d < minD) { minD = d; nearest = f; } });
@@ -21676,6 +21681,7 @@ window.renderGeofenceAdmin = function () {
     const gf = window.geofence || {};
     const enabled = !!gf.enabled, mode = gf.mode || 'block';
     const fences = Object.entries(gf.fences || {}).filter(([, f]) => f && f.lat != null);
+    const gEmps = Object.entries(emp || {}).filter(([, e]) => e.active !== false).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
     c.innerHTML = `<div class="card" style="margin-bottom:16px;border-right:5px solid #16a085">
         <div class="c-tl">🎯 نطاق الحضور الجغرافي (Geofencing)</div>
         <div class="hr-info">💡 عند التفعيل، لن يتمكّن الموظف من تسجيل الحضور/الانصراف إلا إذا كان داخل أحد المواقع المسموح بها. يُتساهَل تلقائياً بمقدار دقّة إشارة الـGPS.</div>
@@ -21697,6 +21703,17 @@ window.renderGeofenceAdmin = function () {
                 <div><b style="color:#1a3a5c">${f.name || 'موقع'}</b> <span style="color:#16a085;font-size:12px;font-weight:700">— نطاق ${f.radius} م</span><br><a href="https://www.google.com/maps?q=${f.lat},${f.lng}" target="_blank" rel="noopener" style="font-size:11px;color:#2980b9;direction:ltr;display:inline-block">📍 ${f.lat}, ${f.lng}</a></div>
                 <button class="btn b-r" style="padding:4px 10px;font-size:11px" onclick="geofenceDelete('${id}')">🗑️ حذف</button>
             </div>`).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:14px;font-size:12px">لا مواقع مُضافة بعد — قف في مقر العمل واضغط «📍 إضافة موقعي الحالي».</div>`}
+        ${fences.length ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #eef2f6">
+            <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:4px">📍 إسناد موقع لكل موظف <span style="font-size:11px;color:#8a97a5;font-weight:400">(اختياري — بدون إسناد يُقبَل أي موقع مسموح)</span></div>
+            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead><tr style="background:#f8fafc"><th style="padding:7px 10px;text-align:right">الموظف</th><th style="padding:7px 10px;text-align:right">القسم</th><th style="padding:7px 10px;text-align:right;width:230px">الموقع المسموح للحضور</th></tr></thead>
+                <tbody>${gEmps.map(([k, e]) => { const cur = (gf.empFences && gf.empFences[k]) || ''; return `<tr>
+                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8;font-weight:600">${e.name || '-'}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8;color:#888">${e.dept || '-'}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8"><select onchange="geofenceAssignEmp('${k}',this.value)" style="width:100%;padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12px;background:#fafbfc"><option value="">— كل المواقع (افتراضي) —</option>${fences.map(([fid, f]) => `<option value="${fid}" ${cur === fid ? 'selected' : ''}>${f.name}</option>`).join('')}</select></td>
+                </tr>`; }).join('')}</tbody>
+            </table></div>
+        </div>` : ''}
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid #eef2f6">
             <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">🕐 دوام العمل واحتساب التأخير التلقائي</div>
             <div class="form-grid sm">
@@ -21708,6 +21725,13 @@ window.renderGeofenceAdmin = function () {
             <div style="font-size:11px;color:#8a97a5;margin-top:6px">💡 يُحتسب التأخير تلقائياً عند تسجيل الدخول بعد (بداية الدوام + مدة السماح)، ويظهر في السجل والخدمة الذاتية.</div>
         </div>
     </div>`;
+};
+// 📍 إسناد موقع محدّد لموظف (أو إزالته للعودة لكل المواقع)
+window.geofenceAssignEmp = async function (empKey, fenceId) {
+    try {
+        await set(ref(db, 'ledger/geofence/empFences/' + empKey), fenceId || null);
+        toast(fenceId ? '✅ حُدّد موقع الموظف' : '↩️ أُعيد الموظف لكل المواقع', 'ok');
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
 window.geofenceSaveSchedule = async function () {
     const schedule = { startTime: $('gfStart')?.value || '08:00', graceMin: Math.max(0, parseInt($('gfGrace')?.value) || 0), endTime: $('gfEnd')?.value || '17:00' };
@@ -21909,7 +21933,7 @@ window.doCheckIn = async function () {
         setSt('📍 جارٍ تحديد الموقع...');
         const loc = await getGeoLoc();
         // 🎯 التحقق من النطاق الجغرافي المسموح
-        const gc = geoCheckLoc(loc);
+        const gc = geoCheckLoc(loc, myEmpRec.key);
         if (!gc.ok) {
             const strict = (window.geofence?.mode || 'block') === 'block';
             if (strict) { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
@@ -21959,7 +21983,7 @@ window.doCheckOut = async function () {
         setSt('📍 جارٍ تحديد الموقع...');
         const loc = await getGeoLoc();
         // 🎯 التحقق من النطاق الجغرافي المسموح (للانصراف أيضاً)
-        const gc = geoCheckLoc(loc);
+        const gc = geoCheckLoc(loc, myEmpRec.key);
         if (!gc.ok && (window.geofence?.mode || 'block') === 'block') { setSt(gc.msg.split('\n')[0]); toast(gc.msg, 'er', 8000); return; }
         const nowDt = new Date();
         // 🕗 احتساب الإضافي وفق الوردية (إن كانت تسمح بالإضافي)
