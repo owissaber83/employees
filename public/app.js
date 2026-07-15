@@ -21685,6 +21685,13 @@ window.renderGeofenceAdmin = function () {
             <label class="opt-chk"><input type="radio" name="gfmode" ${mode === 'warn' ? 'checked' : ''} onchange="geofenceSetMode('warn')"> ⚠️ سماح مع تنبيه</label>
             <button class="btn b-g" onclick="geofenceAddCurrent()">📍 إضافة موقعي الحالي</button>
         </div>
+        <div class="form-grid" style="margin-top:12px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:12px">
+            <div class="fg"><label>➕ اسم موقع جديد</label><input id="gfmName" placeholder="المقر الرئيسي / موقع المشروع"></div>
+            <div class="fg" style="flex:2"><label>الإحداثيات (عرض، طول) أو رابط خرائط جوجل</label><input id="gfmCoords" placeholder="24.7136, 46.6753  أو الصق رابط الموقع من خرائط جوجل" style="direction:ltr;text-align:left"></div>
+            <div class="fg"><label>نصف القطر (متر)</label><input id="gfmRadius" type="number" min="20" value="150"></div>
+            <div class="fg" style="flex-direction:row;align-items:flex-end"><button class="btn b-b" onclick="geofenceAddManual()" style="flex:1">➕ إضافة موقع يدوياً</button></div>
+        </div>
+        <div style="font-size:11px;color:#8a97a5;margin:-4px 0 4px">💡 لتحديد موقع لست فيه: افتحه في خرائط جوجل، انسخ الرابط أو الإحداثيات والصقها هنا. الموقع يسري على جميع الموظفين (أو على المُسنَدين للوردية).</div>
         ${fences.length ? `<div style="margin-top:12px;display:grid;gap:8px">${fences.map(([id, f]) => `
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:10px 12px;flex-wrap:wrap">
                 <div><b style="color:#1a3a5c">${f.name || 'موقع'}</b> <span style="color:#16a085;font-size:12px;font-weight:700">— نطاق ${f.radius} م</span><br><a href="https://www.google.com/maps?q=${f.lat},${f.lng}" target="_blank" rel="noopener" style="font-size:11px;color:#2980b9;direction:ltr;display:inline-block">📍 ${f.lat}, ${f.lng}</a></div>
@@ -21705,6 +21712,31 @@ window.renderGeofenceAdmin = function () {
 window.geofenceSaveSchedule = async function () {
     const schedule = { startTime: $('gfStart')?.value || '08:00', graceMin: Math.max(0, parseInt($('gfGrace')?.value) || 0), endTime: $('gfEnd')?.value || '17:00' };
     try { await update(ref(db, 'ledger/geofence'), { schedule }); toast('✅ حُفظ دوام العمل واحتساب التأخير', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+// 🎯 قراءة إحداثيات من نصّ مباشر أو رابط خرائط جوجل
+function parseLatLng(s) {
+    if (!s) return null;
+    let m = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/[?&](?:q|ll|center|destination|daddr)=(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (m) return { lat: +(+m[1]).toFixed(6), lng: +(+m[2]).toFixed(6) };
+    m = s.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,،]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) { const lat = +m[1], lng = +m[2]; if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat: +lat.toFixed(6), lng: +lng.toFixed(6) }; }
+    return null;
+}
+// 🎯 إضافة موقع يدوياً (إحداثيات/رابط) — لتحديد مقرّ عمل لست فيه فعلياً
+window.geofenceAddManual = async function () {
+    const name = ($('gfmName')?.value || '').trim() || 'موقع';
+    const raw = ($('gfmCoords')?.value || '').trim();
+    const radius = Math.max(20, parseInt($('gfmRadius')?.value) || 150);
+    if (!raw) { toast('⚠️ أدخل الإحداثيات أو الصق رابط خرائط جوجل', 'er'); return; }
+    const coords = parseLatLng(raw);
+    if (!coords) { toast('تعذّر قراءة الإحداثيات — أدخلها هكذا: 24.7136, 46.6753 أو الصق رابط الموقع من خرائط جوجل', 'er', 8000); return; }
+    const id = 'gf_' + Date.now();
+    try {
+        await update(ref(db, 'ledger/geofence'), { enabled: window.geofence?.enabled ?? true, mode: window.geofence?.mode || 'block' });
+        await set(ref(db, 'ledger/geofence/fences/' + id), { name, lat: coords.lat, lng: coords.lng, radius, createdAt: new Date().toISOString(), createdBy: myP?.name || '' });
+        toast(`✅ أُضيف الموقع «${name}» (${coords.lat}, ${coords.lng} · نطاق ${radius}م)`, 'ok', 5000);
+        if ($('gfmName')) $('gfmName').value = ''; if ($('gfmCoords')) $('gfmCoords').value = '';
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
 // حساب دقائق التأخير عند وقت معيّن وفق جدول الدوام العام
 function attendanceLateMinutes(dt) {
