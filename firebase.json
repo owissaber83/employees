@@ -30,6 +30,10 @@
     ],
     "rewrites": [
       {
+        "source": "/academy",
+        "destination": "/academy.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

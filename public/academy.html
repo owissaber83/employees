@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CFO Master Academy | أكاديمية CFO ماستر</title>
+  <meta name="description"
+    content="منصة تعليمية متكاملة لتطوير المحاسبين والمديرين الماليين في قطاع المقاولات باستخدام الذكاء الاصطناعي وأنظمة ERP." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563EB',
+            secondary: '#9333EA',
+            accent: '#06B6D4',
+            gold: '#F59E0B',
+            darkBg: '#0B0F19',
+            darkCard: '#111827',
+            textWhite: '#F9FAFB',
+            textGray: '#9CA3AF',
+            youtube: '#FF0000',
+          },
+          fontFamily: { sans: ['Tajawal', 'sans-serif'] },
+        },
+      },
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Tajawal', sans-serif;
+    }
+
+    body {
+      background-color: #0B0F19;
+      color: #F9FAFB;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0B0F19;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(37, 99, 235, 0.5);
+      border-radius: 9999px;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .gradient-text {
+      background: linear-gradient(to left, #2563EB, #9333EA, #06B6D4);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .btn-glow {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .btn-glow::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to left, #2563EB, #9333EA);
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 0;
+    }
+
+    .btn-glow:hover::before {
+      opacity: 1;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .animate-fadeInUp {
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.8s ease-out forwards;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s ease-out;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card-hover {
+      transition: all 0.3s;
+    }
+
+    .card-hover:hover {
+      border-color: rgba(37, 99, 235, 0.5);
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.1);
+      transform: translateY(-5px);
+    }
+
+    .lesson-item {
+      transition: all 0.2s;
+    }
+
+    .lesson-item:hover {
+      background: rgba(37, 99, 235, 0.1);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    .youtube-card {
+      transition: all 0.3s;
+    }
+
+    .youtube-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 0, 0, 0.5);
+      box-shadow: 0 10px 30px rgba(255, 0, 0, 0.15);
+    }
+
+    .tab-active {
+      background: linear-gradient(to left, #2563EB, #9333EA);
+      color: white;
+    }
+
+    .content-box {
+      background: rgba(37, 99, 235, 0.08);
+      border-right: 4px solid #2563EB;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .example-box {
+      background: rgba(245, 158, 11, 0.08);
+      border-right: 4px solid #F59E0B;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .tip-box {
+      background: rgba(16, 185, 129, 0.08);
+      border-right: 4px solid #10B981;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .warning-box {
+      background: rgba(239, 68, 68, 0.08);
+      border-right: 4px solid #EF4444;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .formula-box {
+      background: rgba(147, 51, 234, 0.08);
+      border-right: 4px solid #9333EA;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    .lesson-content {
+      line-height: 1.9;
+    }
+
+    .lesson-content h3 {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin: 2rem 0 1rem 0;
+      color: #60A5FA;
+      border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+      padding-bottom: 0.5rem;
+    }
+
+    .lesson-content h4 {
+      font-size: 1.15rem;
+      font-weight: bold;
+      margin: 1.25rem 0 0.75rem 0;
+      color: #C084FC;
+    }
+
+    .lesson-content p {
+      margin: 0.75rem 0;
+      color: #D1D5DB;
+    }
+
+    .lesson-content ul {
+      list-style-type: disc;
+      margin-right: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .lesson-content ol {
+      list-style-type: decimal;
+      margin-right: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .lesson-content li {
+      margin: 0.5rem 0;
+      color: #D1D5DB;
+    }
+
+    .lesson-content strong {
+      color: #F9FAFB;
+      font-weight: bold;
+    }
+
+    .lesson-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    .lesson-content th {
+      background: rgba(37, 99, 235, 0.2);
+      padding: 0.75rem;
+      text-align: right;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .lesson-content td {
+      padding: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #D1D5DB;
+    }
+  </style>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module">
+    const { useState, useEffect, useRef } = React;
+
+    // ============ COURSE DATA WITH SCIENTIFIC CONTENT ============
+    const courses = [
+      {
+        id: 'accounting',
+        title: 'المحاسبة العامة والمتقدمة',
+        description: 'أساسيات المحاسبة والقيود اليومية وإعداد القوائم المالية.',
+        lessons: 45, icon: '📊', comingSoon: false,
+        instructor: 'د. أحمد الشريف', duration: '60 ساعة', level: 'مبتدئ إلى متقدم', price: '2,500 ر.س',
+        fullDescription: 'دورة شاملة تغطي جميع أساسيات المحاسبة من المبادئ الأساسية إلى المستوى المتقدم. ستتعلم كيفية تسجيل العمليات المالية، إعداد القوائم المالية، وتحليل البيانات المالية لاتخاذ القرارات.',
+        whatYouLearn: [
+          'فهم المعادلة المحاسبية ودورة المحاسبة الكاملة',
+          'إعداد القيود اليومية في دفتر اليومية',
+          'ترحيل القيود إلى دفتر الأستاذ',
+          'إعداد ميزان المراجعة والتسويات الجردية',
+          'إعداد القوائم المالية الأربعة الرئيسية',
+          'تحليل القوائم المالية باستخدام النسب المالية',
+        ],
+        prerequisites: ['لا توجد متطلبات سابقة', 'رغبة في تعلم المحاسبة من الصفر'],
+        curriculum: [
+          {
+            module: 'الوحدة الأولى: أساسيات المحاسبة',
+            lessons: [
+              {
+                title: 'مفهوم المحاسبة وأهميتها في الأعمال',
+                duration: '45 دقيقة',
+                explanation: 'تعريف المحاسبة كلغة الأعمال وأهميتها في قياس الأداء المالي.',
+                content: `
+                  <h3>تعريف المحاسبة</h3>
+                  <p>المحاسبة هي <strong>نظام معلوماتي</strong> يقيس ويوثق ويحلل المعاملات المالية للمنشأة، ويوفر معلومات مالية موثوقة للمستخدمين الداخليين والخارجيين لاتخاذ القرارات.</p>
+                  
+                  <div class="content-box">
+                    <strong>📚 التعريف الأكاديمي:</strong><br>
+                    "المحاسبة هي عملية تحديد وقياس وتسجيل وتلخيص المعاملات والأحداث المالية، وإعداد التقارير المالية عنها، وتحليلها وتفسيرها".
+                  </div>
+
+                  <h3>أهداف المحاسبة</h3>
+                  <ul>
+                    <li><strong>توفير معلومات مالية</strong> مفيدة للمستثمرين والدائنين</li>
+                    <li><strong>قياس الأداء المالي</strong> من خلال الإيرادات والمصروفات وصافي الدخل</li>
+                    <li><strong>تتبع الموارد الاقتصادية</strong> (الأصول) والالتزامات (الخصوم)</li>
+                    <li><strong>المساعدة في التخطيط والرقابة</strong> عبر الموازنات والتقارير</li>
+                    <li><strong>الامتثال للأنظمة</strong> والقوانين الضريبية</li>
+                  </ul>
+
+                  <h3>المستخدمون الرئيسيون للمعلومات المحاسبية</h3>
+                  <h4>1. المستخدمون الداخليون:</h4>
+                  <ul>
+                    <li><strong>الإدارة التنفيذية:</strong> لاتخاذ القرارات الاستراتيجية</li>
+                    <li><strong>المديرون:</strong> لتقييم أداء أقسامهم</li>
+                    <li><strong>الموظفون:</strong> لمعرفة استقرار المنشأة</li>
+                  </ul>
+
+                  <h4>2. المستخدمون الخارجيون:</h4>
+                  <ul>
+                    <li><strong>المستثمرون:</strong> لتقييم جدوى الاستثمار</li>
+                    <li><strong>البنوك والدائنون:</strong> لتقييم القدرة على السداد</li>
+                    <li><strong>الجهات الحكومية:</strong> للتحقق من الالتزامات الضريبية</li>
+                    <li><strong>الموردون:</strong> لتقييم الجدارة الائتمانية</li>
+                  </ul>
+
+                  <div class="example-box">
+                    <strong>💡 مثال عملي:</strong><br>
+                    شركة مقاولات تريد قرضاً بقيمة 10 مليون ريال. البنك سيطلب القوائم المالية لتقييم:<br>
+                    • نسب السيولة (Current Ratio)<br>
+                    • صافي الدخل والربحية<br>
+                    • نسبة الدين إلى حقوق الملكية
+                  </div>
+
+                  <h3>فروع المحاسبة</h3>
+                  <ul>
+                    <li><strong>المحاسبة المالية:</strong> إعداد القوائم المالية للمستخدمين الخارجيين</li>
+                    <li><strong>محاسبة التكاليف:</strong> تحديد وتوزيع التكاليف على المنتجات</li>
+                    <li><strong>المحاسبة الإدارية:</strong> معلومات للإدارة الداخلية</li>
+                    <li><strong>المحاسبة الضريبية:</strong> الالتزامات الضريبية والإقرارات</li>
+                    <li><strong>المراجعة والتدقيق:</strong> التحقق من صحة القوائم المالية</li>
+                  </ul>
+
+                  <div class="tip-box">
+                    <strong>✅ نصيحة:</strong> المحاسبة ليست مجرد تسجيل أرقام، بل هي <strong>لغة الأعمال</strong>. فهمك الجيد لها سيساعدك في اتخاذ قرارات مالية أفضل والتقدم في مسارك المهني.
+                  </div>
+                `
+              },
+              {
+                title: 'المعادلة المحاسبية والمبدأ المزدوج',
+                duration: '1 ساعة',
+                explanation: 'شرح المعادلة الأساسية: الأصول = الخصوم + حقوق الملكية.',
+                content: `
+                  <h3>المعادلة المحاسبية الأساسية</h3>
+                  <p>المعادلة المحاسبية هي <strong>حجر الأساس</strong> في المحاسبة:</p>
+                  
+                  <div class="formula-box">
+                    <strong>الأصول = الخصوم + حقوق الملكية</strong>
+                  </div>
+
+                  <h4>مكونات المعادلة:</h4>
+                  <ul>
+                    <li><strong>الأصول:</strong> الموارد الاقتصادية (نقدية، ذمم مدينة، مخزون، أصول ثابتة)</li>
+                    <li><strong>الخصوم:</strong> الالتزامات (ذمم دائنة، قروض، مصروفات مستحقة)</li>
+                    <li><strong>حقوق الملكية:</strong> حق المالكين (رأس المال، الأرباح المحتجزة)</li>
+                  </ul>
+
+                  <div class="example-box">
+                    <strong>💡 مثال:</strong><br>
+                    شركة بدأت برأس مال 500,000 ريال:<br>
+                    • قرض بنكي 300,000 ريال<br>
+                    • اشترت معدات 400,000 ريال<br>
+                    • نقدية متبقية 400,000 ريال<br><br>
+                    <strong>التحقق:</strong><br>
+                    الأصول = 800,000 (400k نقدية + 400k معدات)<br>
+                    الخصوم + حقوق الملكية = 300,000 + 500,000 = 800,000 ✓
+                  </div>
+
+                  <h3>مبدأ القيد المزدوج</h3>
+                  <p>وضع هذا المبدأ <strong>لوكا باتشولي</strong> وينص على أن كل عملية تؤثر على حسابين على الأقل.</p>
+
+                  <h4>قواعد المدين والدائن:</h4>
+                  <table>
+                    <tr><th>الحساب</th><th>يزيد بـ</th><th>ينقص بـ</th></tr>
+                    <tr><td>الأصول</td><td>مدين</td><td>دائن</td></tr>
+                    <tr><td>الخصوم</td><td>دائن</td><td>مدين</td></tr>
+                    <tr><td>حقوق الملكية</td><td>دائن</td><td>مدين</td></tr>
+                    <tr><td>الإيرادات</td><td>دائن</td><td>مدين</td></tr>
+                    <tr><td>المصروفات</td><td>مدين</td><td>دائن</td></tr>
+                  </table>
+
+                  <div class="example-box">
+                    <strong>💡 أمثلة على القيود:</strong><br><br>
+                    <strong>1. شراء معدات نقدية بـ 50,000:</strong><br>
+                    من ح/ المعدات 50,000 مدين<br>
+                    إلى ح/ النقدية 50,000 دائن<br><br>
+                    
+                    <strong>2. الحصول على قرض 100,000:</strong><br>
+                    من ح/ النقدية 100,000 مدين<br>
+                    إلى ح/ قروض بنكية 100,000 دائن
+                  </div>
+
+                  <div class="warning-box">
+                    <strong>⚠️ تحذير:</strong> لا تخلط بين المدين/الدائن في المحاسبة (مصطلحات فنية) ومعناهما اللغوي. هما فقط اتجاهات للتسجيل.
+                  </div>
+                `
+              },
+              {
+                title: 'دورة المحاسبة الكاملة',
+                duration: '1.5 ساعة',
+                explanation: 'رحلة شاملة عبر دورة المحاسبة من المستند إلى القوائم المالية.',
+                content: `
+                  <h3>خطوات دورة المحاسبة</h3>
+                  
+                  <div class="content-box">
+                    <strong>📋 الخطوات الثماني:</strong><br>
+                    1. تحليل المستندات المصدرية<br>
+                    2. تسجيل القيود في دفتر اليومية<br>
+                    3. الترحيل إلى دفتر الأستاذ<br>
+                    4. إعداد ميزان المراجعة<br>
+                    5. قيود التسوية الجردية<br>
+                    6. إعداد ميزان المراجعة المعدل<br>
+                    7. إعداد القوائم المالية<br>
+                    8. قيود الإغلاق
+                  </div>
+
+                  <h3>الخطوة 1: المستندات المصدرية</h3>
+                  <ul>
+                    <li><strong>فواتير المبيعات والشراء</strong></li>
+                    <li><strong>إيصالات القبض والصرف</strong></li>
+                    <li><strong>كشوف الرواتب</strong></li>
+                    <li><strong>عقود الإيجار والقروض</strong></li>
+                  </ul>
+
+                  <h3>الخطوة 2: دفتر اليومية</h3>
+                  <p>أول سجل محاسبي تُسجل فيه المعاملات بترتيب تاريخي.</p>
+
+                  <div class="example-box">
+                    <strong>💡 نموذج قيد:</strong><br>
+                    التاريخ: 15/01/2024<br>
+                    البيان: شراء مواد خام بالآجل<br><br>
+                    من ح/ المخزون 10,000 مدين<br>
+                    من ح/ ضريبة القيمة المضافة 1,500 مدين<br>
+                    إلى ح/ المورد 11,500 دائن
+                  </div>
+
+                  <h3>الخطوة 5: قيود التسوية</h3>
+                  <ul>
+                    <li><strong>المصروفات المستحقة:</strong> حدثت ولم تُسجل</li>
+                    <li><strong>الإيرادات المستحقة:</strong> تحققت ولم تُسجل</li>
+                    <li><strong>المصروفات المؤجلة:</strong> دُفعت مقدماً</li>
+                    <li><strong>الإهلاك:</strong> توزيع تكلفة الأصول الثابتة</li>
+                  </ul>
+
+                  <div class="example-box">
+                    <strong>💡 قيد إهلاك:</strong><br>
+                    معدات 100,000 ريال، عمر 5 سنوات<br>
+                    الإهلاك السنوي = 100,000 ÷ 5 = 20,000<br><br>
+                    من ح/ مصروف الإهلاك 20,000 مدين<br>
+                    إلى ح/ مجمع إهلاك المعدات 20,000 دائن
+                  </div>
+
+                  <h3>الخطوة 7: القوائم المالية</h3>
+                  <ol>
+                    <li><strong>قائمة الدخل:</strong> الإيرادات - المصروفات = صافي الدخل</li>
+                    <li><strong>قائمة المركز المالي:</strong> الأصول = الخصوم + حقوق الملكية</li>
+                    <li><strong>قائمة التدفقات النقدية:</strong> حركة النقد</li>
+                    <li><strong>قائمة التغيرات في حقوق الملكية</strong></li>
+                  </ol>
+
+                  <div class="tip-box">
+                    <strong>✅ ملخص:</strong> دورة المحاسبة تضمن الاكتمال والدقة والتنظيم والموثوقية في جميع المعاملات المالية.
+                  </div>
+                `
+              },
+              {
+                title: 'القيود المحاسبية الأساسية',
+                duration: '2 ساعة',
+                explanation: 'تطبيق عملي على أهم القيود اليومية في المنشآت التجارية.',
+                content: `
+                  <h3>القيود اليومية الشائعة</h3>
+                  
+                  <h4>1. قيود رأس المال والتأسيس</h4>
+                  <div class="example-box">
+                    <strong>💡 إيداع رأس المال:</strong><br>
+                    من ح/ البنك 500,000<br>
+                    إلى ح/ رأس المال 500,000<br><br>
+                    <strong>💡 دفع مصاريف تأسيس:</strong><br>
+                    من ح/ مصاريف تأسيس 25,000<br>
+                    إلى ح/ البنك 25,000
+                  </div>
+
+                  <h4>2. قيود المشتريات</h4>
+                  <div class="example-box">
+                    <strong>💡 شراء بضاعة نقداً:</strong><br>
+                    من ح/ المشتريات 50,000<br>
+                    من ح/ ضريبة مدخلات 7,500<br>
+                    إلى ح/ الصندوق 57,500<br><br>
+                    <strong>💡 شراء بضاعة بالآجل:</strong><br>
+                    من ح/ المشتريات 80,000<br>
+                    من ح/ ضريبة مدخلات 12,000<br>
+                    إلى ح/ الموردين 92,000<br><br>
+                    <strong>💡 مردودات مشتريات:</strong><br>
+                    من ح/ الموردين 5,000<br>
+                    من ح/ ضريبة مدخلات 750<br>
+                    إلى ح/ مردودات المشتريات 5,750
+                  </div>
+
+                  <h4>3. قيود المبيعات</h4>
+                  <div class="example-box">
+                    <strong>💡 بيع بضاعة نقداً:</strong><br>
+                    من ح/ الصندوق 115,000<br>
+                    إلى ح/ المبيعات 100,000<br>
+                    إلى ح/ ضريبة مخرجات 15,000<br><br>
+                    <strong>💡 بيع بالآجل:</strong><br>
+                    من ح/ العملاء 92,000<br>
+                    إلى ح/ المبيعات 80,000<br>
+                    إلى ح/ ضريبة مخرجات 12,000<br><br>
+                    <strong>💡 تكلفة البضاعة المباعة:</strong><br>
+                    من ح/ تكلفة البضاعة المباعة 60,000<br>
+                    إلى ح/ المخزون 60,000
+                  </div>
+
+                  <h4>4. قيود المصروفات</h4>
+                  <div class="example-box">
+                    <strong>💡 رواتب الموظفين:</strong><br>
+                    من ح/ مصروف الرواتب 100,000<br>
+                    إلى ح/ البنك 100,000<br><br>
+                    <strong>💡 إيجار المكتب:</strong><br>
+                    من ح/ مصروف الإيجار 20,000<br>
+                    من ح/ ضريبة مدخلات 3,000<br>
+                    إلى ح/ البنك 23,000<br><br>
+                    <strong>💡 فواتير كهرباء:</strong><br>
+                    من ح/ مصروف الكهرباء 5,000<br>
+                    من ح/ ضريبة مدخلات 750<br>
+                    إلى ح/ الصندوق 5,750
+                  </div>
+
+                  <h4>5. قيود الأصول الثابتة</h4>
+                  <div class="example-box">
+                    <strong>💡 شراء سيارة:</strong><br>
+                    من ح/ السيارات 150,000<br>
+                    من ح/ ضريبة مدخلات 22,500<br>
+                    إلى ح/ البنك 172,500<br><br>
+                    <strong>💡 إهلاك سنوي (قسط ثابت):</strong><br>
+                    من ح/ مصروف الإهلاك 30,000<br>
+                    إلى ح/ مجمع إهلاك السيارات 30,000<br><br>
+                    <strong>💡 بيع الأصل:</strong><br>
+                    من ح/ البنك 80,000<br>
+                    من ح/ مجمع الإهلاك 90,000<br>
+                    من ح/ خسارة بيع أصل 10,000<br>
+                    إلى ح/ السيارات 150,000<br>
+                    إلى ح/ ضريبة مخرجات 12,000 (إن وجدت)
+                  </div>
+
+                  <h4>6. قيود الضريبة</h4>
+                  <div class="example-box">
+                    <strong>💡 سداد ضريبة القيمة المضافة:</strong><br>
+                    ضريبة مخرجات - ضريبة مدخلات = صافي المستحق<br>
+                    50,000 - 30,000 = 20,000<br><br>
+                    من ح/ ضريبة القيمة المضافة 20,000<br>
+                    إلى ح/ البنك 20,000
+                  </div>
+
+                  <div class="tip-box">
+                    <strong>✅ نصيحة:</strong> راجع قيودك دائماً وتأكد من أن مجموع المدين = مجموع الدائن في كل قيد. استخدم ميزان المراجعة للكشف عن الأخطاء.
+                  </div>
+                `
+              }
+            ]
+          },
+          {
+            module: 'الوحدة الثانية: الدفاتر والسجلات',
+            lessons: [
+              { title: 'دفتر اليومية', duration: '1 ساعة', explanation: 'كيفية تنظيم دفتر اليومية وترقيم القيود.', content: `<h3>دفتر اليومية (Journal)</h3><p>أول سجل محاسبي تُسجل فيه المعاملات بترتيب تاريخي.</p><div class="content-box"><strong>📋 عناصر القيد:</strong><br>• التاريخ<br>• الحسابات المدينة والدائنة<br>• المبالغ<br>• البيان (شرح مختصر)<br>• رقم المستند</div><h3>أنواع دفاتر اليومية</h3><ul><li><strong>دفتر اليومية العام:</strong> جميع المعاملات</li><li><strong>دفاتر يومية خاصة:</strong> المبيعات، المشتريات، المقبوضات، المدفوعات</li></ul><div class="example-box"><strong>💡 مثال:</strong><br>01/01: رأس المال 500,000<br>02/01: شراء معدات 100,000<br>03/01: دفع إيجار 10,000<br>05/01: مبيعات نقدية 50,000</div>` },
+              { title: 'دفتر الأستاذ', duration: '1.5 ساعة', explanation: 'ترحيل القيود إلى حسابات دفتر الأستاذ.', content: `<h3>دفتر الأستاذ (Ledger)</h3><p>يحتوي على <strong>حسابات منفصلة</strong> لكل عنصر.</p><h4>أنواع الحسابات</h4><ul><li>حسابات حقيقية (الأصول، الخصوم، حقوق الملكية)</li><li>حسابات اسمية (الإيرادات، المصروفات)</li></ul><div class="example-box"><strong>💡 نموذج حساب T:</strong><br><table><tr><th colspan="2">ح/ النقدية</th></tr><tr><td>مدين</td><td>دائن</td></tr><tr><td>500,000 (رأس مال)</td><td>100,000 (معدات)</td></tr><tr><td>50,000 (مبيعات)</td><td>10,000 (إيجار)</td></tr><tr><td><strong>الإجمالي: 550,000</strong></td><td><strong>الإجمالي: 110,000</strong></td></tr><tr><td colspan="2"><strong>الرصيد: 440,000 مدين</strong></td></tr></table></div>` },
+              { title: 'ميزان المراجعة', duration: '1 ساعة', explanation: 'إعداد ميزان المراجعة للتأكد من التوازن.', content: `<h3>ميزان المراجعة</h3><p>قائمة بجميع الحسابات وأرصدتها للتحقق من صحة التسجيل.</p><div class="formula-box"><strong>مجموع الأرصدة المدينة = مجموع الأرصدة الدائنة</strong></div><div class="example-box"><strong>💡 نموذج:</strong><br>النقدية: 440,000 مدين<br>المعدات: 100,000 مدين<br>رأس المال: 500,000 دائن<br>المبيعات: 50,000 دائن<br>الإيجار: 10,000 مدين<br><strong>المجموع: 550,000 = 550,000 ✓</strong></div>` },
+              { title: 'التسويات الجردية', duration: '2 ساعة', explanation: 'قيود التسوية للمصروفات والإيرادات المستحقة والمؤجلة.', content: `<h3>التسويات الجردية</h3><p>تُسجل في نهاية الفترة لضمان مطابقة الإيرادات والمصروفات.</p><h4>أنواع التسويات</h4><ol><li><strong>مصروفات مستحقة:</strong> حدثت ولم تُسجل</li><li><strong>إيرادات مستحقة:</strong> تحققت ولم تُسجل</li><li><strong>مصروفات مدفوعة مقدماً</strong></li><li><strong>إيرادات مقبوضة مقدماً</strong></li><li><strong>الإهلاك والاستهلاك</strong></li><li><strong>مخصص الديون المشكوك فيها</strong></li></ol><div class="example-box"><strong>💡 رواتب مستحقة:</strong><br>من ح/ مصروف الرواتب 15,000<br>إلى ح/ رواتب مستحقة الدفع 15,000<br><br><strong>💡 تأمين مدفوع مقدماً:</strong><br>من ح/ تأمين مدفوع مقدماً 12,000<br>إلى ح/ البنك 12,000<br><br>عند استهلاك شهر:<br>من ح/ مصروف التأمين 1,000<br>إلى ح/ تأمين مدفوع مقدماً 1,000</div>` }
+            ]
+          },
+          {
+            module: 'الوحدة الثالثة: القوائم المالية',
+            lessons: [
+              { title: 'قائمة الدخل', duration: '1.5 ساعة', explanation: 'إعداد قائمة الدخل الشاملة.', content: `<h3>قائمة الدخل</h3><p>توضح أداء المنشأة خلال فترة محددة.</p><div class="formula-box"><strong>صافي الدخل = الإيرادات - المصروفات</strong></div><div class="example-box"><strong>💡 نموذج قائمة الدخل:</strong><br><br>شركة XYZ - قائمة الدخل عن السنة المنتهية في 31/12/2024<br><br><strong>الإيرادات:</strong><br>المبيعات: 1,000,000<br>(-) مردودات المبيعات: (50,000)<br>صافي المبيعات: 950,000<br>(-) تكلفة البضاعة المباعة: (600,000)<br><strong>مجمل الربح: 350,000</strong><br><br>(-) المصروفات التشغيلية:<br>رواتب: 120,000<br>إيجار: 60,000<br>كهرباء: 15,000<br>إهلاك: 30,000<br>إجمالي المصروفات: (225,000)<br><br><strong>الدخل التشغيلي: 125,000</strong><br>(+) إيرادات أخرى: 10,000<br>(-) مصروفات تمويل: (15,000)<br><strong>الدخل قبل الضريبة: 120,000</strong><br>(-) ضريبة الدخل 20%: (24,000)<br><strong>صافي الدخل: 96,000</strong></div>` },
+              { title: 'قائمة المركز المالي', duration: '2 ساعة', explanation: 'الميزانية العمومية.', content: `<h3>قائمة المركز المالي (الميزانية)</h3><p>توضح الوضع المالي في لحظة زمنية محددة.</p><div class="example-box"><strong>💡 نموذج:</strong><br><br><strong>الأصول:</strong><br>أصول متداولة:<br>نقدية: 200,000<br>عملاء: 150,000<br>مخزون: 180,000<br>مصروفات مقدمة: 10,000<br>إجمالي الأصول المتداولة: 540,000<br><br>أصول ثابتة:<br>معدات: 300,000<br>(-) مجمع الإهلاك: (90,000)<br>سيارات: 200,000<br>(-) مجمع الإهلاك: (60,000)<br>إجمالي الأصول الثابتة: 350,000<br><br><strong>إجمالي الأصول: 890,000</strong><br><br><strong>الخصوم:</strong><br>خصوم متداولة: 180,000<br>خصوم طويلة الأجل: 200,000<br>إجمالي الخصوم: 380,000<br><br><strong>حقوق الملكية:</strong><br>رأس المال: 400,000<br>أرباح محتجزة: 110,000<br>إجمالي حقوق الملكية: 510,000<br><br><strong>إجمالي الخصوم + حقوق الملكية: 890,000 ✓</strong></div>` },
+              { title: 'قائمة التدفقات النقدية', duration: '2 ساعة', explanation: 'حركة النقد من أنشطة تشغيلية واستثمارية وتمويلية.', content: `<h3>قائمة التدفقات النقدية</h3><p>توضح مصادر واستخدامات النقد خلال الفترة.</p><h4>الأنشطة الثلاثة</h4><ol><li><strong>أنشطة تشغيلية:</strong> العمليات اليومية</li><li><strong>أنشطة استثمارية:</strong> شراء/بيع أصول ثابتة</li><li><strong>أنشطة تمويلية:</strong> القروض وحقوق الملكية</li></ol><div class="example-box"><strong>💡 نموذج:</strong><br><br>صافي الدخل: 96,000<br>+ تعديلات:<br>إهلاك: 30,000<br>زيادة العملاء: (20,000)<br>نقص المخزون: 15,000<br>زيادة الدائنين: 10,000<br><strong>صافي النقد من التشغيل: 131,000</strong><br><br><strong>أنشطة استثمارية:</strong><br>شراء معدات: (50,000)<br><strong>صافي النقد من الاستثمار: (50,000)</strong><br><br><strong>أنشطة تمويلية:</strong><br>سداد قرض: (30,000)<br>توزيعات: (20,000)<br><strong>صافي النقد من التمويل: (50,000)</strong><br><br><strong>صافي التغير في النقد: 31,000</strong><br>نقدية أول المدة: 169,000<br><strong>نقدية آخر المدة: 200,000</strong></div>` },
+              { title: 'التحليل المالي والنسب', duration: '1.5 ساعة', explanation: 'حساب نسب السيولة والربحية والنشاط.', content: `<h3>النسب المالية الرئيسية</h3><h4>1. نسب السيولة</h4><div class="formula-box"><strong>نسبة التداول = الأصول المتداولة ÷ الخصوم المتداولة</strong></div><p>المثالي: بين 1.5 و 2</p><div class="formula-box"><strong>نسبة السيولة السريعة = (الأصول المتداولة - المخزون) ÷ الخصوم المتداولة</strong></div><h4>2. نسب الربحية</h4><div class="formula-box"><strong>هامش صافي الربح = صافي الدخل ÷ المبيعات × 100</strong></div><div class="formula-box"><strong>العائد على الأصول ROA = صافي الدخل ÷ إجمالي الأصول × 100</strong></div><div class="formula-box"><strong>العائد على حقوق الملكية ROE = صافي الدخل ÷ حقوق الملكية × 100</strong></div><h4>3. نسب النشاط</h4><div class="formula-box"><strong>معدل دوران المخزون = تكلفة البضاعة المباعة ÷ متوسط المخزون</strong></div><div class="formula-box"><strong>فترة التحصيل = (العملاء ÷ المبيعات) × 365</strong></div><h4>4. نسب المديونية</h4><div class="formula-box"><strong>نسبة الدين = إجمالي الخصوم ÷ إجمالي الأصول × 100</strong></div><div class="example-box"><strong>💡 مثال تطبيقي:</strong><br>شركة بأصول 890,000 وخصوم 380,000 وحقوق ملكية 510,000 وصافي دخل 96,000 ومبيعات 950,000:<br><br>• نسبة الدين: 380,000 ÷ 890,000 = 42.7%<br>• ROA: 96,000 ÷ 890,000 = 10.8%<br>• ROE: 96,000 ÷ 510,000 = 18.8%<br>• هامش الربح: 96,000 ÷ 950,000 = 10.1%</div>` }
+            ]
+          }
+        ],
+        videos: [
+          { title: 'مقدمة شاملة في المحاسبة - من الصفر', channel: 'أكاديمية المحاسبة العربية', url: 'https://www.youtube.com/results?search_query=%D9%85%D9%82%D8%AF%D9%85%D8%A9+%D9%81%D9%8A+%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D8%A9+%D9%85%D9%86+%D8%A7%D9%84%D8%B5%D9%81%D8%B1', duration: '45 دقيقة' },
+          { title: 'شرح المعادلة المحاسبية والقيد المزدوج', channel: 'مدرسة المحاسبة', url: 'https://www.youtube.com/results?search_query=%D8%A7%D9%84%D9%85%D8%B9%D8%A7%D8%AF%D9%84%D8%A9+%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D9%8A%D8%A9+%D8%A7%D9%84%D9%82%D9%8A%D8%AF+%D8%A7%D9%84%D9%85%D8%B2%D8%AF%D9%88%D8%AC', duration: '30 دقيقة' },
+          { title: 'القيود اليومية - أمثلة عملية', channel: 'محاسب عربي', url: 'https://www.youtube.com/results?search_query=%D8%A7%D9%84%D9%82%D9%8A%D9%88%D8%AF+%D8%A7%D9%84%D9%8A%D9%88%D9%85%D9%8A%D8%A9+%D8%A3%D9%85%D8%AB%D9%84%D8%A9', duration: '55 دقيقة' },
+          { title: 'إعداد القوائم المالية خطوة بخطوة', channel: 'أكاديمية المال', url: 'https://www.youtube.com/results?search_query=%D8%A5%D8%B9%D8%AF%D8%A7%D8%AF+%D8%A7%D9%84%D9%82%D9%88%D8%A7%D8%A6%D9%85+%D8%A7%D9%84%D9%85%D8%A7%D9%84%D9%8A%D8%A9', duration: '1:20 ساعة' },
+        ]
+      },
+      // ============ COURSE 2: CONSTRUCTION ============
+      {
+        id: 'construction', title: 'محاسبة المقاولات',
+        description: 'محاسبة المشاريع الإنشائية وتكاليف التشغيل والمقاولين من الباطن.',
+        lessons: 50, icon: '🏢', comingSoon: false,
+        instructor: 'م. سعد الحربي', duration: '70 ساعة', level: 'متوسط إلى متقدم', price: '3,200 ر.س',
+        fullDescription: 'دورة متخصصة في محاسبة شركات المقاولات والإنشاءات.',
+        whatYouLearn: ['فهم طبيعة صناعة المقاولات', 'محاسبة تكاليف المشاريع', 'التعامل مع المقاولين من الباطن', 'الاعتراف بالإيرادات وفق IFRS 15', 'إعداد تقارير الربحية', 'معالجة المطالبات'],
+        prerequisites: ['معرفة أساسية بالمحاسبة', 'فهم عام لدورة الأعمال'],
+        curriculum: [
+          {
+            module: 'الوحدة الأولى: طبيعة صناعة المقاولات',
+            lessons: [
+              {
+                title: 'خصائص صناعة المقاولات', duration: '1.5 ساعة', explanation: 'المشاريع طويلة الأجل والمخاطر العالية.',
+                content: `<h3>الخصائص الرئيسية</h3><h4>1. المشاريع طويلة الأجل</h4><ul><li>تمتد من 6 أشهر إلى 5 سنوات</li><li>تتطلب الاعتراف بالإيرادات على مراحل</li><li>تتضمن مخاطر كبيرة</li></ul><div class="example-box"><strong>💡 مثال:</strong><br>مشروع برج تجاري:<br>• المدة: 3 سنوات<br>• قيمة العقد: 150 مليون ريال<br>• التكلفة التقديرية: 120 مليون<br>• الربح المتوقع: 30 مليون (20%)</div><h4>2. تعدد مواقع العمل</h4><ul><li>كل مشروع في موقع مختلف</li><li>تكاليف نقل العمالة والمعدات</li><li>تحديات الرقابة على المخزون</li></ul><h4>3. المخاطر العالية</h4><ul><li>مخاطر فنية ومالية وتشغيلية وقانونية</li></ul><div class="warning-box"><strong>⚠️ تحدي:</strong> المشاريع الربحية قد تتحول لخاسرة في أي لحظة. يجب مراجعة التقديرات دورياً.</div><h3>الأطراف الرئيسية</h3><ul><li><strong>المالك:</strong> صاحب المشروع</li><li><strong>الاستشاري:</strong> يشرف ويعتمد المستخلصات</li><li><strong>المقاول الرئيسي:</strong> ينفذ المشروع</li><li><strong>المقاولون من الباطن:</strong> متخصصون</li></ul>`
+              },
+              {
+                title: 'أنواع العقود في المقاولات', duration: '2 ساعة', explanation: 'Lump Sum, Unit Price, Cost Plus, Target Cost.',
+                content: `<h3>أنواع العقود</h3><h4>1. عقد السعر الإجمالي (Lump Sum)</h4><ul><li>سعر ثابت متفق عليه</li><li>المقاول يتحمل المخاطر</li></ul><div class="example-box"><strong>💡 مثال:</strong><br>عقد بناء فيلا بـ 2 مليون ريال<br>• التكلفة الفعلية: 1.6 مليون<br>• الربح: 400,000 (20%)</div><h4>2. عقد الأسعار الوحدوية</h4><ul><li>سعر لكل وحدة عمل</li><li>الدفع حسب الكميات المنفذة</li></ul><div class="example-box"><strong>💡 جدول الكميات:</strong><br>حفر: 10,000 م³ × 50 = 500,000<br>خرسانة: 5,000 م³ × 500 = 2,500,000<br>حديد: 500 طن × 5,000 = 2,500,000</div><h4>3. عقد التكلفة زائد الهامش</h4><ul><li>المالك يسدد التكاليف + هامش ربح</li><li>المخاطر على المالك</li></ul><h4>4. عقد الهدف</h4><ul><li>تكلفة هدف متفق عليها</li><li>توفير/تجاوز التكاليف يُقسم</li></ul>`
+              },
+              { title: 'دورة حياة المشروع الإنشائي', duration: '2 ساعة', explanation: 'من العطاء إلى التسليم النهائي.', content: `<h3>مراحل المشروع</h3><ol><li><strong>مرحلة العطاء:</strong> تقديم العرض</li><li><strong>الترسية:</strong> توقيع العقد</li><li><strong>التجهيز:</strong> إعداد الموقع</li><li><strong>التنفيذ:</strong> الأعمال الإنشائية</li><li><strong>الاستلام المؤقت:</strong> الفحص الأولي</li><li><strong>فترة الضمان:</strong> الصيانة</li><li><strong>الاستلام النهائي:</strong> انتهاء العقد</li></ol>` },
+              { title: 'التحديات المحاسبية', duration: '1.5 ساعة', explanation: 'تحديات الاعتراف بالإيرادات وتوزيع التكاليف.', content: `<h3>التحديات الرئيسية</h3><ul><li>الاعتراف بالإيرادات في مشاريع طويلة</li><li>توزيع التكاليف غير المباشرة</li><li>معالجة الخسائر المتوقعة</li><li>العملات الأجنبية</li><li>المطالبات والنزاعات</li></ul>` }
+            ]
+          },
+          {
+            module: 'الوحدة الثانية: محاسبة التكاليف',
+            lessons: [
+              {
+                title: 'تصنيف تكاليف المشاريع', duration: '2 ساعة', explanation: 'التكاليف المباشرة وغير المباشرة.',
+                content: `<h3>التكاليف المباشرة</h3><p>يمكن تحديدها مباشرة لمشروع معين.</p><h4>1. تكاليف المواد المباشرة</h4><ul><li>خرسانة، حديد، طوب، أسمنت</li><li>مواد التشطيب</li></ul><div class="example-box"><strong>💡 بطاقة تكلفة المواد:</strong><br>أسمنت: 500 كيس × 20 = 10,000<br>حديد: 10 طن × 3,500 = 35,000<br>طوب: 20,000 × 1.5 = 30,000<br>خرسانة: 200 م³ × 300 = 60,000<br><strong>الإجمالي: 135,000 ريال</strong></div><h4>2. تكاليف العمالة المباشرة</h4><ul><li>العمالة الماهرة (نجارين، حدادين)</li><li>العمالة غير الماهرة</li><li>الإشراف الميداني</li></ul><div class="example-box"><strong>💡 كشف العمالة - يناير 2024:</strong><br>المشروع: فيلا رقم 123<br><br>نجار: 20 يوم × 8 ساعات × 50 ريال = 8,000<br>حداد: 15 يوم × 8 ساعات × 60 ريال = 7,200<br>كهربائي: 10 أيام × 8 ساعات × 55 ريال = 4,400<br>عمال: 30 يوم × 8 ساعات × 25 ريال = 6,000<br>مشرف موقع: 25 يوم × 8 ساعات × 80 ريال = 16,000<br><br><strong>إجمالي العمالة المباشرة: 41,600 ريال</strong></div><h4>3. تكاليف المعدات المباشرة</h4><ul><li>إهلاك المعدات المستخدمة في المشروع</li><li>إيجار المعدات</li><li>الوقود والصيانة</li></ul><div class="example-box"><strong>💡 مثال - معدة رافعة:</strong><br>• إهلاك شهري: 5,000 ريال<br>• وقود: 3,000 ريال<br>• سائق: 4,000 ريال<br>• صيانة: 1,000 ريال<br><strong>الإجمالي الشهري: 13,000 ريال</strong></div><h3>التكاليف غير المباشرة (Overhead)</h3><p>لا يمكن تخصيصها مباشرة لمشروع معين.</p><ul><li>إدارة المكتب الرئيسي</li><li>رواتب الإدارة العليا</li><li>إيجار المكاتب الإدارية</li><li>التأمينات العامة</li><li>تكاليف العطاءات</li></ul><h4>أسس توزيع التكاليف غير المباشرة</h4><ol><li><strong>ساعات العمل المباشرة:</strong> الأكثر شيوعاً</li><li><strong>التكاليف المباشرة:</strong> نسبة من إجمالي التكاليف</li><li><strong>الإيرادات:</strong> نسبة من إيرادات المشروع</li><li><strong>ساعات المعدات:</strong> للمشاريع كثيفة المعدات</li></ol><div class="formula-box"><strong>معدل التكاليف غير المباشرة = إجمالي التكاليف غير المباشرة ÷ أساس التوزيع</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>إجمالي التكاليف غير المباشرة السنوية: 1,200,000 ريال<br>إجمالي ساعات العمل المباشرة: 60,000 ساعة<br><br>المعدل = 1,200,000 ÷ 60,000 = 20 ريال/ساعة<br><br>مشروع استهلك 5,000 ساعة:<br>التكاليف غير المباشرة = 5,000 × 20 = 100,000 ريال</div><div class="tip-box"><strong>✅ نصيحة:</strong> اختيار أساس التوزيع المناسب يؤثر بشكل كبير على دقة ربحية المشاريع. راجع الأساس دورياً.</div>`
+              },
+              { title: 'توزيع التكاليف غير المباشرة', duration: '2.5 ساعة', explanation: 'أسس التوزيع والمعالجة.', content: `<h3>أسس التوزيع بالتفصيل</h3><h4>1. أساس ساعات العمل المباشرة</h4><div class="formula-box"><strong>معدل التوزيع = إجمالي التكاليف غير المباشرة ÷ إجمالي ساعات العمل</strong></div><h4>2. أساس التكاليف المباشرة</h4><div class="formula-box"><strong>معدل التوزيع = (التكاليف غير المباشرة ÷ التكاليف المباشرة) × 100</strong></div><div class="example-box"><strong>💡 مقارنة:</strong><br>تكاليف غير مباشرة: 1,000,000<br>تكاليف مباشرة: 5,000,000<br>معدل التوزيع: (1,000,000 ÷ 5,000,000) × 100 = 20%<br><br>مشروع بتكاليف مباشرة 800,000:<br>التكاليف غير المباشرة = 800,000 × 20% = 160,000</div><h3>التكاليف المشتركة</h3><p>تكاليف تخدم عدة مشاريع معاً (معدات، ورشة مركزية).</p>` },
+              { title: 'محاسبة المواد والعمالة', duration: '2 ساعة', explanation: 'تسجيل حركة المواد والعمالة.', content: `<h3>محاسبة المواد</h3><h4>حركة المواد</h4><ol><li>الشراء من المورد</li><li>الاستلام في المخزن المركزي</li><li>الصرف للمشاريع</li><li>المرتجعات</li></ol><div class="example-box"><strong>💡 قيود المواد:</strong><br><strong>الشراء:</strong><br>من ح/ المخزون 100,000<br>إلى ح/ الموردين 100,000<br><br><strong>الصرف للمشروع:</strong><br>من ح/ تكاليف المشروع (مواد) 40,000<br>إلى ح/ المخزون 40,000<br><br><strong>المرتجع:</strong><br>من ح/ المخزون 5,000<br>إلى ح/ تكاليف المشروع 5,000</div><h3>محاسبة العمالة</h3><div class="example-box"><strong>💡 قيود العمالة:</strong><br><strong>استحقاق الرواتب:</strong><br>من ح/ تكاليف المشروع (عمالة مباشرة) 50,000<br>من ح/ مصروف رواتب إدارية 20,000<br>إلى ح/ رواتب مستحقة 70,000</div>` },
+              { title: 'محاسبة المعدات والآليات', duration: '2 ساعة', explanation: 'تكلفة امتلاك وتشغيل المعدات.', content: `<h3>تكلفة امتلاك المعدات</h3><ul><li><strong>الإهلاك:</strong> تكلفة الأصل ÷ العمر الإنتاجي</li><li><strong>التأمين:</strong> سنوي</li><li><strong>الصيانة الدورية:</strong> حسب ساعات التشغيل</li></ul><h3>تكلفة تشغيل المعدات</h3><ul><li><strong>الوقود</strong></li><li><strong>السائقون والمشغلون</strong></li><li><strong>قطع الغيار</strong></li></ul><div class="example-box"><strong>💡 حساب معدل المعدة بالساعة:</strong><br>رافعة بقيمة 500,000 ريال، عمر 5 سنوات، 2000 ساعة سنوياً<br><br>تكلفة سنوية:<br>• إهلاك: 100,000<br>• تأمين: 10,000<br>• صيانة دورية: 15,000<br>الإجمالي: 125,000<br><br>معدل الساعة = 125,000 ÷ 2,000 = 62.5 ريال/ساعة<br><br>تشغيل (وقود + سائق): 40 ريال/ساعة<br><br><strong>المعدل الإجمالي: 102.5 ريال/ساعة</strong></div>` }
+            ]
+          },
+          {
+            module: 'الوحدة الثالثة: الاعتراف بالإيرادات',
+            lessons: [
+              {
+                title: 'طريقة نسبة الإنجاز (POC)', duration: '2.5 ساعة', explanation: 'الاعتراف بالإيرادات حسب نسبة الإنجاز.',
+                content: `<h3>طريقة نسبة الإنجاز (Percentage of Completion)</h3><p>وفق <strong>IFRS 15</strong>، يتم الاعتراف بالإيرادات تدريجياً حسب نسبة إنجاز العقد.</p><div class="formula-box"><strong>نسبة الإنجاز = التكاليف الفعلية ÷ إجمالي التكاليف التقديرية × 100</strong></div><div class="example-box"><strong>💡 مثال شامل:</strong><br>عقد بقيمة 10,000,000 ريال، مدة 3 سنوات<br><br><strong>السنة الأولى:</strong><br>• تكاليف فعلية: 2,000,000<br>• تكاليف تقديرية للإكمال: 6,000,000<br>• إجمالي التكاليف: 8,000,000<br>• نسبة الإنجاز: 2,000,000 ÷ 8,000,000 = 25%<br>• الإيراد المعترف به: 10,000,000 × 25% = 2,500,000<br>• الربح: 2,500,000 - 2,000,000 = 500,000<br><br><strong>السنة الثانية:</strong><br>• تكاليف فعلية متراكمة: 5,500,000<br>• تكاليف تقديرية للإكمال: 3,000,000<br>• إجمالي التكاليف: 8,500,000<br>• نسبة الإنجاز: 5,500,000 ÷ 8,500,000 = 64.7%<br>• الإيراد المتراكم: 10,000,000 × 64.7% = 6,470,000<br>• إيراد السنة: 6,470,000 - 2,500,000 = 3,970,000<br>• تكلفة السنة: 5,500,000 - 2,000,000 = 3,500,000<br>• ربح السنة: 470,000</div><div class="content-box"><strong>📚 القيد المحاسبي:</strong><br>من ح/ العمل تحت التنفيذ 2,500,000<br>إلى ح/ إيرادات العقود 2,500,000<br><br>من ح/ تكلفة العقود 2,000,000<br>إلى ح/ الموردين/النقدية 2,000,000</div>`
+              },
+              { title: 'طريقة العقد المكتمل', duration: '2 ساعة', explanation: 'متى تستخدم هذه الطريقة.', content: `<h3>طريقة العقد المكتمل</h3><p>يتم تأجيل الاعتراف بالإيرادات والأرباح حتى اكتمال المشروع.</p><h4>متى تستخدم؟</h4><ul><li>عقود قصيرة الأجل (أقل من سنة)</li><li>عند عدم القدرة على تقدير التكاليف بدقة</li><li>مشاريع ذات مخاطر عالية جداً</li></ul><div class="warning-box"><strong>⚠️ ملاحظة:</strong> IFRS 15 يفضل طريقة نسبة الإنجاز في معظم الحالات. طريقة العقد المكتمل تستخدم في حالات محدودة.</div>` },
+              { title: 'معالجة الخسائر المتوقعة', duration: '1.5 ساعة', explanation: 'الاعتراف الفوري بالخسائر.', content: `<h3>الخسائر المتوقعة</h3><p>عندما تتجاوز التكاليف التقديرية الإيرادات المتوقعة، يجب <strong>الاعتراف بالخسارة فوراً</strong> بالكامل.</p><div class="example-box"><strong>💡 مثال:</strong><br>عقد بقيمة 5,000,000 ريال<br>تكاليف فعلية متراكمة: 3,000,000<br>تكاليف تقديرية للإكمال: 2,500,000<br>إجمالي التكاليف: 5,500,000<br><br><strong>الخسارة المتوقعة: 500,000 ريال</strong><br><br>القيد:<br>من ح/ خسارة عقود 500,000<br>إلى ح/ مخصص خسائر عقود 500,000</div>` },
+              { title: 'التعديلات والمطالبات', duration: '2 ساعة', explanation: 'أوامر التغيير والمطالبات.', content: `<h3>أوامر التغيير (Variation Orders)</h3><p>تعديلات على نطاق العمل أو المواصفات.</p><div class="example-box"><strong>💡 مثال:</strong><br>أمر تغيير بإضافة غرفة بقيمة 200,000 ريال<br>• يضاف لقيمة العقد<br>• يضاف للتكاليف التقديرية<br>• يُحتسب في نسبة الإنجاز</div><h3>المطالبات (Claims)</h3><p>مطالبات من المقاول ضد المالك (تأخير، ظروف غير متوقعة).</p><h4>شروط الاعتراف بالمطالبات:</h4><ul><li>موافقة المالك خطياً</li><li>إمكانية قياس المبلغ بدقة</li><li>احتمالية عالية للقبول</li></ul>` }
+            ]
+          }
+        ],
+        videos: [
+          { title: 'محاسبة المقاولات - مقدمة شاملة', channel: 'محاسب المقاولات', url: 'https://www.youtube.com/results?search_query=%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D8%A9+%D8%A7%D9%84%D9%85%D9%82%D8%A7%D9%88%D9%84%D8%A7%D8%AA', duration: '1:45 ساعة' },
+          { title: 'نسبة الإنجاز في المقاولات', channel: 'الأكاديمية المالية', url: 'https://www.youtube.com/results?search_query=%D9%86%D8%B3%D8%A8%D8%A9+%D8%A7%D9%84%D8%A5%D9%86%D8%AC%D8%A7%D8%B2+%D9%85%D9%82%D8%A7%D9%88%D9%84%D8%A7%D8%AA', duration: '1:20 ساعة' },
+          { title: 'تكاليف المشاريع الإنشائية', channel: 'محاسبة المشاريع', url: 'https://www.youtube.com/results?search_query=%D8%AA%D9%83%D8%A7%D9%84%D9%8A%D9%81+%D8%A7%D9%84%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9+%D8%A7%D9%84%D8%A5%D9%86%D8%B4%D8%A7%D8%A6%D9%8A%D8%A9', duration: '1:30 ساعة' },
+          { title: 'IFRS 15 والإيرادات في المقاولات', channel: 'المعايير الدولية', url: 'https://www.youtube.com/results?search_query=IFRS+15+%D8%A7%D9%84%D9%85%D9%82%D8%A7%D9%88%D9%84%D8%A7%D8%AA', duration: '2 ساعة' },
+        ]
+      },
+      // ============ COURSE 3: EXCEL ============
+      {
+        id: 'excel', title: 'Excel للمحاسبين',
+        description: 'نماذج مالية متقدمة، Pivot Tables، و VBA للمحاسبين.',
+        lessons: 30, icon: '📈', comingSoon: false,
+        instructor: 'م. نورة السالم', duration: '40 ساعة', level: 'جميع المستويات', price: '1,800 ر.س',
+        fullDescription: 'دورة عملية في استخدام Excel للمحاسبين والمحللين الماليين.',
+        whatYouLearn: ['إتقان الصيغ والدوال المتقدمة', 'بناء Pivot Tables', 'إنشاء نماذج مالية', 'أتمتة التقارير بـ VBA', 'استخدام Power Query', 'إنشاء لوحات تحكم'],
+        prerequisites: ['معرفة أساسية بـ Excel'],
+        curriculum: [
+          {
+            module: 'الوحدة الأولى: الأساسيات المتقدمة',
+            lessons: [
+              {
+                title: 'الصيغ والدوال المتقدمة', duration: '2 ساعة', explanation: 'الدوال المنطقية والنصية.',
+                content: `<h3>الدوال المنطقية</h3><h4>IF - الشرطية</h4><div class="formula-box"><strong>=IF(شرط, قيمة_إذا_صحيح, قيمة_إذا_خطأ)</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>=IF(A1>100000,"مبيعات عالية","مبيعات منخفضة")<br><br>=IF(B2>0,A2/B2,"لا توجد مبيعات")</div><h4>IFERROR - معالجة الأخطاء</h4><div class="formula-box"><strong>=IFERROR(صيغة, قيمة_عند_الخطأ)</strong></div><div class="example-box">=IFERROR(A1/B1,0) → ترجع 0 إذا كان B1 صفر</div><h4>AND, OR - شروط متعددة</h4><div class="formula-box"><strong>=IF(AND(A1>100,B1<50),"نعم","لا")</strong></div><h3>الدوال النصية</h3><ul><li><strong>LEFT, RIGHT, MID:</strong> استخراج أجزاء من النص</li><li><strong>CONCATENATE أو &:</strong> دمج النصوص</li><li><strong>TRIM:</strong> إزالة المسافات الزائدة</li><li><strong>UPPER, LOWER, PROPER:</strong> تغيير حالة الأحرف</li><li><strong>LEN:</strong> طول النص</li></ul><div class="example-box"><strong>💡 أمثلة:</strong><br>=LEFT("CFO-2024",3) → "CFO"<br>=RIGHT("CFO-2024",4) → "2024"<br>=MID("CFO-2024",5,4) → "2024"<br>=CONCATENATE(A1," - ",B1) → "أحمد - محاسب"<br>=TRIM("  نص   ") → "نص"<br>=LEN("Hello") → 5</div><h3>دوال التاريخ والوقت</h3><ul><li><strong>TODAY():</strong> تاريخ اليوم</li><li><strong>NOW():</strong> التاريخ والوقت الحالي</li><li><strong>YEAR, MONTH, DAY:</strong> استخراج أجزاء التاريخ</li><li><strong>DATE:</strong> إنشاء تاريخ</li><li><strong>EDATE:</strong> تاريخ بعد أشهر محددة</li><li><strong>EOMONTH:</strong> آخر يوم في الشهر</li><li><strong>DATEDIF:</strong> الفرق بين تاريخين</li></ul><div class="example-box"><strong>💡 أمثلة:</strong><br>=TODAY() → 15/01/2024<br>=YEAR(A1) → 2024<br>=EDATE(A1,3) → تاريخ بعد 3 أشهر<br>=EOMONTH(A1,0) → آخر يوم في الشهر<br>=DATEDIF(A1,B1,"Y") → الفرق بالسنوات</div>`
+              },
+              {
+                title: 'VLOOKUP و XLOOKUP', duration: '1.5 ساعة', explanation: 'البحث عن البيانات.',
+                content: `<h3>VLOOKUP - البحث العمودي</h3><div class="formula-box"><strong>=VLOOKUP(قيمة_البحث, النطاق, رقم_العمود, [مطابقة])</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>البحث عن سعر منتج:<br>=VLOOKUP(A2,المنتجات!A:C,3,FALSE)<br><br>• A2: قيمة البحث (كود المنتج)<br>• المنتجات!A:C: نطاق البحث<br>• 3: العمود الثالث (السعر)<br>• FALSE: مطابقة تامة</div><h4>عيوب VLOOKUP</h4><ul><li>البحث في العمود الأول فقط</li><li>بطيء مع البيانات الكبيرة</li><li>لا يدعم الإدراج في الأعمدة</li></ul><h3>XLOOKUP - الجيل الجديد</h3><div class="formula-box"><strong>=XLOOKUP(قيمة_البحث, نطاق_البحث, نطاق_الإرجاع, [إذا_لم_يوجد], [وضع_المطابقة])</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>=XLOOKUP(A2,المنتجات!A:A,المنتجات!C:C,"غير موجود")<br><br>مميزات XLOOKUP:<br>• البحث في أي اتجاه<br>• معالجة الأخطاء المدمجة<br>• أسرع بكثير<br>• دعم البحث الثنائي</div><h3>INDEX + MATCH - القوة الحقيقية</h3><div class="formula-box"><strong>=INDEX(نطاق_الإرجاع, MATCH(قيمة_البحث, نطاق_البحث, 0))</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>=INDEX(C:C,MATCH(A2,A:A,0))<br><br>مميزات:<br>• البحث في أي عمود<br>• دعم البحث ثنائي الاتجاه<br>• أكثر مرونة</div>`
+              },
+              {
+                title: 'SUMIFS و COUNTIFS', duration: '1.5 ساعة', explanation: 'الجمع والعد بشروط متعددة.',
+                content: `<h3>SUMIFS - الجمع بشروط</h3><div class="formula-box"><strong>=SUMIFS(نطاق_الجمع, نطاق_الشرط1, شرط1, [نطاق_الشرط2, شرط2], ...)</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>=SUMIFS(D:D,A:A,"2024",B:B,"الرياض",C:C,">10000")<br><br>جمع المبيعات في 2024، الرياض، أكبر من 10,000</div><h3>COUNTIFS - العد بشروط</h3><div class="formula-box"><strong>=COUNTIFS(نطاق_الشرط1, شرط1, [نطاق_الشرط2, شرط2], ...)</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>=COUNTIFS(A:A,"2024",B:B,"مكتمل")<br><br>عدد المشاريع المكتملة في 2024</div><h3>AVERAGEIFS - المتوسط بشروط</h3><div class="formula-box"><strong>=AVERAGEIFS(نطاق_المتوسط, نطاق_الشرط1, شرط1, ...)</strong></div>`
+              },
+              { title: 'INDEX و MATCH', duration: '2 ساعة', explanation: 'البحث ثنائي الاتجاه.', content: `<h3>البحث ثنائي الاتجاه</h3><div class="formula-box"><strong>=INDEX(نطاق_البيانات, MATCH(صف_البحث, عمود_الأسماء, 0), MATCH(عمود_البحث, صف_الأسماء, 0))</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>جدول مبيعات المنتجات حسب المناطق<br>البحث عن مبيعات "المنتج أ" في "الرياض":<br><br>=INDEX(B2:E10,MATCH("المنتج أ",A2:A10,0),MATCH("الرياض",B1:E1,0))</div>` }
+            ]
+          },
+          {
+            module: 'الوحدة الثانية: تحليل البيانات',
+            lessons: [
+              {
+                title: 'Pivot Tables', duration: '2 ساعة', explanation: 'جداول البيانات المحورية.',
+                content: `<h3>Pivot Tables - جداول البيانات المحورية</h3><p>أداة قوية لتحليل وتلخيص كميات كبيرة من البيانات.</p><h4>خطوات الإنشاء</h4><ol><li>حدد البيانات</li><li>Insert → PivotTable</li><li>اختر موقع التقرير</li><li>اسحب الحقول إلى المناطق</li></ol><h4>مناطق Pivot Table</h4><ul><li><strong>Rows (الصفوف):</strong> التصنيفات الرأسية</li><li><strong>Columns (الأعمدة):</strong> التصنيفات الأفقية</li><li><strong>Values (القيم):</strong> الأرقام المراد تحليلها</li><li><strong>Filters (التصفية):</strong> تصفية البيانات</li></ul><div class="example-box"><strong>💡 مثال:</strong><br>تحليل المبيعات حسب المنطقة والمنتج:<br><br>Rows: المنطقة<br>Columns: المنتج<br>Values: مجموع المبيعات<br>Filters: السنة</div><h4>الدوال الحسابية</h4><ul><li>Sum: المجموع</li><li>Count: العدد</li><li>Average: المتوسط</li><li>Max, Min: الأقصى والأدنى</li><li>Count Distinct: عدد القيم الفريدة</li></ul>`
+              },
+              { title: 'Pivot Charts', duration: '1.5 ساعة', explanation: 'الرسوم البيانية المحورية.', content: `<h3>Pivot Charts</h3><p>رسوم بيانية مرتبطة بـ Pivot Tables تتحدث تلقائياً.</p><h4>أنواع الرسوم المناسبة</h4><ul><li><strong>عمود:</strong> مقارنة الفئات</li><li><strong>خط:</strong> الاتجاهات الزمنية</li><li><strong>دائري:</strong> النسب المئوية</li><li><strong>مساحة:</strong> التغير عبر الزمن</li></ul>` },
+              { title: 'تحليل البيانات المتقدم', duration: '2.5 ساعة', explanation: 'What-If Analysis و Goal Seek.', content: `<h3>What-If Analysis</h3><h4>1. Goal Seek - البحث عن هدف</h4><p>إيجاد قيمة المدخلات لتحقيق نتيجة محددة.</p><div class="example-box"><strong>💡 مثال:</strong><br>ما حجم المبيعات المطلوب لتحقيق ربح 100,000؟<br><br>Data → What-If Analysis → Goal Seek<br>• Set cell: خلية الربح<br>• To value: 100,000<br>• By changing: خلية المبيعات</div><h4>2. Data Tables - جداول البيانات</h4><p>تحليل تأثير متغير أو متغيرين على النتيجة.</p><h4>3. Scenario Manager - مدير السيناريوهات</h4><p>مقارنة عدة سيناريوهات (متفائل، متشائم، واقعي).</p>` },
+              { title: 'Power Query', duration: '2 ساعة', explanation: 'استيراد وتنظيف البيانات.', content: `<h3>Power Query</h3><p>أداة قوية لاستيراد وتنظيف وتحويل البيانات.</p><h4>الخطوات</h4><ol><li>Get Data: استيراد البيانات</li><li>Transform: تنظيف وتحويل</li><li>Load: تحميل للـ Excel</li></ol><h4>التحولات الشائعة</h4><ul><li>إزالة الأعمدة غير الضرورية</li><li>تغيير أنواع البيانات</li><li>تقسيم الأعمدة</li><li>دمج الاستعلامات (Merge)</li><li>إلحاق الاستعلامات (Append)</li><li>إزالة التكرارات</li><li>تعبئة القيم الفارغة</li></ul>` }
+            ]
+          },
+          {
+            module: 'الوحدة الثالثة: النمذجة المالية',
+            lessons: [
+              { title: 'بناء النماذج المالية', duration: '3 ساعات', explanation: 'هيكلة النموذج المالي.', content: `<h3>مبادئ النمذجة المالية</h3><h4>1. الهيكلية</h4><ul><li><strong>ورقة المدخلات:</strong> جميع الافتراضات</li><li><strong>ورقة الحسابات:</strong> القوائم المالية</li><li><strong>ورقة المخرجات:</strong> الملخص والرسوم</li></ul><h4>2. أفضل الممارسات</h4><ul><li>استخدم ألوان مختلفة (أزرق للمدخلات، أسود للصيغ)</li><li>وثق الافتراضات</li><li>تحقق من صحة الصيغ</li><li>استخدم التسميات (Named Ranges)</li></ul>` },
+              { title: 'التحليل الحساسي', duration: '2 ساعة', explanation: 'تحليل تأثير المتغيرات.', content: `<h3>Data Tables للتحليل الحساسي</h3><h4>جدول متغير واحد</h4><p>تحليل تأثير متغير واحد على النتيجة.</p><h4>جدول متغيرين</h4><p>تحليل تأثير متغيرين معاً.</p><div class="example-box"><strong>💡 مثال:</strong><br>تحليل الربح حسب السعر والكمية:<br><br>السعر (أفقي): 100, 120, 150, 180, 200<br>الكمية (عمودي): 1000, 2000, 3000, 4000, 5000<br><br>الجدول يعطي الربح لكل تركيبة</div>` },
+              { title: 'التنبؤ المالي', duration: '2.5 ساعة', explanation: 'التنبؤ بالمبيعات والتدفقات.', content: `<h3>أساليب التنبؤ</h3><h4>1. الاتجاه التاريخي</h4><div class="formula-box"><strong>=FORECAST.LINEAR(التاريخ_المستهدف, القيم_التاريخية, التواريخ_التاريخية)</strong></div><h4>2. متوسط النمو</h4><p>حساب معدل النمو السنوي وتطبيقه.</p><h4>3. التحليل الموسمي</h4><p>مراعاة التغيرات الموسمية في المبيعات.</p>` },
+              { title: 'أتمتة التقارير بـ VBA', duration: '2 ساعة', explanation: 'مقدمة في VBA.', content: `<h3>مقدمة في VBA</h3><p>Visual Basic for Applications - لغة برمجة لأتمتة Excel.</p><h4>تسجيل الماكرو</h4><ol><li>Developer → Record Macro</li><li>نفذ العمليات</li><li>Stop Recording</li></ol><h4>أمثلة على الماكرو</h4><div class="example-box"><strong>💡 ماكرو لإنشاء تقرير:</strong><br><code>Sub CreateReport()<br>&nbsp;&nbsp;Sheets.Add<br>&nbsp;&nbsp;ActiveSheet.Name = "Report"<br>&nbsp;&nbsp;Range("A1").Value = "التقرير الشهري"<br>&nbsp;&nbsp;Range("A1").Font.Bold = True<br>&nbsp;&nbsp;MsgBox "تم إنشاء التقرير"<br>End Sub</code></div>` }
+            ]
+          }
+        ],
+        videos: [
+          { title: 'Excel للمحاسبين - من الصفر للاحتراف', channel: 'Excel بالعربي', url: 'https://www.youtube.com/results?search_query=Excel+%D9%84%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D9%8A%D9%86', duration: '3 ساعات' },
+          { title: 'VLOOKUP و XLOOKUP شرح عملي', channel: 'عالم Excel', url: 'https://www.youtube.com/results?search_query=VLOOKUP+XLOOKUP+%D8%B4%D8%B1%D8%AD', duration: '1:15 ساعة' },
+          { title: 'Pivot Tables للمحاسبين', channel: 'محاسب Excel', url: 'https://www.youtube.com/results?search_query=Pivot+Table+%D9%84%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D9%8A%D9%86', duration: '1:45 ساعة' },
+          { title: 'النمذجة المالية في Excel', channel: 'التمويل العملي', url: 'https://www.youtube.com/results?search_query=%D8%A7%D9%84%D9%86%D9%85%D8%B0%D8%AC%D8%A9+%D8%A7%D9%84%D9%85%D8%A7%D9%84%D9%8A%D8%A9+Excel', duration: '2:30 ساعة' },
+        ]
+      },
+      // ============ COURSE 4: FINANCE ============
+      {
+        id: 'finance', title: 'التمويل وإدارة رأس المال',
+        description: 'استراتيجيات التمويل وتقييم المشاريع وإدارة السيولة.',
+        lessons: 35, icon: '💰', comingSoon: false,
+        instructor: 'د. فهد المالكي', duration: '50 ساعة', level: 'متقدم', price: '3,000 ر.س',
+        fullDescription: 'دورة متقدمة في التمويل المؤسسي وإدارة رأس المال.',
+        whatYouLearn: ['تحليل مصادر التمويل', 'حساب WACC', 'تقييم المشاريع بـ NPV و IRR', 'إدارة رأس المال العامل', 'تحليل المخاطر', 'اتخاذ قرارات التمويل'],
+        prerequisites: ['معرفة جيدة بالمحاسبة'],
+        curriculum: [
+          {
+            module: 'الوحدة الأولى: أساسيات التمويل',
+            lessons: [
+              {
+                title: 'مصادر التمويل المختلفة', duration: '2 ساعة', explanation: 'التمويل الذاتي والقروض والأسهم.',
+                content: `<h3>مصادر التمويل</h3><h4>1. التمويل الذاتي (Equity)</h4><ul><li><strong>رأس المال:</strong> مساهمات المالكين</li><li><strong>الأرباح المحتجزة:</strong> أرباح لم توزع</li><li><strong>إصدار أسهم جديدة</strong></li></ul><h4>2. التمويل بالديون (Debt)</h4><ul><li><strong>قروض بنكية قصيرة الأجل</strong></li><li><strong>قروض طويلة الأجل</strong></li><li><strong>سندات</strong></li><li><strong>تأجير تمويلي</strong></li></ul><h4>3. التمويل الهجين</h4><ul><li>أسهم ممتازة</li><li>سندات قابلة للتحويل</li></ul><h4>4. التمويل الإسلامي</h4><ul><li>المرابحة</li><li>الإجارة</li><li>المشاركة</li><li>الصكوك</li></ul><div class="example-box"><strong>💡 مقارنة:</strong><br><table><tr><th>المعيار</th><th>الأسهم</th><th>الديون</th></tr><tr><td>التكلفة</td><td>عالية</td><td>منخفضة</td></tr><tr><td>المخاطرة</td><td>منخفضة</td><td>عالية</td></tr><tr><td>حقوق الملكية</td><td>تؤثر</td><td>لا تؤثر</td></tr><tr><td>الفائدة الضريبية</td><td>لا</td><td>نعم</td></tr></table></div>`
+              },
+              {
+                title: 'تكلفة رأس المال', duration: '2.5 ساعة', explanation: 'حساب WACC.',
+                content: `<h3>تكلفة رأس المال الموزون WACC</h3><div class="formula-box"><strong>WACC = (E/V × Re) + (D/V × Rd × (1-T))</strong></div><p>حيث:<br>• E: حقوق الملكية<br>• D: الديون<br>• V = E + D<br>• Re: تكلفة حقوق الملكية<br>• Rd: تكلفة الديون<br>• T: معدل الضريبة</p><h4>حساب تكلفة حقوق الملكية (CAPM)</h4><div class="formula-box"><strong>Re = Rf + β × (Rm - Rf)</strong></div><p>• Rf: معدل خالي من المخاطر<br>• β: بيتا (مخاطرة السهم)<br>• Rm: عائد السوق</p><div class="example-box"><strong>💡 مثال:</strong><br>شركة بـ:<br>• حقوق ملكية: 6,000,000<br>• ديون: 4,000,000<br>• تكلفة حقوق الملكية: 12%<br>• تكلفة الديون: 6%<br>• الضريبة: 20%<br><br>V = 10,000,000<br><br>WACC = (0.6 × 12%) + (0.4 × 6% × 0.8)<br>= 7.2% + 1.92%<br>= <strong>9.12%</strong></div>`
+              },
+              { title: 'الهيكل المالي الأمثل', duration: '2 ساعة', explanation: 'نظريات الهيكل المالي.', content: `<h3>نظرية Modigliani-Miller</h3><p>في غياب الضرائب، الهيكل المالي لا يؤثر على قيمة الشركة.</p><h4>مع الضرائب</h4><p>الديون تقلل الضرائب، لكن تزيد المخاطر المالية.</p><h3>الهيكل الأمثل</h3><p>النقطة التي تتعادل فيها فوائد الديون مع تكاليف الإفلاس المحتمل.</p>` },
+              {
+                title: 'الرافعة المالية', duration: '1.5 ساعة', explanation: 'تأثير الرافعة على الأرباح.',
+                content: `<h3>الرافعة المالية</h3><div class="formula-box"><strong>DFL = % التغير في ربحية السهم ÷ % التغير في EBIT</strong></div><h4>الرافعة التشغيلية</h4><div class="formula-box"><strong>DOL = % التغير في EBIT ÷ % التغير في المبيعات</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>شركة بمبيعات 1,000,000 وتكاليف متغيرة 600,000 وتكاليف ثابتة 200,000:<br><br>EBIT = 1,000,000 - 600,000 - 200,000 = 200,000<br><br>DOL = (1,000,000 - 600,000) ÷ 200,000 = 2<br><br>زيادة 10% في المبيعات → زيادة 20% في EBIT</div>`
+              }
+            ]
+          },
+          {
+            module: 'الوحدة الثانية: تقييم المشاريع',
+            lessons: [
+              {
+                title: 'صافي القيمة الحالية NPV', duration: '2 ساعة', explanation: 'أهم معيار لتقييم المشاريع.',
+                content: `<h3>صافي القيمة الحالية (NPV)</h3><div class="formula-box"><strong>NPV = Σ (CFt ÷ (1+r)^t) - الاستثمار الأولي</strong></div><h4>قاعدة القرار</h4><ul><li><strong>NPV > 0:</strong> قبول المشروع</li><li><strong>NPV < 0:</strong> رفض المشروع</li><li><strong>NPV = 0:</strong> محايد</li></ul><div class="example-box"><strong>💡 مثال:</strong><br>مشروع باستثمار 500,000 وتدفقات 150,000 سنوياً لمدة 5 سنوات، معدل خصم 10%:<br><br>NPV = 150,000 × [1-(1.1)^-5]/0.1 - 500,000<br>= 150,000 × 3.791 - 500,000<br>= 568,650 - 500,000<br>= <strong>68,650 ريال</strong> ✓ قبول</div><div class="formula-box"><strong>في Excel: =NPV(rate, cashflows) - initial_investment</strong></div>`
+              },
+              {
+                title: 'معدل العائد الداخلي IRR', duration: '2 ساعة', explanation: 'المعدل الذي يجعل NPV = 0.',
+                content: `<h3>معدل العائد الداخلي (IRR)</h3><p>معدل الخصم الذي يجعل NPV = 0.</p><div class="formula-box"><strong>IRR: NPV = 0</strong></div><h4>قاعدة القرار</h4><ul><li><strong>IRR > WACC:</strong> قبول</li><li><strong>IRR < WACC:</strong> رفض</li></ul><div class="formula-box"><strong>في Excel: =IRR(cashflows)</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>استثمار 500,000 وتدفقات 150,000 لمدة 5 سنوات<br>IRR ≈ 15.2%<br><br>إذا كان WACC = 10%: IRR > WACC ✓ قبول</div>`
+              },
+              {
+                title: 'فترة الاسترداد', duration: '1.5 ساعة', explanation: 'الفترة اللازمة لاسترداد الاستثمار.',
+                content: `<h3>فترة الاسترداد (Payback Period)</h3><div class="formula-box"><strong>فترة الاسترداد = الاستثمار الأولي ÷ التدفق السنوي</strong></div><div class="example-box"><strong>💡 مثال:</strong><br>استثمار 500,000 وتدفقات 150,000 سنوياً:<br>فترة الاسترداد = 500,000 ÷ 150,000 = 3.33 سنة</div><h3>فترة الاسترداد المخصومة</h3><p>تأخذ في الاعتبار القيمة الزمنية للنقود.</p>`
+              },
+              { title: 'تحليل الحساسية', duration: '2 ساعة', explanation: 'تحليل تأثير المتغيرات.', content: `<h3>تحليل الحساسية</h3><p>دراسة تأثير تغير متغير واحد على NPV.</p><h4>المتغيرات الشائعة</h4><ul><li>حجم المبيعات</li><li>سعر البيع</li><li>التكاليف</li><li>معدل الخصم</li></ul><h3>تحليل السيناريوهات</h3><p>مقارنة عدة سيناريوهات معاً.</p>` }
+            ]
+          }
+        ],
+        videos: [
+          { title: 'مقدمة في التمويل المالي', channel: 'أكاديمية خان العربية', url: 'https://www.youtube.com/results?search_query=%D9%85%D9%82%D8%AF%D9%85%D8%A9+%D8%A7%D9%84%D8%AA%D9%85%D9%88%D9%8A%D9%84+%D8%A7%D9%84%D9%85%D8%A7%D9%84%D9%8A', duration: '1:30 ساعة' },
+          { title: 'NPV و IRR شرح عملي', channel: 'المالية للمحاسبين', url: 'https://www.youtube.com/results?search_query=NPV+IRR+%D8%AA%D9%82%D9%8A%D9%85', duration: '1:45 ساعة' },
+          { title: 'WACC تكلفة رأس المال', channel: 'محاسب مالي', url: 'https://www.youtube.com/results?search_query=WACC+%D8%AA%D9%83%D9%84%D9%81%D8%A9+%D8%B1%D8%A3%D8%B3+%D8%A7%D9%84%D9%85%D8%A7%D9%84', duration: '55 دقيقة' },
+          { title: 'إدارة رأس المال العامل', channel: 'التمويل العملي', url: 'https://www.youtube.com/results?search_query=%D8%A5%D8%AF%D8%A7%D8%B1%D8%A9+%D8%B1%D8%A3%D8%B3+%D8%A7%D9%84%D9%85%D8%A7%D9%84+%D8%A7%D9%84%D8%B9%D8%A7%D9%85%D9%84', duration: '1:10 ساعة' },
+        ]
+      },
+      // ============ REMAINING COURSES (BRIEF) ============
+      { id: 'ifrs', title: 'المعايير الدولية IFRS', description: 'شرح وتطبيق معايير المحاسبة الدولية.', lessons: 40, icon: '📜', comingSoon: true, instructor: 'د. محمد الزهراني', duration: '55 ساعة', level: 'متقدم', price: '4,000 ر.س', fullDescription: 'دورة شاملة في IFRS.', whatYouLearn: ['IFRS 15 الإيرادات', 'IFRS 16 الإيجارات', 'IFRS 9 الأدوات المالية', 'IAS 36 انخفاض القيمة'], prerequisites: ['خبرة في المحاسبة'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'IFRS 15 الإيرادات', duration: '3 ساعات', explanation: 'نموذج الخطوات الخمس', content: '<h3>IFRS 15 - الإيرادات</h3><h4>الخطوات الخمس</h4><ol><li>تحديد العقد</li><li>تحديد الالتزامات</li><li>تحديد سعر المعاملة</li><li>تخصيص السعر</li><li>الاعتراف بالإيراد</li></ol>' }, { title: 'IFRS 16 الإيجارات', duration: '2.5 ساعة', explanation: 'إلغاء التمييز بين التمويلي والتشغيلي', content: '<h3>IFRS 16</h3><p>جميع الإيجارات تُسجل في الميزانية.</p>' }, { title: 'IFRS 9 الأدوات المالية', duration: '3 ساعات', explanation: 'تصنيف وقياس', content: '<h3>IFRS 9</h3>' }, { title: 'IAS 36 انخفاض القيمة', duration: '2 ساعة', explanation: 'اختبار الانخفاض', content: '<h3>IAS 36</h3>' }] }], videos: [{ title: 'IFRS بالعربي', channel: 'المعايير', url: 'https://www.youtube.com/results?search_query=IFRS+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A', duration: '2 ساعة' }] },
+      { id: 'powerbi', title: 'Power BI والتحليل', description: 'لوحات تحكم تفاعلية.', lessons: 25, icon: '📉', comingSoon: true, instructor: 'م. عبدالله القحطاني', duration: '35 ساعة', level: 'متوسط', price: '2,200 ر.س', fullDescription: 'دورة Power BI.', whatYouLearn: ['استيراد البيانات', 'Power Query', 'نمذجة البيانات', 'DAX'], prerequisites: ['معرفة بـ Excel'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'مقدمة Power BI', duration: '1.5 ساعة', explanation: 'الواجهة الأساسية', content: '<h3>Power BI</h3>' }, { title: 'DAX للمحاسبين', duration: '3 ساعات', explanation: 'الدوال الأساسية', content: '<h3>DAX</h3>' }] }], videos: [{ title: 'Power BI بالعربي', channel: 'Power BI', url: 'https://www.youtube.com/results?search_query=Power+BI', duration: '4 ساعات' }] },
+      { id: 'treasury', title: 'إدارة الخزينة', description: 'إدارة التدفقات النقدية.', lessons: 20, icon: '🏦', comingSoon: false, instructor: 'د. يوسف الشهري', duration: '30 ساعة', level: 'متقدم', price: '2,800 ر.س', fullDescription: 'دورة الخزينة.', whatYouLearn: ['إدارة الحسابات البنكية', 'التنبؤ النقدي', 'إدارة المخاطر', 'التحوط'], prerequisites: ['خبرة في المحاسبة'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'التدفقات النقدية', duration: '2.5 ساعة', explanation: 'التنبؤ والإدارة', content: '<h3>التدفقات النقدية</h3>' }] }], videos: [{ title: 'إدارة الخزينة', channel: 'التمويل', url: 'https://www.youtube.com/results?search_query=%D8%A5%D8%AF%D8%A7%D8%B1%D8%A9+%D8%A7%D9%84%D8%AE%D8%B2%D9%8A%D9%86%D8%A9', duration: '1:30 ساعة' }] },
+      { id: 'budget', title: 'إعداد الموازنات', description: 'تخطيط الموازنات ومراقبة الانحرافات.', lessons: 28, icon: '📋', comingSoon: false, instructor: 'د. سلطان الغامدي', duration: '38 ساعة', level: 'متوسط إلى متقدم', price: '2,600 ر.س', fullDescription: 'دورة الموازنات.', whatYouLearn: ['الموازنة التشغيلية', 'الموازنة الرأسمالية', 'تحليل الانحرافات', 'الموازنة المرنة'], prerequisites: ['معرفة بالمحاسبة الإدارية'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'الموازنة التشغيلية', duration: '2.5 ساعة', explanation: 'إعداد الموازنة', content: '<h3>الموازنة التشغيلية</h3>' }, { title: 'تحليل الانحرافات', duration: '2.5 ساعة', explanation: 'تحليل الفروقات', content: '<h3>تحليل الانحرافات</h3>' }] }], videos: [{ title: 'إعداد الموازنات', channel: 'المحاسبة الإدارية', url: 'https://www.youtube.com/results?search_query=%D8%A5%D8%B9%D8%AF%D8%A7%D8%AF+%D8%A7%D9%84%D9%85%D9%88%D8%A7%D8%B2%D9%86%D8%A7%D8%AA', duration: '2:30 ساعة' }] },
+      { id: 'leadership', title: 'القيادة المالية', description: 'مهارات القيادة للمديرين الماليين.', lessons: 15, icon: '👑', comingSoon: true, instructor: 'د. ماجد العسيري', duration: '25 ساعة', level: 'متقدم', price: '3,500 ر.س', fullDescription: 'دورة القيادة.', whatYouLearn: ['القيادة الاستراتيجية', 'إدارة الفرق', 'التواصل', 'صنع القرار'], prerequisites: ['خبرة 5 سنوات'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'القيادة الاستراتيجية', duration: '2.5 ساعة', explanation: 'التفكير الاستراتيجي', content: '<h3>القيادة</h3>' }] }], videos: [{ title: 'القيادة المالية', channel: 'القيادة', url: 'https://www.youtube.com/results?search_query=%D8%A7%D9%84%D9%82%D9%8A%D8%A7%D8%AF%D8%A9+%D8%A7%D9%84%D9%85%D8%A7%D9%84%D9%8A%D8%A9', duration: '1:30 ساعة' }] },
+      { id: 'ai', title: 'الذكاء الاصطناعي في المالية', description: 'توظيف AI في المحاسبة.', lessons: 22, icon: '🤖', comingSoon: false, instructor: 'د. تركي الشمري', duration: '32 ساعة', level: 'جميع المستويات', price: '3,000 ر.س', fullDescription: 'دورة AI في المالية.', whatYouLearn: ['أتمتة العمليات', 'التحليل التنبؤي', 'ChatGPT للمحاسبين', 'معالجة المستندات'], prerequisites: ['لا يشترط خلفية برمجية'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'ChatGPT للمحاسبين', duration: '2.5 ساعة', explanation: 'استخدام AI في العمل اليومي', content: '<h3>ChatGPT للمحاسبين</h3><h4>الاستخدامات</h4><ul><li>كتابة تقارير مالية</li><li>تحليل البيانات</li><li>صياغة رسائل مهنية</li><li>شرح المعايير المحاسبية</li></ul>' }, { title: 'أتمتة العمليات', duration: '2.5 ساعة', explanation: 'RPA والـ AI', content: '<h3>الأتمتة</h3>' }] }], videos: [{ title: 'AI للمحاسبين', channel: 'AI بالعربي', url: 'https://www.youtube.com/results?search_query=%D8%A7%D9%84%D8%B0%D9%83%D8%A7%D8%A1+%D8%A7%D9%84%D8%A7%D8%B5%D8%B7%D9%86%D8%A7%D8%B9%D9%8A+%D9%84%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D9%8A%D9%86', duration: '2 ساعة' }] },
+      { id: 'tax', title: 'الأنظمة الضريبية', description: 'ضريبة القيمة المضافة وضريبة الدخل.', lessons: 32, icon: '🧾', comingSoon: false, instructor: 'أ. فيصل الدوسري', duration: '45 ساعة', level: 'متوسط', price: '2,400 ر.س', fullDescription: 'دورة الضرائب.', whatYouLearn: ['ضريبة القيمة المضافة', 'ضريبة الدخل', 'الزكاة', 'التخطيط الضريبي'], prerequisites: ['معرفة أساسية بالمحاسبة'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'ضريبة القيمة المضافة', duration: '2.5 ساعة', explanation: 'مبادئ VAT', content: '<h3>ضريبة القيمة المضافة</h3><h4>المبادئ</h4><ul><li>ضريبة غير مباشرة</li><li>15% في السعودية</li><li>تُطبق على معظم السلع والخدمات</li></ul><h4>الالتزامات</h4><ul><li>التسجيل</li><li>إصدار الفواتير الضريبية</li><li>تقديم الإقرارات</li><li>سداد الضريبة</li></ul>' }, { title: 'الإقرارات الضريبية', duration: '2 ساعة', explanation: 'إعداد وتقديم الإقرارات', content: '<h3>الإقرارات</h3>' }, { title: 'التخطيط الضريبي', duration: '2 ساعة', explanation: 'التخطيط المشروع', content: '<h3>التخطيط الضريبي</h3>' }] }], videos: [{ title: 'ضريبة القيمة المضافة', channel: 'الضرائب', url: 'https://www.youtube.com/results?search_query=%D8%B6%D8%B1%D9%8A%D8%A8%D8%A9+%D8%A7%D9%84%D9%82%D9%8A%D9%85%D8%A9+%D8%A7%D9%84%D9%85%D8%B6%D8%A7%D9%81%D8%A9', duration: '2:30 ساعة' }] },
+      { id: 'erp', title: 'أنظمة ERP', description: 'تطبيق عملي لأنظمة ERP.', lessons: 60, icon: '🏗️', comingSoon: false, instructor: 'م. خالد العمري', duration: '80 ساعة', level: 'متوسط', price: '3,500 ر.س', fullDescription: 'دورة ERP.', whatYouLearn: ['وحدات ERP', 'إدارة المشاريع', 'المشتريات', 'التقارير'], prerequisites: ['معرفة بالمحاسبة'], curriculum: [{ module: 'الوحدة الأولى', lessons: [{ title: 'مفهوم ERP', duration: '1 ساعة', explanation: 'مقدمة عن الأنظمة', content: '<h3>أنظمة ERP</h3><p>Enterprise Resource Planning</p><h4>المميزات</h4><ul><li>نظام متكامل</li><li>قاعدة بيانات موحدة</li><li>وحدات مترابطة</li></ul>' }, { title: 'وحدات النظام', duration: '2 ساعة', explanation: 'الوحدات الرئيسية', content: '<h3>الوحدات</h3><ul><li>المالية</li><li>المشتريات</li><li>المبيعات</li><li>المخزون</li><li>المشاريع</li><li>الموارد البشرية</li></ul>' }] }], videos: [{ title: 'ERP بالعربي', channel: 'عالم التقنية', url: 'https://www.youtube.com/results?search_query=%D9%86%D8%B8%D8%A7%D9%85+ERP', duration: '1:15 ساعة' }] }
+    ];
+
+    const erpModules = [
+      { id: 'acc', name: 'المحاسبة', icon: '📊' }, { id: 'sales', name: 'المبيعات', icon: '💼' },
+      { id: 'purchasing', name: 'المشتريات', icon: '🛒' }, { id: 'inventory', name: 'المخزون', icon: '📦' },
+      { id: 'projects', name: 'المشاريع', icon: '🏗️' }, { id: 'crm', name: 'إدارة العملاء', icon: '🤝' },
+      { id: 'assets', name: 'الأصول الثابتة', icon: '🏭' }, { id: 'payroll', name: 'الرواتب', icon: '💵' },
+      { id: 'hr', name: 'الموارد البشرية', icon: '👥' }, { id: 'treasury', name: 'الخزينة', icon: '🏦' },
+      { id: 'reports', name: 'التقارير', icon: '📈' }, { id: 'ai', name: 'المساعد الذكي', icon: '🤖' },
+    ];
+
+    const learningPath = [
+      { role: 'طالب محاسبة', description: 'بداية الرحلة وتعلم الأساسيات.' },
+      { role: 'محاسب مبتدئ', description: 'تطبيق القيود اليومية.' },
+      { role: 'محاسب', description: 'إعداد القوائم المالية.' },
+      { role: 'محاسب أول', description: 'مراجعة العمليات المالية.' },
+      { role: 'رئيس محاسبين', description: 'إدارة الفريق.' },
+      { role: 'مدير مالي', description: 'التخطيط المالي.' },
+      { role: 'مدير مالي تنفيذي', description: 'قيادة الاستراتيجية.' },
+      { role: 'المدير المالي التنفيذي (CFO)', description: 'عضو مجلس الإدارة.' },
+    ];
+
+    const testimonials = [
+      { id: 1, name: 'أحمد محمد', role: 'مدير مالي', text: 'المنصة غيرت طريقة فهمي لمحاسبة المقاولات.' },
+      { id: 2, name: 'سارة علي', role: 'محاسبة أول', text: 'دورات ERP والذكاء الاصطناعي ممتازة.' },
+      { id: 3, name: 'خالد العتيبي', role: 'رئيس محاسبين', text: 'أفضل منصة عربية متخصصة.' },
+    ];
+
+    const faqs = [
+      { question: 'هل المنصة مناسبة للمبتدئين؟', answer: 'نعم، نقدم مسارات من الأساسيات للمستوى التنفيذي.' },
+      { question: 'هل الشهادات معتمدة؟', answer: 'شهاداتنا معتمدة من CFO Master Academy.' },
+      { question: 'هل يمكنني الوصول في أي وقت؟', answer: 'المنصة متاحة 24/7.' },
+      { question: 'هل نظام ERP متاح للتجربة؟', answer: 'نعم، نسخة تجريبية 14 يوماً.' },
+      { question: 'كيف يعمل المساعد الذكي؟', answer: 'مدرب على المعايير المحاسبية وأنظمة ERP.' },
+    ];
+
+    const statsData = [
+      { label: 'دورة تدريبية', value: 120, suffix: '+' },
+      { label: 'درس تعليمي', value: 850, suffix: '+' },
+      { label: 'طالب مسجل', value: 5000, suffix: '+' },
+      { label: 'شهادة معتمدة', value: 3200, suffix: '+' },
+      { label: 'تمرين عملي', value: 400, suffix: '+' },
+    ];
+
+    // ============ HOOKS ============
+    function useMousePosition() {
+      const [p, setP] = useState({ x: 0, y: 0 });
+      useEffect(() => {
+        const u = (e) => setP({ x: e.clientX, y: e.clientY });
+        window.addEventListener('mousemove', u);
+        return () => window.removeEventListener('mousemove', u);
+      }, []);
+      return p;
+    }
+
+    function useCountUp(end, duration = 2000) {
+      const [count, setCount] = useState(0);
+      const [started, setStarted] = useState(false);
+      const ref = useRef(null);
+      useEffect(() => {
+        const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStarted(true); }, { threshold: 0.3 });
+        if (ref.current) o.observe(ref.current);
+        return () => o.disconnect();
+      }, []);
+      useEffect(() => {
+        if (!started) return;
+        let st = null, af;
+        const s = (t) => {
+          if (!st) st = t;
+          const p = Math.min((t - st) / duration, 1);
+          setCount(Math.floor(p * end));
+          if (p < 1) af = requestAnimationFrame(s);
+        };
+        af = requestAnimationFrame(s);
+        return () => cancelAnimationFrame(af);
+      }, [started, end, duration]);
+      return { count, ref };
+    }
+
+    function useReveal() {
+      const ref = useRef(null);
+      useEffect(() => {
+        const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) e.target.classList.add('visible'); }, { threshold: 0.1 });
+        if (ref.current) o.observe(ref.current);
+        return () => o.disconnect();
+      }, []);
+      return ref;
+    }
+
+    // ============ COMPONENTS ============
+    function Button({ children, variant = 'primary', size = 'md', icon, className = '', ...props }) {
+      const base = 'inline-flex items-center justify-center font-bold rounded-full transition-all duration-300 btn-glow';
+      const v = { primary: 'bg-primary hover:bg-primary/80 text-white shadow-lg shadow-primary/20', outline: 'border-2 border-white/20 hover:border-white/40 text-white bg-white/5 hover:bg-white/10', ghost: 'text-textGray hover:text-textWhite hover:bg-white/5', youtube: 'bg-youtube hover:bg-youtube/80 text-white shadow-lg shadow-youtube/20' };
+      const s = { sm: 'px-4 py-2 text-sm', md: 'px-6 py-3 text-base', lg: 'px-8 py-4 text-lg' };
+      return (<button className={`${base} ${v[variant]} ${s[size]} ${className}`} {...props}>{icon && <span className="ms-2">{icon}</span>}<span className="relative z-10">{children}</span></button>);
+    }
+
+    function Navbar({ onNavigate, currentPage }) {
+      const [isScrolled, setIsScrolled] = useState(false);
+      const [isMobileOpen, setIsMobileOpen] = useState(false);
+      useEffect(() => {
+        const h = () => setIsScrolled(window.scrollY > 20);
+        window.addEventListener('scroll', h);
+        return () => window.removeEventListener('scroll', h);
+      }, []);
+      const links = [
+        { name: 'الرئيسية', href: '#', page: 'home' }, { name: 'الأكاديمية', href: '#academy', page: 'home' },
+        { name: 'نظام ERP', href: '#erp', page: 'home' }, { name: 'الذكاء الاصطناعي', href: '#ai', page: 'home' },
+        { name: 'الأسعار', href: '#pricing', page: 'home' }, { name: 'من نحن', href: '#about', page: 'home' },
+        { name: 'تواصل معنا', href: '#contact', page: 'home' },
+      ];
+      return (
+        <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'glass py-3' : 'bg-transparent py-5'}`}>
+          <div className="container mx-auto px-4 flex items-center justify-between">
+            <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('home'); }} className="text-2xl font-black gradient-text">CFO Master</a>
+            <nav className="hidden lg:flex items-center gap-8">
+              {links.map((l) => (<a key={l.name} href={l.href} onClick={(e) => { if (currentPage !== 'home') { e.preventDefault(); onNavigate('home'); } }} className="text-textGray hover:text-textWhite transition-colors font-medium">{l.name}</a>))}
+            </nav>
+            <div className="hidden lg:block"><Button variant="primary">تسجيل الدخول</Button></div>
+            <button className="lg:hidden text-textWhite p-2" onClick={() => setIsMobileOpen(!isMobileOpen)}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} /></svg>
+            </button>
+          </div>
+          {isMobileOpen && (
+            <div className="lg:hidden glass mt-2 mx-4 rounded-2xl overflow-hidden animate-fadeIn">
+              <nav className="flex flex-col p-4 gap-4">
+                {links.map((l) => (<a key={l.name} href={l.href} className="text-textGray hover:text-textWhite py-2" onClick={() => { setIsMobileOpen(false); if (currentPage !== 'home') onNavigate('home'); }}>{l.name}</a>))}
+                <Button variant="primary" className="w-full mt-2">تسجيل الدخول</Button>
+              </nav>
+            </div>
+          )}
+        </header>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer className="bg-darkCard border-t border-white/5 pt-16 pb-8 mt-20">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+              <div><h3 className="text-2xl font-black gradient-text mb-4">CFO Master</h3><p className="text-textGray">منصة تعليمية متكاملة لتطوير المحاسبين والمديرين الماليين.</p></div>
+              <div><h4 className="text-lg font-bold mb-4">روابط سريعة</h4><ul className="space-y-2 text-textGray"><li><a href="#" className="hover:text-textWhite">الرئيسية</a></li><li><a href="#academy" className="hover:text-textWhite">الأكاديمية</a></li><li><a href="#erp" className="hover:text-textWhite">نظام ERP</a></li></ul></div>
+              <div><h4 className="text-lg font-bold mb-4">الدعم</h4><ul className="space-y-2 text-textGray"><li><a href="#faq" className="hover:text-textWhite">الأسئلة الشائعة</a></li><li><a href="#contact" className="hover:text-textWhite">تواصل معنا</a></li></ul></div>
+              <div><h4 className="text-lg font-bold mb-4">النشرة البريدية</h4><form className="flex gap-2" onSubmit={(e) => e.preventDefault()}><input type="email" placeholder="بريدك الإلكتروني" className="flex-1 px-4 py-2 bg-darkBg border border-white/10 rounded-lg focus:outline-none focus:border-primary text-textWhite" /><button type="submit" className="px-4 py-2 bg-primary hover:bg-primary/80 rounded-lg">اشتراك</button></form></div>
+            </div>
+            <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4"><p className="text-textGray text-sm">© 2026 CFO Master Academy.</p></div>
+          </div>
+        </footer>
+      );
+    }
+
+    function Hero() {
+      const { x, y } = useMousePosition();
+      const [particles, setParticles] = useState([]);
+      useEffect(() => { setParticles(Array.from({ length: 30 }, (_, i) => ({ id: i, x: Math.random() * 100, y: Math.random() * 100, size: Math.random() * 4 + 2, duration: Math.random() * 10 + 10 }))); }, []);
+      return (
+        <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+          <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-gradient-to-br from-darkBg via-darkBg to-primary/10" />
+            <div className="absolute w-[600px] h-[600px] rounded-full bg-secondary/20 blur-[120px]" style={{ top: '10%', right: '10%', transform: `translate(${x / 30}px, ${y / 30}px)` }} />
+            <div className="absolute w-[500px] h-[500px] rounded-full bg-accent/20 blur-[100px]" style={{ bottom: '10%', left: '10%', transform: `translate(${-x / 40}px, ${-y / 40}px)` }} />
+          </div>
+          <div className="container mx-auto px-4 z-10 text-center">
+            <div className="animate-fadeInUp">
+              <span className="inline-block px-4 py-1.5 rounded-full glass text-accent text-sm font-bold mb-6">منصة تعليمية متكاملة للقطاع المالي</span>
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-6">تعلم المحاسبة و <span className="gradient-text">ERP</span> بطريقة احترافية</h1>
+              <p className="text-lg md:text-xl text-textGray max-w-3xl mx-auto mb-10">منصة تعليمية متكاملة لتطوير المحاسبين والمديرين الماليين.</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button variant="primary" size="lg">ابدأ الآن</Button>
+                <Button variant="outline" size="lg">مشاهدة العرض</Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function StatItem({ label, value, suffix }) {
+      const { count, ref } = useCountUp(value, 2000);
+      return (<div ref={ref} className="text-center p-6 glass rounded-2xl card-hover reveal"><div className="text-4xl md:text-5xl font-black gradient-text mb-2">{count}{suffix}</div><div className="text-textGray font-medium">{label}</div></div>);
+    }
+    function Stats() { return (<section className="py-20 relative z-10 -mt-20"><div className="container mx-auto px-4"><div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">{statsData.map((s) => <StatItem key={s.label} {...s} />)}</div></div></section>); }
+
+    function CourseCard({ course, index, onCourseClick }) {
+      const ref = useReveal();
+      return (
+        <div ref={ref} className="reveal" style={{ transitionDelay: `${index * 0.05}s` }}>
+          <a href="#" onClick={(e) => { e.preventDefault(); onCourseClick(course.id); }} className="block group">
+            <div className="glass rounded-2xl overflow-hidden card-hover h-full flex flex-col">
+              <div className="relative h-40 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                <div className="text-5xl opacity-50 group-hover:scale-110 transition-transform">{course.icon}</div>
+                {course.comingSoon && <div className="absolute top-3 start-3 px-3 py-1 bg-gold/90 text-darkBg text-xs font-bold rounded-full">قريباً</div>}
+              </div>
+              <div className="p-5 flex-1 flex flex-col">
+                <h3 className="text-lg font-bold mb-2 group-hover:text-primary">{course.title}</h3>
+                <p className="text-textGray text-sm mb-4 flex-1">{course.description}</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-textGray">{course.lessons} درس</span>
+                  <span className="text-primary font-bold">عرض الدورة</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </div>
+      );
+    }
+
+    function Academy({ onCourseClick }) {
+      const ref = useReveal();
+      return (
+        <section id="academy" className="py-24 relative">
+          <div className="container mx-auto px-4">
+            <div ref={ref} className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">الأكاديمية <span className="gradient-text">التعليمية</span></h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {courses.map((c, i) => <CourseCard key={c.id} course={c} index={i} onCourseClick={onCourseClick} />)}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function CourseDetail({ courseId, onBack }) {
+      const course = courses.find(c => c.id === courseId);
+      const [activeModule, setActiveModule] = useState(0);
+      const [activeTab, setActiveTab] = useState('curriculum');
+      const [expandedLesson, setExpandedLesson] = useState(null);
+
+      useEffect(() => { window.scrollTo(0, 0); setActiveModule(0); setActiveTab('curriculum'); setExpandedLesson(null); }, [courseId]);
+
+      if (!course) return <div className="min-h-screen flex items-center justify-center pt-20"><Button onClick={onBack}>العودة</Button></div>;
+
+      const tabs = [
+        { id: 'curriculum', label: 'المنهج الدراسي', icon: '📚' },
+        { id: 'videos', label: 'فيديوهات يوتيوب', icon: '🎬' },
+        { id: 'learn', label: 'ماذا ستتعلم', icon: '🎯' },
+      ];
+
+      return (
+        <div className="min-h-screen pt-24 pb-12">
+          <div className="container mx-auto px-4">
+            <button onClick={onBack} className="flex items-center gap-2 text-textGray hover:text-textWhite mb-8">
+              <svg className="w-5 h-5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              العودة للأكاديمية
+            </button>
+
+            <div className="glass rounded-3xl p-8 mb-8 animate-fadeInUp">
+              <div className="grid lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                  <div className="flex items-center gap-3 mb-4"><span className="text-6xl">{course.icon}</span>{course.comingSoon && <span className="px-3 py-1 bg-gold/90 text-darkBg text-sm font-bold rounded-full">قريباً</span>}</div>
+                  <h1 className="text-3xl md:text-4xl font-black mb-4">{course.title}</h1>
+                  <p className="text-textGray text-lg leading-relaxed mb-6">{course.fullDescription}</p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-center gap-2"><span>{course.duration}</span></div>
+                    <div className="flex items-center gap-2"><span>{course.lessons} درس</span></div>
+                    <div className="flex items-center gap-2"><span>{course.level}</span></div>
+                  </div>
+                </div>
+                <div className="glass rounded-2xl p-6 h-fit">
+                  <div className="text-3xl font-black gradient-text mb-4">{course.price}</div>
+                  <Button variant="primary" className="w-full mb-4" size="lg">{course.comingSoon ? 'سجل للاشعار' : 'سجل الآن'}</Button>
+                  <div className="space-y-3 text-sm">
+                    {['وصول مدى الحياة', 'شهادة معتمدة', 'دعم مستمر'].map((i) => (<div key={i} className="flex items-center gap-2"><svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg><span>{i}</span></div>))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-6 mb-8 animate-fadeInUp">
+              <h2 className="text-2xl font-bold mb-4">المدرب</h2>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-2xl font-bold">{course.instructor.split(' ')[1][0]}</div>
+                <div><h3 className="text-xl font-bold">{course.instructor}</h3><p className="text-textGray">خبير في {course.title}</p></div>
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-6 animate-fadeInUp">
+              <div className="flex flex-wrap gap-2 mb-6 border-b border-white/10 pb-4">
+                {tabs.map((t) => (<button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${activeTab === t.id ? 'tab-active' : 'bg-white/5 text-textGray hover:bg-white/10'}`}><span>{t.icon}</span><span>{t.label}</span></button>))}
+              </div>
+
+              {activeTab === 'curriculum' && (
+                <div>
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {course.curriculum.map((m, i) => (<button key={i} onClick={() => { setActiveModule(i); setExpandedLesson(null); }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeModule === i ? 'bg-primary text-white' : 'bg-white/5 text-textGray hover:bg-white/10'}`}>{m.module}</button>))}
+                  </div>
+                  <div className="space-y-3">
+                    {course.curriculum[activeModule].lessons.map((lesson, i) => (
+                      <div key={i} className="lesson-item glass rounded-xl border border-transparent overflow-hidden">
+                        <button onClick={() => setExpandedLesson(expandedLesson === i ? null : i)} className="w-full p-4 text-right">
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0">{i + 1}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold">{lesson.title}</h4>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm text-textGray">{lesson.duration}</span>
+                                  <svg className={`w-5 h-5 transition-transform ${expandedLesson === i ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                              </div>
+                              <p className="text-textGray text-sm">{lesson.explanation}</p>
+                            </div>
+                          </div>
+                        </button>
+                        {expandedLesson === i && lesson.content && (
+                          <div className="p-4 pt-0 border-t border-white/10 mt-2">
+                            <div className="lesson-content" dangerouslySetInnerHTML={{ __html: lesson.content }} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'videos' && (
+                <div>
+                  <div className="mb-6 p-4 bg-youtube/10 border border-youtube/30 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-8 h-8 text-youtube" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
+                      <div><h3 className="font-bold text-lg">فيديوهات تعليمية من يوتيوب</h3><p className="text-sm text-textGray">محتوى عربي مجاني مكمل للدورة</p></div>
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {course.videos.map((v, i) => (
+                      <a key={i} href={v.url} target="_blank" rel="noopener noreferrer" className="youtube-card glass rounded-xl p-5 block border border-transparent">
+                        <div className="flex items-start gap-4">
+                          <div className="w-14 h-14 rounded-xl bg-youtube/20 flex items-center justify-center shrink-0">
+                            <svg className="w-8 h-8 text-youtube" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold mb-1">{v.title}</h4>
+                            <p className="text-sm text-textGray mb-2">{v.channel}</p>
+                            <div className="flex items-center gap-3 text-xs text-textGray">
+                              <span>{v.duration}</span>
+                              <span className="text-youtube font-bold">▶ مشاهدة</span>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'learn' && (
+                <div>
+                  <div className="mb-8">
+                    <h3 className="text-xl font-bold mb-4">🎯 ماذا ستتعلم</h3>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {course.whatYouLearn.map((item, i) => (<div key={i} className="flex items-start gap-3 glass rounded-xl p-4"><div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0"><svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div><span>{item}</span></div>))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-4">📋 المتطلبات السابقة</h3>
+                    <div className="space-y-2">
+                      {course.prerequisites.map((item, i) => (<div key={i} className="flex items-start gap-3 glass rounded-xl p-4"><span>{item}</span></div>))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function LearningPath() {
+      return (
+        <section className="py-24 relative overflow-hidden">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">مسار <span className="gradient-text">التعلم</span></h2></div>
+            <div className="relative max-w-4xl mx-auto">
+              <div className="absolute right-1/2 translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full hidden md:block" />
+              <div className="space-y-12">
+                {learningPath.map((s, i) => (
+                  <div key={s.role} className={`flex flex-col md:flex-row items-center gap-8 reveal ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
+                    <div className="flex-1 glass p-6 rounded-2xl text-center md:text-right card-hover"><h3 className="text-xl font-bold mb-2 text-gold">{s.role}</h3><p className="text-textGray">{s.description}</p></div>
+                    <div className="relative z-10 w-12 h-12 rounded-full bg-darkBg border-4 border-primary flex items-center justify-center font-bold text-lg shrink-0">{i + 1}</div>
+                    <div className="flex-1 hidden md:block" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function ERPModuleCard({ module, index }) { return (<div className="glass p-4 rounded-xl text-center card-hover cursor-pointer group reveal"><div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{module.icon}</div><h3 className="font-bold text-sm group-hover:text-primary">{module.name}</h3></div>); }
+    function ERP() { return (<section id="erp" className="py-24 relative"><div className="container mx-auto px-4"><div className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">نظام <span className="gradient-text">ERP</span> المتكامل</h2></div><div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">{erpModules.map((m, i) => <ERPModuleCard key={m.id} module={m} index={i} />)}</div></div></section>); }
+
+    function AIAssistant() {
+      const s = ['كيف أقيد فاتورة شراء؟', 'ما هي معايير IFRS؟', 'ساعدني في إعداد ميزانية', 'كيفية تحليل التدفقات النقدية'];
+      return (
+        <section id="ai" className="py-24 relative">
+          <div className="container mx-auto px-4">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="reveal"><h2 className="text-4xl md:text-5xl font-black mb-6">مساعدك <span className="gradient-text">الذكي</span></h2><p className="text-textGray text-lg mb-8">احصل على إجابات فورية لأسئلتك المحاسبية.</p><Button variant="primary" size="lg">جرب المساعد الذكي</Button></div>
+              <div className="glass rounded-3xl p-6 max-w-lg mx-auto reveal">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                  </div>
+                  <div><h3 className="font-bold">المساعد المالي الذكي</h3><p className="text-xs text-green-400">متصل الآن</p></div>
+                </div>
+                <div className="bg-darkBg/50 p-3 rounded-2xl mb-6 max-w-[80%]"><p className="text-sm">مرحباً! كيف يمكنني مساعدتك؟</p></div>
+                <div className="flex flex-wrap gap-2">{s.map((x, i) => (<button key={i} className="text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5">{x}</button>))}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function Testimonials() {
+      return (
+        <section className="py-24 relative">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">ماذا يقول <span className="gradient-text">طلابنا</span></h2></div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {testimonials.map((t) => (
+                <div key={t.id} className="glass p-6 rounded-2xl card-hover reveal">
+                  <div className="flex items-center gap-1 mb-4">{[...Array(5)].map((_, i) => (<svg key={i} className="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>))}</div>
+                  <p className="text-textGray mb-6">"{t.text}"</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center font-bold text-lg">{t.name[0]}</div>
+                    <div><h4 className="font-bold">{t.name}</h4><p className="text-sm text-textGray">{t.role}</p></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function FAQItem({ faq, isOpen, onClick }) {
+      return (
+        <div className="glass rounded-2xl overflow-hidden mb-4">
+          <button className="w-full flex items-center justify-between p-6 text-right hover:bg-white/5" onClick={onClick}>
+            <span className="font-bold text-lg">{faq.question}</span>
+            <svg className={`w-6 h-6 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-96' : 'max-h-0'}`}><div className="p-6 pt-0 text-textGray">{faq.answer}</div></div>
+        </div>
+      );
+    }
+    function FAQ() {
+      const [openIndex, setOpenIndex] = useState(0);
+      return (
+        <section id="faq" className="py-24 relative">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <div className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">الأسئلة <span className="gradient-text">الشائعة</span></h2></div>
+            <div>{faqs.map((f, i) => (<FAQItem key={i} faq={f} isOpen={openIndex === i} onClick={() => setOpenIndex(openIndex === i ? -1 : i)} />))}</div>
+          </div>
+        </section>
+      );
+    }
+
+    function App() {
+      const [currentPage, setCurrentPage] = useState('home');
+      const [selectedCourse, setSelectedCourse] = useState(null);
+      const handleCourseClick = (id) => { setSelectedCourse(id); setCurrentPage('course'); };
+      const handleBackToHome = () => { setCurrentPage('home'); setSelectedCourse(null); };
+      const handleNavigate = (p) => { setCurrentPage(p); setSelectedCourse(null); };
+      return (
+        <>
+          <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
+          <main className="min-h-screen">
+            {currentPage === 'home' && (<><Hero /><Stats /><Academy onCourseClick={handleCourseClick} /><LearningPath /><ERP /><AIAssistant /><Testimonials /><FAQ /></>)}
+            {currentPage === 'course' && selectedCourse && <CourseDetail courseId={selectedCourse} onBack={handleBackToHome} />}
+          </main>
+          <Footer />
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+
+</html>
