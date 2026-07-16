@@ -1151,7 +1151,7 @@
         { name: 'الرئيسية', href: '#', page: 'home' }, { name: 'الأكاديمية', href: '#academy', page: 'home' },
         { name: 'المراجع والأدوات', href: '#tools', page: 'home' }, { name: 'محاكي الامتحانات', href: '#exams', page: 'home' },
         { name: 'نظام ERP', href: '#erp', page: 'home' }, { name: 'الذكاء الاصطناعي', href: '#ai', page: 'home' },
-        { name: 'الأسعار', href: '#pricing', page: 'home' }, { name: 'من نحن', href: '#about', page: 'home' },
+        { name: 'من نحن', href: '#about', page: 'home' },
         { name: 'تواصل معنا', href: '#contact', page: 'home' },
       ];
       return (
@@ -1161,7 +1161,6 @@
             <nav className="hidden lg:flex items-center gap-8">
               {links.map((l) => (<a key={l.name} href={l.href} onClick={(e) => { if (currentPage !== 'home') { e.preventDefault(); onNavigate('home'); } }} className="text-textGray hover:text-textWhite transition-colors font-medium">{l.name}</a>))}
             </nav>
-            <div className="hidden lg:block"><Button variant="primary">تسجيل الدخول</Button></div>
             <button className="lg:hidden text-textWhite p-2" onClick={() => setIsMobileOpen(!isMobileOpen)}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} /></svg>
             </button>
@@ -1170,7 +1169,6 @@
             <div className="lg:hidden glass mt-2 mx-4 rounded-2xl overflow-hidden animate-fadeIn">
               <nav className="flex flex-col p-4 gap-4">
                 {links.map((l) => (<a key={l.name} href={l.href} className="text-textGray hover:text-textWhite py-2" onClick={() => { setIsMobileOpen(false); if (currentPage !== 'home') onNavigate('home'); }}>{l.name}</a>))}
-                <Button variant="primary" className="w-full mt-2">تسجيل الدخول</Button>
               </nav>
             </div>
           )}
@@ -1186,7 +1184,7 @@
               <div><h3 className="text-2xl font-black gradient-text mb-4">CFO Master</h3><p className="text-textGray">منصة تعليمية متكاملة لتطوير المحاسبين والمديرين الماليين.</p></div>
               <div><h4 className="text-lg font-bold mb-4">روابط سريعة</h4><ul className="space-y-2 text-textGray"><li><a href="#" className="hover:text-textWhite">الرئيسية</a></li><li><a href="#academy" className="hover:text-textWhite">الأكاديمية</a></li><li><a href="#erp" className="hover:text-textWhite">نظام ERP</a></li></ul></div>
               <div><h4 className="text-lg font-bold mb-4">الدعم</h4><ul className="space-y-2 text-textGray"><li><a href="#faq" className="hover:text-textWhite">الأسئلة الشائعة</a></li><li><a href="#contact" className="hover:text-textWhite">تواصل معنا</a></li></ul></div>
-              <div><h4 className="text-lg font-bold mb-4">النشرة البريدية</h4><form className="flex gap-2" onSubmit={(e) => e.preventDefault()}><input type="email" placeholder="بريدك الإلكتروني" className="flex-1 px-4 py-2 bg-darkBg border border-white/10 rounded-lg focus:outline-none focus:border-primary text-textWhite" /><button type="submit" className="px-4 py-2 bg-primary hover:bg-primary/80 rounded-lg">اشتراك</button></form></div>
+              <div><h4 className="text-lg font-bold mb-4">تابعنا</h4><p className="text-textGray text-sm">منصة تعليمية مجانية للمحاسبين — تعلَّم ثم طبّق مباشرةً داخل نظام ERP.</p></div>
             </div>
             <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4"><p className="text-textGray text-sm">© 2026 CFO Master Academy.</p></div>
           </div>
