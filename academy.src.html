@@ -1368,6 +1368,56 @@
     };
 
     // بنك اختبارات سريعة (مفتاحه عنوان الدرس) — الدورة الأساسية مكتملة كنموذج
+    // 🏆 بنوك الاختبار الشامل بمراحل (مفتاحه معرّف الدورة)
+    const EXAM_STAGES = {
+      construction: [
+        {
+          title: 'العقود وخصائص الصناعة', pass: 60, questions: [
+            { q: 'العقد الذي يُحدَّد فيه سعر إجمالي ثابت للمشروع كاملاً:', options: ['Cost Plus', 'Unit Price', 'Lump Sum (المقطوعية)', 'Target Cost'], answer: 2 },
+            { q: 'في عقد Cost Plus، مَن يتحمّل غالباً مخاطر تجاوز التكلفة؟', options: ['المالك (صاحب المشروع)', 'المقاول', 'المورّد', 'الاستشاري'], answer: 0, explain: 'لأن المقاول يُعوَّض عن التكلفة الفعلية زائد هامش.' },
+            { q: 'عقد الكميات (Unit Price) يُحاسَب على أساس:', options: ['مبلغ مقطوع', 'سعر الوحدة × الكميات المنفَّذة فعلاً', 'التكلفة + هامش', 'نسبة ثابتة'], answer: 1 },
+            { q: 'من أبرز خصائص صناعة المقاولات:', options: ['مبيعات نقدية فورية', 'تكاليف بسيطة', 'مشاريع طويلة الأجل وعالية المخاطر', 'لا عقود'], answer: 2 },
+            { q: 'أول مرحلة في دورة حياة المشروع الإنشائي:', options: ['التسليم النهائي', 'الضمان', 'العطاء (المناقصة)', 'الصيانة'], answer: 2 },
+            { q: 'فترة الضمان (Maintenance) تأتي:', options: ['بعد الاستلام الابتدائي', 'قبل العطاء', 'أثناء التصميم', 'لا وجود لها'], answer: 0 },
+            { q: 'أكبر تحدٍّ محاسبي في المقاولات:', options: ['طباعة الفواتير', 'جرد يومي', 'حساب الرواتب', 'الاعتراف بالإيراد عبر فترات طويلة'], answer: 3 },
+          ]
+        },
+        {
+          title: 'تكاليف المشاريع', pass: 60, questions: [
+            { q: 'أجور العمالة العاملة في الموقع تُصنَّف تكلفة:', options: ['مباشرة', 'غير مباشرة', 'إدارية', 'تمويلية'], answer: 0 },
+            { q: 'رواتب إدارة المكتب الرئيسي تُصنَّف:', options: ['تكلفة مباشرة', 'تكلفة غير مباشرة', 'إيراد', 'لا تُحتسب'], answer: 1 },
+            { q: 'قيد صرف مواد من المخزن للمشروع:', options: ['من ح/تكاليف المشروع (مواد) إلى ح/المخزون', 'من ح/المخزون إلى ح/الموردين', 'من ح/النقدية إلى ح/المخزون', 'لا قيد'], answer: 0 },
+            { q: 'معدّل تكلفة المعدة بالساعة يشمل:', options: ['سعر البيع فقط', 'الضريبة فقط', 'الإهلاك والتأمين والصيانة والتشغيل', 'رأس المال'], answer: 2 },
+            { q: 'رافعة بتكلفة 600,000 وقيمة متبقية 0 وعمر 5 سنوات → الإهلاك السنوي (قسط ثابت):', options: ['120,000', '60,000', '100,000', '150,000'], answer: 0 },
+            { q: 'تكاليف غير مباشرة 15% من المباشرة، ومشروع بتكاليف مباشرة 1,000,000 → نصيبه:', options: ['15,000', '150,000', '100,000', '1,150,000'], answer: 1 },
+            { q: 'أساس شائع لتوزيع التكاليف غير المباشرة على المشاريع:', options: ['لون المعدات', 'عدد الأبواب', 'ساعات العمل المباشرة أو التكاليف المباشرة', 'عشوائياً'], answer: 2 },
+          ]
+        },
+        {
+          title: 'الاعتراف بالإيراد', pass: 60, questions: [
+            { q: 'نسبة الإنجاز بطريقة (Cost-to-Cost) =', options: ['التكاليف الفعلية حتى تاريخه ÷ إجمالي التكاليف المقدّرة', 'الإيراد ÷ التكلفة', 'المقبوضات ÷ العقد', 'صفر'], answer: 0 },
+            { q: 'الإيراد المعترف به في الفترة =', options: ['نسبة الإنجاز × قيمة العقد − ما سبق الاعتراف به', 'قيمة العقد كاملة', 'المقبوض نقداً', 'التكلفة فقط'], answer: 0 },
+            { q: 'عقد 10 مليون، تكاليف مقدّرة 8 مليون، فعلية حتى الآن 2 مليون → نسبة الإنجاز:', options: ['25%', '20%', '40%', '80%'], answer: 0, explain: '2 ÷ 8 = 25%.' },
+            { q: 'في المثال السابق، الإيراد المعترف به حتى الآن:', options: ['2.5 مليون', '2 مليون', '10 مليون', '8 مليون'], answer: 0, explain: '25% × 10 = 2.5 مليون.' },
+            { q: 'طريقة العقد المكتمل تعترف بالإيراد:', options: ['عند اكتمال العقد', 'شهرياً', 'عند التوقيع', 'مع كل دفعة'], answer: 0 },
+            { q: 'عند توقّع خسارة إجمالية على العقد، تُعالَج:', options: ['بالاعتراف بها فوراً بالكامل', 'بتوزيعها على المدة المتبقية', 'بتجاهلها', 'بتأجيلها للتسليم'], answer: 0 },
+            { q: 'معيار IFRS الذي ينظّم الاعتراف بالإيراد من العقود:', options: ['IFRS 15', 'IFRS 16', 'IAS 2', 'IFRS 9'], answer: 0 },
+          ]
+        },
+        {
+          title: 'المستخلصات وأوامر التغيير (تطبيقي)', pass: 60, questions: [
+            { q: 'أمر التغيير (Variation Order):', options: ['تعديل معتمد على نطاق/كمية العقد', 'غرامة تأخير', 'ضريبة', 'دفعة مقدمة'], answer: 0 },
+            { q: 'المطالبة (Claim):', options: ['طلب تعويض عن تكاليف/وقت إضافي بسبب ظروف', 'خصم إجباري', 'إيراد مؤكد', 'رأس مال'], answer: 0 },
+            { q: 'محتجز الضمان (Retention) في المستخلص:', options: ['نسبة تُحتجز كضمان جودة وتُحرَّر بعد التسليم', 'ضريبة', 'دفعة مقدمة', 'غرامة'], answer: 0 },
+            { q: 'الدفعة المقدمة (Advance) تُسترَدّ:', options: ['بالخصم التدريجي من المستخلصات', 'دفعة واحدة نهاية العقد', 'لا تُسترَدّ', 'نقداً فوراً'], answer: 0 },
+            { q: 'مستخلص أعمال 500,000، محتجز ضمان 10%، وضريبة 15% على الصافي → صافي المطالبة:', options: ['517,500', '575,000', '450,000', '500,000'], answer: 0, explain: '(500,000 − 50,000) × 1.15 = 517,500.' },
+            { q: 'المستخلص الشهري يُقدَّم:', options: ['دورياً بقيمة الأعمال المنفَّذة في الفترة', 'مرة واحدة نهاية المشروع', 'قبل بدء العمل', 'عند التوقيع'], answer: 0 },
+            { q: 'الإيراد في المقاولات يُعترف به أساساً وفق:', options: ['تقدّم إنجاز الأعمال (بمرور الوقت)', 'استلام النقد فقط', 'توقيع العقد', 'صرف المواد'], answer: 0 },
+          ]
+        },
+      ],
+    };
+
     const LESSON_QUIZZES = {
       accounting: {
         'مفهوم المحاسبة وأهميتها في الأعمال': [
@@ -1423,50 +1473,74 @@
         'خصائص صناعة المقاولات': [
           { q: 'تتميز مشاريع المقاولات بأنها:', options: ['قصيرة الأجل ومنخفضة المخاطر', 'طويلة الأجل وعالية المخاطر', 'بلا عقود', 'بلا تكاليف'], answer: 1 },
           { q: 'أبرز تحدٍّ محاسبي فيها:', options: ['الاعتراف بالإيراد عبر فترات طويلة', 'بساطة التكاليف', 'ثبات الأسعار', 'البيع النقدي الفوري'], answer: 0 },
+          { q: 'عقود المقاولات عادةً:', options: ['تُنجز في يوم واحد', 'تمتد لأكثر من فترة محاسبية', 'بلا مدة', 'فورية التسليم'], answer: 1 },
+          { q: 'تتأثر تكاليف المقاولات بـ:', options: ['الإعلان فقط', 'لا شيء', 'تقلب أسعار المواد والعمالة والطقس', 'ثابتة دائماً'], answer: 2 },
         ],
         'أنواع العقود في المقاولات': [
           { q: 'العقد ذو السعر الإجمالي الثابت هو:', options: ['Cost Plus', 'Unit Price', 'Lump Sum (المقطوعية)', 'Target Cost'], answer: 2 },
           { q: 'عقد «التكلفة زائد هامش ربح» هو:', options: ['Cost Plus', 'Lump Sum', 'Unit Price', 'Fixed'], answer: 0 },
+          { q: 'عقد الكميات (Unit Price) يناسب:', options: ['مشاريع تُقاس بكميات (طرق/خرسانة)', 'بلا كميات', 'الخدمات فقط', 'الأصول المالية'], answer: 0 },
+          { q: 'عقد Target Cost يقوم على:', options: ['تكلفة مستهدفة وتقاسم الوفر/التجاوز', 'سعر ثابت جامد', 'بلا حوافز', 'التكلفة الفعلية فقط'], answer: 0 },
         ],
         'دورة حياة المشروع الإنشائي': [
           { q: 'أول مراحل المشروع:', options: ['التسليم النهائي', 'العطاء (تقديم العرض)', 'الضمان', 'التنفيذ'], answer: 1 },
           { q: 'بعد التنفيذ تأتي مرحلة:', options: ['الاستلام المؤقت', 'العطاء', 'الترسية', 'التجهيز'], answer: 0 },
+          { q: '«الترسية» تعني:', options: ['إسناد العقد للمقاول الفائز', 'بدء التصميم', 'التسليم النهائي', 'الصيانة'], answer: 0 },
+          { q: 'الاستلام الابتدائي يسبق:', options: ['فترة الضمان والاستلام النهائي', 'العطاء', 'الترسية', 'التجهيز'], answer: 0 },
         ],
         'التحديات المحاسبية': [
           { q: 'من أبرز التحديات:', options: ['لا توجد تحديات', 'الاعتراف بالإيراد وتوزيع التكاليف غير المباشرة', 'البيع النقدي', 'ثبات التكاليف'], answer: 1 },
           { q: 'الخسائر المتوقعة على العقد يجب:', options: ['الاعتراف بها فوراً بالكامل', 'تجاهلها', 'توزيعها على سنوات', 'تأجيلها للتسليم'], answer: 0 },
+          { q: 'توزيع التكاليف غير المباشرة تحدٍّ لأنه:', options: ['يخدم عدة مشاريع ويحتاج أساس توزيع عادل', 'بسيط', 'غير مطلوب', 'يخص مشروعاً واحداً'], answer: 0 },
+          { q: 'العملات الأجنبية في المشاريع الدولية تسبب:', options: ['مخاطر فروق أسعار الصرف', 'لا أثر', 'زيادة الإيراد حتماً', 'خفض التكلفة'], answer: 0 },
         ],
         'تصنيف تكاليف المشاريع': [
           { q: 'أجور العمالة بالموقع تُعد تكلفة:', options: ['مباشرة', 'غير مباشرة', 'إدارية', 'تمويلية'], answer: 0 },
           { q: 'رواتب الإدارة المركزية تُعد تكلفة:', options: ['مباشرة', 'غير مباشرة', 'لا تُحتسب', 'إيراد'], answer: 1 },
+          { q: 'إيجار معدة تعمل بمشروع محدد يُعد:', options: ['تكلفة مباشرة للمشروع', 'إدارية', 'تمويلية', 'إيراد'], answer: 0 },
+          { q: 'التكاليف المشتركة بين عدة مشاريع تُعالَج بـ:', options: ['التوزيع بأساس عادل', 'تحميلها على مشروع واحد', 'تجاهلها', 'إضافتها للإيراد'], answer: 0 },
         ],
         'توزيع التكاليف غير المباشرة': [
           { q: 'من أسس التوزيع الشائعة:', options: ['لون المعدات', 'ساعات العمل المباشرة', 'عشوائياً', 'عدد السيارات'], answer: 1 },
           { q: 'تكاليف غير مباشرة 20% من المباشرة، ومشروع بتكاليف مباشرة 800,000 → نصيبه:', options: ['80,000', '16,000', '160,000', '200,000'], answer: 2 },
+          { q: 'معدل التوزيع = التكاليف غير المباشرة ÷', options: ['أساس التوزيع (كساعات العمل)', 'الإيراد', 'النقدية', 'رأس المال'], answer: 0 },
+          { q: 'الهدف من التوزيع:', options: ['تحميل كل مشروع نصيبه العادل', 'تضخيم الربح', 'إخفاء التكاليف', 'زيادة الضريبة'], answer: 0 },
         ],
         'محاسبة المواد والعمالة': [
           { q: 'صرف مواد للمشروع يُقيَّد:', options: ['من ح/تكاليف المشروع إلى ح/المخزون', 'من ح/المخزون إلى ح/الموردين', 'من ح/النقدية إلى ح/المخزون', 'لا قيد'], answer: 0 },
           { q: 'العمالة المباشرة بالموقع تُحمَّل على:', options: ['المصروفات الإدارية', 'تكاليف المشروع', 'رأس المال', 'الإيراد'], answer: 1 },
+          { q: 'مرتجع مواد من المشروع إلى المخزن:', options: ['من ح/المخزون إلى ح/تكاليف المشروع', 'من ح/تكاليف المشروع إلى ح/المخزون', 'لا قيد', 'من ح/النقدية إلى ح/المخزون'], answer: 0 },
+          { q: 'استحقاق أجور عمالة المشروع:', options: ['من ح/تكاليف المشروع (عمالة) إلى ح/الأجور المستحقة', 'من ح/النقدية إلى ح/العمالة', 'من ح/الإيراد إلى ح/العمالة', 'لا قيد'], answer: 0 },
         ],
         'محاسبة المعدات والآليات': [
           { q: 'معدل تكلفة المعدة بالساعة يشمل:', options: ['الإيراد فقط', 'الضريبة فقط', 'الإهلاك والتأمين والصيانة والتشغيل', 'رأس المال'], answer: 2 },
           { q: 'رافعة بـ500,000 وعمر 5 سنوات → الإهلاك السنوي (القسط الثابت):', options: ['100,000', '50,000', '25,000', '500,000'], answer: 0 },
+          { q: 'تكلفة تشغيل المعدة تشمل:', options: ['الوقود والسائق وقطع الغيار', 'الإهلاك فقط', 'الضريبة فقط', 'رأس المال'], answer: 0 },
+          { q: 'معدل الساعة = إجمالي التكلفة السنوية ÷', options: ['ساعات التشغيل السنوية', 'أيام السنة', 'عدد المشاريع', 'الإيراد'], answer: 0 },
         ],
         'طريقة نسبة الإنجاز (POC)': [
           { q: 'نسبة الإنجاز (Cost-to-Cost) =', options: ['الإيراد ÷ التكلفة', 'التكاليف الفعلية ÷ إجمالي التكاليف المقدّرة', 'النقدية ÷ العقد', 'العقد ÷ التكلفة'], answer: 1 },
           { q: 'الإيراد المعترف به =', options: ['نسبة الإنجاز × قيمة العقد', 'قيمة العقد كاملة', 'صفر حتى التسليم', 'التكلفة فقط'], answer: 0 },
+          { q: 'تُستخدم نسبة الإنجاز عندما:', options: ['يمكن تقدير نتيجة العقد بموثوقية', 'لا يمكن التقدير', 'العقد قصير جداً', 'ممنوعة دائماً'], answer: 0 },
+          { q: 'تكاليف فعلية 3م من إجمالي مقدّر 12م → نسبة الإنجاز:', options: ['25%', '40%', '30%', '12%'], answer: 0, explain: '3 ÷ 12 = 25%.' },
         ],
         'طريقة العقد المكتمل': [
           { q: 'يُعترف بالإيراد في هذه الطريقة:', options: ['شهرياً', 'عند اكتمال العقد', 'عند التوقيع', 'مع كل دفعة'], answer: 1 },
           { q: 'تُستخدم غالباً عندما:', options: ['يصعب تقدير نسبة الإنجاز بموثوقية', 'العقد قصير', 'الربح مرتفع', 'دائماً'], answer: 0 },
+          { q: 'خلال التنفيذ تُرحَّل التكاليف إلى حساب:', options: ['عقود تحت التنفيذ (أصل)', 'مصروف فوري', 'إيراد', 'رأس مال'], answer: 0 },
+          { q: 'عيب طريقة العقد المكتمل:', options: ['لا تُظهر الأداء الدوري بعدالة', 'معقدة جداً', 'ممنوعة', 'ترفع الضريبة'], answer: 0 },
         ],
         'معالجة الخسائر المتوقعة': [
           { q: 'عند توقّع خسارة على العقد:', options: ['تُثبت فوراً بالكامل', 'تُوزّع على المدة', 'تُؤجّل', 'تُتجاهل'], answer: 0 },
           { q: 'هذا تطبيق لمبدأ:', options: ['التكلفة التاريخية', 'الحيطة والحذر', 'الاستمرارية', 'الأهمية النسبية'], answer: 1 },
+          { q: 'الخسارة المتوقعة تُثبت:', options: ['بمجرد توقّعها ولو لم تتحقق كاملة', 'بعد التسليم فقط', 'لا تُثبت', 'مع الربح'], answer: 0 },
+          { q: 'المبرّر المحاسبي لإثباتها فوراً:', options: ['عدم تضخيم الأصول/الأرباح', 'زيادة الربح', 'إخفاء الخسارة', 'خفض الضريبة'], answer: 0 },
         ],
         'التعديلات والمطالبات': [
           { q: 'أمر التغيير (Variation Order) هو:', options: ['تعديل معتمد على نطاق العقد', 'غرامة', 'دفعة مقدمة', 'ضريبة'], answer: 0 },
           { q: 'المطالبة (Claim) هي:', options: ['خصم إجباري', 'طلب تعويض عن تكاليف إضافية', 'إيراد مؤكد', 'دفعة مقدمة'], answer: 1 },
+          { q: 'أمر التغيير يؤثر على:', options: ['قيمة العقد ونطاقه', 'لا شيء', 'الضريبة فقط', 'الرواتب'], answer: 0 },
+          { q: 'تُعترف إيرادات المطالبات عادةً عندما:', options: ['يُرجَّح قبولها ويمكن قياسها بموثوقية', 'فوراً دائماً', 'أبداً', 'عند التوقيع'], answer: 0 },
         ],
       },
       excel: {
@@ -1773,6 +1847,78 @@
       return <button onClick={() => setOn(toggleBook(courseId, mod, les, title, courseTitle))} className={`px-4 py-2.5 rounded-xl font-bold text-sm border transition-colors ${on ? 'bg-gold/20 border-gold/40 text-gold' : 'bg-white/5 border-white/10 text-textGray hover:bg-white/10'}`}>{on ? '🔖 محفوظ' : '🔖 حفظ الدرس'}</button>;
     }
 
+    // 🏆 الاختبار الشامل بمراحل
+    function StagedExam({ courseId, stages, courseTitle }) {
+      const [stage, setStage] = useState(0);
+      const [answers, setAnswers] = useState({});
+      const [submitted, setSubmitted] = useState(false);
+      const [best, setBest] = useState(() => { try { return JSON.parse(localStorage.getItem('acad_exam_' + courseId) || '{}'); } catch (e) { return {}; } });
+      const cur = stages[stage];
+      const passMark = cur.pass || 60;
+      const answered = Object.keys(answers).length;
+      const score = cur.questions.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0);
+      const pct = Math.round(score / cur.questions.length * 100);
+      const passed = pct >= passMark;
+      const isUnlocked = (i) => i === 0 || (best[i - 1] || 0) >= (stages[i - 1].pass || 60);
+      const passedCount = stages.filter((s, i) => (best[i] || 0) >= (s.pass || 60)).length;
+      const allDone = passedCount === stages.length;
+      const totalQ = stages.reduce((s, st) => s + st.questions.length, 0);
+      const goStage = (i) => { if (!isUnlocked(i)) return; setStage(i); setAnswers({}); setSubmitted(false); };
+      const submit = () => { setSubmitted(true); const nb = { ...best }; nb[stage] = Math.max(nb[stage] || 0, pct); setBest(nb); try { localStorage.setItem('acad_exam_' + courseId, JSON.stringify(nb)); } catch (e) { } };
+      return (
+        <div>
+          <div className="glass rounded-2xl p-5 mb-6">
+            <h3 className="text-2xl font-black mb-1">🏆 الاختبار الشامل — {courseTitle}</h3>
+            <p className="text-textGray text-sm mb-4">اختبار احترافي من <b>{stages.length} مراحل</b> و<b>{totalQ} سؤالاً</b>. اجتز كل مرحلة ({passMark}%+) لفتح التالية. نتائجك محفوظة على جهازك.</p>
+            <div className="flex items-center justify-between mb-2 text-sm"><span className="font-bold">تقدّمك في الاختبار</span><span className="gradient-text font-black">{passedCount}/{stages.length} مرحلة</span></div>
+            <div className="h-3 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-primary to-secondary transition-all" style={{ width: Math.round(passedCount / stages.length * 100) + '%' }} /></div>
+            {allDone && <div className="mt-4 p-3 rounded-xl bg-green-500/15 border border-green-500/30 text-green-300 font-bold text-center">🎉 مبروك! اجتزت كل مراحل الاختبار الشامل لهذه الدورة.</div>}
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            {stages.map((s, i) => {
+              const done = (best[i] || 0) >= (s.pass || 60);
+              const unlocked = isUnlocked(i);
+              return (<button key={i} onClick={() => goStage(i)} disabled={!unlocked} className={`px-4 py-2 rounded-full text-sm font-bold border transition-all ${stage === i ? 'bg-primary text-white border-primary' : done ? 'bg-green-500/15 text-green-300 border-green-500/30' : unlocked ? 'bg-white/5 text-textGray border-white/10 hover:bg-white/10' : 'bg-white/5 text-textGray/40 border-white/5 cursor-not-allowed'}`}>{done ? '✓ ' : unlocked ? '' : '🔒 '}{i + 1}. {s.title}</button>);
+            })}
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h4 className="text-lg font-bold">المرحلة {stage + 1}: {cur.title}</h4>
+              <span className="text-xs text-textGray">{cur.questions.length} أسئلة · النجاح {passMark}%{best[stage] != null ? ` · أفضل نتيجة ${best[stage]}%` : ''}</span>
+            </div>
+            {cur.questions.map((q, i) => (
+              <div key={i} className="mb-5">
+                <p className="font-bold mb-2 text-sm">{i + 1}. {q.q}</p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {q.options.map((opt, oi) => {
+                    const chosen = answers[i] === oi;
+                    let cls = 'bg-white/5 border-white/10 hover:bg-white/10';
+                    if (submitted) { if (oi === q.answer) cls = 'bg-green-500/20 border-green-500/50 text-green-300'; else if (chosen) cls = 'bg-red-500/20 border-red-500/50 text-red-300'; }
+                    else if (chosen) cls = 'bg-primary/20 border-primary/50';
+                    return <button key={oi} disabled={submitted} onClick={() => setAnswers(a => ({ ...a, [i]: oi }))} className={`text-right px-3 py-2 rounded-lg border text-sm transition-all ${cls}`}>{opt}</button>;
+                  })}
+                </div>
+                {submitted && q.explain && <p className="text-xs text-textGray mt-2">💡 {q.explain}</p>}
+              </div>
+            ))}
+            {!submitted ? (
+              <button onClick={submit} disabled={answered < cur.questions.length} className="px-6 py-3 rounded-xl bg-primary text-white font-bold disabled:opacity-40">تسليم المرحلة ({answered}/{cur.questions.length})</button>
+            ) : (
+              <div className="mt-2 p-4 rounded-xl border" style={{ borderColor: passed ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)', background: passed ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)' }}>
+                <div className={`font-black text-lg mb-2 ${passed ? 'text-green-400' : 'text-red-400'}`}>{passed ? '✅ اجتزت المرحلة!' : '❌ لم تجتز بعد'} — نتيجتك {score}/{cur.questions.length} ({pct}%)</div>
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => { setSubmitted(false); setAnswers({}); }} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm font-bold">🔄 إعادة المحاولة</button>
+                  {passed && stage < stages.length - 1 && <button onClick={() => goStage(stage + 1)} className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold">المرحلة التالية ←</button>}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     function CourseDetail({ courseId, onBack, initialModule, initialLesson }) {
       const course = courses.find(c => c.id === courseId);
       const [activeModule, setActiveModule] = useState(initialModule || 0);
@@ -1796,6 +1942,7 @@
         { id: 'videos', label: 'فيديوهات يوتيوب', icon: '🎬' },
         { id: 'learn', label: 'ماذا ستتعلم', icon: '🎯' },
       ];
+      if (EXAM_STAGES[courseId]) tabs.push({ id: 'exam', label: 'الاختبار الشامل', icon: '🏆' });
 
       return (
         <div className="min-h-screen pt-24 pb-12">
@@ -1930,6 +2077,10 @@
                     </div>
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'exam' && EXAM_STAGES[courseId] && (
+                <StagedExam courseId={courseId} stages={EXAM_STAGES[courseId]} courseTitle={course.title} />
               )}
             </div>
           </div>
