@@ -1161,6 +1161,10 @@
             <nav className="hidden lg:flex items-center gap-8">
               {links.map((l) => (<a key={l.name} href={l.href} onClick={(e) => { if (currentPage !== 'home') { e.preventDefault(); onNavigate('home'); } }} className="text-textGray hover:text-textWhite transition-colors font-medium">{l.name}</a>))}
             </nav>
+            <div className="hidden lg:flex items-center gap-3">
+              <button onClick={() => onNavigate('search')} className="text-textGray hover:text-textWhite transition-colors font-medium" title="بحث">🔍 بحث</button>
+              <Button variant="primary" onClick={() => onNavigate('dashboard')}>📊 مسيرتي</Button>
+            </div>
             <button className="lg:hidden text-textWhite p-2" onClick={() => setIsMobileOpen(!isMobileOpen)}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} /></svg>
             </button>
@@ -1169,6 +1173,8 @@
             <div className="lg:hidden glass mt-2 mx-4 rounded-2xl overflow-hidden animate-fadeIn">
               <nav className="flex flex-col p-4 gap-4">
                 {links.map((l) => (<a key={l.name} href={l.href} className="text-textGray hover:text-textWhite py-2" onClick={() => { setIsMobileOpen(false); if (currentPage !== 'home') onNavigate('home'); }}>{l.name}</a>))}
+                <button onClick={() => { setIsMobileOpen(false); onNavigate('search'); }} className="text-textGray hover:text-textWhite py-2 text-right">🔍 بحث</button>
+                <Button variant="primary" className="w-full mt-2" onClick={() => { setIsMobileOpen(false); onNavigate('dashboard'); }}>📊 مسيرتي التعليمية</Button>
               </nav>
             </div>
           )}
@@ -1285,6 +1291,15 @@
     const getDone = (id) => { try { return JSON.parse(localStorage.getItem(acadKey(id)) || '[]'); } catch (e) { return []; } };
     const saveDone = (id, arr) => { try { localStorage.setItem(acadKey(id), JSON.stringify(arr)); } catch (e) { } };
     const totalLessons = (course) => (course.curriculum || []).reduce((s, m) => s + (m.lessons ? m.lessons.length : 0), 0);
+
+    // ═══ مسيرتي: نقاط + سلسلة أيام + شارات + استكمال ═══
+    const acadStat = () => { try { return JSON.parse(localStorage.getItem('acad_stat') || '{}'); } catch (e) { return {}; } };
+    const saveStat = (s) => { try { localStorage.setItem('acad_stat', JSON.stringify(s)); } catch (e) { } };
+    const touchStreak = () => { const s = acadStat(); const today = new Date().toISOString().slice(0, 10); if (s.lastDay === today) return; const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10); s.streak = (s.lastDay === yest) ? (s.streak || 0) + 1 : 1; s.lastDay = today; saveStat(s); };
+    const setLastLesson = (courseId, mod, les) => { const s = acadStat(); s.last = { courseId, mod, les }; saveStat(s); };
+    const courseProg = (c) => { const done = getDone(c.id).length, total = totalLessons(c); return { done, total, pct: total ? Math.round(done / total * 100) : 0 }; };
+    const overallProg = () => { let d = 0, t = 0; courses.forEach(c => { d += getDone(c.id).length; t += totalLessons(c); }); return { done: d, total: t, pct: t ? Math.round(d / t * 100) : 0 }; };
+    const acadBadges = (done) => [{ n: '🌱', t: 'بداية', need: 1 }, { n: '📗', t: 'مثابر', need: 10 }, { n: '🥉', t: 'متقدّم', need: 25 }, { n: '🥈', t: 'محترف', need: 50 }, { n: '🏆', t: 'خبير', need: 100 }].map(b => ({ ...b, got: done >= b.need }));
 
     // ربط كل دورة بالشاشة المناسبة في نظام ERP (الميزة القاتلة: تعلَّم ثم طبّق فوراً)
     const APP_LINKS = {
@@ -1764,7 +1779,7 @@
                   <div className="space-y-3">
                     {course.curriculum[activeModule].lessons.map((lesson, i) => (
                       <div key={i} className="lesson-item glass rounded-xl border border-transparent overflow-hidden">
-                        <button onClick={() => setExpandedLesson(expandedLesson === i ? null : i)} className="w-full p-4 text-right">
+                        <button onClick={() => { const opening = expandedLesson !== i; setExpandedLesson(opening ? i : null); if (opening) { setLastLesson(courseId, activeModule, i); touchStreak(); } }} className="w-full p-4 text-right">
                           <div className="flex items-start gap-4">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${done.includes(activeModule + '-' + i) ? 'bg-green-500/20 text-green-400' : 'bg-primary/20 text-primary'}`}>{done.includes(activeModule + '-' + i) ? '✓' : (i + 1)}</div>
                             <div className="flex-1">
@@ -1988,6 +2003,116 @@
       );
     }
 
+    // 🔍 البحث الشامل في الدورات والدروس
+    function AcademySearch({ onCourseClick, onBack }) {
+      const [q, setQ] = useState('');
+      useEffect(() => { window.scrollTo(0, 0); }, []);
+      const query = q.trim().toLowerCase();
+      const results = [];
+      if (query.length >= 2) {
+        courses.forEach(c => {
+          const inCourse = (c.title + ' ' + (c.description || '') + ' ' + (c.fullDescription || '')).toLowerCase().includes(query);
+          const lessons = [];
+          (c.curriculum || []).forEach((m) => (m.lessons || []).forEach((l) => {
+            if ((l.title + ' ' + (l.explanation || '') + ' ' + (l.content || '')).toLowerCase().includes(query)) lessons.push({ title: l.title, module: m.module });
+          }));
+          if (inCourse || lessons.length) results.push({ c, lessons });
+        });
+      }
+      return (
+        <div className="min-h-screen pt-24 pb-12">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <button onClick={onBack} className="mb-6 text-textGray hover:text-textWhite">→ العودة للرئيسية</button>
+            <h1 className="text-3xl font-black mb-2">🔍 ابحث في الأكاديمية</h1>
+            <p className="text-textGray mb-6">ابحث في كل الدورات والدروس عن أي موضوع أو مصطلح.</p>
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="اكتب كلمة البحث (مثال: المستخلص، IFRS 15، الزكاة، VLOOKUP)..." className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-textWhite outline-none focus:border-primary text-lg mb-8" />
+            {query.length < 2 ? (
+              <div className="text-center text-textGray py-16">✍️ اكتب حرفين على الأقل لبدء البحث.</div>
+            ) : results.length === 0 ? (
+              <div className="text-center text-textGray py-16">لا نتائج لـ «{q}».</div>
+            ) : (
+              <div className="space-y-4">
+                <div className="text-sm text-textGray">وُجد في {results.length} دورة.</div>
+                {results.map(({ c, lessons }) => (
+                  <div key={c.id} onClick={() => onCourseClick(c.id)} className="glass rounded-2xl p-5 cursor-pointer card-hover border border-transparent hover:border-primary/40">
+                    <div className="flex items-center gap-3 mb-2"><span className="text-3xl">{c.icon}</span><h3 className="text-xl font-bold gradient-text">{c.title}</h3></div>
+                    {lessons.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {lessons.slice(0, 6).map((l, i) => (<span key={i} className="text-xs bg-primary/15 text-textWhite border border-primary/20 rounded-full px-3 py-1">📖 {l.title}</span>))}
+                        {lessons.length > 6 && <span className="text-xs text-textGray py-1">+{lessons.length - 6} درساً</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // 📊 مسيرتي التعليمية — لوحة التقدّم والتحفيز
+    function Dashboard({ onCourseClick, onBack }) {
+      useEffect(() => { window.scrollTo(0, 0); }, []);
+      const ov = overallProg();
+      const stat = acadStat();
+      const points = ov.done * 10;
+      const badges = acadBadges(ov.done);
+      const certs = courses.filter(c => { const p = courseProg(c); return p.total > 0 && p.done >= p.total; });
+      const last = stat.last;
+      const lastCourse = last ? courses.find(c => c.id === last.courseId) : null;
+      const started = courses.map(c => ({ c, p: courseProg(c) })).filter(x => x.p.done > 0).sort((a, b) => b.p.pct - a.p.pct);
+      const stat3 = (ic, v, l, col) => (<div className="glass rounded-2xl p-5 text-center"><div className="text-3xl mb-1">{ic}</div><div className="text-2xl font-black" style={{ color: col }}>{v}</div><div className="text-xs text-textGray mt-1">{l}</div></div>);
+      return (
+        <div className="min-h-screen pt-24 pb-12">
+          <div className="container mx-auto px-4 max-w-5xl">
+            <button onClick={onBack} className="mb-6 text-textGray hover:text-textWhite">→ العودة للرئيسية</button>
+            <h1 className="text-3xl font-black mb-2">📊 مسيرتي التعليمية</h1>
+            <p className="text-textGray mb-8">كل تقدّمك في مكان واحد — محفوظ على جهازك.</p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {stat3('📈', ov.pct + '%', 'نسبة الإنجاز الكلية', '#22c55e')}
+              {stat3('⭐', points, 'نقطة', '#F59E0B')}
+              {stat3('🔥', (stat.streak || 0) + ' يوم', 'سلسلة النشاط', '#EF4444')}
+              {stat3('🎓', certs.length, 'شهادة مكتسبة', '#2563EB')}
+            </div>
+
+            <div className="glass rounded-2xl p-5 mb-8">
+              <div className="flex items-center justify-between mb-2 text-sm"><span className="font-bold">التقدّم الكلي</span><span className="gradient-text font-black">{ov.done}/{ov.total} درس</span></div>
+              <div className="h-3 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style={{ width: ov.pct + '%' }} /></div>
+            </div>
+
+            {lastCourse && (
+              <div onClick={() => onCourseClick(lastCourse.id)} className="glass rounded-2xl p-5 mb-8 cursor-pointer border border-primary/30 hover:border-primary flex items-center justify-between gap-4">
+                <div><div className="text-xs text-textGray mb-1">▶ استكمل من حيث توقّفت</div><div className="text-lg font-bold">{lastCourse.icon} {lastCourse.title}</div></div>
+                <span className="px-4 py-2 rounded-xl bg-primary text-white font-bold whitespace-nowrap">استكمال</span>
+              </div>
+            )}
+
+            <h2 className="text-xl font-bold mb-3">🏅 الشارات</h2>
+            <div className="flex flex-wrap gap-3 mb-8">
+              {badges.map((b, i) => (<div key={i} className={`glass rounded-xl px-4 py-3 text-center ${b.got ? '' : 'opacity-30'}`}><div className="text-3xl">{b.n}</div><div className="text-xs font-bold mt-1">{b.t}</div><div className="text-[10px] text-textGray">{b.need} درس</div></div>))}
+            </div>
+
+            <h2 className="text-xl font-bold mb-3">📚 دوراتي</h2>
+            {started.length === 0 ? (
+              <div className="glass rounded-2xl p-8 text-center text-textGray">لم تبدأ أي دورة بعد — اختر دورة من <button onClick={onBack} className="text-primary font-bold">الأكاديمية</button> وابدأ رحلتك.</div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-4">
+                {started.map(({ c, p }) => (
+                  <div key={c.id} onClick={() => onCourseClick(c.id)} className="glass rounded-2xl p-5 cursor-pointer card-hover border border-transparent hover:border-primary/40">
+                    <div className="flex items-center gap-3 mb-3"><span className="text-2xl">{c.icon}</span><h3 className="font-bold flex-1">{c.title}</h3><span className="text-sm font-black gradient-text">{p.pct}%</span></div>
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-primary to-secondary" style={{ width: p.pct + '%' }} /></div>
+                    <div className="text-xs text-textGray mt-2">{p.done}/{p.total} درس {p.pct === 100 ? '· 🎓 مكتملة' : ''}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     function App() {
       const [currentPage, setCurrentPage] = useState('home');
       const [selectedCourse, setSelectedCourse] = useState(null);
@@ -2000,6 +2125,8 @@
           <main className="min-h-screen">
             {currentPage === 'home' && (<><Hero /><Stats /><Academy onCourseClick={handleCourseClick} /><Tools /><Exams /><LearningPath /><ERP /><AIAssistant /><Testimonials /><FAQ /></>)}
             {currentPage === 'course' && selectedCourse && <CourseDetail courseId={selectedCourse} onBack={handleBackToHome} />}
+            {currentPage === 'dashboard' && <Dashboard onCourseClick={handleCourseClick} onBack={handleBackToHome} />}
+            {currentPage === 'search' && <AcademySearch onCourseClick={handleCourseClick} onBack={handleBackToHome} />}
           </main>
           <Footer />
         </>
