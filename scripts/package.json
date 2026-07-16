@@ -1,0 +1,9 @@
+{
+  "name": "academy-build",
+  "private": true,
+  "type": "module",
+  "description": "أدوات بناء أكاديمية CFO Master (ترجمة JSX مسبقاً + Tailwind ساكن)",
+  "dependencies": {
+    "@babel/standalone": "^7.25.6"
+  }
+}

@@ -10,6 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All UI text, comments, and section headers are in Arabic. The HTML root is `<html lang="ar" dir="rtl">` — keep new UI RTL-aware and in Arabic.
 
+## Academy (`public/academy.html`) — the ONE build exception
+
+A standalone React learning platform ("CFO Master Academy") lives at `public/academy.html`. Unlike the rest of the app, **it is precompiled — do NOT hand-edit `public/academy.html`.**
+
+- **Source of truth:** `academy.src.html` (repo root, not served). Edit that, then rebuild: `cd scripts && npm install && node build-academy.mjs` (compiles JSX → `React.createElement` classic + inlines static Tailwind, stripping the in-browser Babel/Tailwind CDNs). Commit both `academy.src.html` and `public/academy.html`.
+- **Ongoing task + full state/handoff:** see [`ACADEMY_HANDOFF.md`](ACADEMY_HANDOFF.md) (currently: enriching each course's lessons with professional content, course by course).
+
 ## Commands
 
 ```bash

@@ -296,6 +296,7 @@
   <div id="root"></div>
 
   <script>
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 const {
   useState,
   useEffect,
@@ -322,7 +323,7 @@ function ThemeToggle() {
   return /*#__PURE__*/React.createElement("button", {
     onClick: () => setLight(v => !v),
     className: "text-textGray hover:text-textWhite transition-colors text-xl",
-    title: "تبديل الوضع الفاتح/الداكن"
+    title: "\u062A\u0628\u062F\u064A\u0644 \u0627\u0644\u0648\u0636\u0639 \u0627\u0644\u0641\u0627\u062A\u062D/\u0627\u0644\u062F\u0627\u0643\u0646"
   }, light ? '🌙' : '☀️');
 }
 
@@ -1885,10 +1886,9 @@ function Button({
     md: 'px-6 py-3 text-base',
     lg: 'px-8 py-4 text-lg'
   };
-  return /*#__PURE__*/React.createElement("button", {
-    className: `${base} ${v[variant]} ${s[size]} ${className}`,
-    ...props
-  }, icon && /*#__PURE__*/React.createElement("span", {
+  return /*#__PURE__*/React.createElement("button", _extends({
+    className: `${base} ${v[variant]} ${s[size]} ${className}`
+  }, props), icon && /*#__PURE__*/React.createElement("span", {
     className: "ms-2"
   }, icon), /*#__PURE__*/React.createElement("span", {
     className: "relative z-10"
@@ -1966,11 +1966,11 @@ function Navbar({
   }, /*#__PURE__*/React.createElement(ThemeToggle, null), /*#__PURE__*/React.createElement("button", {
     onClick: () => onNavigate('search'),
     className: "text-textGray hover:text-textWhite transition-colors font-medium",
-    title: "بحث"
-  }, "🔍 بحث"), /*#__PURE__*/React.createElement(Button, {
+    title: "\u0628\u062D\u062B"
+  }, "\uD83D\uDD0D \u0628\u062D\u062B"), /*#__PURE__*/React.createElement(Button, {
     variant: "primary",
     onClick: () => onNavigate('dashboard')
-  }, "📊 مسيرتي")), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCCA \u0645\u0633\u064A\u0631\u062A\u064A")), /*#__PURE__*/React.createElement("button", {
     className: "lg:hidden text-textWhite p-2",
     onClick: () => setIsMobileOpen(!isMobileOpen)
   }, /*#__PURE__*/React.createElement("svg", {
@@ -2000,20 +2000,20 @@ function Navbar({
     className: "flex items-center gap-2 py-2"
   }, /*#__PURE__*/React.createElement(ThemeToggle, null), /*#__PURE__*/React.createElement("span", {
     className: "text-textGray text-sm"
-  }, "تبديل الوضع")), /*#__PURE__*/React.createElement("button", {
+  }, "\u062A\u0628\u062F\u064A\u0644 \u0627\u0644\u0648\u0636\u0639")), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       setIsMobileOpen(false);
       onNavigate('search');
     },
     className: "text-textGray hover:text-textWhite py-2 text-right"
-  }, "🔍 بحث"), /*#__PURE__*/React.createElement(Button, {
+  }, "\uD83D\uDD0D \u0628\u062D\u062B"), /*#__PURE__*/React.createElement(Button, {
     variant: "primary",
     className: "w-full mt-2",
     onClick: () => {
       setIsMobileOpen(false);
       onNavigate('dashboard');
     }
-  }, "📊 مسيرتي التعليمية"))));
+  }, "\uD83D\uDCCA \u0645\u0633\u064A\u0631\u062A\u064A \u0627\u0644\u062A\u0639\u0644\u064A\u0645\u064A\u0629"))));
 }
 function Footer() {
   return /*#__PURE__*/React.createElement("footer", {
@@ -2026,38 +2026,38 @@ function Footer() {
     className: "text-2xl font-black gradient-text mb-4"
   }, "CFO Master"), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray"
-  }, "منصة تعليمية متكاملة لتطوير المحاسبين والمديرين الماليين.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
+  }, "\u0645\u0646\u0635\u0629 \u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u0645\u062A\u0643\u0627\u0645\u0644\u0629 \u0644\u062A\u0637\u0648\u064A\u0631 \u0627\u0644\u0645\u062D\u0627\u0633\u0628\u064A\u0646 \u0648\u0627\u0644\u0645\u062F\u064A\u0631\u064A\u0646 \u0627\u0644\u0645\u0627\u0644\u064A\u064A\u0646.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
     className: "text-lg font-bold mb-4"
-  }, "روابط سريعة"), /*#__PURE__*/React.createElement("ul", {
+  }, "\u0631\u0648\u0627\u0628\u0637 \u0633\u0631\u064A\u0639\u0629"), /*#__PURE__*/React.createElement("ul", {
     className: "space-y-2 text-textGray"
   }, /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
     href: "#",
     className: "hover:text-textWhite"
-  }, "الرئيسية")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
+  }, "\u0627\u0644\u0631\u0626\u064A\u0633\u064A\u0629")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
     href: "#academy",
     className: "hover:text-textWhite"
-  }, "الأكاديمية")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
+  }, "\u0627\u0644\u0623\u0643\u0627\u062F\u064A\u0645\u064A\u0629")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
     href: "#erp",
     className: "hover:text-textWhite"
-  }, "نظام ERP")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
+  }, "\u0646\u0638\u0627\u0645 ERP")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
     className: "text-lg font-bold mb-4"
-  }, "الدعم"), /*#__PURE__*/React.createElement("ul", {
+  }, "\u0627\u0644\u062F\u0639\u0645"), /*#__PURE__*/React.createElement("ul", {
     className: "space-y-2 text-textGray"
   }, /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
     href: "#faq",
     className: "hover:text-textWhite"
-  }, "الأسئلة الشائعة")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
+  }, "\u0627\u0644\u0623\u0633\u0626\u0644\u0629 \u0627\u0644\u0634\u0627\u0626\u0639\u0629")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("a", {
     href: "#contact",
     className: "hover:text-textWhite"
-  }, "تواصل معنا")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
+  }, "\u062A\u0648\u0627\u0635\u0644 \u0645\u0639\u0646\u0627")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
     className: "text-lg font-bold mb-4"
-  }, "تابعنا"), /*#__PURE__*/React.createElement("p", {
+  }, "\u062A\u0627\u0628\u0639\u0646\u0627"), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray text-sm"
-  }, "منصة تعليمية مجانية للمحاسبين — تعلَّم ثم طبّق مباشرةً داخل نظام ERP."))), /*#__PURE__*/React.createElement("div", {
+  }, "\u0645\u0646\u0635\u0629 \u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u0645\u062C\u0627\u0646\u064A\u0629 \u0644\u0644\u0645\u062D\u0627\u0633\u0628\u064A\u0646 \u2014 \u062A\u0639\u0644\u064E\u0651\u0645 \u062B\u0645 \u0637\u0628\u0651\u0642 \u0645\u0628\u0627\u0634\u0631\u0629\u064B \u062F\u0627\u062E\u0644 \u0646\u0638\u0627\u0645 ERP."))), /*#__PURE__*/React.createElement("div", {
     className: "border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-textGray text-sm"
-  }, "© 2026 CFO Master Academy."))));
+  }, "\xA9 2026 CFO Master Academy."))));
 }
 function Hero() {
   const {
@@ -2102,21 +2102,21 @@ function Hero() {
     className: "animate-fadeInUp"
   }, /*#__PURE__*/React.createElement("span", {
     className: "inline-block px-4 py-1.5 rounded-full glass text-accent text-sm font-bold mb-6"
-  }, "منصة تعليمية متكاملة للقطاع المالي"), /*#__PURE__*/React.createElement("h1", {
+  }, "\u0645\u0646\u0635\u0629 \u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u0645\u062A\u0643\u0627\u0645\u0644\u0629 \u0644\u0644\u0642\u0637\u0627\u0639 \u0627\u0644\u0645\u0627\u0644\u064A"), /*#__PURE__*/React.createElement("h1", {
     className: "text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-6"
-  }, "تعلم المحاسبة و ", /*#__PURE__*/React.createElement("span", {
+  }, "\u062A\u0639\u0644\u0645 \u0627\u0644\u0645\u062D\u0627\u0633\u0628\u0629 \u0648 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "ERP"), " بطريقة احترافية"), /*#__PURE__*/React.createElement("p", {
+  }, "ERP"), " \u0628\u0637\u0631\u064A\u0642\u0629 \u0627\u062D\u062A\u0631\u0627\u0641\u064A\u0629"), /*#__PURE__*/React.createElement("p", {
     className: "text-lg md:text-xl text-textGray max-w-3xl mx-auto mb-10"
-  }, "منصة تعليمية متكاملة لتطوير المحاسبين والمديرين الماليين."), /*#__PURE__*/React.createElement("div", {
+  }, "\u0645\u0646\u0635\u0629 \u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u0645\u062A\u0643\u0627\u0645\u0644\u0629 \u0644\u062A\u0637\u0648\u064A\u0631 \u0627\u0644\u0645\u062D\u0627\u0633\u0628\u064A\u0646 \u0648\u0627\u0644\u0645\u062F\u064A\u0631\u064A\u0646 \u0627\u0644\u0645\u0627\u0644\u064A\u064A\u0646."), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col sm:flex-row items-center justify-center gap-4"
   }, /*#__PURE__*/React.createElement(Button, {
     variant: "primary",
     size: "lg"
-  }, "ابدأ الآن"), /*#__PURE__*/React.createElement(Button, {
+  }, "\u0627\u0628\u062F\u0623 \u0627\u0644\u0622\u0646"), /*#__PURE__*/React.createElement(Button, {
     variant: "outline",
     size: "lg"
-  }, "مشاهدة العرض")))));
+  }, "\u0645\u0634\u0627\u0647\u062F\u0629 \u0627\u0644\u0639\u0631\u0636")))));
 }
 function StatItem({
   label,
@@ -2143,10 +2143,9 @@ function Stats() {
     className: "container mx-auto px-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"
-  }, statsData.map(s => /*#__PURE__*/React.createElement(StatItem, {
-    key: s.label,
-    ...s
-  })))));
+  }, statsData.map(s => /*#__PURE__*/React.createElement(StatItem, _extends({
+    key: s.label
+  }, s))))));
 }
 function CourseCard({
   course,
@@ -2175,7 +2174,7 @@ function CourseCard({
     className: "text-5xl opacity-50 group-hover:scale-110 transition-transform"
   }, course.icon), course.comingSoon && /*#__PURE__*/React.createElement("div", {
     className: "absolute top-3 start-3 px-3 py-1 bg-gold/90 text-darkBg text-xs font-bold rounded-full"
-  }, "قريباً")), /*#__PURE__*/React.createElement("div", {
+  }, "\u0642\u0631\u064A\u0628\u0627\u064B")), /*#__PURE__*/React.createElement("div", {
     className: "p-5 flex-1 flex flex-col"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-lg font-bold mb-2 group-hover:text-primary"
@@ -2185,9 +2184,9 @@ function CourseCard({
     className: "flex items-center justify-between text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-textGray"
-  }, course.lessons, " درس"), /*#__PURE__*/React.createElement("span", {
+  }, course.lessons, " \u062F\u0631\u0633"), /*#__PURE__*/React.createElement("span", {
     className: "text-primary font-bold"
-  }, "عرض الدورة"))))));
+  }, "\u0639\u0631\u0636 \u0627\u0644\u062F\u0648\u0631\u0629"))))));
 }
 function Academy({
   onCourseClick
@@ -2203,9 +2202,9 @@ function Academy({
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "الأكاديمية ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0627\u0644\u0623\u0643\u0627\u062F\u064A\u0645\u064A\u0629 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "التعليمية"))), categories.map(cat => {
+  }, "\u0627\u0644\u062A\u0639\u0644\u064A\u0645\u064A\u0629"))), categories.map(cat => {
     const list = courses.filter(c => catOf(c) === cat.id);
     if (!list.length) return null;
     return /*#__PURE__*/React.createElement("div", {
@@ -2221,7 +2220,7 @@ function Academy({
       className: "text-textGray text-sm mt-1"
     }, cat.desc)), /*#__PURE__*/React.createElement("span", {
       className: "mr-auto text-sm text-textGray whitespace-nowrap"
-    }, list.length, " دورة")), /*#__PURE__*/React.createElement("div", {
+    }, list.length, " \u062F\u0648\u0631\u0629")), /*#__PURE__*/React.createElement("div", {
       className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
     }, list.map((c, i) => /*#__PURE__*/React.createElement(CourseCard, {
       key: c.id,
@@ -3367,7 +3366,7 @@ function LessonQuiz({
     className: "mt-5 p-4 rounded-xl bg-primary/5 border border-primary/20"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "font-bold mb-3 flex items-center gap-2"
-  }, "🧩 اختبار سريع"), quiz.map((q, i) => /*#__PURE__*/React.createElement("div", {
+  }, "\uD83E\uDDE9 \u0627\u062E\u062A\u0628\u0627\u0631 \u0633\u0631\u064A\u0639"), quiz.map((q, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     className: "mb-4"
   }, /*#__PURE__*/React.createElement("p", {
@@ -3391,21 +3390,21 @@ function LessonQuiz({
     }, opt);
   })), submitted && q.explain && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-textGray mt-2"
-  }, "💡 ", q.explain))), !submitted ? /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCA1 ", q.explain))), !submitted ? /*#__PURE__*/React.createElement("button", {
     onClick: () => setSubmitted(true),
     disabled: Object.keys(answers).length < quiz.length,
     className: "px-4 py-2 rounded-lg bg-primary text-white font-bold text-sm disabled:opacity-40"
-  }, "تحقّق من إجاباتي") : /*#__PURE__*/React.createElement("div", {
+  }, "\u062A\u062D\u0642\u0651\u0642 \u0645\u0646 \u0625\u062C\u0627\u0628\u0627\u062A\u064A") : /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3 flex-wrap"
   }, /*#__PURE__*/React.createElement("span", {
     className: `font-black ${score === quiz.length ? 'text-green-400' : 'text-gold'}`
-  }, "نتيجتك: ", score, "/", quiz.length), /*#__PURE__*/React.createElement("button", {
+  }, "\u0646\u062A\u064A\u062C\u062A\u0643: ", score, "/", quiz.length), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       setSubmitted(false);
       setAnswers({});
     },
     className: "px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
-  }, "إعادة المحاولة")));
+  }, "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629")));
 }
 
 // شهادة الإتمام (قابلة للطباعة/الحفظ PDF)
@@ -3434,17 +3433,17 @@ function Certificate({
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onBack,
     className: "mb-6 text-textGray hover:text-textWhite"
-  }, "→ العودة للدورة"), /*#__PURE__*/React.createElement("div", {
+  }, "\u2192 \u0627\u0644\u0639\u0648\u062F\u0629 \u0644\u0644\u062F\u0648\u0631\u0629"), /*#__PURE__*/React.createElement("div", {
     className: "mb-4 flex flex-wrap gap-3 items-center"
   }, /*#__PURE__*/React.createElement("input", {
     value: name,
     onChange: e => save(e.target.value),
-    placeholder: "اكتب اسمك كما تريده على الشهادة",
+    placeholder: "\u0627\u0643\u062A\u0628 \u0627\u0633\u0645\u0643 \u0643\u0645\u0627 \u062A\u0631\u064A\u062F\u0647 \u0639\u0644\u0649 \u0627\u0644\u0634\u0647\u0627\u062F\u0629",
     className: "flex-1 min-w-[220px] px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-textWhite outline-none focus:border-primary"
   }), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.print(),
     className: "px-5 py-3 rounded-xl bg-primary text-white font-bold"
-  }, "🖨️ طباعة / حفظ PDF")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDDA8\uFE0F \u0637\u0628\u0627\u0639\u0629 / \u062D\u0641\u0638 PDF")), /*#__PURE__*/React.createElement("div", {
     id: "cert",
     className: "bg-white rounded-2xl p-10 border-8 border-double",
     style: {
@@ -3464,26 +3463,26 @@ function Certificate({
     style: {
       color: '#0b3d61'
     }
-  }, "شهادة إتمام"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0634\u0647\u0627\u062F\u0629 \u0625\u062A\u0645\u0627\u0645"), /*#__PURE__*/React.createElement("div", {
     className: "text-gray-500 mb-6"
-  }, "تشهد الأكاديمية بأن"), /*#__PURE__*/React.createElement("div", {
+  }, "\u062A\u0634\u0647\u062F \u0627\u0644\u0623\u0643\u0627\u062F\u064A\u0645\u064A\u0629 \u0628\u0623\u0646"), /*#__PURE__*/React.createElement("div", {
     className: "text-4xl font-black mb-6",
     style: {
       color: '#0b3d61'
     }
   }, name || '................'), /*#__PURE__*/React.createElement("div", {
     className: "text-gray-600 mb-2"
-  }, "قد أتمّ بنجاح جميع دروس دورة"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0642\u062F \u0623\u062A\u0645\u0651 \u0628\u0646\u062C\u0627\u062D \u062C\u0645\u064A\u0639 \u062F\u0631\u0648\u0633 \u062F\u0648\u0631\u0629"), /*#__PURE__*/React.createElement("div", {
     className: "text-2xl font-bold mb-10"
   }, course.icon, " ", course.title), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between items-end mt-10 text-sm text-gray-500"
-  }, /*#__PURE__*/React.createElement("div", null, "📅 التاريخ: ", today), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", null, "\uD83D\uDCC5 \u0627\u0644\u062A\u0627\u0631\u064A\u062E: ", today), /*#__PURE__*/React.createElement("div", {
     className: "text-center"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-2xl"
-  }, "✍️"), /*#__PURE__*/React.createElement("div", {
+  }, "\u270D\uFE0F"), /*#__PURE__*/React.createElement("div", {
     className: "border-t border-gray-300 pt-1 px-4"
-  }, "التوقيع المعتمد")))))));
+  }, "\u0627\u0644\u062A\u0648\u0642\u064A\u0639 \u0627\u0644\u0645\u0639\u062A\u0645\u062F")))))));
 }
 
 // 📝 ملاحظات الدرس (حفظ تلقائي)
@@ -3499,13 +3498,13 @@ function LessonNotes({
     className: "mt-5"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-sm font-bold mb-2"
-  }, "📝 ملاحظاتي على هذا الدرس"), /*#__PURE__*/React.createElement("textarea", {
+  }, "\uD83D\uDCDD \u0645\u0644\u0627\u062D\u0638\u0627\u062A\u064A \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u062F\u0631\u0633"), /*#__PURE__*/React.createElement("textarea", {
     value: v,
     onChange: e => {
       setV(e.target.value);
       setNote(courseId, title, e.target.value);
     },
-    placeholder: "اكتب ملاحظاتك... تُحفظ تلقائياً على جهازك.",
+    placeholder: "\u0627\u0643\u062A\u0628 \u0645\u0644\u0627\u062D\u0638\u0627\u062A\u0643... \u062A\u064F\u062D\u0641\u0638 \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B \u0639\u0644\u0649 \u062C\u0647\u0627\u0632\u0643.",
     className: "w-full min-h-[90px] px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-textWhite outline-none focus:border-primary text-sm resize-y"
   }));
 }
@@ -3572,15 +3571,15 @@ function StagedExam({
     className: "glass rounded-2xl p-5 mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-2xl font-black mb-1"
-  }, "🏆 الاختبار الشامل — ", courseTitle), /*#__PURE__*/React.createElement("p", {
+  }, "\uD83C\uDFC6 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0634\u0627\u0645\u0644 \u2014 ", courseTitle), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray text-sm mb-4"
-  }, "اختبار احترافي من ", /*#__PURE__*/React.createElement("b", null, stages.length, " مراحل"), " و", /*#__PURE__*/React.createElement("b", null, totalQ, " سؤالاً"), ". اجتز كل مرحلة (", passMark, "%+) لفتح التالية. نتائجك محفوظة على جهازك."), /*#__PURE__*/React.createElement("div", {
+  }, "\u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u062D\u062A\u0631\u0627\u0641\u064A \u0645\u0646 ", /*#__PURE__*/React.createElement("b", null, stages.length, " \u0645\u0631\u0627\u062D\u0644"), " \u0648", /*#__PURE__*/React.createElement("b", null, totalQ, " \u0633\u0624\u0627\u0644\u0627\u064B"), ". \u0627\u062C\u062A\u0632 \u0643\u0644 \u0645\u0631\u062D\u0644\u0629 (", passMark, "%+) \u0644\u0641\u062A\u062D \u0627\u0644\u062A\u0627\u0644\u064A\u0629. \u0646\u062A\u0627\u0626\u062C\u0643 \u0645\u062D\u0641\u0648\u0638\u0629 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632\u0643."), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between mb-2 text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "font-bold"
-  }, "تقدّمك في الاختبار"), /*#__PURE__*/React.createElement("span", {
+  }, "\u062A\u0642\u062F\u0651\u0645\u0643 \u0641\u064A \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631"), /*#__PURE__*/React.createElement("span", {
     className: "gradient-text font-black"
-  }, passedCount, "/", stages.length, " مرحلة")), /*#__PURE__*/React.createElement("div", {
+  }, passedCount, "/", stages.length, " \u0645\u0631\u062D\u0644\u0629")), /*#__PURE__*/React.createElement("div", {
     className: "h-3 bg-white/10 rounded-full overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "h-full bg-gradient-to-r from-primary to-secondary transition-all",
@@ -3589,7 +3588,7 @@ function StagedExam({
     }
   })), allDone && /*#__PURE__*/React.createElement("div", {
     className: "mt-4 p-3 rounded-xl bg-green-500/15 border border-green-500/30 text-green-300 font-bold text-center"
-  }, "🎉 مبروك! اجتزت كل مراحل الاختبار الشامل لهذه الدورة.")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF89 \u0645\u0628\u0631\u0648\u0643! \u0627\u062C\u062A\u0632\u062A \u0643\u0644 \u0645\u0631\u0627\u062D\u0644 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0634\u0627\u0645\u0644 \u0644\u0647\u0630\u0647 \u0627\u0644\u062F\u0648\u0631\u0629.")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2 mb-6"
   }, stages.map((s, i) => {
     const done = (best[i] || 0) >= (s.pass || 60);
@@ -3606,9 +3605,9 @@ function StagedExam({
     className: "flex items-center justify-between mb-4 flex-wrap gap-2"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "text-lg font-bold"
-  }, "المرحلة ", stage + 1, ": ", cur.title), /*#__PURE__*/React.createElement("span", {
+  }, "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 ", stage + 1, ": ", cur.title), /*#__PURE__*/React.createElement("span", {
     className: "text-xs text-textGray"
-  }, cur.questions.length, " أسئلة · النجاح ", passMark, "%", best[stage] != null ? ` · أفضل نتيجة ${best[stage]}%` : '')), cur.questions.map((q, i) => /*#__PURE__*/React.createElement("div", {
+  }, cur.questions.length, " \u0623\u0633\u0626\u0644\u0629 \xB7 \u0627\u0644\u0646\u062C\u0627\u062D ", passMark, "%", best[stage] != null ? ` · أفضل نتيجة ${best[stage]}%` : '')), cur.questions.map((q, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     className: "mb-5"
   }, /*#__PURE__*/React.createElement("p", {
@@ -3632,11 +3631,11 @@ function StagedExam({
     }, opt);
   })), submitted && q.explain && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-textGray mt-2"
-  }, "💡 ", q.explain))), !submitted ? /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCA1 ", q.explain))), !submitted ? /*#__PURE__*/React.createElement("button", {
     onClick: submit,
     disabled: answered < cur.questions.length,
     className: "px-6 py-3 rounded-xl bg-primary text-white font-bold disabled:opacity-40"
-  }, "تسليم المرحلة (", answered, "/", cur.questions.length, ")") : /*#__PURE__*/React.createElement("div", {
+  }, "\u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u0645\u0631\u062D\u0644\u0629 (", answered, "/", cur.questions.length, ")") : /*#__PURE__*/React.createElement("div", {
     className: "mt-2 p-4 rounded-xl border",
     style: {
       borderColor: passed ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)',
@@ -3644,7 +3643,7 @@ function StagedExam({
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: `font-black text-lg mb-2 ${passed ? 'text-green-400' : 'text-red-400'}`
-  }, passed ? '✅ اجتزت المرحلة!' : '❌ لم تجتز بعد', " — نتيجتك ", score, "/", cur.questions.length, " (", pct, "%)"), /*#__PURE__*/React.createElement("div", {
+  }, passed ? '✅ اجتزت المرحلة!' : '❌ لم تجتز بعد', " \u2014 \u0646\u062A\u064A\u062C\u062A\u0643 ", score, "/", cur.questions.length, " (", pct, "%)"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-3"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => {
@@ -3652,10 +3651,10 @@ function StagedExam({
       setAnswers({});
     },
     className: "px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm font-bold"
-  }, "🔄 إعادة المحاولة"), passed && stage < stages.length - 1 && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDD04 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629"), passed && stage < stages.length - 1 && /*#__PURE__*/React.createElement("button", {
     onClick: () => goStage(stage + 1),
     className: "px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold"
-  }, "المرحلة التالية ←")))));
+  }, "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u2190")))));
 }
 function CourseDetail({
   courseId,
@@ -3689,7 +3688,7 @@ function CourseDetail({
     className: "min-h-screen flex items-center justify-center pt-20"
   }, /*#__PURE__*/React.createElement(Button, {
     onClick: onBack
-  }, "العودة"));
+  }, "\u0627\u0644\u0639\u0648\u062F\u0629"));
   if (showCert) return /*#__PURE__*/React.createElement(Certificate, {
     course: course,
     onBack: () => setShowCert(false)
@@ -3729,7 +3728,7 @@ function CourseDetail({
     strokeLinejoin: "round",
     strokeWidth: 2,
     d: "M15 19l-7-7 7-7"
-  })), "العودة للأكاديمية"), /*#__PURE__*/React.createElement("div", {
+  })), "\u0627\u0644\u0639\u0648\u062F\u0629 \u0644\u0644\u0623\u0643\u0627\u062F\u064A\u0645\u064A\u0629"), /*#__PURE__*/React.createElement("div", {
     className: "glass rounded-3xl p-8 mb-8 animate-fadeInUp"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-3 gap-8"
@@ -3741,7 +3740,7 @@ function CourseDetail({
     className: "text-6xl"
   }, course.icon), course.comingSoon && /*#__PURE__*/React.createElement("span", {
     className: "px-3 py-1 bg-gold/90 text-darkBg text-sm font-bold rounded-full"
-  }, "قريباً")), /*#__PURE__*/React.createElement("h1", {
+  }, "\u0642\u0631\u064A\u0628\u0627\u064B")), /*#__PURE__*/React.createElement("h1", {
     className: "text-3xl md:text-4xl font-black mb-4"
   }, course.title), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray text-lg leading-relaxed mb-6"
@@ -3751,7 +3750,7 @@ function CourseDetail({
     className: "flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", null, course.duration)), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("span", null, course.lessons, " درس")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, course.lessons, " \u062F\u0631\u0633")), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", null, course.level))), !course.comingSoon && total > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mt-6"
@@ -3759,7 +3758,7 @@ function CourseDetail({
     className: "flex items-center justify-between mb-2 text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "font-bold"
-  }, "📊 تقدّمك في الدورة"), /*#__PURE__*/React.createElement("span", {
+  }, "\uD83D\uDCCA \u062A\u0642\u062F\u0651\u0645\u0643 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0629"), /*#__PURE__*/React.createElement("span", {
     className: "gradient-text font-black"
   }, pct, "% (", done.length, "/", total, ")")), /*#__PURE__*/React.createElement("div", {
     className: "h-3 bg-white/10 rounded-full overflow-hidden"
@@ -3771,7 +3770,7 @@ function CourseDetail({
   })), pct === 100 && /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowCert(true),
     className: "mt-4 w-full py-3 rounded-xl bg-gradient-to-r from-gold to-yellow-500 text-darkBg font-black hover:opacity-90 transition-opacity"
-  }, "🎉 أكملت الدورة — احصل على شهادتك"))), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF89 \u0623\u0643\u0645\u0644\u062A \u0627\u0644\u062F\u0648\u0631\u0629 \u2014 \u0627\u062D\u0635\u0644 \u0639\u0644\u0649 \u0634\u0647\u0627\u062F\u062A\u0643"))), /*#__PURE__*/React.createElement("div", {
     className: "glass rounded-2xl p-6 h-fit"
   }, /*#__PURE__*/React.createElement(Button, {
     variant: "primary",
@@ -3867,7 +3866,7 @@ function CourseDetail({
   }, appLink && /*#__PURE__*/React.createElement("a", {
     href: 'index.html#' + appLink.page,
     className: "px-4 py-2.5 rounded-xl bg-secondary/20 border border-secondary/40 text-secondary font-bold text-sm hover:bg-secondary/30 transition-colors"
-  }, "🚀 طبّق الآن: ", appLink.label), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDE80 \u0637\u0628\u0651\u0642 \u0627\u0644\u0622\u0646: ", appLink.label), /*#__PURE__*/React.createElement("button", {
     onClick: () => toggleDone(activeModule + '-' + i),
     className: `px-4 py-2.5 rounded-xl font-bold text-sm border transition-colors ${done.includes(activeModule + '-' + i) ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-white/5 border-white/10 text-textGray hover:bg-white/10'}`
   }, done.includes(activeModule + '-' + i) ? '✅ تم الإتمام' : '⭕ وضع علامة كمكتمل'), /*#__PURE__*/React.createElement(BookmarkBtn, {
@@ -3879,7 +3878,7 @@ function CourseDetail({
   }), /*#__PURE__*/React.createElement("button", {
     onClick: () => printLesson(courseId, course.title, lesson),
     className: "px-4 py-2.5 rounded-xl font-bold text-sm border bg-white/5 border-white/10 text-textGray hover:bg-white/10 transition-colors"
-  }, "🖨️ طباعة الدرس"))))))), activeTab === 'videos' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDDA8\uFE0F \u0637\u0628\u0627\u0639\u0629 \u0627\u0644\u062F\u0631\u0633"))))))), activeTab === 'videos' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "mb-6 p-4 bg-youtube/10 border border-youtube/30 rounded-xl"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3"
@@ -3891,9 +3890,9 @@ function CourseDetail({
     d: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
     className: "font-bold text-lg"
-  }, "فيديوهات تعليمية من يوتيوب"), /*#__PURE__*/React.createElement("p", {
+  }, "\u0641\u064A\u062F\u064A\u0648\u0647\u0627\u062A \u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u0645\u0646 \u064A\u0648\u062A\u064A\u0648\u0628"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-textGray"
-  }, "محتوى عربي مجاني مكمل للدورة")))), /*#__PURE__*/React.createElement("div", {
+  }, "\u0645\u062D\u062A\u0648\u0649 \u0639\u0631\u0628\u064A \u0645\u062C\u0627\u0646\u064A \u0645\u0643\u0645\u0644 \u0644\u0644\u062F\u0648\u0631\u0629")))), /*#__PURE__*/React.createElement("div", {
     className: "grid md:grid-cols-2 gap-4"
   }, course.videos.map((v, i) => /*#__PURE__*/React.createElement("a", {
     key: i,
@@ -3921,11 +3920,11 @@ function CourseDetail({
     className: "flex items-center gap-3 text-xs text-textGray"
   }, /*#__PURE__*/React.createElement("span", null, v.duration), /*#__PURE__*/React.createElement("span", {
     className: "text-youtube font-bold"
-  }, "▶ مشاهدة")))))))), activeTab === 'learn' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "\u25B6 \u0645\u0634\u0627\u0647\u062F\u0629")))))))), activeTab === 'learn' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold mb-4"
-  }, "🎯 ماذا ستتعلم"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDFAF \u0645\u0627\u0630\u0627 \u0633\u062A\u062A\u0639\u0644\u0645"), /*#__PURE__*/React.createElement("div", {
     className: "grid md:grid-cols-2 gap-3"
   }, course.whatYouLearn.map((item, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
@@ -3944,7 +3943,7 @@ function CourseDetail({
     d: "M5 13l4 4L19 7"
   }))), /*#__PURE__*/React.createElement("span", null, item))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold mb-4"
-  }, "📋 المتطلبات السابقة"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCCB \u0627\u0644\u0645\u062A\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0633\u0627\u0628\u0642\u0629"), /*#__PURE__*/React.createElement("div", {
     className: "space-y-2"
   }, course.prerequisites.map((item, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
@@ -3964,9 +3963,9 @@ function LearningPath() {
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "مسار ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0645\u0633\u0627\u0631 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "التعلم"))), /*#__PURE__*/React.createElement("div", {
+  }, "\u0627\u0644\u062A\u0639\u0644\u0645"))), /*#__PURE__*/React.createElement("div", {
     className: "relative max-w-4xl mx-auto"
   }, /*#__PURE__*/React.createElement("div", {
     className: "absolute right-1/2 translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full hidden md:block"
@@ -4009,9 +4008,9 @@ function ERP() {
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "نظام ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0646\u0638\u0627\u0645 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "ERP"), " المتكامل")), /*#__PURE__*/React.createElement("div", {
+  }, "ERP"), " \u0627\u0644\u0645\u062A\u0643\u0627\u0645\u0644")), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
   }, erpModules.map((m, i) => /*#__PURE__*/React.createElement(ERPModuleCard, {
     key: m.id,
@@ -4049,9 +4048,9 @@ function ExternalCard({
     style: {
       color: item.color
     }
-  }, "فتح الأداة ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0641\u062A\u062D \u0627\u0644\u0623\u062F\u0627\u0629 ", /*#__PURE__*/React.createElement("span", {
     className: "transition-transform group-hover:-translate-x-1"
-  }, "↩")));
+  }, "\u21A9")));
 }
 function Tools() {
   const ref = useReveal();
@@ -4065,11 +4064,11 @@ function Tools() {
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "المراجع ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0627\u0644\u0645\u0631\u0627\u062C\u0639 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "والأدوات")), /*#__PURE__*/React.createElement("p", {
+  }, "\u0648\u0627\u0644\u0623\u062F\u0648\u0627\u062A")), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray max-w-2xl mx-auto"
-  }, "أدلة وحاسبات ومحاكيات وبطاقات تعليمية جاهزة — تفتح مباشرةً داخل برنامج GBR.")), /*#__PURE__*/React.createElement("div", {
+  }, "\u0623\u062F\u0644\u0629 \u0648\u062D\u0627\u0633\u0628\u0627\u062A \u0648\u0645\u062D\u0627\u0643\u064A\u0627\u062A \u0648\u0628\u0637\u0627\u0642\u0627\u062A \u062A\u0639\u0644\u064A\u0645\u064A\u0629 \u062C\u0627\u0647\u0632\u0629 \u2014 \u062A\u0641\u062A\u062D \u0645\u0628\u0627\u0634\u0631\u0629\u064B \u062F\u0627\u062E\u0644 \u0628\u0631\u0646\u0627\u0645\u062C GBR.")), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
   }, studyTools.map((t, i) => /*#__PURE__*/React.createElement(ExternalCard, {
     key: i,
@@ -4088,11 +4087,11 @@ function Exams() {
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "محاكي ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0645\u062D\u0627\u0643\u064A ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "الامتحانات")), /*#__PURE__*/React.createElement("p", {
+  }, "\u0627\u0644\u0627\u0645\u062A\u062D\u0627\u0646\u0627\u062A")), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray max-w-2xl mx-auto"
-  }, "اختبر جاهزيتك بمحاكاة حقيقية لامتحانات CMA و IFRS — أسئلة موقوتة ونتائج تفصيلية.")), /*#__PURE__*/React.createElement("div", {
+  }, "\u0627\u062E\u062A\u0628\u0631 \u062C\u0627\u0647\u0632\u064A\u062A\u0643 \u0628\u0645\u062D\u0627\u0643\u0627\u0629 \u062D\u0642\u064A\u0642\u064A\u0629 \u0644\u0627\u0645\u062A\u062D\u0627\u0646\u0627\u062A CMA \u0648 IFRS \u2014 \u0623\u0633\u0626\u0644\u0629 \u0645\u0648\u0642\u0648\u062A\u0629 \u0648\u0646\u062A\u0627\u0626\u062C \u062A\u0641\u0635\u064A\u0644\u064A\u0629.")), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto"
   }, examSims.map((t, i) => /*#__PURE__*/React.createElement(ExternalCard, {
     key: i,
@@ -4112,14 +4111,14 @@ function AIAssistant() {
     className: "reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-6"
-  }, "مساعدك ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0645\u0633\u0627\u0639\u062F\u0643 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "الذكي")), /*#__PURE__*/React.createElement("p", {
+  }, "\u0627\u0644\u0630\u0643\u064A")), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray text-lg mb-8"
-  }, "احصل على إجابات فورية لأسئلتك المحاسبية."), /*#__PURE__*/React.createElement(Button, {
+  }, "\u0627\u062D\u0635\u0644 \u0639\u0644\u0649 \u0625\u062C\u0627\u0628\u0627\u062A \u0641\u0648\u0631\u064A\u0629 \u0644\u0623\u0633\u0626\u0644\u062A\u0643 \u0627\u0644\u0645\u062D\u0627\u0633\u0628\u064A\u0629."), /*#__PURE__*/React.createElement(Button, {
     variant: "primary",
     size: "lg"
-  }, "جرب المساعد الذكي")), /*#__PURE__*/React.createElement("div", {
+  }, "\u062C\u0631\u0628 \u0627\u0644\u0645\u0633\u0627\u0639\u062F \u0627\u0644\u0630\u0643\u064A")), /*#__PURE__*/React.createElement("div", {
     className: "glass rounded-3xl p-6 max-w-lg mx-auto reveal"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3 mb-6 pb-4 border-b border-white/10"
@@ -4137,13 +4136,13 @@ function AIAssistant() {
     d: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
   }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
     className: "font-bold"
-  }, "المساعد المالي الذكي"), /*#__PURE__*/React.createElement("p", {
+  }, "\u0627\u0644\u0645\u0633\u0627\u0639\u062F \u0627\u0644\u0645\u0627\u0644\u064A \u0627\u0644\u0630\u0643\u064A"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-green-400"
-  }, "متصل الآن"))), /*#__PURE__*/React.createElement("div", {
+  }, "\u0645\u062A\u0635\u0644 \u0627\u0644\u0622\u0646"))), /*#__PURE__*/React.createElement("div", {
     className: "bg-darkBg/50 p-3 rounded-2xl mb-6 max-w-[80%]"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm"
-  }, "مرحباً! كيف يمكنني مساعدتك؟")), /*#__PURE__*/React.createElement("div", {
+  }, "\u0645\u0631\u062D\u0628\u0627\u064B! \u0643\u064A\u0641 \u064A\u0645\u0643\u0646\u0646\u064A \u0645\u0633\u0627\u0639\u062F\u062A\u0643\u061F")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2"
   }, s.map((x, i) => /*#__PURE__*/React.createElement("button", {
     key: i,
@@ -4159,9 +4158,9 @@ function Testimonials() {
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "ماذا يقول ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0645\u0627\u0630\u0627 \u064A\u0642\u0648\u0644 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "طلابنا"))), /*#__PURE__*/React.createElement("div", {
+  }, "\u0637\u0644\u0627\u0628\u0646\u0627"))), /*#__PURE__*/React.createElement("div", {
     className: "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
   }, testimonials.map(t => /*#__PURE__*/React.createElement("div", {
     key: t.id,
@@ -4226,9 +4225,9 @@ function FAQ() {
     className: "text-center mb-16 reveal"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-4xl md:text-5xl font-black mb-4"
-  }, "الأسئلة ", /*#__PURE__*/React.createElement("span", {
+  }, "\u0627\u0644\u0623\u0633\u0626\u0644\u0629 ", /*#__PURE__*/React.createElement("span", {
     className: "gradient-text"
-  }, "الشائعة"))), /*#__PURE__*/React.createElement("div", null, faqs.map((f, i) => /*#__PURE__*/React.createElement(FAQItem, {
+  }, "\u0627\u0644\u0634\u0627\u0626\u0639\u0629"))), /*#__PURE__*/React.createElement("div", null, faqs.map((f, i) => /*#__PURE__*/React.createElement(FAQItem, {
     key: i,
     faq: f,
     isOpen: openIndex === i,
@@ -4272,25 +4271,25 @@ function AcademySearch({
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onBack,
     className: "mb-6 text-textGray hover:text-textWhite"
-  }, "→ العودة للرئيسية"), /*#__PURE__*/React.createElement("h1", {
+  }, "\u2192 \u0627\u0644\u0639\u0648\u062F\u0629 \u0644\u0644\u0631\u0626\u064A\u0633\u064A\u0629"), /*#__PURE__*/React.createElement("h1", {
     className: "text-3xl font-black mb-2"
-  }, "🔍 ابحث في الأكاديمية"), /*#__PURE__*/React.createElement("p", {
+  }, "\uD83D\uDD0D \u0627\u0628\u062D\u062B \u0641\u064A \u0627\u0644\u0623\u0643\u0627\u062F\u064A\u0645\u064A\u0629"), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray mb-6"
-  }, "ابحث في كل الدورات والدروس عن أي موضوع أو مصطلح."), /*#__PURE__*/React.createElement("input", {
+  }, "\u0627\u0628\u062D\u062B \u0641\u064A \u0643\u0644 \u0627\u0644\u062F\u0648\u0631\u0627\u062A \u0648\u0627\u0644\u062F\u0631\u0648\u0633 \u0639\u0646 \u0623\u064A \u0645\u0648\u0636\u0648\u0639 \u0623\u0648 \u0645\u0635\u0637\u0644\u062D."), /*#__PURE__*/React.createElement("input", {
     autoFocus: true,
     value: q,
     onChange: e => setQ(e.target.value),
-    placeholder: "اكتب كلمة البحث (مثال: المستخلص، IFRS 15، الزكاة، VLOOKUP)...",
+    placeholder: "\u0627\u0643\u062A\u0628 \u0643\u0644\u0645\u0629 \u0627\u0644\u0628\u062D\u062B (\u0645\u062B\u0627\u0644: \u0627\u0644\u0645\u0633\u062A\u062E\u0644\u0635\u060C IFRS 15\u060C \u0627\u0644\u0632\u0643\u0627\u0629\u060C VLOOKUP)...",
     className: "w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-textWhite outline-none focus:border-primary text-lg mb-8"
   }), query.length < 2 ? /*#__PURE__*/React.createElement("div", {
     className: "text-center text-textGray py-16"
-  }, "✍️ اكتب حرفين على الأقل لبدء البحث.") : results.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "\u270D\uFE0F \u0627\u0643\u062A\u0628 \u062D\u0631\u0641\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0644\u0628\u062F\u0621 \u0627\u0644\u0628\u062D\u062B.") : results.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "text-center text-textGray py-16"
-  }, "لا نتائج لـ «", q, "».") : /*#__PURE__*/React.createElement("div", {
+  }, "\u0644\u0627 \u0646\u062A\u0627\u0626\u062C \u0644\u0640 \xAB", q, "\xBB.") : /*#__PURE__*/React.createElement("div", {
     className: "space-y-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-sm text-textGray"
-  }, "وُجد في ", results.length, " دورة."), results.map(({
+  }, "\u0648\u064F\u062C\u062F \u0641\u064A ", results.length, " \u062F\u0648\u0631\u0629."), results.map(({
     c,
     lessons
   }) => /*#__PURE__*/React.createElement("div", {
@@ -4312,9 +4311,9 @@ function AcademySearch({
       onCourseClick(c.id, l.mi, l.li);
     },
     className: "text-xs bg-primary/15 text-textWhite border border-primary/20 rounded-full px-3 py-1 cursor-pointer hover:bg-primary/30"
-  }, "📖 ", l.title)), lessons.length > 6 && /*#__PURE__*/React.createElement("span", {
+  }, "\uD83D\uDCD6 ", l.title)), lessons.length > 6 && /*#__PURE__*/React.createElement("span", {
     className: "text-xs text-textGray py-1"
-  }, "+", lessons.length - 6, " درساً")))))));
+  }, "+", lessons.length - 6, " \u062F\u0631\u0633\u0627\u064B")))))));
 }
 
 // 📊 مسيرتي التعليمية — لوحة التقدّم والتحفيز
@@ -4358,11 +4357,11 @@ function Dashboard({
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onBack,
     className: "mb-6 text-textGray hover:text-textWhite"
-  }, "→ العودة للرئيسية"), /*#__PURE__*/React.createElement("h1", {
+  }, "\u2192 \u0627\u0644\u0639\u0648\u062F\u0629 \u0644\u0644\u0631\u0626\u064A\u0633\u064A\u0629"), /*#__PURE__*/React.createElement("h1", {
     className: "text-3xl font-black mb-2"
-  }, "📊 مسيرتي التعليمية"), /*#__PURE__*/React.createElement("p", {
+  }, "\uD83D\uDCCA \u0645\u0633\u064A\u0631\u062A\u064A \u0627\u0644\u062A\u0639\u0644\u064A\u0645\u064A\u0629"), /*#__PURE__*/React.createElement("p", {
     className: "text-textGray mb-8"
-  }, "كل تقدّمك في مكان واحد — محفوظ على جهازك."), /*#__PURE__*/React.createElement("div", {
+  }, "\u0643\u0644 \u062A\u0642\u062F\u0651\u0645\u0643 \u0641\u064A \u0645\u0643\u0627\u0646 \u0648\u0627\u062D\u062F \u2014 \u0645\u062D\u0641\u0648\u0638 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632\u0643."), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
   }, stat3('📈', ov.pct + '%', 'نسبة الإنجاز الكلية', '#22c55e'), stat3('⭐', points, 'نقطة', '#F59E0B'), stat3('🔥', (stat.streak || 0) + ' يوم', 'سلسلة النشاط', '#EF4444'), stat3('🎓', certs.length, 'شهادة مكتسبة', '#2563EB')), /*#__PURE__*/React.createElement("div", {
     className: "glass rounded-2xl p-5 mb-8"
@@ -4370,9 +4369,9 @@ function Dashboard({
     className: "flex items-center justify-between mb-2 text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "font-bold"
-  }, "التقدّم الكلي"), /*#__PURE__*/React.createElement("span", {
+  }, "\u0627\u0644\u062A\u0642\u062F\u0651\u0645 \u0627\u0644\u0643\u0644\u064A"), /*#__PURE__*/React.createElement("span", {
     className: "gradient-text font-black"
-  }, ov.done, "/", ov.total, " درس")), /*#__PURE__*/React.createElement("div", {
+  }, ov.done, "/", ov.total, " \u062F\u0631\u0633")), /*#__PURE__*/React.createElement("div", {
     className: "h-3 bg-white/10 rounded-full overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500",
@@ -4384,13 +4383,13 @@ function Dashboard({
     className: "glass rounded-2xl p-5 mb-8 cursor-pointer border border-primary/30 hover:border-primary flex items-center justify-between gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "text-xs text-textGray mb-1"
-  }, "▶ استكمل من حيث توقّفت"), /*#__PURE__*/React.createElement("div", {
+  }, "\u25B6 \u0627\u0633\u062A\u0643\u0645\u0644 \u0645\u0646 \u062D\u064A\u062B \u062A\u0648\u0642\u0651\u0641\u062A"), /*#__PURE__*/React.createElement("div", {
     className: "text-lg font-bold"
   }, lastCourse.icon, " ", lastCourse.title)), /*#__PURE__*/React.createElement("span", {
     className: "px-4 py-2 rounded-xl bg-primary text-white font-bold whitespace-nowrap"
-  }, "استكمال")), /*#__PURE__*/React.createElement("h2", {
+  }, "\u0627\u0633\u062A\u0643\u0645\u0627\u0644")), /*#__PURE__*/React.createElement("h2", {
     className: "text-xl font-bold mb-3"
-  }, "🏅 الشارات"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDFC5 \u0627\u0644\u0634\u0627\u0631\u0627\u062A"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-3 mb-8"
   }, badges.map((b, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
@@ -4401,26 +4400,26 @@ function Dashboard({
     className: "text-xs font-bold mt-1"
   }, b.t), /*#__PURE__*/React.createElement("div", {
     className: "text-[10px] text-textGray"
-  }, b.need, " درس")))), /*#__PURE__*/React.createElement("h2", {
+  }, b.need, " \u062F\u0631\u0633")))), /*#__PURE__*/React.createElement("h2", {
     className: "text-xl font-bold mb-3"
-  }, "🔖 محفوظاتي"), acadBooks().length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD16 \u0645\u062D\u0641\u0648\u0638\u0627\u062A\u064A"), acadBooks().length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "glass rounded-2xl p-6 text-center text-textGray mb-8"
-  }, "لا دروس محفوظة بعد — احفظ أي درس بزر «🔖 حفظ الدرس» داخله.") : /*#__PURE__*/React.createElement("div", {
+  }, "\u0644\u0627 \u062F\u0631\u0648\u0633 \u0645\u062D\u0641\u0648\u0638\u0629 \u0628\u0639\u062F \u2014 \u0627\u062D\u0641\u0638 \u0623\u064A \u062F\u0631\u0633 \u0628\u0632\u0631 \xAB\uD83D\uDD16 \u062D\u0641\u0638 \u0627\u0644\u062F\u0631\u0633\xBB \u062F\u0627\u062E\u0644\u0647.") : /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2 mb-8"
   }, acadBooks().map((b, i) => /*#__PURE__*/React.createElement("button", {
     key: i,
     onClick: () => onCourseClick(b.courseId, b.mod, b.les),
     className: "glass rounded-xl px-4 py-2 text-sm hover:border-primary border border-transparent text-right"
-  }, "🔖 ", b.title, /*#__PURE__*/React.createElement("span", {
+  }, "\uD83D\uDD16 ", b.title, /*#__PURE__*/React.createElement("span", {
     className: "text-textGray text-xs"
-  }, " — ", b.courseTitle || '')))), /*#__PURE__*/React.createElement("h2", {
+  }, " \u2014 ", b.courseTitle || '')))), /*#__PURE__*/React.createElement("h2", {
     className: "text-xl font-bold mb-3"
-  }, "📚 دوراتي"), started.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCDA \u062F\u0648\u0631\u0627\u062A\u064A"), started.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "glass rounded-2xl p-8 text-center text-textGray"
-  }, "لم تبدأ أي دورة بعد — اختر دورة من ", /*#__PURE__*/React.createElement("button", {
+  }, "\u0644\u0645 \u062A\u0628\u062F\u0623 \u0623\u064A \u062F\u0648\u0631\u0629 \u0628\u0639\u062F \u2014 \u0627\u062E\u062A\u0631 \u062F\u0648\u0631\u0629 \u0645\u0646 ", /*#__PURE__*/React.createElement("button", {
     onClick: onBack,
     className: "text-primary font-bold"
-  }, "الأكاديمية"), " وابدأ رحلتك.") : /*#__PURE__*/React.createElement("div", {
+  }, "\u0627\u0644\u0623\u0643\u0627\u062F\u064A\u0645\u064A\u0629"), " \u0648\u0627\u0628\u062F\u0623 \u0631\u062D\u0644\u062A\u0643.") : /*#__PURE__*/React.createElement("div", {
     className: "grid md:grid-cols-2 gap-4"
   }, started.map(({
     c,
@@ -4446,7 +4445,7 @@ function Dashboard({
     }
   })), /*#__PURE__*/React.createElement("div", {
     className: "text-xs text-textGray mt-2"
-  }, p.done, "/", p.total, " درس ", p.pct === 100 ? '· 🎓 مكتملة' : ''))))));
+  }, p.done, "/", p.total, " \u062F\u0631\u0633 ", p.pct === 100 ? '· 🎓 مكتملة' : ''))))));
 }
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
