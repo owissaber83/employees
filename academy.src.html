@@ -280,6 +280,28 @@
       #cert, #cert * { visibility: visible !important; }
       #cert { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; }
     }
+
+    /* ☀️ الوضع الفاتح */
+    :root[data-theme="light"] body { background-color: #F1F5F9; color: #1F2937; }
+    :root[data-theme="light"] .glass { background: rgba(255, 255, 255, 0.85); border-color: rgba(15, 23, 42, 0.08); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); }
+    :root[data-theme="light"] .text-textWhite { color: #1F2937 !important; }
+    :root[data-theme="light"] .text-textGray { color: #64748B !important; }
+    :root[data-theme="light"] .text-white { color: #1F2937 !important; }
+    :root[data-theme="light"] .bg-primary.text-white, :root[data-theme="light"] .bg-youtube.text-white { color: #FFFFFF !important; }
+    :root[data-theme="light"] .bg-darkBg { background-color: #F1F5F9 !important; }
+    :root[data-theme="light"] .bg-darkCard { background-color: #FFFFFF !important; }
+    :root[data-theme="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+    :root[data-theme="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.06) !important; }
+    :root[data-theme="light"] .border-white\/5 { border-color: rgba(15, 23, 42, 0.06) !important; }
+    :root[data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10) !important; }
+    :root[data-theme="light"] .border-white\/20 { border-color: rgba(15, 23, 42, 0.14) !important; }
+    :root[data-theme="light"] .border-white\/40 { border-color: rgba(15, 23, 42, 0.24) !important; }
+    :root[data-theme="light"] .lesson-content p, :root[data-theme="light"] .lesson-content li, :root[data-theme="light"] .lesson-content td { color: #374151; }
+    :root[data-theme="light"] .lesson-content strong { color: #111827; }
+    :root[data-theme="light"] .lesson-content h3 { color: #2563EB; }
+    :root[data-theme="light"] .lesson-content h4 { color: #7C3AED; }
+    :root[data-theme="light"] .lesson-content th { border-color: rgba(15, 23, 42, 0.15); color: #1F2937; }
+    :root[data-theme="light"] .lesson-content td { border-color: rgba(15, 23, 42, 0.12); }
   </style>
 
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -292,6 +314,13 @@
 
   <script type="text/babel" data-type="module">
     const { useState, useEffect, useRef } = React;
+    // ☀️ تطبيق الوضع المحفوظ مبكراً (قبل الرسم) لتفادي الوميض
+    try { if (localStorage.getItem('acad_theme') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (e) { }
+    function ThemeToggle() {
+      const [light, setLight] = useState(() => { try { return localStorage.getItem('acad_theme') === 'light'; } catch (e) { return false; } });
+      useEffect(() => { try { if (light) document.documentElement.setAttribute('data-theme', 'light'); else document.documentElement.removeAttribute('data-theme'); localStorage.setItem('acad_theme', light ? 'light' : 'dark'); } catch (e) { } }, [light]);
+      return <button onClick={() => setLight(v => !v)} className="text-textGray hover:text-textWhite transition-colors text-xl" title="تبديل الوضع الفاتح/الداكن">{light ? '🌙' : '☀️'}</button>;
+    }
 
     // ============ COURSE DATA WITH SCIENTIFIC CONTENT ============
     const courses = [
@@ -1162,6 +1191,7 @@
               {links.map((l) => (<a key={l.name} href={l.href} onClick={(e) => { if (currentPage !== 'home') { e.preventDefault(); onNavigate('home'); } }} className="text-textGray hover:text-textWhite transition-colors font-medium">{l.name}</a>))}
             </nav>
             <div className="hidden lg:flex items-center gap-3">
+              <ThemeToggle />
               <button onClick={() => onNavigate('search')} className="text-textGray hover:text-textWhite transition-colors font-medium" title="بحث">🔍 بحث</button>
               <Button variant="primary" onClick={() => onNavigate('dashboard')}>📊 مسيرتي</Button>
             </div>
@@ -1173,6 +1203,7 @@
             <div className="lg:hidden glass mt-2 mx-4 rounded-2xl overflow-hidden animate-fadeIn">
               <nav className="flex flex-col p-4 gap-4">
                 {links.map((l) => (<a key={l.name} href={l.href} className="text-textGray hover:text-textWhite py-2" onClick={() => { setIsMobileOpen(false); if (currentPage !== 'home') onNavigate('home'); }}>{l.name}</a>))}
+                <div className="flex items-center gap-2 py-2"><ThemeToggle /><span className="text-textGray text-sm">تبديل الوضع</span></div>
                 <button onClick={() => { setIsMobileOpen(false); onNavigate('search'); }} className="text-textGray hover:text-textWhite py-2 text-right">🔍 بحث</button>
                 <Button variant="primary" className="w-full mt-2" onClick={() => { setIsMobileOpen(false); onNavigate('dashboard'); }}>📊 مسيرتي التعليمية</Button>
               </nav>
