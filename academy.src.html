@@ -1301,6 +1301,14 @@
     const overallProg = () => { let d = 0, t = 0; courses.forEach(c => { d += getDone(c.id).length; t += totalLessons(c); }); return { done: d, total: t, pct: t ? Math.round(d / t * 100) : 0 }; };
     const acadBadges = (done) => [{ n: '🌱', t: 'بداية', need: 1 }, { n: '📗', t: 'مثابر', need: 10 }, { n: '🥉', t: 'متقدّم', need: 25 }, { n: '🥈', t: 'محترف', need: 50 }, { n: '🏆', t: 'خبير', need: 100 }].map(b => ({ ...b, got: done >= b.need }));
 
+    // ═══ ملاحظات + حفظ الدروس (Bookmarks) ═══
+    const acadNotes = () => { try { return JSON.parse(localStorage.getItem('acad_notes') || '{}'); } catch (e) { return {}; } };
+    const getNote = (cid, title) => (acadNotes()[cid] || {})[title] || '';
+    const setNote = (cid, title, v) => { const n = acadNotes(); n[cid] = n[cid] || {}; if (v) n[cid][title] = v; else { delete n[cid][title]; } try { localStorage.setItem('acad_notes', JSON.stringify(n)); } catch (e) { } };
+    const acadBooks = () => { try { return JSON.parse(localStorage.getItem('acad_books') || '[]'); } catch (e) { return []; } };
+    const isBooked = (cid, title) => acadBooks().some(b => b.courseId === cid && b.title === title);
+    const toggleBook = (cid, mod, les, title, courseTitle) => { let a = acadBooks(); const idx = a.findIndex(b => b.courseId === cid && b.title === title); if (idx >= 0) a.splice(idx, 1); else a.push({ courseId: cid, mod, les, title, courseTitle }); try { localStorage.setItem('acad_books', JSON.stringify(a)); } catch (e) { } return idx < 0; };
+
     // ربط كل دورة بالشاشة المناسبة في نظام ERP (الميزة القاتلة: تعلَّم ثم طبّق فوراً)
     const APP_LINKS = {
       accounting:   { page: 'journalentries', label: 'سجّل قيد يومية في النظام' },
@@ -1701,15 +1709,33 @@
       );
     }
 
-    function CourseDetail({ courseId, onBack }) {
+    // 📝 ملاحظات الدرس (حفظ تلقائي)
+    function LessonNotes({ courseId, title }) {
+      const [v, setV] = useState(() => getNote(courseId, title));
+      useEffect(() => { setV(getNote(courseId, title)); }, [courseId, title]);
+      return (
+        <div className="mt-5">
+          <div className="text-sm font-bold mb-2">📝 ملاحظاتي على هذا الدرس</div>
+          <textarea value={v} onChange={e => { setV(e.target.value); setNote(courseId, title, e.target.value); }} placeholder="اكتب ملاحظاتك... تُحفظ تلقائياً على جهازك." className="w-full min-h-[90px] px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-textWhite outline-none focus:border-primary text-sm resize-y" />
+        </div>
+      );
+    }
+
+    // 🔖 زر حفظ الدرس
+    function BookmarkBtn({ courseId, mod, les, title, courseTitle }) {
+      const [on, setOn] = useState(() => isBooked(courseId, title));
+      return <button onClick={() => setOn(toggleBook(courseId, mod, les, title, courseTitle))} className={`px-4 py-2.5 rounded-xl font-bold text-sm border transition-colors ${on ? 'bg-gold/20 border-gold/40 text-gold' : 'bg-white/5 border-white/10 text-textGray hover:bg-white/10'}`}>{on ? '🔖 محفوظ' : '🔖 حفظ الدرس'}</button>;
+    }
+
+    function CourseDetail({ courseId, onBack, initialModule, initialLesson }) {
       const course = courses.find(c => c.id === courseId);
-      const [activeModule, setActiveModule] = useState(0);
+      const [activeModule, setActiveModule] = useState(initialModule || 0);
       const [activeTab, setActiveTab] = useState('curriculum');
-      const [expandedLesson, setExpandedLesson] = useState(null);
+      const [expandedLesson, setExpandedLesson] = useState(initialLesson != null ? initialLesson : null);
       const [done, setDoneState] = useState(() => getDone(courseId));
       const [showCert, setShowCert] = useState(false);
 
-      useEffect(() => { window.scrollTo(0, 0); setActiveModule(0); setActiveTab('curriculum'); setExpandedLesson(null); setDoneState(getDone(courseId)); setShowCert(false); }, [courseId]);
+      useEffect(() => { window.scrollTo(0, 0); setActiveModule(initialModule || 0); setActiveTab('curriculum'); setExpandedLesson(initialLesson != null ? initialLesson : null); setDoneState(getDone(courseId)); setShowCert(false); }, [courseId, initialModule, initialLesson]);
 
       const total = course ? totalLessons(course) : 0;
       const pct = total > 0 ? Math.round(done.length / total * 100) : 0;
@@ -1798,9 +1824,11 @@
                           <div className="p-4 pt-0 border-t border-white/10 mt-2">
                             <div className="lesson-content" dangerouslySetInnerHTML={{ __html: lesson.content }} />
                             <LessonQuiz quiz={(LESSON_QUIZZES[courseId] || {})[lesson.title]} />
+                            <LessonNotes courseId={courseId} title={lesson.title} />
                             <div className="flex flex-wrap gap-3 mt-5">
                               {appLink && <a href={'index.html#' + appLink.page} className="px-4 py-2.5 rounded-xl bg-secondary/20 border border-secondary/40 text-secondary font-bold text-sm hover:bg-secondary/30 transition-colors">🚀 طبّق الآن: {appLink.label}</a>}
                               <button onClick={() => toggleDone(activeModule + '-' + i)} className={`px-4 py-2.5 rounded-xl font-bold text-sm border transition-colors ${done.includes(activeModule + '-' + i) ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-white/5 border-white/10 text-textGray hover:bg-white/10'}`}>{done.includes(activeModule + '-' + i) ? '✅ تم الإتمام' : '⭕ وضع علامة كمكتمل'}</button>
+                              <BookmarkBtn courseId={courseId} mod={activeModule} les={i} title={lesson.title} courseTitle={course.title} />
                             </div>
                           </div>
                         )}
@@ -2013,8 +2041,8 @@
         courses.forEach(c => {
           const inCourse = (c.title + ' ' + (c.description || '') + ' ' + (c.fullDescription || '')).toLowerCase().includes(query);
           const lessons = [];
-          (c.curriculum || []).forEach((m) => (m.lessons || []).forEach((l) => {
-            if ((l.title + ' ' + (l.explanation || '') + ' ' + (l.content || '')).toLowerCase().includes(query)) lessons.push({ title: l.title, module: m.module });
+          (c.curriculum || []).forEach((m, mi) => (m.lessons || []).forEach((l, li) => {
+            if ((l.title + ' ' + (l.explanation || '') + ' ' + (l.content || '')).toLowerCase().includes(query)) lessons.push({ title: l.title, module: m.module, mi, li });
           }));
           if (inCourse || lessons.length) results.push({ c, lessons });
         });
@@ -2038,7 +2066,7 @@
                     <div className="flex items-center gap-3 mb-2"><span className="text-3xl">{c.icon}</span><h3 className="text-xl font-bold gradient-text">{c.title}</h3></div>
                     {lessons.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {lessons.slice(0, 6).map((l, i) => (<span key={i} className="text-xs bg-primary/15 text-textWhite border border-primary/20 rounded-full px-3 py-1">📖 {l.title}</span>))}
+                        {lessons.slice(0, 6).map((l, i) => (<span key={i} onClick={(e) => { e.stopPropagation(); onCourseClick(c.id, l.mi, l.li); }} className="text-xs bg-primary/15 text-textWhite border border-primary/20 rounded-full px-3 py-1 cursor-pointer hover:bg-primary/30">📖 {l.title}</span>))}
                         {lessons.length > 6 && <span className="text-xs text-textGray py-1">+{lessons.length - 6} درساً</span>}
                       </div>
                     )}
@@ -2094,6 +2122,15 @@
               {badges.map((b, i) => (<div key={i} className={`glass rounded-xl px-4 py-3 text-center ${b.got ? '' : 'opacity-30'}`}><div className="text-3xl">{b.n}</div><div className="text-xs font-bold mt-1">{b.t}</div><div className="text-[10px] text-textGray">{b.need} درس</div></div>))}
             </div>
 
+            <h2 className="text-xl font-bold mb-3">🔖 محفوظاتي</h2>
+            {acadBooks().length === 0 ? (
+              <div className="glass rounded-2xl p-6 text-center text-textGray mb-8">لا دروس محفوظة بعد — احفظ أي درس بزر «🔖 حفظ الدرس» داخله.</div>
+            ) : (
+              <div className="flex flex-wrap gap-2 mb-8">
+                {acadBooks().map((b, i) => (<button key={i} onClick={() => onCourseClick(b.courseId, b.mod, b.les)} className="glass rounded-xl px-4 py-2 text-sm hover:border-primary border border-transparent text-right">🔖 {b.title}<span className="text-textGray text-xs"> — {b.courseTitle || ''}</span></button>))}
+              </div>
+            )}
+
             <h2 className="text-xl font-bold mb-3">📚 دوراتي</h2>
             {started.length === 0 ? (
               <div className="glass rounded-2xl p-8 text-center text-textGray">لم تبدأ أي دورة بعد — اختر دورة من <button onClick={onBack} className="text-primary font-bold">الأكاديمية</button> وابدأ رحلتك.</div>
@@ -2116,15 +2153,16 @@
     function App() {
       const [currentPage, setCurrentPage] = useState('home');
       const [selectedCourse, setSelectedCourse] = useState(null);
-      const handleCourseClick = (id) => { setSelectedCourse(id); setCurrentPage('course'); };
-      const handleBackToHome = () => { setCurrentPage('home'); setSelectedCourse(null); };
-      const handleNavigate = (p) => { setCurrentPage(p); setSelectedCourse(null); };
+      const [target, setTarget] = useState(null);
+      const handleCourseClick = (id, mod, les) => { setSelectedCourse(id); setTarget((mod != null) ? { mod, les } : null); setCurrentPage('course'); };
+      const handleBackToHome = () => { setCurrentPage('home'); setSelectedCourse(null); setTarget(null); };
+      const handleNavigate = (p) => { setCurrentPage(p); setSelectedCourse(null); setTarget(null); };
       return (
         <>
           <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
           <main className="min-h-screen">
             {currentPage === 'home' && (<><Hero /><Stats /><Academy onCourseClick={handleCourseClick} /><Tools /><Exams /><LearningPath /><ERP /><AIAssistant /><Testimonials /><FAQ /></>)}
-            {currentPage === 'course' && selectedCourse && <CourseDetail courseId={selectedCourse} onBack={handleBackToHome} />}
+            {currentPage === 'course' && selectedCourse && <CourseDetail courseId={selectedCourse} onBack={handleBackToHome} initialModule={target ? target.mod : undefined} initialLesson={target ? target.les : undefined} />}
             {currentPage === 'dashboard' && <Dashboard onCourseClick={handleCourseClick} onBack={handleBackToHome} />}
             {currentPage === 'search' && <AcademySearch onCourseClick={handleCourseClick} onBack={handleBackToHome} />}
           </main>
