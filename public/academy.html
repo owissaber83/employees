@@ -273,6 +273,13 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       color: #D1D5DB;
     }
+
+    /* طباعة الشهادة فقط */
+    @media print {
+      body * { visibility: hidden !important; }
+      #cert, #cert * { visibility: visible !important; }
+      #cert { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; }
+    }
   </style>
 
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -1171,15 +1178,164 @@
       );
     }
 
+    // ═══════════════════════════════════════════════════════════
+    //  المرحلة 1: تتبّع التقدّم + الشهادة + الاختبارات + الربط بالتطبيق
+    // ═══════════════════════════════════════════════════════════
+    const acadKey = (id) => 'acad_prog_' + id;
+    const getDone = (id) => { try { return JSON.parse(localStorage.getItem(acadKey(id)) || '[]'); } catch (e) { return []; } };
+    const saveDone = (id, arr) => { try { localStorage.setItem(acadKey(id), JSON.stringify(arr)); } catch (e) { } };
+    const totalLessons = (course) => (course.curriculum || []).reduce((s, m) => s + (m.lessons ? m.lessons.length : 0), 0);
+
+    // ربط كل دورة بالشاشة المناسبة في نظام ERP (الميزة القاتلة: تعلَّم ثم طبّق فوراً)
+    const APP_LINKS = {
+      accounting:   { page: 'journalentries', label: 'سجّل قيد يومية في النظام' },
+      construction: { page: 'projects',        label: 'افتح إدارة المشاريع' },
+      excel:        { page: 'finmodels',       label: 'جرّب النماذج المالية' },
+      finance:      { page: 'finstatements',   label: 'حلّل القوائم المالية' },
+      ifrs:         { page: 'revrecognition',  label: 'إثبات الإيراد (IFRS 15)' },
+      cma:          { page: 'execdashboard',   label: 'افتح اللوحة التنفيذية' },
+      tax:          { page: 'taxcenter',       label: 'افتح مركز الضرائب' },
+    };
+
+    // بنك اختبارات سريعة (مفتاحه عنوان الدرس) — الدورة الأساسية مكتملة كنموذج
+    const LESSON_QUIZZES = {
+      accounting: {
+        'مفهوم المحاسبة وأهميتها في الأعمال': [
+          { q: 'تُوصف المحاسبة بأنها:', options: ['فرع من الهندسة', 'لغة الأعمال', 'نشاط تسويقي', 'علم طبيعي'], answer: 1, explain: 'المحاسبة هي لغة الأعمال التي تُترجم النشاط إلى معلومات مالية.' },
+          { q: 'من أهداف المحاسبة الرئيسية:', options: ['توفير معلومات مالية لاتخاذ القرار', 'تصميم المنتجات', 'الإعلان', 'إدارة المخازن فقط'], answer: 0 },
+        ],
+        'المعادلة المحاسبية والمبدأ المزدوج': [
+          { q: 'المعادلة المحاسبية الأساسية:', options: ['الأصول = الإيرادات − المصروفات', 'حقوق الملكية = الأصول + الخصوم', 'الأصول = الخصوم + حقوق الملكية', 'الأصول = الخصوم − حقوق الملكية'], answer: 2 },
+          { q: 'في القيد المزدوج لكل عملية:', options: ['طرف مدين فقط', 'طرفان مدينان', 'طرف مدين وطرف دائن متساويان', 'لا قاعدة ثابتة'], answer: 2, explain: 'مجموع المدين يساوي دائماً مجموع الدائن.' },
+        ],
+        'دورة المحاسبة الكاملة': [
+          { q: 'أول خطوة في الدورة المحاسبية:', options: ['المستندات المصدرية', 'القوائم المالية', 'ميزان المراجعة', 'قيود الإقفال'], answer: 0 },
+          { q: 'قيود التسوية تُسجَّل:', options: ['عند كل عملية', 'نهاية الفترة', 'بداية الفترة', 'لا تُسجَّل'], answer: 1 },
+        ],
+        'القيود المحاسبية الأساسية': [
+          { q: 'شراء معدات نقداً يُقيَّد:', options: ['من ح/النقدية إلى ح/المعدات', 'من ح/المعدات إلى ح/النقدية', 'من ح/المعدات إلى ح/رأس المال', 'من ح/الإيراد إلى ح/المعدات'], answer: 1 },
+          { q: 'زيادة الأصل تكون:', options: ['دائنة', 'لا تؤثر', 'مدينة', 'حسب الحالة'], answer: 2 },
+        ],
+        'دفتر اليومية': [
+          { q: 'دفتر اليومية هو:', options: ['سجل الأرصدة النهائية', 'أول سجل تُقيَّد فيه العمليات زمنياً', 'قائمة مالية', 'تقرير ضريبي'], answer: 1 },
+          { q: 'مثال على دفتر يومية خاص:', options: ['يومية المبيعات', 'دفتر الأستاذ', 'ميزان المراجعة', 'قائمة الدخل'], answer: 0 },
+        ],
+        'دفتر الأستاذ': [
+          { q: 'دفتر الأستاذ يحتوي على:', options: ['العمليات بترتيب زمني فقط', 'حسابات منفصلة لكل عنصر', 'الضرائب', 'الموازنة'], answer: 1 },
+          { q: 'حساب النقدية نوعه:', options: ['اسمي (إيراد)', 'اسمي (مصروف)', 'حقيقي (أصل)', 'وهمي'], answer: 2 },
+        ],
+        'ميزان المراجعة': [
+          { q: 'يتوازن ميزان المراجعة عندما:', options: ['مجموع المدين = مجموع الدائن', 'الأصول = الإيرادات', 'النقدية = صفر', 'الربح موجب'], answer: 0 },
+          { q: 'ميزان المراجعة يكشف بشكل أساسي:', options: ['كل أنواع الأخطاء', 'الاحتيال دائماً', 'أخطاء عدم التوازن الحسابي', 'الربحية'], answer: 2, explain: 'لا يكشف أخطاء الحذف الكامل أو القيد في حساب خاطئ متوازن.' },
+        ],
+        'التسويات الجردية': [
+          { q: 'الرواتب المستحقة غير المدفوعة تُعالَج كـ:', options: ['مصروف مستحق', 'إيراد مقدم', 'أصل ثابت', 'رأس مال'], answer: 0 },
+          { q: 'التأمين المدفوع مقدماً هو:', options: ['خصم', 'أصل (مصروف مقدم)', 'إيراد', 'مصروف فوري بالكامل'], answer: 1 },
+        ],
+        'قائمة الدخل': [
+          { q: 'صافي الدخل =', options: ['الأصول − الخصوم', 'المبيعات + المشتريات', 'الإيرادات − المصروفات', 'النقدية آخر المدة'], answer: 2 },
+          { q: 'مجمل الربح =', options: ['صافي المبيعات − تكلفة البضاعة المباعة', 'المبيعات − الضريبة', 'الإيراد − الإهلاك', 'المبيعات − الرواتب'], answer: 0 },
+        ],
+        'قائمة المركز المالي': [
+          { q: 'قائمة المركز المالي تُظهر:', options: ['الأداء خلال فترة', 'الوضع المالي في لحظة محددة', 'التدفقات النقدية', 'الضرائب'], answer: 1 },
+          { q: 'يجب أن يتساوى:', options: ['الإيراد مع المصروف', 'النقدية مع الأصول', 'إجمالي الأصول مع (الخصوم + حقوق الملكية)', 'الربح مع رأس المال'], answer: 2 },
+        ],
+        'قائمة التدفقات النقدية': [
+          { q: 'أنشطتها الثلاثة:', options: ['بيع وشراء وإيجار', 'تشغيلية واستثمارية وتمويلية', 'مدينة ودائنة ومختلطة', 'سنوية وشهرية ويومية'], answer: 1 },
+          { q: 'شراء أصل ثابت يُصنّف ضمن:', options: ['الأنشطة الاستثمارية', 'التشغيلية', 'التمويلية', 'لا يظهر'], answer: 0 },
+        ],
+        'التحليل المالي والنسب': [
+          { q: 'نسبة التداول =', options: ['الأصول المتداولة ÷ الخصوم المتداولة', 'الأصول ÷ الإيراد', 'صافي الربح ÷ المبيعات', 'الخصوم ÷ الأصول'], answer: 0 },
+          { q: 'مؤشر ROE يقيس:', options: ['العائد على الأصول', 'العائد على حقوق الملكية', 'هامش الربح', 'السيولة'], answer: 1 },
+        ],
+      },
+    };
+
+    // مكوّن الاختبار السريع نهاية الدرس
+    function LessonQuiz({ quiz }) {
+      const [answers, setAnswers] = useState({});
+      const [submitted, setSubmitted] = useState(false);
+      if (!quiz || !quiz.length) return null;
+      const score = quiz.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0);
+      return (
+        <div className="mt-5 p-4 rounded-xl bg-primary/5 border border-primary/20">
+          <h4 className="font-bold mb-3 flex items-center gap-2">🧩 اختبار سريع</h4>
+          {quiz.map((q, i) => (
+            <div key={i} className="mb-4">
+              <p className="font-bold mb-2 text-sm">{i + 1}. {q.q}</p>
+              <div className="space-y-2">
+                {q.options.map((opt, oi) => {
+                  const chosen = answers[i] === oi;
+                  let cls = 'bg-white/5 border-white/10 hover:bg-white/10';
+                  if (submitted) { if (oi === q.answer) cls = 'bg-green-500/20 border-green-500/50 text-green-300'; else if (chosen) cls = 'bg-red-500/20 border-red-500/50 text-red-300'; }
+                  else if (chosen) cls = 'bg-primary/20 border-primary/50';
+                  return <button key={oi} disabled={submitted} onClick={() => setAnswers(a => ({ ...a, [i]: oi }))} className={`w-full text-right px-3 py-2 rounded-lg border text-sm transition-all ${cls}`}>{opt}</button>;
+                })}
+              </div>
+              {submitted && q.explain && <p className="text-xs text-textGray mt-2">💡 {q.explain}</p>}
+            </div>
+          ))}
+          {!submitted ? (
+            <button onClick={() => setSubmitted(true)} disabled={Object.keys(answers).length < quiz.length} className="px-4 py-2 rounded-lg bg-primary text-white font-bold text-sm disabled:opacity-40">تحقّق من إجاباتي</button>
+          ) : (
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className={`font-black ${score === quiz.length ? 'text-green-400' : 'text-gold'}`}>نتيجتك: {score}/{quiz.length}</span>
+              <button onClick={() => { setSubmitted(false); setAnswers({}); }} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm">إعادة المحاولة</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // شهادة الإتمام (قابلة للطباعة/الحفظ PDF)
+    function Certificate({ course, onBack }) {
+      const [name, setName] = useState(() => { try { return localStorage.getItem('acad_name') || ''; } catch (e) { return ''; } });
+      const today = new Date().toLocaleDateString('ar-SA');
+      const save = (v) => { setName(v); try { localStorage.setItem('acad_name', v); } catch (e) { } };
+      return (
+        <div className="min-h-screen pt-24 pb-12">
+          <div className="container mx-auto px-4 max-w-3xl">
+            <button onClick={onBack} className="mb-6 text-textGray hover:text-textWhite">→ العودة للدورة</button>
+            <div className="mb-4 flex flex-wrap gap-3 items-center">
+              <input value={name} onChange={e => save(e.target.value)} placeholder="اكتب اسمك كما تريده على الشهادة" className="flex-1 min-w-[220px] px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-textWhite outline-none focus:border-primary" />
+              <button onClick={() => window.print()} className="px-5 py-3 rounded-xl bg-primary text-white font-bold">🖨️ طباعة / حفظ PDF</button>
+            </div>
+            <div id="cert" className="bg-white rounded-2xl p-10 border-8 border-double" style={{ borderColor: '#0b3d61', color: '#334155' }}>
+              <div className="text-center">
+                <div style={{ color: '#0b7285', letterSpacing: '3px' }} className="text-sm font-black">CFO MASTER ACADEMY</div>
+                <div className="text-3xl font-black mt-4 mb-2" style={{ color: '#0b3d61' }}>شهادة إتمام</div>
+                <div className="text-gray-500 mb-6">تشهد الأكاديمية بأن</div>
+                <div className="text-4xl font-black mb-6" style={{ color: '#0b3d61' }}>{name || '................'}</div>
+                <div className="text-gray-600 mb-2">قد أتمّ بنجاح جميع دروس دورة</div>
+                <div className="text-2xl font-bold mb-10">{course.icon} {course.title}</div>
+                <div className="flex justify-between items-end mt-10 text-sm text-gray-500">
+                  <div>📅 التاريخ: {today}</div>
+                  <div className="text-center"><div className="text-2xl">✍️</div><div className="border-t border-gray-300 pt-1 px-4">التوقيع المعتمد</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function CourseDetail({ courseId, onBack }) {
       const course = courses.find(c => c.id === courseId);
       const [activeModule, setActiveModule] = useState(0);
       const [activeTab, setActiveTab] = useState('curriculum');
       const [expandedLesson, setExpandedLesson] = useState(null);
+      const [done, setDoneState] = useState(() => getDone(courseId));
+      const [showCert, setShowCert] = useState(false);
 
-      useEffect(() => { window.scrollTo(0, 0); setActiveModule(0); setActiveTab('curriculum'); setExpandedLesson(null); }, [courseId]);
+      useEffect(() => { window.scrollTo(0, 0); setActiveModule(0); setActiveTab('curriculum'); setExpandedLesson(null); setDoneState(getDone(courseId)); setShowCert(false); }, [courseId]);
+
+      const total = course ? totalLessons(course) : 0;
+      const pct = total > 0 ? Math.round(done.length / total * 100) : 0;
+      const appLink = APP_LINKS[courseId];
+      const toggleDone = (key) => setDoneState(prev => { const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]; saveDone(courseId, next); return next; });
 
       if (!course) return <div className="min-h-screen flex items-center justify-center pt-20"><Button onClick={onBack}>العودة</Button></div>;
+      if (showCert) return <Certificate course={course} onBack={() => setShowCert(false)} />;
 
       const tabs = [
         { id: 'curriculum', label: 'المنهج الدراسي', icon: '📚' },
@@ -1206,6 +1362,18 @@
                     <div className="flex items-center gap-2"><span>{course.lessons} درس</span></div>
                     <div className="flex items-center gap-2"><span>{course.level}</span></div>
                   </div>
+                  {!course.comingSoon && total > 0 && (
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-2 text-sm">
+                        <span className="font-bold">📊 تقدّمك في الدورة</span>
+                        <span className="gradient-text font-black">{pct}% ({done.length}/{total})</span>
+                      </div>
+                      <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style={{ width: pct + '%' }} />
+                      </div>
+                      {pct === 100 && <button onClick={() => setShowCert(true)} className="mt-4 w-full py-3 rounded-xl bg-gradient-to-r from-gold to-yellow-500 text-darkBg font-black hover:opacity-90 transition-opacity">🎉 أكملت الدورة — احصل على شهادتك</button>}
+                    </div>
+                  )}
                 </div>
                 <div className="glass rounded-2xl p-6 h-fit">
                   <div className="text-3xl font-black gradient-text mb-4">{course.price}</div>
@@ -1240,7 +1408,7 @@
                       <div key={i} className="lesson-item glass rounded-xl border border-transparent overflow-hidden">
                         <button onClick={() => setExpandedLesson(expandedLesson === i ? null : i)} className="w-full p-4 text-right">
                           <div className="flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0">{i + 1}</div>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${done.includes(activeModule + '-' + i) ? 'bg-green-500/20 text-green-400' : 'bg-primary/20 text-primary'}`}>{done.includes(activeModule + '-' + i) ? '✓' : (i + 1)}</div>
                             <div className="flex-1">
                               <div className="flex items-center justify-between mb-2">
                                 <h4 className="font-bold">{lesson.title}</h4>
@@ -1256,6 +1424,11 @@
                         {expandedLesson === i && lesson.content && (
                           <div className="p-4 pt-0 border-t border-white/10 mt-2">
                             <div className="lesson-content" dangerouslySetInnerHTML={{ __html: lesson.content }} />
+                            <LessonQuiz quiz={(LESSON_QUIZZES[courseId] || {})[lesson.title]} />
+                            <div className="flex flex-wrap gap-3 mt-5">
+                              {appLink && <a href={'index.html#' + appLink.page} className="px-4 py-2.5 rounded-xl bg-secondary/20 border border-secondary/40 text-secondary font-bold text-sm hover:bg-secondary/30 transition-colors">🚀 طبّق الآن: {appLink.label}</a>}
+                              <button onClick={() => toggleDone(activeModule + '-' + i)} className={`px-4 py-2.5 rounded-xl font-bold text-sm border transition-colors ${done.includes(activeModule + '-' + i) ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-white/5 border-white/10 text-textGray hover:bg-white/10'}`}>{done.includes(activeModule + '-' + i) ? '✅ تم الإتمام' : '⭕ وضع علامة كمكتمل'}</button>
+                            </div>
                           </div>
                         )}
                       </div>
