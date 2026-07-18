@@ -4890,25 +4890,13 @@ function CourseDetail({
     courseTitle: course.title
   }))));
 }
-function LearningPath() {
-  return /*#__PURE__*/React.createElement("section", {
-    className: "py-24 relative overflow-hidden"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "container mx-auto px-4"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "text-center mb-16 reveal"
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-4xl md:text-5xl font-black mb-4"
-  }, "\u0645\u0633\u0627\u0631 ", /*#__PURE__*/React.createElement("span", {
-    className: "gradient-text"
-  }, "\u0627\u0644\u062A\u0639\u0644\u0645"))), /*#__PURE__*/React.createElement("div", {
-    className: "relative max-w-4xl mx-auto"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "absolute right-1/2 translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full hidden md:block"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "space-y-12"
-  }, learningPath.map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: s.role,
+function PathStep({
+  s,
+  i
+}) {
+  const ref = useReveal();
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
     className: `flex flex-col md:flex-row items-center gap-8 reveal ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1 glass p-6 rounded-2xl text-center md:text-right card-hover"
@@ -4920,7 +4908,32 @@ function LearningPath() {
     className: "relative z-10 w-12 h-12 rounded-full bg-darkBg border-4 border-primary flex items-center justify-center font-bold text-lg shrink-0"
   }, i + 1), /*#__PURE__*/React.createElement("div", {
     className: "flex-1 hidden md:block"
-  })))))));
+  }));
+}
+function LearningPath() {
+  const ref = useReveal();
+  return /*#__PURE__*/React.createElement("section", {
+    className: "py-24 relative overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container mx-auto px-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    className: "text-center mb-16 reveal"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "text-4xl md:text-5xl font-black mb-4"
+  }, "\u0645\u0633\u0627\u0631 ", /*#__PURE__*/React.createElement("span", {
+    className: "gradient-text"
+  }, "\u0627\u0644\u062A\u0639\u0644\u0645"))), /*#__PURE__*/React.createElement("div", {
+    className: "relative max-w-4xl mx-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "absolute right-1/2 translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full hidden md:block"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-12"
+  }, learningPath.map((s, i) => /*#__PURE__*/React.createElement(PathStep, {
+    key: s.role,
+    s: s,
+    i: i
+  }))))));
 }
 function ERPModuleCard({
   module,
@@ -5387,6 +5400,27 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [target, setTarget] = useState(null);
+  // مراقب عام يُظهر كل عناصر reveal (يعالج الأقسام التي نسيت ربط useReveal فبقيت مخفية)
+  useEffect(() => {
+    const o = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      });
+    }, {
+      threshold: 0.08
+    });
+    const els = document.querySelectorAll('.reveal:not(.visible)');
+    els.forEach(el => o.observe(el));
+    // ضمان أخير: أظهر أي عنصر بقي مخفياً بعد ثانية (تفادياً لأي فراغ دائم)
+    const t = setTimeout(() => document.querySelectorAll('.reveal:not(.visible)').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight) el.classList.add('visible');
+    }), 1000);
+    return () => {
+      o.disconnect();
+      clearTimeout(t);
+    };
+  }, [currentPage]);
   const handleCourseClick = (id, mod, les) => {
     setSelectedCourse(id);
     setTarget(mod != null ? {

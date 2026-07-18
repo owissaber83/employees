@@ -2433,21 +2433,26 @@
       );
     }
 
+    function PathStep({ s, i }) {
+      const ref = useReveal();
+      return (
+        <div ref={ref} className={`flex flex-col md:flex-row items-center gap-8 reveal ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
+          <div className="flex-1 glass p-6 rounded-2xl text-center md:text-right card-hover"><h3 className="text-xl font-bold mb-2 text-gold">{s.role}</h3><p className="text-textGray">{s.description}</p></div>
+          <div className="relative z-10 w-12 h-12 rounded-full bg-darkBg border-4 border-primary flex items-center justify-center font-bold text-lg shrink-0">{i + 1}</div>
+          <div className="flex-1 hidden md:block" />
+        </div>
+      );
+    }
     function LearningPath() {
+      const ref = useReveal();
       return (
         <section className="py-24 relative overflow-hidden">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">مسار <span className="gradient-text">التعلم</span></h2></div>
+            <div ref={ref} className="text-center mb-16 reveal"><h2 className="text-4xl md:text-5xl font-black mb-4">مسار <span className="gradient-text">التعلم</span></h2></div>
             <div className="relative max-w-4xl mx-auto">
               <div className="absolute right-1/2 translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full hidden md:block" />
               <div className="space-y-12">
-                {learningPath.map((s, i) => (
-                  <div key={s.role} className={`flex flex-col md:flex-row items-center gap-8 reveal ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
-                    <div className="flex-1 glass p-6 rounded-2xl text-center md:text-right card-hover"><h3 className="text-xl font-bold mb-2 text-gold">{s.role}</h3><p className="text-textGray">{s.description}</p></div>
-                    <div className="relative z-10 w-12 h-12 rounded-full bg-darkBg border-4 border-primary flex items-center justify-center font-bold text-lg shrink-0">{i + 1}</div>
-                    <div className="flex-1 hidden md:block" />
-                  </div>
-                ))}
+                {learningPath.map((s, i) => <PathStep key={s.role} s={s} i={i} />)}
               </div>
             </div>
           </div>
@@ -2697,6 +2702,15 @@
       const [currentPage, setCurrentPage] = useState('home');
       const [selectedCourse, setSelectedCourse] = useState(null);
       const [target, setTarget] = useState(null);
+      // مراقب عام يُظهر كل عناصر reveal (يعالج الأقسام التي نسيت ربط useReveal فبقيت مخفية)
+      useEffect(() => {
+        const o = new IntersectionObserver((entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold: 0.08 });
+        const els = document.querySelectorAll('.reveal:not(.visible)');
+        els.forEach(el => o.observe(el));
+        // ضمان أخير: أظهر أي عنصر بقي مخفياً بعد ثانية (تفادياً لأي فراغ دائم)
+        const t = setTimeout(() => document.querySelectorAll('.reveal:not(.visible)').forEach(el => { const r = el.getBoundingClientRect(); if (r.top < window.innerHeight) el.classList.add('visible'); }), 1000);
+        return () => { o.disconnect(); clearTimeout(t); };
+      }, [currentPage]);
       const handleCourseClick = (id, mod, les) => { setSelectedCourse(id); setTarget((mod != null) ? { mod, les } : null); setCurrentPage('course'); };
       const handleBackToHome = () => { setCurrentPage('home'); setSelectedCourse(null); setTarget(null); };
       const handleNavigate = (p) => { setCurrentPage(p); setSelectedCourse(null); setTarget(null); };
