@@ -1076,7 +1076,7 @@ function authEr(code) {
     const m = {
         'auth/email-already-in-use': 'البريد مستخدم بالفعل',
         'auth/invalid-email': 'بريد إلكتروني غير صالح',
-        'auth/weak-password': 'كلمة المرور ضعيفة (8 أحرف على الأقل مع حرف ورقم)',
+        'auth/weak-password': 'كلمة المرور ضعيفة: 8 أحرف مع حرف كبير وصغير ورقم ورمز خاص',
         'auth/user-not-found': 'المستخدم غير موجود',
         'auth/wrong-password': 'كلمة المرور خاطئة',
         'auth/invalid-credential': 'بيانات الدخول غير صحيحة',
@@ -1498,11 +1498,16 @@ window.doLogout = () => cf2('هل تريد تسجيل الخروج؟', () => { s
 // ── 🔐 سياسة كلمة المرور ────────────────────────────────────────────────────
 // 8 أحرف على الأقل + حرف ورقم. تُكمّل سياسة Firebase Console من جهة الواجهة.
 // تُعيد رسالة الخطأ، أو '' إذا كانت كلمة المرور مقبولة.
+// ⚠️ مطابِقة تماماً لسياسة Firebase Console (Authentication ← Password policy).
+// أي تعديل هناك يجب أن يُعكس هنا، وإلا مرّ المستخدم من فحص التطبيق ورفضه الخادم برسالة غامضة.
 const PW_MIN = 8;
 const pwWeak = p => {
     const s = String(p == null ? '' : p);
     if (s.length < PW_MIN) return `كلمة المرور ${PW_MIN} أحرف على الأقل`;
-    if (!/[A-Za-z؀-ۿ]/.test(s) || !/[0-9]/.test(s)) return 'كلمة المرور يجب أن تحوي حرفاً ورقماً على الأقل';
+    if (!/[A-Z]/.test(s)) return 'يجب أن تحوي حرفاً إنجليزياً كبيراً (A–Z)';
+    if (!/[a-z]/.test(s)) return 'يجب أن تحوي حرفاً إنجليزياً صغيراً (a–z)';
+    if (!/[0-9]/.test(s)) return 'يجب أن تحوي رقماً (0–9)';
+    if (!/[^A-Za-z0-9]/.test(s)) return 'يجب أن تحوي رمزاً خاصاً (مثل ! @ # $ %)';
     return '';
 };
 window.pwWeak = pwWeak; window.PW_MIN = PW_MIN;

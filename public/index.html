@@ -16104,7 +16104,7 @@
                 <div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:6px">🔒 كلمة المرور</div>
                 <div style="font-size:11px;color:#7d4e00;margin-bottom:8px">للمستخدمين بلا بريد يمكنهم استقباله: اضبط كلمة المرور مباشرةً (يتطلب تفعيل الخادم/Blaze). أو أرسل رابط إعادة تعيين لبريد المستخدم.</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-                    <input type="text" id="euNewPwd" autocomplete="new-password" placeholder="كلمة مرور جديدة (8 أحرف+ مع رقم)" style="flex:1;min-width:170px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                    <input type="text" id="euNewPwd" autocomplete="new-password" placeholder="كلمة مرور جديدة (8+ · A-Z · a-z · رقم · رمز)" style="flex:1;min-width:170px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                     <button class="btn" onclick="adminSetPassword(document.getElementById('euK').value)" style="background:#c0392b;color:#fff" title="ضبط كلمة المرور مباشرةً (يتطلب تفعيل الخادم)">🔒 ضبط مباشر</button>
                     <button class="btn" onclick="resetUserPwd(document.getElementById('euK').value)" style="background:#8e44ad;color:#fff" title="إرسال رابط إعادة تعيين إلى بريد المستخدم">🔑 رابط بريد</button>
                 </div>
@@ -19820,7 +19820,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260719-pwidle"></script>
+    <script type="module" src="app.js?v=20260719-pwpolicy"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260719-xss2"></script>
