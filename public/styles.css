@@ -36,7 +36,7 @@ box-sizing: border-box
 }
 
 body {
-font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
 background: var(--li);
 color: #333;
 direction: rtl
