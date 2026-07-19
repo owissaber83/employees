@@ -39,7 +39,13 @@ body {
 font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
 background: var(--li);
 color: #333;
-direction: rtl
+direction: rtl;
+font-variant-numeric: tabular-nums;
+}
+/* أرقام جدولية متساوية العرض للمحاذاة الأنيقة في الجداول والكشوف */
+table, .kpi-v, input[type="number"], td, th {
+font-variant-numeric: tabular-nums;
+font-feature-settings: "tnum" 1;
 }
 
 /* ══ LOADING ══ */

@@ -1462,7 +1462,7 @@ window.coaPrintAccountStatement = function () {
         running += o.debit - o.credit;
         return `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${o.date || '—'}</td><td>${o.number || '—'}</td><td style="text-align:right">${o.description || '—'}</td><td>${ccProjLabel(o, '') }</td><td>${o.debit ? f(o.debit) : '—'}</td><td>${o.credit ? f(o.credit) : '—'}</td><td style="font-weight:800">${f(running)}</td></tr>`;
     }).join('');
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كشف حساب — ${acc.nameAr || st.opAccount}</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب — ${acc.nameAr || st.opAccount}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
 .hdr{background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
 .logo{width:52px;height:52px;background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.4);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;letter-spacing:1px}
@@ -1541,7 +1541,7 @@ window.coaPrintBalances = function () {
         <td style="font-weight:800">${f(r.t.closing)}</td>
     </tr>`).join('');
 
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كشف أرصدة الحسابات</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف أرصدة الحسابات</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
 .hdr{background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
 table{width:100%;border-collapse:collapse;font-size:8.5pt;margin-top:12px}th{padding:7px 6px;background:#e8f0f7;font-weight:700;text-align:center;border-bottom:2px solid #c9d8e8}td{padding:5px 6px;text-align:center;border-bottom:1px solid #f0f0f0}
@@ -2590,7 +2590,7 @@ window.ccPrintStatement = function () {
         let running = 0;
         tRows = rows.map((r, i) => { running += r.debit - r.credit; return printLine(r, i, running); }).join('');
     }
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كشف حساب — ${ccDisplayName(st.stmtTarget)}</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب — ${ccDisplayName(st.stmtTarget)}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
 .hdr{background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
 table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:12px}th{padding:7px 6px;background:#f4ecf7;font-weight:700;text-align:center;border-bottom:2px solid #d7bde2}td{padding:5px 6px;text-align:center;border-bottom:1px solid #f0f0f0}tr.even td{background:#fafbfc}tfoot td{font-weight:800;background:#f4ecf7}
@@ -2677,7 +2677,7 @@ window.ccPrintReport = function () {
     if (!bodyRows) { toast('لا توجد بيانات للطباعة', 'er'); return; }
 
     const title = st.reportMain ? `تقرير: ${ccDisplayName(st.reportMain)} وفروعه` : 'تقرير مراكز التكلفة الرئيسية والفرعية';
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${title}</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${title}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
 .hdr{background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
 table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:12px}th{padding:7px 6px;background:#f4ecf7;font-weight:700;text-align:center;border-bottom:2px solid #d7bde2}td{padding:6px;text-align:center;border-bottom:1px solid #f0f0f0}
@@ -4179,8 +4179,8 @@ window.renderCashFlowForecast = function () {
 window.printCashForecast = function () {
     const el = $('pg-cashforecast'); if (!el) return;
     const w = window.open('', '_blank');
-    w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>التدفق النقدي المتوقع</title>
-    <style>body{font-family:Arial,sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:7px 9px;font-size:12px}button,select{display:none!important}</style>
+    w.document.write(`<html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>التدفق النقدي المتوقع</title>
+    <style>body{font-family:'Tajawal',Arial,sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:7px 9px;font-size:12px}button,select{display:none!important}</style>
     </head><body><h2 style="text-align:center">💧 تقرير التدفق النقدي المتوقع</h2><p style="text-align:center;color:#888">${new Date().toLocaleDateString('ar')}</p>${el.innerHTML}<br><button onclick="window.print()">🖨️ طباعة</button></body></html>`);
     w.document.close();
 };
@@ -6327,10 +6327,10 @@ window.viewJrnEntry = function (key) {
     // مساعد للحصول على اسم مركز التكلفة (مركز مخصص أو مشروع أو عام)
     const ccName = (cc) => cc ? ccDisplayName(cc) : '—';
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>قيد ${entry.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>قيد ${entry.number}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; background: white; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; background: white; }
         h1 { text-align: center; border-bottom: 3px solid #27ae60; padding-bottom: 10px; }
         .header { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; background: #f0f5fa; padding: 14px; border-radius: 8px; margin-bottom: 14px; }
         .header div { font-size: 12px; }
@@ -7632,7 +7632,7 @@ window.pmcPrintCards = function() {
     const w = window.open('', '_blank', 'width=1000,height=800');
     w.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="utf-8">
 <title>تقرير البطاقات — تكاليف المشاريع</title>
 <style>
@@ -7997,7 +7997,7 @@ window.pmcPrintPivot = function() {
     const w = window.open('', '_blank', 'width=1100,height=800');
     w.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="utf-8">
 <title>الجدول المحوري — تكاليف المشاريع</title>
 <style>
@@ -8357,7 +8357,7 @@ function getPMCPivotLiveCSS() {
 }
 
 function _pmcUpdatePivotStyle() {
-    // دائماً تحديث الـ global style في <head> لضمان الأولوية
+    // دائماً تحديث الـ global style في <head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"> لضمان الأولوية
     let el = document.getElementById('pmcPivotGlobalStyle');
     if (!el) { el = document.createElement('style'); el.id = 'pmcPivotGlobalStyle'; document.head.appendChild(el); }
     el.textContent = getPMCPivotLiveCSS();
@@ -8851,7 +8851,7 @@ window.pmcPrintTree = function() {
     const w = window.open('', '_blank', 'width=1000,height=750');
     w.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="utf-8">
 <title>تقرير التكاليف الهرمي</title>
 <style>
@@ -9182,7 +9182,7 @@ window.pmcPrintCharts = function() {
     const w = window.open('', '_blank', 'width=1100,height=850');
     w.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="utf-8">
 <title>تقرير التحليل البياني — تكاليف المشاريع</title>
 <style>
@@ -10979,10 +10979,10 @@ window.printGLReport = function () {
     const totalCredit = movements.reduce((s, m) => s + m.credit, 0);
     const closingBalance = openingBalance + totalDebit - totalCredit;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>دفتر الأستاذ - ${account.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>دفتر الأستاذ - ${account.nameAr}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; background: white; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; background: white; }
         h1 { text-align: center; border-bottom: 3px solid ${type.color}; padding-bottom: 10px; margin-bottom: 20px; }
         .info { background: #f0f5fa; padding: 14px; border-radius: 8px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }
@@ -11585,10 +11585,10 @@ window.printTrialBalance = function () {
         </tr>`;
     });
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ميزان المراجعة</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>ميزان المراجعة</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
         h1 { text-align: center; border-bottom: 3px solid #c0392b; padding-bottom: 10px; }
         .info { background: #f0f5fa; padding: 12px; border-radius: 8px; margin: 14px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 12px; }
         .status { padding: 12px; border-radius: 8px; margin-bottom: 14px; text-align: center; font-weight: 900; background: ${isBalanced ? '#27ae60' : '#c0392b'}; color: white; }
@@ -12097,7 +12097,7 @@ window.printCustAging = function () {
     const co = custCoName();
     const tr = rows.map(x => `<tr><td style="text-align:right">${x.c.nameAr || x.c.code}</td><td>${fmt(x.ag.current)}</td><td>${fmt(x.ag.d30)}</td><td>${fmt(x.ag.d60)}</td><td>${fmt(x.ag.d90)}</td><td>${fmt(x.ag.d120)}</td><td>${fmt(x.ag.over120)}</td><td style="font-weight:900">${fmt(x.ag.total)}</td></tr>`).join('');
     const w = window.open('', '_blank');
-    w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>أعمار الديون</title><style>body{font-family:Tahoma,sans-serif;padding:24px;direction:rtl}h1{color:#1a3a5c}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border:1px solid #ccc;padding:7px;text-align:left}th{background:#1a3a5c;color:#fff}td:first-child,th:first-child{text-align:right}tfoot td{background:#f0f5fa;font-weight:900}</style></head><body><h1>📊 تقرير أعمار الديون — ${co}</h1><div style="font-size:12px;color:#666">بتاريخ ${new Date().toLocaleDateString('ar-SA')}</div><table><thead><tr><th>العميل</th><th>جاري</th><th>1-30</th><th>31-60</th><th>61-90</th><th>91-120</th><th>+120</th><th>الإجمالي</th></tr></thead><tbody>${tr}</tbody><tfoot><tr><td>الإجمالي</td><td>${fmt(tot.current)}</td><td>${fmt(tot.d30)}</td><td>${fmt(tot.d60)}</td><td>${fmt(tot.d90)}</td><td>${fmt(tot.d120)}</td><td>${fmt(tot.over120)}</td><td>${fmt(tot.total)}</td></tr></tfoot></table><script>setTimeout(()=>print(),400)<\/script></body></html>`);
+    w.document.write(`<html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>أعمار الديون</title><style>body{font-family:'Tajawal',Tahoma,sans-serif;padding:24px;direction:rtl}h1{color:#1a3a5c}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border:1px solid #ccc;padding:7px;text-align:left}th{background:#1a3a5c;color:#fff}td:first-child,th:first-child{text-align:right}tfoot td{background:#f0f5fa;font-weight:900}</style></head><body><h1>📊 تقرير أعمار الديون — ${co}</h1><div style="font-size:12px;color:#666">بتاريخ ${new Date().toLocaleDateString('ar-SA')}</div><table><thead><tr><th>العميل</th><th>جاري</th><th>1-30</th><th>31-60</th><th>61-90</th><th>91-120</th><th>+120</th><th>الإجمالي</th></tr></thead><tbody>${tr}</tbody><tfoot><tr><td>الإجمالي</td><td>${fmt(tot.current)}</td><td>${fmt(tot.d30)}</td><td>${fmt(tot.d60)}</td><td>${fmt(tot.d90)}</td><td>${fmt(tot.d120)}</td><td>${fmt(tot.over120)}</td><td>${fmt(tot.total)}</td></tr></tfoot></table><script>setTimeout(()=>print(),400)<\/script></body></html>`);
     w.document.close();
 };
 
@@ -12277,7 +12277,7 @@ window.printOverdueStatements = function () {
         <div style="font-size:11px;color:#555;margin-top:6px">أعمار: جاري ${fmt(x.ag.current)} · 1-30 ${fmt(x.ag.d30)} · 31-60 ${fmt(x.ag.d60)} · 61-90 ${fmt(x.ag.d90)} · +90 ${fmt(x.ag.d120 + x.ag.over120)}</div>
     </div>`).join('');
     const w = window.open('', '_blank');
-    w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>كشوف المتأخرين</title><style>body{font-family:Tahoma,sans-serif;padding:24px;direction:rtl;color:#1a3a5c}h1{font-size:20px}</style></head><body><h1>📞 كشوف العملاء المتأخرين — ${co}</h1><div style="font-size:12px;color:#666;margin-bottom:14px">بتاريخ ${new Date().toLocaleDateString('ar-SA')} · ${rows.length} عميل · إجمالي المتأخرات ${fmt(total)} ر.س</div>${sec}<script>setTimeout(()=>print(),500)<\/script></body></html>`);
+    w.document.write(`<html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>كشوف المتأخرين</title><style>body{font-family:'Tajawal',Tahoma,sans-serif;padding:24px;direction:rtl;color:#1a3a5c}h1{font-size:20px}</style></head><body><h1>📞 كشوف العملاء المتأخرين — ${co}</h1><div style="font-size:12px;color:#666;margin-bottom:14px">بتاريخ ${new Date().toLocaleDateString('ar-SA')} · ${rows.length} عميل · إجمالي المتأخرات ${fmt(total)} ر.س</div>${sec}<script>setTimeout(()=>print(),500)<\/script></body></html>`);
     w.document.close();
 };
 
@@ -13071,11 +13071,11 @@ window.viewCustomerStatement = function (key) {
     const qrText = `${coName}\nكشف حساب: ${c.nameAr}\nالرصيد المستحق: ${fmt(bal.balance)} ر.س\nبتاريخ ${new Date().toLocaleDateString('ar-SA')}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrText)}`;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8">
     <title>كشف حساب — ${c.nameAr}</title>
     <style>
         *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
-        body{font-family:Tahoma,Arial,sans-serif;padding:24px;color:#1a3a5c;direction:rtl;margin:0;background:white}
+        body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:24px;color:#1a3a5c;direction:rtl;margin:0;background:white}
         .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;border-bottom:3px solid #1a3a5c;padding-bottom:14px}
         .header-title{font-size:22px;font-weight:900;color:#1a3a5c}
         .header-sub{font-size:13px;color:#555;margin-top:4px}
@@ -13814,7 +13814,7 @@ window.printSInvList = function (cols) {
 
     const printHTML = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="UTF-8">
 <title>قائمة فواتير المبيعات</title>
 <style>
@@ -15448,7 +15448,7 @@ window.openInvItemLabel = function (key) {
     const qrImg = (typeof zatcaQRDataURL === 'function') ? zatcaQRDataURL(payload) : '';
     const company = (window.cfg?.companyAr) || (typeof cfg !== 'undefined' && cfg.companyAr) || 'بنيان للمقاولات';
     const esc = s => String(s || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-    const label = `<div id="invLabelPrintable" style="border:2px solid #1a3a5c;border-radius:10px;padding:16px;display:inline-block;min-width:240px;text-align:center;font-family:Arial,'Segoe UI',sans-serif">
+    const label = `<div id="invLabelPrintable" style="border:2px solid #1a3a5c;border-radius:10px;padding:16px;display:inline-block;min-width:240px;text-align:center;font-family:'Tajawal',Arial,'Segoe UI',sans-serif">
         <div style="font-weight:800;font-size:15px;color:#1a3a5c">${esc(it.nameAr)}</div>
         <div style="font-size:12px;color:#666;margin:2px 0 8px">${esc(it.code)}${it.category ? ' — ' + esc(it.category) : ''}${it.unit ? ' · ' + esc(it.unit) : ''}</div>
         ${qrImg ? `<img src="${qrImg}" style="width:150px;height:150px" alt="QR">` : '<div style="color:#c0392b;font-size:11px">تعذّر توليد QR</div>'}
@@ -15457,7 +15457,7 @@ window.openInvItemLabel = function (key) {
     </div>`;
     const w = window.open('', '_blank');
     if (!w) { toast('⚠️ اسمح بالنوافذ المنبثقة لطباعة الملصق', 'er'); return; }
-    w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>ملصق صنف — ${esc(it.nameAr)}</title><style>body{text-align:center;padding:30px;font-family:Arial,sans-serif}button{padding:9px 20px;font-size:13px;cursor:pointer;border:0;border-radius:8px;background:#1a3a5c;color:#fff;margin-top:16px}@media print{button{display:none}}</style></head><body>${label}<br><button onclick="window.print()">🖨️ طباعة الملصق</button></body></html>`);
+    w.document.write(`<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>ملصق صنف — ${esc(it.nameAr)}</title><style>body{text-align:center;padding:30px;font-family:'Tajawal',Arial,sans-serif}button{padding:9px 20px;font-size:13px;cursor:pointer;border:0;border-radius:8px;background:#1a3a5c;color:#fff;margin-top:16px}@media print{button{display:none}}</style></head><body>${label}<br><button onclick="window.print()">🖨️ طباعة الملصق</button></body></html>`);
     w.document.close();
 };
 
@@ -15491,10 +15491,10 @@ window.viewSInv = function (key, proforma) {
     const _rateRows = Object.keys(_byRate).filter(r => _byRate[r].vat > 0.01);
     const taxBreakdownHtml = _rateRows.length > 1 ? _rateRows.map(r => `<tr><td style="font-size:10px;color:#666">• ضريبة ${r}% (وعاء ${fmt(_byRate[r].base)}):</td><td style="text-align:left;font-size:10px;color:#666">${fmt(_byRate[r].vat)}</td></tr>`).join('') : '';
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>فاتورة ${inv.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>فاتورة ${inv.number}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-        body { font-family: Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
         .invoice { max-width: 820px; margin: 0 auto; padding: 25px; }
         .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 3px solid #1f618d; padding-bottom: 16px; margin-bottom: 16px; }
         .company { flex: 1; }
@@ -16012,10 +16012,10 @@ window.viewVendorStatement = function (key) {
         .filter(([, inv]) => inv.vendorId === key)
         .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>كشف حساب - ${v.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب - ${v.nameAr}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
         h1 { text-align: center; border-bottom: 3px solid #8e44ad; padding-bottom: 10px; }
         .info { background: #f0f5fa; padding: 14px; border-radius: 8px; margin: 14px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px; }
         .balance { background: #8e44ad; color: white; padding: 14px; border-radius: 8px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
@@ -17389,10 +17389,10 @@ window.viewPInv = function (key) {
     const vendor = window.vendors?.[inv.vendorId];
     const projectName = inv.projectId && window.projects?.[inv.projectId] ? window.projects[inv.projectId].name : '';
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>فاتورة مشتريات ${inv.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>فاتورة مشتريات ${inv.number}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-        body { font-family: Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
         .invoice { max-width: 820px; margin: 0 auto; padding: 25px; }
         .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 3px solid #e67e22; padding-bottom: 16px; margin-bottom: 16px; }
         .company h2 { margin: 0; color: #e67e22; font-size: 20px; }
@@ -18677,10 +18677,10 @@ window.viewVoucher = function (key, type) {
         </div>`;
     }
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${docTitle} ${data.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${docTitle} ${data.number}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-        body { font-family: Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
         .voucher { max-width: 780px; margin: 0 auto; padding: 30px; }
         .header { border: 3px solid ${color}; border-radius: 12px; padding: 20px; }
         .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed ${color}; padding-bottom: 14px; margin-bottom: 16px; }
@@ -19993,10 +19993,10 @@ window.viewInvItemMovements = function (itemKey) {
     const bal = calcInvItemBalance(itemKey);
     let running = parseFloat(item.openingQty) || 0;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>حركات ${item.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>حركات ${item.nameAr}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
         h1 { text-align: center; border-bottom: 3px solid #27ae60; padding-bottom: 10px; }
         .info { background: #f0f5fa; padding: 14px; border-radius: 8px; margin: 14px 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 12px; }
         .balance { background: #27ae60; color: white; padding: 14px; border-radius: 8px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
@@ -21170,8 +21170,8 @@ window.printStockBalanceReport = function () {
         .map(([k, it]) => ({ k, it, bal: it.type === 'service' ? null : calcInvItemBalance(k) }))
         .sort((a, b) => (a.it.code || '').localeCompare(b.it.code || ''));
     const totalValue = rows.reduce((s, r) => s + ((r.bal?.balance || 0) * (parseFloat(r.it.costPrice) || 0)), 0);
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير الأرصدة</title>
-    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تقرير الأرصدة</title>
+    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     h1 { text-align: center; border-bottom: 3px solid #1a5276; padding-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }
     th { background: #1a3a5c; color: white; padding: 8px; } td { padding: 6px; border: 1px solid #ddd; }
@@ -21236,8 +21236,8 @@ window.printStockMovementsReport = function () {
         .filter(([, m]) => !invReportState.itemFilter || m.itemId === invReportState.itemFilter)
         .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
     const reasons = { ...INV_MOV_REASONS_IN, ...INV_MOV_REASONS_OUT };
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير الحركات</title>
-    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تقرير الحركات</title>
+    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     h1 { text-align: center; border-bottom: 3px solid #27ae60; padding-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }
     th { background: #1a3a5c; color: white; padding: 8px; } td { padding: 6px; border: 1px solid #ddd; }
@@ -21306,8 +21306,8 @@ window.printLowStockReport = function () {
         const needed = Math.max(0, (parseFloat(r.it.minQty) || 0) - r.bal.balance);
         return s + needed * (parseFloat(r.it.costPrice) || 0);
     }, 0);
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>قائمة الطلب</title>
-    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>قائمة الطلب</title>
+    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     h1 { text-align: center; border-bottom: 3px solid #c0392b; padding-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }
     th { background: #c0392b; color: white; padding: 8px; } td { padding: 6px; border: 1px solid #ddd; }
@@ -21380,8 +21380,8 @@ window.printValuationReport = function () {
         .filter(r => r.bal.balance > 0)
         .sort((a, b) => b.valueAvg - a.valueAvg);
     const totals = rows.reduce((s, r) => ({ avg: s.avg + r.valueAvg, sale: s.sale + r.valueSale }), { avg: 0, sale: 0 });
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقييم المخزون</title>
-    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تقييم المخزون</title>
+    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     h1 { text-align: center; border-bottom: 3px solid #e67e22; padding-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }
     th { background: #1a3a5c; color: white; padding: 8px; } td { padding: 6px; border: 1px solid #ddd; }
@@ -24168,8 +24168,8 @@ window.renderFSCustomResult = function () {
 window.printFSCustomStatement = function () {
     const result = $('fsCustomResult');
     if (!result || !result.innerHTML.trim()) return;
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${fsCustomState.title || 'قائمة مخصصة'}</title>
-    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${fsCustomState.title || 'قائمة مخصصة'}</title>
+    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
     .card { background:white; border-radius:10px; padding:14px; }
     @page { size: A4; margin: 1.5cm; }</style></head><body>
@@ -24495,8 +24495,8 @@ window.printFSStatement = function () {
     clone.querySelectorAll('details').forEach(d => d.setAttribute('open', ''));
     const live = body.querySelectorAll('canvas'), cl = clone.querySelectorAll('canvas');
     live.forEach((c, i) => { if (!cl[i]) return; try { const img = document.createElement('img'); img.src = c.toDataURL('image/png'); img.style.maxWidth = '100%'; cl[i].replaceWith(img); } catch (e) { } });
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${tabLabels[fsState.activeTab]}</title>
-    <style>* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${tabLabels[fsState.activeTab]}</title>
+    <style>* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     .card { background:white; border:1px solid #eee; border-radius:10px; padding:14px; margin-bottom:14px; }
     div { max-height:none !important; overflow:visible !important; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; page-break-inside:auto; }
@@ -24811,8 +24811,8 @@ window.exportFSPDF = function () {
     const tabLabels = { income: 'قائمة الدخل', balance: 'المركز المالي', cashflow: 'التدفق النقدي', equity: 'التغير في حقوق الملكية', analysis: 'التحليل المالي والنسب', trends: 'الاتجاهات متعددة الفترات', budget: 'الموازنات والانحراف', notes: 'الإيضاحات المتممة' };
     const body = $('fsTabBody');
     if (!body) return;
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${tabLabels[fsState.activeTab]}</title>
-    <style>* { -webkit-print-color-adjust: exact !important; -webkit-filter:opacity(1); } body { font-family: Tahoma; padding: 24px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${tabLabels[fsState.activeTab]}</title>
+    <style>* { -webkit-print-color-adjust: exact !important; -webkit-filter:opacity(1); } body { font-family: 'Tajawal', Tahoma; padding: 24px; color: #1a3a5c; direction: rtl; }
     h1 { text-align:center; border-bottom: 3px solid #8e44ad; padding-bottom: 10px; margin-bottom: 4px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
     th, td { border: 1px solid #e0e6ed; }
@@ -25814,10 +25814,10 @@ window.brPrint = function () {
     const clearedBal = (parseFloat(session.openingBal) || 0) + clearedNet;
     const diff = (parseFloat(session.closingBal) || 0) - clearedBal;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تسوية بنكية — ${acc.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تسوية بنكية — ${acc.nameAr}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: Tahoma, Arial; padding: 24px; color: #1a3a5c; direction: rtl; }
+        body { font-family: 'Tajawal', Tahoma, Arial; padding: 24px; color: #1a3a5c; direction: rtl; }
         h1 { text-align: center; border-bottom: 3px solid #2d6a9f; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 12px 0; }
         th { background: #1a3a5c; color: white; padding: 7px; }
@@ -26232,9 +26232,9 @@ window.vatPrint = function () {
             <td>${fmt(b5.base)}</td><td>${fmt(b5.vat)}</td>
             <td>${fmt(b0.base)}</td><td>${fmt(b0.vat)}</td>
         </tr>`;
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>الإقرار الضريبي - ${period.label}</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>الإقرار الضريبي - ${period.label}</title>
     <style>
-        body{font-family:Tahoma,Arial;padding:20px}
+        body{font-family:'Tajawal',Tahoma,Arial;padding:20px}
         table{width:100%;border-collapse:collapse;margin-top:14px}
         th,td{border:1px solid #ccc;padding:8px;text-align:center;font-size:13px}
         th{background:#f0f0f0}
@@ -26764,8 +26764,8 @@ window.vatRecPrint = function () {
         <div style="border:1px solid #7c3aed;border-radius:8px;padding:8px 14px;font-size:12px">في (ب) فقط: <b>${res.onlyB.length}</b></div>
         <div style="border:1px solid #dc2626;border-radius:8px;padding:8px 14px;font-size:12px">فرق الإجماليات: <b>${fmt(Math.abs(res.sumA - res.sumB))}</b></div>
     </div>`;
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>مطابقة ضريبية</title>
-    <style>*{ -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important } body{font-family:Tahoma;padding:20px;color:#1a3a5c;direction:rtl}
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>مطابقة ضريبية</title>
+    <style>*{ -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important } body{font-family:'Tajawal',Tahoma;padding:20px;color:#1a3a5c;direction:rtl}
     div{max-height:none !important;overflow:visible !important} table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto} tr{page-break-inside:avoid}
     thead{display:table-header-group;position:static !important} thead tr,thead th{position:static !important} th,td{border:1px solid #eee;padding:4px 6px}
     @page{size:A4 landscape;margin:1.2cm}</style></head><body>${header}${summary}${clone.innerHTML}
@@ -27447,9 +27447,9 @@ function itaxPrintDoc(d) {
     const stamp = d.status === 'filed'
         ? '<span style="border:2px solid #16a34a;color:#16a34a;border-radius:8px;padding:4px 18px;font-weight:800">✔ إقرار معتمد</span>'
         : '<span style="border:2px dashed #b45309;color:#b45309;border-radius:8px;padding:4px 18px;font-weight:800">مسودة — غير معتمد</span>';
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إقرار ضريبة الدخل ${d.year}</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>إقرار ضريبة الدخل ${d.year}</title>
     <style>
-        body{font-family:Tahoma,Arial;padding:26px;color:#1f2937}
+        body{font-family:'Tajawal',Tahoma,Arial;padding:26px;color:#1f2937}
         table{width:100%;border-collapse:collapse;margin-top:14px}
         th,td{border:1px solid #cbd5e1;padding:8px;text-align:center;font-size:13px}
         th{background:#f1f5f9}
@@ -27761,8 +27761,8 @@ window.whtPrint = function () {
     if (!rows.length) { toast('⚠️ لا بيانات للطباعة', 'er'); return; }
     const company = (window.gbrCfg && window.gbrCfg.companyAr) || 'الشركة';
     const totG = rows.reduce((s, r) => s + (+r.gross || 0), 0), totW = rows.reduce((s, r) => s + (+r.wht || 0), 0);
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير ضريبة الاستقطاع</title>
-    <style>*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;font-family:Tahoma,Arial}body{padding:20px;color:#1a3a5c;direction:rtl}h2{margin:0;color:#1f618d}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}th{background:#1f618d;color:#fff;padding:8px;text-align:right}td{padding:7px 8px;border:1px solid #e0e0e0}tfoot td{font-weight:800;background:#f4f6f8}@page{size:A4 landscape;margin:1cm}</style></head><body>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تقرير ضريبة الاستقطاع</title>
+    <style>*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;font-family:'Tajawal',Tahoma,Arial}body{padding:20px;color:#1a3a5c;direction:rtl}h2{margin:0;color:#1f618d}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}th{background:#1f618d;color:#fff;padding:8px;text-align:right}td{padding:7px 8px;border:1px solid #e0e0e0}tfoot td{font-weight:800;background:#f4f6f8}@page{size:A4 landscape;margin:1cm}</style></head><body>
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #1f618d;padding-bottom:10px"><div><h2>🌐 تقرير ضريبة الاستقطاع</h2><div style="font-size:12px;color:#666;margin-top:4px">${company}</div></div><div style="text-align:left;font-size:12px;color:#666">الفترة: ${st.filterMonth || 'الكل'}<br>عدد العمليات: ${rows.length}</div></div>
     <table><thead><tr><th>التاريخ</th><th>المستفيد</th><th>الدولة</th><th>النوع</th><th>المبلغ</th><th>%</th><th>الاستقطاع</th></tr></thead>
     <tbody>${rows.map(r => `<tr><td>${r.date || ''}</td><td>${r.beneficiary || ''}</td><td>${r.country || ''}</td><td>${whtTypeLabel(r.type)}</td><td style="text-align:left">${fmt(r.gross)}</td><td style="text-align:center">${r.rate}%</td><td style="text-align:left">${fmt(r.wht)}</td></tr>`).join('')}</tbody>
@@ -29840,8 +29840,8 @@ window.printInvMovementVoucher = function (key) {
 
     const projName = m.projectId && window.projects?.[m.projectId] ? window.projects[m.projectId].name : '—';
 
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>سند حركة مخزون</title>
-    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: Tahoma; padding: 30px; color: #1a3a5c; direction: rtl; }
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>سند حركة مخزون</title>
+    <style>* { -webkit-print-color-adjust: exact !important; } body { font-family: 'Tajawal', Tahoma; padding: 30px; color: #1a3a5c; direction: rtl; }
     h1 { text-align: center; border-bottom: 3px solid #1a5276; padding-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 20px; }
     td, th { padding: 10px; border: 1px solid #ddd; }
@@ -30596,9 +30596,9 @@ window.printFSExtReport = function () {
     });
     const title = ext.vals.entityName ? `التحليل المالي — ${ext.vals.entityName}` : 'التحليل المالي لملف خارجي';
     const period = ext.vals.period ? ` · الفترة: ${ext.vals.period}` : '';
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${title}</title>
+    const html = `<!DOCTYPE html><html dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${title}</title>
     <style>* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    body { font-family: Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
+    body { font-family: 'Tajawal', Tahoma; padding: 20px; color: #1a3a5c; direction: rtl; }
     h1 { text-align:center; border-bottom: 3px solid #16a085; padding-bottom: 10px; font-size:20px; }
     .card { background:#fff; border:1px solid #eee; border-radius:10px; padding:14px; margin-bottom:12px; }
     ul,ol { margin:0; padding-inline-start:22px; line-height:1.9; }
@@ -31512,8 +31512,8 @@ window.trePrint = function (defKey) {
     const total = items.reduce((s, i) => s + (+i.amount || 0), 0);
     const today = new Date().toISOString().slice(0, 10);
     const rows = items.map(it => `<tr>${def.cols.map(c => `<td style="${c === 'amount' ? 'text-align:left' : ''}">${treCellVal(it, c)}</td>`).join('')}</tr>`).join('');
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${def.title}</title>
-    <style>*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Tahoma,Arial;color:#1a3a5c;padding:20px;direction:rtl}
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${def.title}</title>
+    <style>*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:'Tajawal',Tahoma,Arial;color:#1a3a5c;padding:20px;direction:rtl}
     .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid ${def.color};padding-bottom:12px;margin-bottom:16px}
     h2{margin:0;color:${def.color}} table{width:100%;border-collapse:collapse;font-size:12px} th{background:${def.color};color:#fff;padding:8px;text-align:right} td{padding:7px 8px;border:1px solid #e0e0e0}
     tfoot td{font-weight:800;background:#f4f6f8} @page{size:A4 landscape;margin:1cm} button{display:none}</style></head><body>

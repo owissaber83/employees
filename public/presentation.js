@@ -324,8 +324,8 @@ window.presExportPDF = function () {
     // تعبئة العدّادات بقيمها الفعلية (لا JS في نافذة الطباعة)
     html = html.replace(/<span class="pcount" data-count="([\d.]+)"( data-money="1")?[^>]*>0<\/span>/g, (m, num, money) => `<span>${money ? presFmt(num) : Math.round(parseFloat(num)).toLocaleString('en')}</span>`);
     const w = window.open('', '_blank'); if (!w) { toast && toast('⚠️ اسمح بالنوافذ المنبثقة للتصدير', 'er'); return; }
-    w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>بُنيان — العرض التقديمي</title>
-    <style>*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;font-family:Tahoma,Arial}
+    w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>بُنيان — العرض التقديمي</title>
+    <style>*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;font-family:'Tajawal',Tahoma,Arial}
     body{margin:0;direction:rtl;background:#0f2027;color:#fff}
     .pslide{width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:50px;background:radial-gradient(1200px 600px at 70% 0%,#24506b,#0f2027 60%);page-break-after:always;overflow:hidden}
     .pe{opacity:1!important;animation:none!important} button{display:none!important} table{width:100%;border-collapse:collapse}

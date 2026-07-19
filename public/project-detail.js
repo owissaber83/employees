@@ -1455,7 +1455,7 @@ window.pdPrintProjectBillings = function (pid) {
 
     const printHTML = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="UTF-8">
 <title>مستخلصات المشروع — ${p.name || ''}</title>
 <style>
@@ -1978,7 +1978,7 @@ window.pdPrintProjectInvoices = function (pid, cols, widths, title) {
     const colCount = 1 + cols.length;
     const printHTML = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="UTF-8">
 <title>${reportTitle}</title>
 <style>
@@ -5340,10 +5340,10 @@ window.pdOpenExecSummary = function (pid) {
             <div style="font-size:20px;font-weight:900;color:${color};margin-top:4px">${value}</div>
         </div>`;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملخص تنفيذي — ${p.name || ''}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>ملخص تنفيذي — ${p.name || ''}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: 'Tahoma', Arial, sans-serif; padding: 24px; color: #1a3a5c; direction: rtl; }
+        body { font-family: 'Tajawal', 'Tahoma', Arial, sans-serif; padding: 24px; color: #1a3a5c; direction: rtl; }
         @page { margin: 1.5cm; size: A4; }
         @media print { body { padding: 10px; } .card { page-break-inside: avoid; } }
     </style></head><body>
@@ -6552,7 +6552,7 @@ window.pdClientPortal = function (pid) {
     const card = (label, value, color, sub) => `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:12px;padding:16px;border-top:4px solid ${color}"><div style="font-size:12px;color:#888">${label}</div><div style="font-size:22px;font-weight:900;color:${color};margin-top:4px">${value}</div>${sub ? `<div style="font-size:11px;color:#aaa;margin-top:3px">${sub}</div>` : ''}</div>`;
     const barRow = (label, pct, color) => `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="font-weight:700;color:#1a3a5c">${label}</span><span style="font-weight:800;color:${color}">${pct}%</span></div><div style="background:#eef1f5;border-radius:20px;height:12px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:20px"></div></div></div>`;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>حالة المشروع — ${p.name || ''}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>حالة المشروع — ${p.name || ''}</title>
     <style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
     body{font-family:"Segoe UI",Tahoma,sans-serif;margin:0;background:#f4f6f8;color:#1a3a5c;direction:rtl}
     .wrap{max-width:900px;margin:0 auto;padding:20px}

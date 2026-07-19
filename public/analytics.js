@@ -1676,7 +1676,7 @@ window.asPrint = function() {
 
     pw.document.write(`<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
+<head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="UTF-8">
 <title>${repName||'تقرير تحليلات بنيان للمقاولات'} — ${new Date().toLocaleDateString('ar-SA')}</title>
 <style>

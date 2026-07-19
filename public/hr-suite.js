@@ -208,7 +208,7 @@ function hsOpenLetterWindow(l, e) {
             </tbody>
         </table>` : '';
 
-    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${t.label} — ${hsEsc(e.name || '')}</title>
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>${t.label} — ${hsEsc(e.name || '')}</title>
     <style>
       @page { margin: 18mm; }
       body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; color:#1a2733; direction:rtl; padding:24px; max-width:820px; margin:0 auto; line-height:2 }
