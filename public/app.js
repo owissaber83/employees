@@ -907,7 +907,7 @@ window.renderOnboarding = function () {
         <div style="display:flex;gap:14px;align-items:flex-start;background:#fff;border:1.5px solid ${s.done ? '#abebc6' : '#e3e9f0'};border-radius:12px;padding:16px;margin-bottom:12px">
             <div style="font-size:26px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:${s.done ? '#eafaf1' : '#f4f7fb'};border-radius:10px;flex-shrink:0">${s.done ? '✅' : s.icon}</div>
             <div style="flex:1">
-                <div style="font-weight:900;color:#1a3a5c;font-size:15px">${i + 1}. ${s.title} ${s.done ? '<span style="font-size:11px;background:#eafaf1;color:#1e8449;padding:2px 9px;border-radius:10px">مكتمل</span>' : (s.req ? '<span style="font-size:11px;background:#fef5e7;color:#b9770e;padding:2px 9px;border-radius:10px">مطلوب</span>' : '<span style="font-size:11px;background:#eef2f6;color:#888;padding:2px 9px;border-radius:10px">اختياري</span>')}</div>
+                <div style="font-weight:900;color:#1a3a5c;font-size:15px">${i + 1}. ${esc(s.title)} ${s.done ? '<span style="font-size:11px;background:#eafaf1;color:#1e8449;padding:2px 9px;border-radius:10px">مكتمل</span>' : (s.req ? '<span style="font-size:11px;background:#fef5e7;color:#b9770e;padding:2px 9px;border-radius:10px">مطلوب</span>' : '<span style="font-size:11px;background:#eef2f6;color:#888;padding:2px 9px;border-radius:10px">اختياري</span>')}</div>
                 <div style="font-size:12.5px;color:#666;margin-top:5px;line-height:1.8">${esc(s.desc)}</div>
                 <button class="btn ${s.done ? '' : 'b-g'}" onclick="${s.act}" style="margin-top:10px;${s.done ? 'background:#f4f7fb;color:#555' : ''}">${s.done ? '↻ ' + s.btn : s.btn}</button>
             </div>
@@ -1152,7 +1152,7 @@ window.opsRenderList = function () {
     const sort = ($('opsSort') && $('opsSort').value) || 'soon';
     const badge = (s) => { const m = { active: ['مشترك', '#27ae60'], trial: ['تجريبي', '#f39c12'], suspended: ['موقوف', '#c0392b'], expired: ['منتهٍ', '#c0392b'], trial_ended: ['انتهت التجربة', '#c0392b'] }; const [lbl, col] = m[s.status] || ['—', '#888']; return `<span style="background:${col};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">${lbl}</span>`; };
     const remain = (s) => {
-        if (!s.ok) return `<span style="color:#c0392b;font-weight:800">⛔ ${s.label || 'متوقف'}</span>`;
+        if (!s.ok) return `<span style="color:#c0392b;font-weight:800">⛔ ${esc(s.label || 'متوقف')}</span>`;
         if (s.status === 'active' && s.daysLeft == null) return `<span style="color:#27ae60;font-weight:700">♾️ اشتراك بلا حد زمني</span>`;
         const d = s.daysLeft, col = d <= 14 ? '#e67e22' : (d <= 30 ? '#f39c12' : '#27ae60');
         return `<span style="color:${col};font-weight:800">⏳ متبقّي ${d} يوم</span>${d <= 14 ? ' <span style="background:#fdebd0;color:#b9770e;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:800">⚠️ قرب الانتهاء</span>' : ''}`;
@@ -1400,7 +1400,7 @@ window.opsOpenModules = function (tid) {
         <button class="btn" onclick="${modulePreset(['hr', 'projects'])}" style="background:#eef5fb;color:#2d6a9f;font-weight:700;font-size:12px">📦 HR + مشاريع (تشغيلي)</button>
         <button class="btn" onclick="${modulePreset(['hr', 'projects', 'sales', 'procurement'])}" style="background:#eef5fb;color:#2d6a9f;font-weight:700;font-size:12px">📦 مقاولات مالية</button></div>
         <div style="display:grid;grid-template-columns:1fr;gap:9px;margin-bottom:16px">
-            ${Object.entries(MODULE_DEFS).map(([k, d]) => `<label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #d0d7e0;border-radius:9px;padding:11px 13px;cursor:pointer;font-size:13.5px;font-weight:600;color:#334"><input type="checkbox" id="opsmod_${k}" ${mods[k] !== false ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer"> ${d.label}</label>`).join('')}
+            ${Object.entries(MODULE_DEFS).map(([k, d]) => `<label style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #d0d7e0;border-radius:9px;padding:11px 13px;cursor:pointer;font-size:13.5px;font-weight:600;color:#334"><input type="checkbox" id="opsmod_${k}" ${mods[k] !== false ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer"> ${esc(d.label)}</label>`).join('')}
         </div>
         <div style="display:flex;gap:8px"><button class="btn b-g" onclick="opsSaveModules('${tid}')" style="flex:1;font-weight:800">💾 حفظ باقة الشركة</button><button class="btn" onclick="document.getElementById('opsModModal').remove()" style="background:#f0f0f0">إلغاء</button></div>
     </div>`;
@@ -1951,7 +1951,7 @@ window.globalSearch = function (q) {
         <div onclick="${r.action.replace(/"/g, '&quot;')};closeGlobalSearch()" style="display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;border-bottom:1px solid #f0f4f8" onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='white'">
             <span style="font-size:16px">${r.icon}</span>
             <div style="flex:1;overflow:hidden">
-                <div style="font-size:12.5px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.label}</div>
+                <div style="font-size:12.5px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.label)}</div>
                 <div style="font-size:10px;color:#888">${r.sub}</div>
             </div>
         </div>`).join('');
@@ -2161,7 +2161,7 @@ window.renderApprovalsInbox = function () {
             return false;
         }).forEach(([pk, po]) => {
             cards.push({
-                icon: '📄', color: '#2d6a9f', title: `أمر شراء ${po.poNumber || ''} — ${po.supplierName || ''}`,
+                icon: '📄', color: '#2d6a9f', title: `أمر شراء ${po.poNumber || ''} — ${esc(po.supplierName || '')}`,
                 sub: `${po.materialName || ''} — بقيمة ${fmt(po.grandTotal || 0)} ر — للمشروع: ${po.projectName || '-'}`,
                 actions: [`<button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="nav('purchaseorders', document.getElementById('n-po'));openPODetail('${pk}')">📄 مراجعة واعتماد</button>`],
                 view: () => nav('purchaseorders', document.getElementById('n-po'))
@@ -2173,7 +2173,7 @@ window.renderApprovalsInbox = function () {
     if (isAdmin || can('match_invoice')) {
         Object.entries(window.supplierInvoices || {}).filter(([, i]) => i.status === 'pending_match' || i.status === 'discrepancy').forEach(([ik, i]) => {
             cards.push({
-                icon: '🧾', color: '#8e44ad', title: `فاتورة مورد ${i.invoiceNumber || ''} — ${i.supplierName || ''}`,
+                icon: '🧾', color: '#8e44ad', title: `فاتورة مورد ${i.invoiceNumber || ''} — ${esc(i.supplierName || '')}`,
                 sub: `${i.status === 'discrepancy' ? '⚠️ يوجد تعارض في المطابقة' : 'بانتظار المطابقة مع أمر الشراء والاستلام'} — ${fmt(i.grandTotal || 0)} ر`,
                 actions: [`<button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="nav('invoices', document.getElementById('n-inv'))">🧾 مراجعة ومطابقة</button>`],
                 view: () => nav('invoices', document.getElementById('n-inv'))
@@ -2185,7 +2185,7 @@ window.renderApprovalsInbox = function () {
     if (isAdmin || can('approve_leave')) {
         Object.entries(window.leaves || {}).filter(([, l]) => l.status === 'pending').forEach(([lk, l]) => {
             cards.push({
-                icon: '🌴', color: '#16a085', title: `إجازة ${l.empName || ''} — ${(LEAVE_TYPE_LABELS[l.type] || {}).lb || l.type}`,
+                icon: '🌴', color: '#16a085', title: `إجازة ${esc(l.empName || '')} — ${(LEAVE_TYPE_LABELS[l.type] || {}).lb || l.type}`,
                 sub: `${l.days} يوم — من ${l.from} إلى ${l.to}${l.reason ? ` — «${esc(l.reason)}»` : ''}`,
                 actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="approveLeave('${lk}')">✅ اعتماد</button>`,
                           `<button class="btn b-r" style="padding:5px 12px;font-size:11px" onclick="rejectLeave('${lk}')">❌ رفض</button>`],
@@ -2198,7 +2198,7 @@ window.renderApprovalsInbox = function () {
     if (isAdmin || can('approve_leave')) {
         Object.entries(window.permissions || {}).filter(([, p]) => (p.status || 'pending') === 'pending').forEach(([pk, p]) => {
             cards.push({
-                icon: '🕘', color: '#e67e22', title: `إذن ${p.empName || ''} — ${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]}`,
+                icon: '🕘', color: '#e67e22', title: `إذن ${esc(p.empName || '')} — ${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]}`,
                 sub: `${p.date || ''}${p.fromTime ? ` · ${p.fromTime}${p.toTime ? ' ← ' + p.toTime : ''}` : ''} · ${p.hours || 0} ساعة${p.deductible ? ' · قابل للخصم' : ''}${p.reason ? ` — «${esc(p.reason)}»` : ''}`,
                 actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="approvePerm('${pk}')">✅ اعتماد</button>`,
                           `<button class="btn b-r" style="padding:5px 12px;font-size:11px" onclick="rejectPerm('${pk}')">❌ رفض</button>`],
@@ -2234,7 +2234,7 @@ window.renderApprovalsInbox = function () {
         ` : `<div style="display:grid;gap:10px">${cards.map(c => `
             <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-right:4px solid ${c.color}">
                 <div style="flex:1;min-width:220px">
-                    <div style="font-size:13px;font-weight:800;color:#1a3a5c">${c.icon} ${c.title}</div>
+                    <div style="font-size:13px;font-weight:800;color:#1a3a5c">${c.icon} ${esc(c.title)}</div>
                     <div style="font-size:11px;color:#666;margin-top:3px">${c.sub}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">${c.actions.join('')}</div>
@@ -3229,10 +3229,10 @@ function renderDashboardAlerts() {
                     <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:white;border-radius:10px;border-right:4px solid ${a.color};cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='translateX(-4px)'" onmouseout="this.style.transform=''" onclick="${a.action}">
                         <div style="font-size:22px">${a.icon}</div>
                         <div style="flex:1;min-width:0">
-                            <div style="font-size:13px;font-weight:700;color:#1a3a5c">${a.title}</div>
+                            <div style="font-size:13px;font-weight:700;color:#1a3a5c">${esc(a.title)}</div>
                             <div style="font-size:11px;color:#666;margin-top:2px">${a.subtitle}</div>
                         </div>
-                        <div style="background:${a.bg};color:${a.color};padding:5px 12px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${a.label}</div>
+                        <div style="background:${a.bg};color:${a.color};padding:5px 12px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${esc(a.label)}</div>
                     </div>
                 `).join('')}
             </div>
@@ -3256,7 +3256,7 @@ function collectAllAlerts() {
                     alerts.push({
                         severity: st.code === 'expired' ? 'critical' : st.code === 'urgent' ? 'urgent' : 'warning',
                         icon: (DOC_TYPE_LABELS[d.type] || '📎').split(' ')[0],
-                        title: `${eData.name || 'موظف'} — ${DOC_TYPE_LABELS[d.type] || d.type}${d.name ? ' ('+d.name+')' : ''}`,
+                        title: `${esc(eData.name || 'موظف')} — ${DOC_TYPE_LABELS[d.type] || d.type}${d.name ? ' ('+d.name+')' : ''}`,
                         subtitle: `📅 تاريخ الانتهاء: ${d.expiry}${eData.dept ? ' · ' + eData.dept : ''}`,
                         label: st.code === 'expired' ? `🚨 منتهي منذ ${Math.abs(days)}ي` : `⏰ ${days}ي متبقي`,
                         color: st.color, bg: st.bg,
@@ -3278,7 +3278,7 @@ function collectAllAlerts() {
                     alerts.push({
                         severity: st.code === 'expired' ? 'critical' : st.code === 'urgent' ? 'urgent' : 'warning',
                         icon: '🆔',
-                        title: `${eData.name || 'موظف'} — الإقامة`,
+                        title: `${esc(eData.name || 'موظف')} — الإقامة`,
                         subtitle: `📅 تاريخ الانتهاء: ${eData.iqamaExp}${eData.dept ? ' · ' + eData.dept : ''}`,
                         label: st.code === 'expired' ? `🚨 منتهية منذ ${Math.abs(days)}ي` : `⏰ ${days}ي متبقي`,
                         color: st.color, bg: st.bg,
@@ -3297,7 +3297,7 @@ function collectAllAlerts() {
                 alerts.push({
                     severity: st.code === 'expired' ? 'critical' : st.code === 'urgent' ? 'urgent' : 'warning',
                     icon: '📄',
-                    title: `${eData.name || 'موظف'} — عقد العمل`,
+                    title: `${esc(eData.name || 'موظف')} — عقد العمل`,
                     subtitle: `📅 تاريخ انتهاء العقد: ${eData.contractEnd}${eData.dept ? ' · ' + eData.dept : ''}`,
                     label: st.code === 'expired' ? `🚨 منتهي منذ ${Math.abs(days)}ي` : `⏰ ${days}ي متبقي`,
                     color: st.color, bg: st.bg,
@@ -3320,7 +3320,7 @@ function collectAllAlerts() {
             alerts.push({
                 severity: al.days < 0 ? 'critical' : al.days <= 30 ? 'urgent' : 'warning',
                 icon: al.icon,
-                title: `${al.name || 'أصل'} — ${al.lbl}`,
+                title: `${esc(al.name || 'أصل')} — ${al.lbl}`,
                 subtitle: `📅 التاريخ: ${al.date}${al.code ? ' · ' + al.code : ''}`,
                 label: al.days < 0 ? `🚨 متأخر ${Math.abs(al.days)}ي` : `⏰ ${al.days}ي متبقي`,
                 color: al.days < 0 ? '#c62828' : al.days <= 30 ? '#e65100' : '#f57c00',
@@ -3400,7 +3400,7 @@ function collectInvoiceAlerts() {
         const bg = severity === 'critical' ? '#fdecea' : severity === 'urgent' ? '#fff3e0' : '#fff8e1';
         alerts.push({
             severity, icon: '🧾',
-            title: `فاتورة ${inv.invoiceNumber || k} — ${inv.supplierName || 'مورد'}`,
+            title: `فاتورة ${inv.invoiceNumber || k} — ${esc(inv.supplierName || 'مورد')}`,
             subtitle: `📅 تاريخ الاستحقاق: ${inv.dueDate} · المبلغ: ${fmt(inv.grandTotal || 0)}`,
             label: days < 0 ? `🚨 متأخرة ${Math.abs(days)}ي` : `⏰ تستحق بعد ${days}ي`,
             color, bg,
@@ -3426,7 +3426,7 @@ function collectBudgetAlerts() {
         const bg = severity === 'critical' ? '#fdecea' : severity === 'urgent' ? '#fff3e0' : '#fff8e1';
         alerts.push({
             severity, icon: '📊',
-            title: `${p.name || 'مشروع'} — تجاوز الموازنة`,
+            title: `${esc(p.name || 'مشروع')} — تجاوز الموازنة`,
             subtitle: `الصرف: ${fmt(actual.total)} من ${fmt(budget.totalBudget)} (${spendPct.toFixed(0)}%)`,
             label: `${spendPct.toFixed(0)}% من الموازنة`,
             color, bg,
@@ -3465,7 +3465,7 @@ function buildTS() {
 function buildRA() {
     const ar = Object.entries(tr).sort((a, b) => (b[1].createdAt || b[1].date || '').localeCompare(a[1].createdAt || a[1].date || '')).slice(0, 8);
     if (!ar.length) { $('recA').innerHTML = '<div class="empty"><div class="ei">📋</div><p>لا توجد حركات</p></div>'; return }
-    $('recA').innerHTML = ar.map(([, t]) => { const d = (t.debit || 0) > 0; return `<div class="ac-it"><div class="ac-d ${d ? 'db' : 'cr'}"></div><div class="ac-i"><div class="ac-dc">${esc(t.desc || '-')}</div><div class="ac-mt">${sup[t.supplierId]?.name || '-'} | ${t.date || ''}</div></div><div class="ac-am ${d ? 'db' : 'cr'}">${d ? '+' + fmt(t.debit) : '-' + fmt(t.credit)}</div></div>` }).join('');
+    $('recA').innerHTML = ar.map(([, t]) => { const d = (t.debit || 0) > 0; return `<div class="ac-it"><div class="ac-d ${d ? 'db' : 'cr'}"></div><div class="ac-i"><div class="ac-dc">${esc(t.desc || '-')}</div><div class="ac-mt">${esc(sup[t.supplierId]?.name || '-')} | ${t.date || ''}</div></div><div class="ac-am ${d ? 'db' : 'cr'}">${d ? '+' + fmt(t.debit) : '-' + fmt(t.credit)}</div></div>` }).join('');
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
@@ -3475,7 +3475,7 @@ function buildRA() {
 function fillSupDrp() {
     const fs = $('fS'), mt = $('mTS'); const pv = fs.value;
     fs.innerHTML = '<option value="">-- الجميع --</option>'; mt.innerHTML = '';
-    Object.entries(sup).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).forEach(([k, s]) => { fs.innerHTML += `<option value="${k}">${s.name}</option>`; mt.innerHTML += `<option value="${k}">${s.name}</option>` });
+    Object.entries(sup).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).forEach(([k, s]) => { fs.innerHTML += `<option value="${k}">${esc(s.name)}</option>`; mt.innerHTML += `<option value="${k}">${esc(s.name)}</option>` });
     if (pv) fs.value = pv;
 }
 
@@ -3497,7 +3497,7 @@ window.saveSp = async function () {
 
 window.delSp = function (key) {
     if (!can('del_supplier')) { toast('ليس لديك صلاحية', 'er'); return }
-    cf2(`حذف المورد "${sup[key]?.name}"؟ ستُحذف جميع حركاته.`, async () => {
+    cf2(`حذف المورد "${esc(sup[key]?.name)}"؟ ستُحذف جميع حركاته.`, async () => {
         try { const upd = {}; Object.keys(tr).forEach(tk => { if (tr[tk].supplierId === key) upd[`ledger/transactions/${tk}`] = null }); upd[`ledger/suppliers/${key}`] = null; await update(ref(db), upd); toast('تم الحذف ✓', 'ok') }
         catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
@@ -4257,7 +4257,7 @@ window.inviteEmployee = function (empKey) {
     if (!ov) { ov = document.createElement('div'); ov.id = 'ovEmpInvite'; ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px'; document.body.appendChild(ov); }
     const inp = 'width:100%;padding:10px;border:1.5px solid #d0d7e0;border-radius:9px;font-family:inherit;font-size:13px;box-sizing:border-box';
     ov.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:92vh;overflow:auto;padding:22px" dir="rtl">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0;color:#16a085;font-size:18px">📲 دعوة ${e.name || ''} للتطبيق</h3><button onclick="document.getElementById('ovEmpInvite').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0;color:#16a085;font-size:18px">📲 دعوة ${esc(e.name || '')} للتطبيق</h3><button onclick="document.getElementById('ovEmpInvite').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
         <div style="font-size:12.5px;color:#666;margin-bottom:14px;line-height:1.8">يُنشئ حساب دخول للموظف على تطبيق الخدمة الذاتية (حضور · إجازات · أذونات · راتب · مستندات)، ويولّد رابطًا ورسالة جاهزة للإرسال عبر واتساب.</div>
         <input type="hidden" id="invEmpKey" value="${empKey}">
         ${existing ? `<div style="background:#eafaf1;border:1px solid #abebc6;border-radius:10px;padding:11px 14px;font-size:12.5px;color:#1e8449;margin-bottom:14px">✅ لهذا الموظف حساب مُفعَّل بالفعل (${e.email || (existing.email || '')}). يمكنك مشاركة الرابط أدناه أو إعادة تعيين كلمة المرور.</div>
@@ -4298,7 +4298,7 @@ window.essShowShare = function (empKey, pass) {
     const url = essPortalUrl();
     const company = window.currentTenantName || (window.gbrCfg && window.gbrCfg.companyName) || 'الشركة';
     const email = e.email || '';
-    const msg = `مرحباً ${e.name || ''} 👋\nتم تفعيل حسابك في تطبيق الخدمة الذاتية لموظفي ${company}.\n\n🔗 الرابط: ${url}\n📧 البريد: ${email}${pass ? `\n🔑 كلمة المرور: ${pass}` : ''}\n\nمن التطبيق: سجّل حضورك وانصرافك، اطلب إجازة أو إذن، واطّلع على قسيمة راتبك ومستنداتك.\n\n📲 لتثبيته كتطبيق على جوالك: افتح الرابط في المتصفح ثم اختر «إضافة إلى الشاشة الرئيسية».`;
+    const msg = `مرحباً ${esc(e.name || '')} 👋\nتم تفعيل حسابك في تطبيق الخدمة الذاتية لموظفي ${company}.\n\n🔗 الرابط: ${url}\n📧 البريد: ${email}${pass ? `\n🔑 كلمة المرور: ${pass}` : ''}\n\nمن التطبيق: سجّل حضورك وانصرافك، اطلب إجازة أو إذن، واطّلع على قسيمة راتبك ومستنداتك.\n\n📲 لتثبيته كتطبيق على جوالك: افتح الرابط في المتصفح ثم اختر «إضافة إلى الشاشة الرئيسية».`;
     const wa = waPhone(e.phone);
     const waUrl = (wa ? `https://wa.me/${wa}` : `https://wa.me/`) + `?text=${encodeURIComponent(msg)}`;
     box.innerHTML = `<div style="border-top:1px solid #eee;margin-top:6px;padding-top:14px">
@@ -4536,7 +4536,7 @@ function renderUsL() {
     const rb = { admin: 'rb-a', accountant: 'rb-ac', finance_manager: 'rb-a', viewer: 'rb-v' };
     w.innerHTML = ks.map(uid => {
         const u = us[uid], isMe = uid === curU?.uid, ac = u.active !== false;
-        return `<div class="uc"><div class="u-av" style="background:${avCol(u.name || '')}">${(u.name || '?').charAt(0).toUpperCase()}</div><div class="u-if"><div class="u-nm">${u.name || '-'} ${isMe ? '<span style="font-size:11px;background:#ebf5fb;color:#2d6a9f;padding:1px 7px;border-radius:10px;margin-right:5px">أنا</span>' : ''}</div><div class="u-em">${u.email || '-'}</div><div class="u-mt">الصلاحيات: ${(u.permissions || []).length}/${ALL_P.length} | ${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-SA') : '-'}</div></div><span class="urb ${rb[u.role] || 'rb-v'}">${rl[u.role] || u.role}</span><span class="ust ${ac ? 'st-on' : 'st-off'}">${ac ? '✅ نشط' : '🚫 موقوف'}</span><div class="u-ac"><button class="btn b-b" onclick="openEU('${uid}')">✏️ تعديل</button>${!isMe ? `<button class="btn" onclick="resetUserPwd('${uid}')" title="إرسال رابط إعادة تعيين كلمة المرور إلى بريد المستخدم" style="background:#8e44ad;color:#fff">🔑 كلمة المرور</button><button class="btn ${ac ? 'b-o' : 'b-g'}" onclick="togUAc('${uid}')">${ac ? '🚫 إيقاف' : '✅ تفعيل'}</button><button class="btn b-r" onclick="delU('${uid}')">🗑️</button>` : ''}</div></div>`;
+        return `<div class="uc"><div class="u-av" style="background:${avCol(u.name || '')}">${(u.name || '?').charAt(0).toUpperCase()}</div><div class="u-if"><div class="u-nm">${esc(u.name || '-')} ${isMe ? '<span style="font-size:11px;background:#ebf5fb;color:#2d6a9f;padding:1px 7px;border-radius:10px;margin-right:5px">أنا</span>' : ''}</div><div class="u-em">${u.email || '-'}</div><div class="u-mt">الصلاحيات: ${(u.permissions || []).length}/${ALL_P.length} | ${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-SA') : '-'}</div></div><span class="urb ${rb[u.role] || 'rb-v'}">${rl[u.role] || u.role}</span><span class="ust ${ac ? 'st-on' : 'st-off'}">${ac ? '✅ نشط' : '🚫 موقوف'}</span><div class="u-ac"><button class="btn b-b" onclick="openEU('${uid}')">✏️ تعديل</button>${!isMe ? `<button class="btn" onclick="resetUserPwd('${uid}')" title="إرسال رابط إعادة تعيين كلمة المرور إلى بريد المستخدم" style="background:#8e44ad;color:#fff">🔑 كلمة المرور</button><button class="btn ${ac ? 'b-o' : 'b-g'}" onclick="togUAc('${uid}')">${ac ? '🚫 إيقاف' : '✅ تفعيل'}</button><button class="btn b-r" onclick="delU('${uid}')">🗑️</button>` : ''}</div></div>`;
     }).join('');
 }
 
@@ -4750,7 +4750,7 @@ window.sendTaxReminderEmail = async function (silent) {
     const tax = (typeof collectTaxAlerts === 'function') ? collectTaxAlerts() : [];
     if (!tax.length) { if (!silent) toast('✅ لا توجد تذكيرات ضريبية مستحقة حالياً', 'ok'); return false; }
     const company = window.currentTenantName || cfg.companyAr || 'منشأتك';
-    const lines = tax.map((a, i) => `${i + 1}) ${a.title}\n   ${a.subtitle}\n   (${(a.label || '').replace(/[⏰🚨📝]/g, '').trim()})`).join('\n\n');
+    const lines = tax.map((a, i) => `${i + 1}) ${esc(a.title)}\n   ${a.subtitle}\n   (${(a.label || '').replace(/[⏰🚨📝]/g, '').trim()})`).join('\n\n');
     const message = `تذكير بالالتزامات الضريبية والامتثال لـ${company}:\n\n${lines}\n\n— أُرسلت تلقائياً من بنيان للمقاولات لإدارة المقاولات.`;
     const subject = `🧮 تذكير ضريبي (${tax.length}) — ${company}`;
     try {
@@ -4832,7 +4832,7 @@ window.selClr = function (el, tp, val) {
 function fillPdfSups() {
     const sel = $('pdfSup'), pv = sel.value;
     sel.innerHTML = '<option value="">-- جميع الموردين --</option>';
-    Object.entries(sup).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).forEach(([k, s]) => sel.innerHTML += `<option value="${k}">${s.name}</option>`);
+    Object.entries(sup).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).forEach(([k, s]) => sel.innerHTML += `<option value="${k}">${esc(s.name)}</option>`);
     if (pv) sel.value = pv;
 }
 
@@ -4856,7 +4856,7 @@ function renderPdfDT() {
     if (!pdfState.filtered.length) { w.innerHTML = '<div class="empty"><div class="ei">📂</div><p>اضبط الفلاتر لعرض البيانات</p></div>'; return }
     let h = `<table class="st"><thead><tr class="h1"><th>#</th><th>التاريخ</th><th>المورد</th><th>الوصف</th><th>مدين</th><th>دائن</th></tr></thead><tbody>`;
     pdfState.filtered.slice(0, 25).forEach(([, t], i) => {
-        h += `<tr><td>${i + 1}</td><td>${t.date}</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sup[t.supplierId]?.name || '-'}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.desc)}</td><td class="td-db">${(t.debit || 0) > 0 ? fmt(t.debit) : ''}</td><td class="td-cr">${(t.credit || 0) > 0 ? fmt(t.credit) : ''}</td></tr>`;
+        h += `<tr><td>${i + 1}</td><td>${t.date}</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(sup[t.supplierId]?.name || '-')}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.desc)}</td><td class="td-db">${(t.debit || 0) > 0 ? fmt(t.debit) : ''}</td><td class="td-cr">${(t.credit || 0) > 0 ? fmt(t.credit) : ''}</td></tr>`;
     });
     if (pdfState.filtered.length > 25) h += `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:10px">... و ${pdfState.filtered.length - 25} حركة أخرى ستظهر في PDF</td></tr>`;
     h += '</tbody></table>'; w.innerHTML = h;
@@ -5121,7 +5121,7 @@ window.genPDF = async function () {
         <div class="supplier-section">
             <div class="supplier-bar" style="background:${pc}10;border:1px solid ${pc}30;border-radius:6px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
                 <div style="font-size:11px;color:#666">${supDetails.join(' &nbsp;|&nbsp; ')}</div>
-                <div style="font-size:14px;font-weight:700;color:${pc}">${s.name || 'جميع الموردين'}</div>
+                <div style="font-size:14px;font-weight:700;color:${pc}">${esc(s.name || 'جميع الموردين')}</div>
             </div>
             ${summaryHTML}
             <table>
@@ -5419,7 +5419,7 @@ window.renderGosiPreview = function () {
         const curEmp = parseFloat(e.socialEmp) || 0;
         const changed = Math.abs(curEmp - g.empPct) > 0.01;
         return `<tr style="${basic <= 0 ? 'opacity:.45' : ''}">
-            <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${e.name || '-'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${esc(e.name || '-')}</td>
             <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f0f0f0">${g.isSaudi ? '🇸🇦 سعودي' : (e.nationality || '—')}</td>
             <td style="padding:5px 8px;text-align:left;border-bottom:1px solid #f0f0f0">${fmt(basic)}</td>
             <td style="padding:5px 8px;text-align:left;border-bottom:1px solid #f0f0f0">${fmt(g.base)}</td>
@@ -5885,7 +5885,7 @@ window.viewEmp = function (key) {
     const row = (l, v, c = '#333') => v ? `<tr><td style="color:#888;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px;white-space:nowrap">${l}</td><td style="font-weight:600;color:${c};padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px">${v}</td></tr>` : '';
     const sec = (title, bg = '#f8fafc') => `<tr><td colspan="2" style="background:${bg};font-weight:700;padding:8px 10px;font-size:12px;color:#1a3a5c">${title}</td></tr>`;
     const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>ملف الموظف - ${e.name || ''}</title>
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>ملف الموظف - ${esc(e.name || '')}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f0f2f5;color:#333;direction:rtl;padding:16px}
 .wrap{max-width:640px;margin:0 auto}.hd{background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;border-radius:14px 14px 0 0;padding:20px 24px;display:flex;align-items:center;gap:16px}
 .av{width:60px;height:60px;border-radius:50%;background:${av};color:white;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;border:3px solid rgba(255,255,255,.3)}
@@ -5899,7 +5899,7 @@ table{width:100%;border-collapse:collapse}
 <body><div class="wrap">
 <div class="hd">
   <div class="av">${(e.name || '?').charAt(0)}</div>
-  <div><div class="nm">${e.name || '-'}</div><div class="jb">${e.job || ''}${e.dept ? ' | ' + e.dept : ''}</div>
+  <div><div class="nm">${esc(e.name || '-')}</div><div class="jb">${e.job || ''}${e.dept ? ' | ' + e.dept : ''}</div>
   <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
     <span style="background:${(e.status || 'active') === 'active' ? '#27ae60' : '#e74c3c'};padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">${(e.status || 'active') === 'active' ? '✅ نشط' : '⏸️ موقوف'}</span>
     ${e.empId ? `<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">${e.empId}</span>` : ''}
@@ -6189,7 +6189,7 @@ window.renderProjectEmps = function (projectKey) {
         ${assignments.map(([aKey, a]) => {
         const empData = emp[a.empId];
         return `<div style="background:white;border:1px solid #e0e8f0;border-radius:10px;padding:12px">
-                <div style="font-weight:600;color:#1a3a5c">${empData?.name || 'موظف غير معروف'}</div>
+                <div style="font-weight:600;color:#1a3a5c">${esc(empData?.name || 'موظف غير معروف')}</div>
                 <div style="font-size:11px;color:#888;margin-bottom:8px">${empData?.job || ''}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;margin-bottom:8px">
                     <div><span style="color:#666">الدور:</span> <span style="font-weight:600">${a.role || '-'}</span></div>
@@ -6376,7 +6376,7 @@ window.viewPrj = function (key) {
     if (!p) return;
     const assignments = Object.entries(projEmpAssignments).filter(([, a]) => a.projectId === key);
     const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تفاصيل المشروع - ${p.name}</title>
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تفاصيل المشروع - ${esc(p.name)}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f0f2f5;color:#333;direction:rtl;padding:16px}
 .wrap{max-width:900px;margin:0 auto}.hd{background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;border-radius:14px 14px 0 0;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start}
 .hd-l{flex:1}.nm{font-size:24px;font-weight:800;margin-bottom:8px}.desc{font-size:13px;opacity:.9;margin-bottom:8px}.bd{background:white;border-radius:0 0 14px 14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);padding:20px}
@@ -6394,7 +6394,7 @@ window.viewPrj = function (key) {
 <body><div class="wrap">
 <div class="hd">
   <div class="hd-l">
-    <div class="nm">📁 ${p.name || '-'}</div>
+    <div class="nm">📁 ${esc(p.name || '-')}</div>
     <div class="desc">${esc(p.description || '')}</div>
   </div>
   <div style="text-align:left">
@@ -6432,7 +6432,7 @@ window.viewPrj = function (key) {
     ${assignments.map(([, a]) => {
             const empData = emp[a.empId];
             return `<div class="emp-card">
-    <div class="emp-name">${empData?.name || 'موظف غير معروف'}</div>
+    <div class="emp-name">${esc(empData?.name || 'موظف غير معروف')}</div>
     <div class="emp-detail"><strong>الوظيفة:</strong> ${empData?.job || '-'}</div>
     <div class="emp-detail"><strong>القسم:</strong> ${empData?.dept || '-'}</div>
     <div class="emp-detail"><strong>الدور:</strong> ${a.role || '-'}</div>
@@ -6740,7 +6740,7 @@ window.printApprovedMatReport = function () {
     const total = approved.reduce((s, a) => s + ((parseFloat(a.approvedQty) || 0) * (parseFloat(a.approvedUnitPrice) || 0)), 0);
     const p = projects[projKey] || {};
     const win = window.open('', '_blank');
-    const html = `<!doctype html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>تقرير المواد الموافق عليها - ${p.name || ''}</title><style>body{font-family:'Tajawal',Arial,Helvetica,sans-serif;padding:16px;direction:rtl}table{width:100%;border-collapse:collapse}th,td{border:1px solid #e8eef6;padding:8px}th{background:#f0f6fb}</style></head><body><h2>تقرير المواد الموافق عليها</h2><div>المشروع: ${p.name || '-'} • النطاق: ${fromVal} → ${toVal}</div><table style="margin-top:12px"><thead><tr><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#777">لا توجد مواد الموافق عليها ضمن هذا النطاق</td></tr>'}</tbody></table><div style="margin-top:12px;font-weight:800">الإجمالي: ${fmt(total)} ريال</div><div style="margin-top:18px"><button onclick="window.print()" style="padding:8px 14px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;cursor:pointer">طباعة</button></div></body></html>`;
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>تقرير المواد الموافق عليها - ${esc(p.name || '')}</title><style>body{font-family:'Tajawal',Arial,Helvetica,sans-serif;padding:16px;direction:rtl}table{width:100%;border-collapse:collapse}th,td{border:1px solid #e8eef6;padding:8px}th{background:#f0f6fb}</style></head><body><h2>تقرير المواد الموافق عليها</h2><div>المشروع: ${esc(p.name || '-')} • النطاق: ${fromVal} → ${toVal}</div><table style="margin-top:12px"><thead><tr><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="padding:12px;text-align:center;color:#777">لا توجد مواد الموافق عليها ضمن هذا النطاق</td></tr>'}</tbody></table><div style="margin-top:12px;font-weight:800">الإجمالي: ${fmt(total)} ريال</div><div style="margin-top:18px"><button onclick="window.print()" style="padding:8px 14px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;cursor:pointer">طباعة</button></div></body></html>`;
     win.document.write(html); win.document.close();
 };
 
@@ -7032,7 +7032,7 @@ td{padding:9px 8px;text-align:center;border-bottom:1px solid #f0f4f8}
 <body><div class="wrap">
 <div class="hd">
     <div style="font-size:18px;font-weight:800">💳 كشف حساب السلفة</div>
-    <div style="margin-top:4px;opacity:.85;font-size:13px">الموظف: ${l.empName} | ${esc(l.note || 'سلفة')}</div>
+    <div style="margin-top:4px;opacity:.85;font-size:13px">الموظف: ${esc(l.empName)} | ${esc(l.note || 'سلفة')}</div>
 </div>
 <div class="bd">
     <div class="stats">
@@ -7082,7 +7082,7 @@ window.renderLoansPage = function () {
         return `<div style="border:1.5px solid #e0e8f0;border-radius:10px;padding:14px;margin-bottom:10px;border-right:4px solid ${l.status==='settled'?'#27ae60':'#f39c12'}">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <div>
-                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">👤 ${l.empName || '-'} — ${fmt(l.amount)} ريال</div>
+                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">👤 ${esc(l.empName || '-')} — ${fmt(l.amount)} ريال</div>
                     <div style="font-size:11px;color:#888;margin-top:2px">${esc(l.note || 'سلفة')} | تاريخ الاستلام: ${l.date} | ${l.installments} قسط</div>
                 </div>
                 <div style="display:flex;gap:6px;align-items:center">
@@ -7546,7 +7546,7 @@ window.renderPREmployeesTable = function () {
                 <input type="checkbox" class="prEmpCb" data-emp-key="${k}" ${isSelected ? 'checked' : ''} onchange="prToggleEmp('${k}', this.checked)" style="width:16px;height:16px;cursor:pointer">
             </td>
             <td style="padding:8px">
-                <div style="font-weight:700;color:#1a3a5c">${e.name || '—'}</div>
+                <div style="font-weight:700;color:#1a3a5c">${esc(e.name || '—')}</div>
                 ${e.id ? `<div style="font-size:10px;color:#888;font-family:monospace">${e.id}</div>` : ''}
                 ${wasPreviouslyDeferred ? `<div style="font-size:9px;color:#8e44ad;font-weight:700;margin-top:2px">🔄 مُؤجَّل من مسير سابق</div>` : ''}
             </td>
@@ -7915,7 +7915,7 @@ window.renderPayrolls = function () {
                     </div>
                     <div style="font-size:12px;color:#888;margin-top:6px">أُنشئ بواسطة: ${esc(p.createdByName) || '-'} | ${p.createdAt ? new Date(p.createdAt).toLocaleDateString('ar-SA') : ''}</div>
                 </div>
-                <span style="background:${sm.bg};color:${sm.color};padding:4px 14px;border-radius:12px;font-size:12px;font-weight:700">${sm.label}</span>
+                <span style="background:${sm.bg};color:${sm.color};padding:4px 14px;border-radius:12px;font-size:12px;font-weight:700">${esc(sm.label)}</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0">
                 <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:#888">عدد الموظفين</div><div style="font-size:17px;font-weight:800;color:#1a3a5c">${p.totalEmployees || 0}</div></div>
@@ -7973,7 +7973,7 @@ window.renderPayrolls = function () {
                         <button class="btn" style="padding:5px 10px;font-size:11px;background:#d68910;color:white;font-weight:700" onclick="nav('loans', document.getElementById('n-ln'))">عرض السلف →</button>
                     </div>
                     <div style="font-size:11px;color:#7d4e00;line-height:1.8">
-                        ${paidLoans.map(d => `• <strong>${d.empName}</strong> — ${d.loanNote}: <span style="color:#d68910;font-weight:700">${fmt(d.amount)} ر</span>${d.allPaid ? ' <span style="background:#27ae60;color:white;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">✅ سُدِّدت بالكامل</span>' : ''}`).join('<br>')}
+                        ${paidLoans.map(d => `• <strong>${esc(d.empName)}</strong> — ${d.loanNote}: <span style="color:#d68910;font-weight:700">${fmt(d.amount)} ر</span>${d.allPaid ? ' <span style="background:#27ae60;color:white;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700">✅ سُدِّدت بالكامل</span>' : ''}`).join('<br>')}
                     </div>
                 </div>`;
             })()}
@@ -8502,7 +8502,7 @@ window.viewPayrollDetail = function (key) {
     // بناء الـ headers ديناميكياً
     const headers = visibleCols.map(c => {
         const hStyle = colHeaderStyles[c.key] || '';
-        return `<th style="${hStyle}">${c.label}</th>`;
+        return `<th style="${hStyle}">${esc(c.label)}</th>`;
     }).join('');
 
     // بناء صف الإجمالي ديناميكياً — ضع كلمة "الإجمالي" في عمود نصّي واسع (الموظف) بدل عمود # الضيّق
@@ -8697,7 +8697,7 @@ function buildPayslipHTML(p, it, e) {
     const rowD = (l, v, strong) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eef2f6;font-size:12px;color:${strong ? '#c0392b' : '#444'};font-weight:${strong ? '800' : '500'}">${l}</td><td style="padding:6px 12px;border-bottom:1px solid #eef2f6;font-size:12px;text-align:left;font-weight:${strong ? '800' : '600'};color:#c0392b">${money(v)}</td></tr>`;
     const info = (l, v) => v ? `<div style="font-size:11px"><span style="color:#8a97a5">${l}:</span> <b style="color:#1a3a5c">${v}</b></div>` : '';
 
-    return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>قسيمة راتب — ${e.name || ''} — ${monthLbl}</title>
+    return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>قسيمة راتب — ${esc(e.name || '')} — ${monthLbl}</title>
 <style>
 body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef1f4;padding:20px;color:#222;margin:0}
 .wrap{max-width:720px;margin:0 auto;background:white;border-radius:14px;overflow:hidden;box-shadow:0 6px 26px rgba(0,0,0,.12)}
@@ -8942,7 +8942,7 @@ window.loadEmpDocuments = function (key) {
                     </div>
                     ${d.note ? `<div style="font-size:11px;color:#888;margin-top:3px;font-style:italic">📝 ${esc(d.note)}</div>` : ''}
                 </div>
-                <span style="background:white;color:${st.color};padding:4px 12px;border-radius:10px;font-size:11px;font-weight:700;border:1.5px solid ${st.color}">${st.label}</span>
+                <span style="background:white;color:${st.color};padding:4px 12px;border-radius:10px;font-size:11px;font-weight:700;border:1.5px solid ${st.color}">${esc(st.label)}</span>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
                 ${hasFile ? `<button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="viewDocFile('${key}','${dk}')">👁️ عرض الملف</button>` : ''}
@@ -8959,9 +8959,9 @@ window.viewDocFile = function (key, dk) {
     const d = emp[key]?.documents?.[dk]; if (!d?.fileData) return;
     const win = window.open('', '_blank');
     if (d.fileMime?.startsWith('image/')) {
-        win.document.write(`<html><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><title>${DOC_TYPE_LABELS[d.type]} — ${d.name || ''}</title></head><body style="margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${d.fileData}" style="max-width:100%;max-height:100vh"></body></html>`);
+        win.document.write(`<html><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><title>${DOC_TYPE_LABELS[d.type]} — ${esc(d.name || '')}</title></head><body style="margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${d.fileData}" style="max-width:100%;max-height:100vh"></body></html>`);
     } else {
-        win.document.write(`<html><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><title>${d.name || 'مستند'}</title></head><body style="margin:0"><iframe src="${d.fileData}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+        win.document.write(`<html><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><title>${esc(d.name || 'مستند')}</title></head><body style="margin:0"><iframe src="${d.fileData}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
     }
     win.document.close();
 };
@@ -8970,7 +8970,7 @@ window.downloadDocFile = function (key, dk) {
     const d = emp[key]?.documents?.[dk]; if (!d?.fileData) return;
     const a = document.createElement('a');
     a.href = d.fileData;
-    a.download = d.fileName || `${d.type}_${d.name || 'document'}`;
+    a.download = d.fileName || `${d.type}_${esc(d.name || 'document')}`;
     a.click();
 };
 
@@ -9075,12 +9075,12 @@ window.renderDocAlerts = function () {
         <div style="border:1.5px solid #e0e8f0;border-radius:10px;padding:14px;margin-bottom:10px;border-right:5px solid ${d.status.color};background:white">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
                 <div style="flex:1;min-width:200px">
-                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">👤 ${d.empName} ${d.empDept ? `<span style="font-size:11px;color:#888;font-weight:400">— ${d.empDept}</span>` : ''}</div>
+                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">👤 ${esc(d.empName)} ${d.empDept ? `<span style="font-size:11px;color:#888;font-weight:400">— ${d.empDept}</span>` : ''}</div>
                     <div style="margin-top:6px;font-size:13px;color:#444"><strong>${DOC_TYPE_LABELS[d.type] || d.type}</strong>${d.name ? ' — ' + d.name : ''}</div>
                     <div style="font-size:11px;color:#666;margin-top:4px">⏰ تاريخ الانتهاء: <strong>${d.expiry || '-'}</strong></div>
                 </div>
                 <div style="text-align:center">
-                    <span style="background:${d.status.bg};color:${d.status.color};padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700;display:inline-block">${d.status.label}</span>
+                    <span style="background:${d.status.bg};color:${d.status.color};padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700;display:inline-block">${esc(d.status.label)}</span>
                     <div style="margin-top:6px"><button class="btn b-b" style="padding:3px 10px;font-size:11px" onclick="openDocFromAlert('${d.empKey}')">📂 فتح ملف الموظف</button></div>
                 </div>
             </div>
@@ -9348,7 +9348,7 @@ window.fillEmpStatementSelect = function () {
     const sel = $('esEmpSelect'); if (!sel) return;
     const cur = sel.value;
     window.esEmpList = Object.entries(emp || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
-        .map(([k, e]) => ({ key: k, label: `${e.name || '-'}${e.empId ? ' — ' + e.empId : ''}${e.natId ? ' — ' + e.natId : ''}${(e.status||'active')!=='active' ? ' (موقوف)' : ''}` }));
+        .map(([k, e]) => ({ key: k, label: `${esc(e.name || '-')}${e.empId ? ' — ' + e.empId : ''}${e.natId ? ' — ' + e.natId : ''}${(e.status||'active')!=='active' ? ' (موقوف)' : ''}` }));
     const toSelect = (cur && emp[cur]) ? cur : window.esEmpList[0]?.key;
     if (toSelect) {
         sel.value = toSelect;
@@ -9370,7 +9370,7 @@ window.esFilterEmpList = function (q) {
 
 window.esRenderEmpDropdown = function (list) {
     const dd = $('esEmpDropdown'); if (!dd) return;
-    dd.innerHTML = list.length ? list.map(x => `<div onclick="esSelectEmp('${x.key}')" style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f5f5f5" onmouseover="this.style.background='#f0f6ff'" onmouseout="this.style.background='white'">${x.label}</div>`).join('')
+    dd.innerHTML = list.length ? list.map(x => `<div onclick="esSelectEmp('${x.key}')" style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f5f5f5" onmouseover="this.style.background='#f0f6ff'" onmouseout="this.style.background='white'">${esc(x.label)}</div>`).join('')
         : `<div style="padding:10px 12px;font-size:12px;color:#999;text-align:center">لا توجد نتائج</div>`;
 };
 
@@ -9408,7 +9408,7 @@ window.openFinalSettlement = function (key) {
     const info = (l, v) => v ? `<div style="font-size:11.5px"><span style="color:#8a97a5">${l}:</span> <b style="color:#1a3a5c">${v}</b></div>` : '';
 
     const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>مخالصة نهاية الخدمة — ${e.name || ''}</title>
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>مخالصة نهاية الخدمة — ${esc(e.name || '')}</title>
 <style>
 body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef1f4;padding:20px;color:#222;margin:0}
 .wrap{max-width:720px;margin:0 auto;background:white;border-radius:14px;overflow:hidden;box-shadow:0 6px 26px rgba(0,0,0,.12)}
@@ -9488,7 +9488,7 @@ window.openSalaryCertificate = function (key) {
     ].filter(([, v]) => v && v > 0.001);
 
     const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>خطاب تعريف — ${e.name || ''}</title>
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>خطاب تعريف — ${esc(e.name || '')}</title>
 <style>
 body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef1f4;padding:20px;color:#222;margin:0;line-height:2}
 .wrap{max-width:720px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 6px 26px rgba(0,0,0,.12);min-height:900px;display:flex;flex-direction:column}
@@ -9525,7 +9525,7 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef1f4;padding:2
     <p><b>إلى:</b> <span class="edit" contenteditable="true">من يهمه الأمر</span></p>
     <p>تشهد <b>${cA}</b> بأن ${genderWord} أدناه ${worksWord}:</p>
     <div class="sal"><table>
-      <tr><td style="color:#888;width:45%">الاسم</td><td style="font-weight:700">${e.name || '-'}</td></tr>
+      <tr><td style="color:#888;width:45%">الاسم</td><td style="font-weight:700">${esc(e.name || '-')}</td></tr>
       <tr><td style="color:#888">رقم الهوية / الإقامة</td><td style="font-weight:700">${e.natId || '-'}</td></tr>
       <tr><td style="color:#888">الجنسية</td><td style="font-weight:700">${e.nationality || '-'}</td></tr>
       <tr><td style="color:#888">المسمى الوظيفي</td><td style="font-weight:700">${e.job || '-'}</td></tr>
@@ -9630,14 +9630,14 @@ window.renderEmpStatement = function (key) {
             <div style="display:flex;align-items:center;gap:14px">
                 <div style="width:56px;height:56px;border-radius:50%;background:${avCol(e.name||'')};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;border:3px solid rgba(255,255,255,.3)">${(e.name||'?').charAt(0)}</div>
                 <div>
-                    <div style="font-size:18px;font-weight:900">${e.name || '-'}</div>
+                    <div style="font-size:18px;font-weight:900">${esc(e.name || '-')}</div>
                     <div style="font-size:12px;opacity:.85;margin-top:2px">${e.job || ''}${e.dept ? ' — ' + e.dept : ''}${e.empId ? ' — ' + e.empId : ''}</div>
                 </div>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <span style="background:${(e.status||'active')==='active'?'#27ae60':'#e74c3c'};padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">${(e.status||'active')==='active'?'✅ نشط':'⏸️ موقوف'}</span>
                 <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">⏳ مدة الخدمة: ${tenureText}</span>
-                <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700;color:${contractInfo.color==='#c0392b'?'#ffd0d0':contractInfo.color==='#e67e22'?'#ffe0c0':'white'}">📅 العقد: ${contractInfo.label}</span>
+                <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700;color:${contractInfo.color==='#c0392b'?'#ffd0d0':contractInfo.color==='#e67e22'?'#ffe0c0':'white'}">📅 العقد: ${esc(contractInfo.label)}</span>
             </div>
         </div>
 
@@ -9661,7 +9661,7 @@ window.renderEmpStatement = function (key) {
                 ${row2('رقم الهوية/الإقامة', e.natId)}
                 ${row2('الجنسية', e.nationality)}
                 ${row2('تاريخ التعيين', e.hireDate)}
-                ${row2('تاريخ انتهاء العقد', e.contractEnd ? `${e.contractEnd} <span style="color:${contractInfo.color};font-weight:700">(${contractInfo.label})</span>` : null)}
+                ${row2('تاريخ انتهاء العقد', e.contractEnd ? `${e.contractEnd} <span style="color:${contractInfo.color};font-weight:700">(${esc(contractInfo.label)})</span>` : null)}
                 ${row2('مدة الخدمة', tenureText)}
                 ${row2('رقم الجوال', e.phone)}
                 ${row2('الإدارة / القسم', e.dept)}
@@ -9813,9 +9813,9 @@ window.renderEmpStatement = function (key) {
     };
     window._esTbl['esTbl-custody'] = {
         rows: custodyRows, pageSize: 8, dateKey: 'dateGiven', emptyMsg: 'لا توجد عُهد مطابقة', q: '', from: '', to: '', page: 1,
-        searchText: r => `${r.name} ${r.serial} ${esc(r.notes)} ${r.status === 'returned' ? 'مستلمة' : 'بحوزته'}`,
+        searchText: r => `${esc(r.name)} ${r.serial} ${esc(r.notes)} ${r.status === 'returned' ? 'مستلمة' : 'بحوزته'}`,
         cols: [
-            { h: 'العُهدة', cell: r => `${custodyTypeIcons[r.type] || '📦'} ${r.name || '-'}${r.notes ? `<div style="font-size:10px;color:#999">${esc(r.notes)}</div>` : ''}` },
+            { h: 'العُهدة', cell: r => `${custodyTypeIcons[r.type] || '📦'} ${esc(r.name || '-')}${r.notes ? `<div style="font-size:10px;color:#999">${esc(r.notes)}</div>` : ''}` },
             { h: 'الرقم التسلسلي', cell: r => r.serial || '-' },
             { h: 'القيمة', align: 'center', cell: r => r.value ? fmt(r.value) : '-' },
             { h: 'تاريخ التسليم', align: 'center', cell: r => r.dateGiven || '-' },
@@ -9883,7 +9883,7 @@ window.saveCustodyItem = async function () {
 
 window.returnCustodyItem = function (custKey) {
     const c = (window.empCustody || {})[custKey]; if (!c) return;
-    cf2(`تأكيد استلام العُهدة "${c.name}" من الموظف؟`, async () => {
+    cf2(`تأكيد استلام العُهدة "${esc(c.name)}" من الموظف؟`, async () => {
         try {
             await update(ref(db, 'ledger/empCustody/' + custKey), { status: 'returned', dateReturned: new Date().toISOString().slice(0, 10) });
             toast('✅ تم تسجيل الاستلام', 'ok');
@@ -9894,7 +9894,7 @@ window.returnCustodyItem = function (custKey) {
 
 window.deleteCustodyItem = function (custKey) {
     const c = (window.empCustody || {})[custKey]; if (!c) return;
-    cf2(`حذف سجل العُهدة "${c.name}" نهائياً؟`, async () => {
+    cf2(`حذف سجل العُهدة "${esc(c.name)}" نهائياً؟`, async () => {
         try {
             await remove(ref(db, 'ledger/empCustody/' + custKey));
             toast('🗑️ تم الحذف', 'ok');
@@ -9930,7 +9930,7 @@ window.printEmpStatement = function (key) {
     const sec = (title, bg = '#f8fafc') => `<tr><td colspan="2" style="background:${bg};font-weight:700;padding:8px 10px;font-size:12px;color:#1a3a5c">${title}</td></tr>`;
 
     const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب الموظف - ${e.name || ''}</title>
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب الموظف - ${esc(e.name || '')}</title>
 <style>
 body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#f4f6f8;padding:20px;color:#222}
 .wrap{max-width:720px;margin:0 auto}.hd{background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;border-radius:14px 14px 0 0;padding:20px 24px;display:flex;align-items:center;gap:16px}
@@ -9944,7 +9944,7 @@ table{width:100%;border-collapse:collapse}
 <body><div class="wrap">
 <div class="hd">
   <div class="av">${(e.name || '?').charAt(0)}</div>
-  <div><div class="nm">${e.name || '-'}</div><div class="jb">${e.job || ''}${e.dept ? ' | ' + e.dept : ''}</div>
+  <div><div class="nm">${esc(e.name || '-')}</div><div class="jb">${e.job || ''}${e.dept ? ' | ' + e.dept : ''}</div>
   <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
     <span style="background:${(e.status || 'active') === 'active' ? '#27ae60' : '#e74c3c'};padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">${(e.status || 'active') === 'active' ? '✅ نشط' : '⏸️ موقوف'}</span>
     ${e.empId ? `<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">${e.empId}</span>` : ''}
@@ -10060,7 +10060,7 @@ function renderLeaveCard(lk, l, showEmp) {
     return `<div style="border:1.5px solid #e0e8f0;border-radius:10px;padding:12px;margin-bottom:10px;border-right:4px solid ${typeInfo.col};background:white">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">
             <div style="flex:1;min-width:200px">
-                ${showEmp ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:3px">👤 ${l.empName || '-'}${l.empDept ? ` <span style="font-size:11px;color:#888;font-weight:400">— ${l.empDept}</span>` : ''}</div>` : ''}
+                ${showEmp ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:3px">👤 ${esc(l.empName || '-')}${l.empDept ? ` <span style="font-size:11px;color:#888;font-weight:400">— ${l.empDept}</span>` : ''}</div>` : ''}
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c">${typeInfo.lb} — ${l.days} يوم</div>
                 <div style="font-size:11px;color:#666;margin-top:3px">📅 من <strong>${l.from}</strong> إلى <strong>${l.to}</strong></div>
                 ${l.reason ? `<div style="font-size:11px;color:#555;margin-top:4px;font-style:italic">💬 ${esc(l.reason)}</div>` : ''}
@@ -10084,7 +10084,7 @@ function renderLeaveCard(lk, l, showEmp) {
 window.approveLeave = async function (lk) {
     if (myP?.role !== 'admin' && !can('approve_leave')) { toast('ليس لديك صلاحية', 'er'); return }
     const l = leaves[lk]; if (!l) return;
-    cf2(`اعتماد طلب إجازة ${l.empName} لمدة ${l.days} يوم؟`, async () => {
+    cf2(`اعتماد طلب إجازة ${esc(l.empName)} لمدة ${l.days} يوم؟`, async () => {
         try {
             await update(ref(db, `ledger/leaves/${lk}`), {
                 status: 'approved',
@@ -10116,7 +10116,7 @@ window.rejectLeave = function (lk) {
 // إلغاء إجازة
 window.cancelLeave = function (lk) {
     const l = leaves[lk]; if (!l) return;
-    cf2(`إلغاء طلب إجازة ${l.empName}؟`, async () => {
+    cf2(`إلغاء طلب إجازة ${esc(l.empName)}؟`, async () => {
         try {
             await update(ref(db, `ledger/leaves/${lk}`), {
                 status: 'cancelled',
@@ -10399,7 +10399,7 @@ window.updatePerfScore = function () {
         </div>
         <div>
             <div style="font-size:11px;color:#666">التصنيف</div>
-            <div style="font-size:16px;font-weight:800;color:${rating.col};margin-top:6px">${rating.label}</div>
+            <div style="font-size:16px;font-weight:800;color:${rating.col};margin-top:6px">${esc(rating.label)}</div>
         </div>
         <div>
             <div style="font-size:11px;color:#666">إجمالي المكافأة</div>
@@ -10503,13 +10503,13 @@ function renderPerfCard(pk, p, showEmp) {
     return `<div style="border:1.5px solid #e0e8f0;border-radius:10px;padding:14px;margin-bottom:10px;border-right:4px solid ${rating.col};background:white">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
             <div style="flex:1;min-width:200px">
-                ${showEmp ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:3px">👤 ${p.empName || '-'}${p.empDept ? ` <span style="font-size:11px;color:#888;font-weight:400">— ${p.empDept}</span>` : ''}</div>` : ''}
+                ${showEmp ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:3px">👤 ${esc(p.empName || '-')}${p.empDept ? ` <span style="font-size:11px;color:#888;font-weight:400">— ${p.empDept}</span>` : ''}</div>` : ''}
                 <div style="font-size:14px;font-weight:700;color:#1a3a5c">📅 ${formatMonthLabel(p.month)}</div>
                 <div style="font-size:10px;color:#aaa;margin-top:2px">قُيِّم من: ${p.evaluatedBy || '-'} | ${p.evaluatedAt ? new Date(p.evaluatedAt).toLocaleDateString('ar-SA') : ''}</div>
             </div>
             <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px">
                 <div style="font-size:30px;font-weight:900;color:${rating.col};line-height:1">${(p.avgScore || 0).toFixed(1)}</div>
-                <span style="background:${rating.bg};color:${rating.col};padding:3px 12px;border-radius:10px;font-size:11px;font-weight:700">${rating.label}</span>
+                <span style="background:${rating.bg};color:${rating.col};padding:3px 12px;border-radius:10px;font-size:11px;font-weight:700">${esc(rating.label)}</span>
                 ${(p.bonusAmt || 0) !== 0 ? `<div style="font-size:11px;font-weight:800;color:${(p.bonusAmt||0)>0?'#27ae60':'#e74c3c'};margin-top:3px">${p.bonusAmt>0?'+':''}${fmt(p.bonusAmt||0)} ر</div>` : ''}
             </div>
         </div>
@@ -10535,7 +10535,7 @@ function renderPerfCard(pk, p, showEmp) {
 window.deletePerfEval = function (pk) {
     if (myP?.role !== 'admin' && !can('delete_performance')) { toast('ليس لديك صلاحية', 'er'); return }
     const p = performance[pk]; if (!p) return;
-    cf2(`حذف تقييم ${p.empName} لشهر ${formatMonthLabel(p.month)}؟`, async () => {
+    cf2(`حذف تقييم ${esc(p.empName)} لشهر ${formatMonthLabel(p.month)}؟`, async () => {
         try { await remove(ref(db, `ledger/performance/${pk}`)); toast('🗑️ تم الحذف', 'ok'); const k = $('mEmpK')?.value; if (k) loadEmpPerformance(k); }
         catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
@@ -10684,7 +10684,7 @@ window.exportEmpsToPdf = function () {
         const st = e.status === 'inactive' ? '<span style="color:#c0392b;font-weight:700">⏸ موقوف</span>' : '<span style="color:#27ae60;font-weight:700">✅ نشط</span>';
         return `<tr style="${i%2?'background:#fafbfc':''}">
             <td>${i+1}</td>
-            <td style="font-weight:700;text-align:right">${e.name || '-'}</td>
+            <td style="font-weight:700;text-align:right">${esc(e.name || '-')}</td>
             <td>${e.empId || '-'}</td>
             <td style="text-align:right">${e.job || '-'}</td>
             <td>${e.dept || '-'}</td>
@@ -11109,7 +11109,7 @@ window.openEditDept = function (dk) {
         btn.textContent = '💾 حفظ التعديل';
         btn.setAttribute('onclick', `saveEditDept()`);
     }
-    $('dpStatus').innerHTML = `📝 وضع التعديل: <strong>${d.name}</strong> — <a href="#" onclick="cancelEditDept();return false" style="color:#e74c3c">إلغاء</a>`;
+    $('dpStatus').innerHTML = `📝 وضع التعديل: <strong>${esc(d.name)}</strong> — <a href="#" onclick="cancelEditDept();return false" style="color:#e74c3c">إلغاء</a>`;
     $('dpName').focus();
     $('dpName').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
@@ -11165,7 +11165,7 @@ window.deleteDepartment = function (dk) {
         toast(`❌ لا يمكن حذف الإدارة — يوجد ${empsInDept.length} موظف مرتبط بها. غيّر إدارتهم أولاً`, 'er', 6000);
         return;
     }
-    cf2(`حذف الإدارة "${d.name}"؟`, async () => {
+    cf2(`حذف الإدارة "${esc(d.name)}"؟`, async () => {
         try { await remove(ref(db, `ledger/departments/${dk}`)); toast('🗑️ تم الحذف', 'ok'); renderDepartments(); }
         catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
@@ -11730,7 +11730,7 @@ function renderLatestHires() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #f0f5fa">
             <div style="background:${isNew ? '#27ae60' : '#888'};color:white;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">${(e.name || '?').charAt(0)}</div>
             <div style="flex:1;min-width:0">
-                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${e.name || '-'}${isNew ? ' 🆕' : ''}</div>
+                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${esc(e.name || '-')}${isNew ? ' 🆕' : ''}</div>
                 <div style="font-size:10px;color:#666">${e.job || '-'} · ${e.dept || (projects[e.projectId]?.name) || '-'}</div>
             </div>
             <div style="text-align:left">
@@ -11781,7 +11781,7 @@ function renderCriticalDocs() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #fadbd8">
             <div style="background:${color};color:white;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:800;white-space:nowrap">${c.daysLeft < 0 ? '🔴' : c.daysLeft <= 7 ? '🟠' : '🟡'}</div>
             <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:700;color:#1a3a5c">${c.emp.name || '-'}</div>
+                <div style="font-size:12px;font-weight:700;color:#1a3a5c">${esc(c.emp.name || '-')}</div>
                 <div style="font-size:10px;color:#666">${c.type} · ${status}</div>
             </div>
             <div style="font-size:11px;color:${color};font-weight:700">${new Date(c.expiry).toLocaleDateString('ar-SA')}</div>
@@ -11838,7 +11838,7 @@ function renderCelebrations() {
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #f0f5fa;${isToday ? 'background:linear-gradient(135deg,#e8f5e9,#fff)' : ''}">
             <div style="font-size:22px">${c.type === 'birthday' ? '🎂' : '🎉'}</div>
             <div style="flex:1;min-width:0">
-                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${c.emp.name || '-'}</div>
+                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${esc(c.emp.name || '-')}</div>
                 <div style="font-size:10px;color:#666">${detail}</div>
             </div>
             <div style="text-align:left">
@@ -12079,7 +12079,7 @@ window.renderMatBudgetList = async function (prjKey) {
             <tbody>${items.map(([mk, m], i) => `
                 <tr style="${i%2?'background:#fafbfc':''}">
                     <td style="padding:7px;color:#888">${i+1}</td>
-                    <td style="padding:7px;text-align:right;font-weight:600">${m.name}</td>
+                    <td style="padding:7px;text-align:right;font-weight:600">${esc(m.name)}</td>
                     <td style="padding:7px;text-align:center;font-size:11px">${catLabels[m.category]||'-'}</td>
                     <td style="padding:7px;text-align:center">${m.unit || '-'}</td>
                     <td style="padding:7px;text-align:center">${m.qty}</td>
@@ -12230,7 +12230,7 @@ function renderMatSuppliers(matKey) {
             const diff = s.price - minPrice;
             const diffPct = minPrice > 0 ? ((diff / minPrice) * 100).toFixed(1) : 0;
             return `<tr style="${i%2?'background:#fafbfc':''}">
-                <td style="padding:7px;font-weight:600">${s.isPreferred?'⭐ ':''}${s.supplierName}</td>
+                <td style="padding:7px;font-weight:600">${s.isPreferred?'⭐ ':''}${esc(s.supplierName)}</td>
                 <td style="padding:7px;text-align:center;font-weight:700;color:${i===0?'#27ae60':'#1a3a5c'}">${fmt(s.price)}${i===0?' 🏆':''}</td>
                 <td style="padding:7px;text-align:center;font-size:11px;color:${diff===0?'#27ae60':'#e74c3c'}">${diff===0?'الأقل':'+'+fmt(diff)+' (+'+diffPct+'%)'}</td>
                 <td style="padding:7px;font-size:11px;color:#666">${s.note||'-'}</td>
@@ -12688,7 +12688,7 @@ function fillMrProjectFilter() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">-- جميع المشاريع --</option>';
     Object.entries(projects).sort((a, b) => (a[1].name||'').localeCompare(b[1].name||'', 'ar'))
-        .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${p.name}</option>`);
+        .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${esc(p.name)}</option>`);
     if (cur) sel.value = cur;
 }
 
@@ -12719,7 +12719,7 @@ window.openMatRequestM = function (reqKey = null) {
     }
     availableProjects
         .sort((a, b) => (a[1].name||'').localeCompare(b[1].name||'', 'ar'))
-        .forEach(([k, p]) => prjSel.innerHTML += `<option value="${k}">${p.name}${p.code?' ('+p.code+')':''}</option>`);
+        .forEach(([k, p]) => prjSel.innerHTML += `<option value="${k}">${esc(p.name)}${p.code?' ('+p.code+')':''}</option>`);
 
     if (reqKey && matRequests[reqKey]) {
         const r = matRequests[reqKey];
@@ -12873,7 +12873,7 @@ window.renderProjectBudgetMaterials = function () {
             const selQty = mrSelectedItems[mk]?.qty || '';
             const rowBg = isSelected ? 'background:#fff8e1' : (i%2 ? 'background:#fafbfc' : '');
             return `<tr style="${rowBg};border-bottom:1px solid #eef2f7">
-                <td style="padding:7px"><strong>${m.name}</strong></td>
+                <td style="padding:7px"><strong>${esc(m.name)}</strong></td>
                 <td style="padding:7px;text-align:center;font-size:10px">${MAT_CATEGORIES[m.category]||'-'}</td>
                 <td style="padding:7px;text-align:center">${m.unit||'-'}</td>
                 <td style="padding:7px;text-align:center;font-weight:600;color:#1a3a5c">${m.qty}</td>
@@ -13089,7 +13089,7 @@ window.saveMatRequest = async function (status = 'submitted') {
             });
             await push(R.mreq, data);
             toast(status === 'submitted' ? `✅ تم إرسال طلب بـ ${itemKeys.length} مادة` : '💾 تم حفظ المسودة', 'ok');
-            if (typeof logAudit === 'function') logAudit(status === 'submitted' ? 'إرسال' : 'حفظ مسودة', 'طلبات المواد', `${data.reqNumber} — ${project?.name || ''} — ${itemKeys.length} مادة بقيمة ${fmt(estTotal)} ر`);
+            if (typeof logAudit === 'function') logAudit(status === 'submitted' ? 'إرسال' : 'حفظ مسودة', 'طلبات المواد', `${data.reqNumber} — ${esc(project?.name || '')} — ${itemKeys.length} مادة بقيمة ${fmt(estTotal)} ر`);
         }
         cov('mMatReq');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
@@ -13190,8 +13190,8 @@ window.renderMatRequests = function () {
                 <div style="flex:1;min-width:200px">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                         <span style="font-weight:800;color:#1a3a5c;font-size:14px">${r.reqNumber||'-'}</span>
-                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${status.label}</span>
-                        <span style="color:${urgency.color};font-size:11px;font-weight:700">${urgency.label}</span>
+                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${esc(status.label)}</span>
+                        <span style="color:${urgency.color};font-size:11px;font-weight:700">${esc(urgency.label)}</span>
                         ${itemCount > 0 ? `<span style="background:#e8f4fd;color:#0d4f7c;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">${itemCount} مادة</span>` : ''}
                     </div>
                     <div style="font-size:11px;color:#666">
@@ -13794,7 +13794,7 @@ window.renderQuotations = function () {
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                             <span style="font-weight:800;color:#1a3a5c;font-size:14px">${displayName}</span>
                             ${r.materialBrand?`<span style="font-size:10px;color:#666">— ${r.materialBrand}</span>`:''}
-                            <span style="color:${urgency.color};font-size:11px;font-weight:700">${urgency.label}</span>
+                            <span style="color:${urgency.color};font-size:11px;font-weight:700">${esc(urgency.label)}</span>
                         </div>
                         <div style="font-size:11px;color:#666">
                             <span style="font-weight:700">${r.reqNumber||'-'}</span> · 📁 ${r.projectName||'-'} · 👤 ${r.requestedByName||'-'}
@@ -13813,7 +13813,7 @@ window.renderQuotations = function () {
                 <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;font-size:12px">
                     <div><div style="color:#888;font-size:10px">عروض مستلمة</div><div style="font-weight:800;color:${reqQts.length>=3?'#27ae60':reqQts.length>0?'#f39c12':'#c0392b'};font-size:16px">${reqQts.length}/3</div></div>
                     <div style="border-right:1px solid #e0e8f0;border-left:1px solid #e0e8f0"><div style="color:#888;font-size:10px">أقل سعر</div><div style="font-weight:800;color:#27ae60;font-size:14px">${minPrice?fmt(minPrice):'-'}</div></div>
-                    <div><div style="color:#888;font-size:10px">حالة</div><div style="font-weight:700;color:${status.color};font-size:11px">${status.label}</div></div>
+                    <div><div style="color:#888;font-size:10px">حالة</div><div style="font-weight:700;color:${status.color};font-size:11px">${esc(status.label)}</div></div>
                 </div>
 
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -13835,7 +13835,7 @@ window.renderQuotations = function () {
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                     <div style="flex:1">
                         <div style="font-size:12px;font-weight:700;color:#1a3a5c">${r.reqNumber} — ${r.materialName}</div>
-                        <div style="font-size:11px;color:#666">📁 ${r.projectName} · ${reqQts.length} عرض${selected?` · 🏆 ${selected[1].supplierName} (${fmt(selected[1].grandTotal)})`:''}</div>
+                        <div style="font-size:11px;color:#666">📁 ${r.projectName} · ${reqQts.length} عرض${selected?` · 🏆 ${esc(selected[1].supplierName)} (${fmt(selected[1].grandTotal)})`:''}</div>
                     </div>
                     <button class="btn b-b" style="padding:4px 10px;font-size:10px" onclick="openQuotationM('${rk}')">👁️ عرض</button>
                 </div>
@@ -13878,7 +13878,7 @@ window.openQuotationM = function (reqKey) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
                 <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:6px">📨 ${r.reqNumber||'-'} — ${displayName}</div>
-                <div style="font-size:12px;color:#555">📁 ${r.projectName||'-'} · 👤 ${r.requestedByName||'-'} · ${urgency.label}</div>
+                <div style="font-size:12px;color:#555">📁 ${r.projectName||'-'} · 👤 ${r.requestedByName||'-'} · ${esc(urgency.label)}</div>
                 ${r.reason?`<div style="font-size:11px;color:#666;margin-top:4px"><strong>📝</strong> ${esc(r.reason)}</div>`:''}
                 ${itemsList}
             </div>
@@ -13900,7 +13900,7 @@ window.openQuotationM = function (reqKey) {
         supSel.innerHTML += '<optgroup label="🔗 موردون مرتبطون بهذه المادة">';
         Object.values(m.suppliers).forEach(s => {
             if (sup[s.supplierId]) {
-                supSel.innerHTML += `<option value="${s.supplierId}" data-suggested-price="${s.price}">${sup[s.supplierId].name}${s.isPreferred ? ' ⭐' : ''}</option>`;
+                supSel.innerHTML += `<option value="${s.supplierId}" data-suggested-price="${s.price}">${esc(sup[s.supplierId].name)}${s.isPreferred ? ' ⭐' : ''}</option>`;
             }
         });
         supSel.innerHTML += '</optgroup>';
@@ -13909,7 +13909,7 @@ window.openQuotationM = function (reqKey) {
     if (otherSups.length) {
         supSel.innerHTML += '<optgroup label="📦 موردون آخرون">';
         otherSups.forEach(([k, s]) => {
-            supSel.innerHTML += `<option value="${k}">${s.name}</option>`;
+            supSel.innerHTML += `<option value="${k}">${esc(s.name)}</option>`;
         });
         supSel.innerHTML += '</optgroup>';
     }
@@ -14073,14 +14073,14 @@ window.renderRequestQuotations = function (reqKey) {
                 const paymentLabels = { cash: '💵 نقد', '30days': '📅 30ي', '60days': '📅 60ي', advance: '💳 مقدم', installments: '📊 أقساط' };
                 return `<tr style="${i%2?'background:#fafbfc':''}${q.status==='selected'?';background:#e8f5e9':''}">
                     <td style="padding:7px;color:#888;font-weight:700">${i+1}${i===0?' 🏆':''}</td>
-                    <td style="padding:7px;font-weight:600">${q.supplierName}</td>
+                    <td style="padding:7px;font-weight:600">${esc(q.supplierName)}</td>
                     <td style="padding:7px;text-align:center">${fmt(q.unitPrice)}</td>
                     <td style="padding:7px;text-align:center;font-weight:800;color:${i===0?'#27ae60':'#1a3a5c'}">${fmt(q.grandTotal)}</td>
                     <td style="padding:7px;text-align:center;font-size:11px;color:${diff===0?'#27ae60':'#e74c3c'}">${diff===0?'الأقل':'+'+fmt(diff)+' (+'+diffPct+'%)'}</td>
                     <td style="padding:7px;text-align:center;font-size:11px">${q.deliveryDays?q.deliveryDays+' يوم':'-'}</td>
                     <td style="padding:7px;text-align:center;font-size:10px">${paymentLabels[q.paymentTerms]||'-'}</td>
                     <td style="padding:7px;text-align:center">
-                        <span style="background:${qStatus.bg};color:${qStatus.color};padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">${qStatus.label}</span>
+                        <span style="background:${qStatus.bg};color:${qStatus.color};padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">${esc(qStatus.label)}</span>
                     </td>
                     <td style="padding:7px">
                         ${q.status === 'received' ? `<button class="btn b-g" style="padding:3px 8px;font-size:10px" onclick="selectQuotation('${qk}','${reqKey}')">🏆 اختيار</button>` : ''}
@@ -14172,7 +14172,7 @@ window.createPOFromRequest = async function (reqKey) {
     if (!selectedQ) { toast('اختر عرض السعر أولاً', 'er'); return }
     const [qk, q] = selectedQ;
 
-    cf2(`إنشاء أمر شراء بناءً على عرض "${q.supplierName}" بقيمة ${fmt(q.grandTotal)} ر؟`, async () => {
+    cf2(`إنشاء أمر شراء بناءً على عرض "${esc(q.supplierName)}" بقيمة ${fmt(q.grandTotal)} ر؟`, async () => {
         try {
             const poCount = Object.keys(purchaseOrders).length + 1;
             const poNumber = 'PO-' + new Date().getFullYear() + '-' + String(poCount).padStart(4, '0');
@@ -14234,7 +14234,7 @@ window.createPOFromRequest = async function (reqKey) {
             await set(ref(db, `ledger/materialRequests/${reqKey}/history`), reqHistory);
 
             toast(`✅ تم إنشاء ${poNumber} — بانتظار الاعتماد`, 'ok', 5000);
-            if (typeof logAudit === 'function') logAudit('إنشاء', 'أوامر الشراء', `${poNumber} — ${q.supplierName || '-'} — ${r.projectName || ''} — بقيمة ${fmt(q.grandTotal)} ر`);
+            if (typeof logAudit === 'function') logAudit('إنشاء', 'أوامر الشراء', `${poNumber} — ${esc(q.supplierName || '-')} — ${r.projectName || ''} — بقيمة ${fmt(q.grandTotal)} ر`);
             nav('purchaseorders');
         } catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
@@ -14246,7 +14246,7 @@ function fillPoProjectFilter() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">-- جميع المشاريع --</option>';
     Object.entries(projects).sort((a, b) => (a[1].name||'').localeCompare(b[1].name||'', 'ar'))
-        .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${p.name}</option>`);
+        .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${esc(p.name)}</option>`);
     if (cur) sel.value = cur;
 }
 
@@ -14289,14 +14289,14 @@ window.renderPurchaseOrders = function () {
                 <div style="flex:1;min-width:200px">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                         <span style="font-weight:800;color:#1a3a5c;font-size:15px">📄 ${po.poNumber}</span>
-                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${status.label}</span>
+                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${esc(status.label)}</span>
                         ${po.status === 'pending_approval' ? `<span style="background:#fef9e7;color:#7d4e00;padding:2px 8px;border-radius:8px;font-size:10px">⏳ اعتماد: ${approverLabels[po.requiredApprover]||'-'}</span>` : ''}
                     </div>
                     <div style="font-size:12px;color:#555;margin-bottom:4px">
                         <strong>${po.materialName}</strong>${po.qty?` · ${po.qty} ${po.unit||''}`:''}
                     </div>
                     <div style="font-size:11px;color:#666">
-                        🏭 ${po.supplierName} · 📁 ${po.projectName} · 👤 ${po.createdByName}
+                        🏭 ${esc(po.supplierName)} · 📁 ${po.projectName} · 👤 ${po.createdByName}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
                         📅 ${new Date(po.createdAt).toLocaleDateString('ar-SA')}${po.deliveryDays?` · 🚚 تسليم ${po.deliveryDays} يوم`:''}
@@ -14348,7 +14348,7 @@ window.openPODetail = function (pk) {
                     <div style="font-size:11px;opacity:.9;margin-top:4px">📅 ${new Date(po.createdAt).toLocaleDateString('ar-SA')}</div>
                 </div>
                 <div style="text-align:center">
-                    <span style="background:${status.bg};color:${status.color};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${status.label}</span>
+                    <span style="background:${status.bg};color:${status.color};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${esc(status.label)}</span>
                 </div>
             </div>
         </div>
@@ -14362,7 +14362,7 @@ window.openPODetail = function (pk) {
             </div>
             <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:12px">
                 <div style="font-size:11px;color:#7d4e00;margin-bottom:6px;font-weight:700">🏭 المورد</div>
-                <div style="font-size:14px;font-weight:700;color:#1a3a5c;margin-bottom:4px">${po.supplierName}</div>
+                <div style="font-size:14px;font-weight:700;color:#1a3a5c;margin-bottom:4px">${esc(po.supplierName)}</div>
                 ${s?.phone ? `<div style="font-size:11px;color:#666">📞 ${s.phone}</div>` : ''}
                 ${s?.email ? `<div style="font-size:11px;color:#666">📧 ${s.email}</div>` : ''}
                 ${s?.cr ? `<div style="font-size:11px;color:#666">س.ت: ${s.cr}</div>` : ''}
@@ -14457,7 +14457,7 @@ window.printPO = function (pk) {
             <div style="font-size:11px;color:#666;margin-top:4px">${new Date(po.createdAt).toLocaleDateString('ar-SA')}</div>
         </div>
         <div class="info">
-            <div>الحالة: <strong>${status.label}</strong></div>
+            <div>الحالة: <strong>${esc(status.label)}</strong></div>
             <div>طلب مرجعي: ${po.requestNumber||'-'}</div>
         </div>
     </div>
@@ -14471,7 +14471,7 @@ window.printPO = function (pk) {
         </div>
         <div class="box">
             <div class="section-tl">🏭 المورد</div>
-            <div class="value">${po.supplierName}</div>
+            <div class="value">${esc(po.supplierName)}</div>
             ${s.phone?`<div style="font-size:11px;color:#666;margin-top:4px">📞 ${s.phone}</div>`:''}
             ${s.cr?`<div style="font-size:11px;color:#666">س.ت: ${s.cr}</div>`:''}
             ${s.vat?`<div style="font-size:11px;color:#666">ر.ضريبي: ${s.vat}</div>`:''}
@@ -14502,7 +14502,7 @@ window.printPO = function (pk) {
     <div class="signatures">
         <div class="sig">👨‍💼 أنشأ بواسطة<br><strong>${po.createdByName||'-'}</strong></div>
         <div class="sig">✅ اعتمد بواسطة<br><strong>${po.approvedByName||'________________'}</strong></div>
-        <div class="sig">🏭 المورد<br><strong>${po.supplierName}</strong></div>
+        <div class="sig">🏭 المورد<br><strong>${esc(po.supplierName)}</strong></div>
     </div>
 
     </body></html>`);
@@ -14516,7 +14516,7 @@ window.openPOAction = function (pk, action) {
     $('poaK').value = pk;
     $('poaAction').value = action;
     const status = PO_STATUS[po.status];
-    $('poaInfo').innerHTML = `<strong>${po.poNumber}</strong> — ${po.materialName}<br>🏭 ${po.supplierName} · 📁 ${po.projectName}<br><span style="color:#27ae60;font-weight:800;font-size:16px">${fmt(po.grandTotal)} ر</span>`;
+    $('poaInfo').innerHTML = `<strong>${po.poNumber}</strong> — ${po.materialName}<br>🏭 ${esc(po.supplierName)} · 📁 ${po.projectName}<br><span style="color:#27ae60;font-weight:800;font-size:16px">${fmt(po.grandTotal)} ر</span>`;
     $('poaNote').value = '';
     if (action === 'approve') {
         $('mPOActionT').textContent = '✅ اعتماد أمر الشراء';
@@ -14563,14 +14563,14 @@ window.confirmPOAction = async function () {
         await update(ref(db, `ledger/purchaseOrders/${pk}`), updates);
         cov('mPOAction');
         toast('✅ تم تنفيذ الإجراء', 'ok');
-        if (typeof logAudit === 'function') logAudit(action === 'approve' ? 'اعتماد أمر شراء' : 'رفض أمر شراء', 'أوامر الشراء', `${po.poNumber} — ${po.supplierName || '-'}${note ? ' — ' + note : ''}`);
+        if (typeof logAudit === 'function') logAudit(action === 'approve' ? 'اعتماد أمر شراء' : 'رفض أمر شراء', 'أوامر الشراء', `${po.poNumber} — ${esc(po.supplierName || '-')}${note ? ' — ' + note : ''}`);
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
 
 // إرسال PO للمورد
 window.markPOSent = function (pk) {
     const po = purchaseOrders[pk]; if (!po) return;
-    cf2(`تأكيد إرسال أمر الشراء ${po.poNumber} للمورد "${po.supplierName}"؟`, async () => {
+    cf2(`تأكيد إرسال أمر الشراء ${po.poNumber} للمورد "${esc(po.supplierName)}"؟`, async () => {
         const history = po.history || [];
         history.push({ action: 'sent', actor: myP?.name || '', at: new Date().toISOString(), note: '📤 أُرسل أمر الشراء للمورد' });
         try {
@@ -14597,7 +14597,7 @@ window.cancelPO = function (pk) {
                 status: 'cancelled', cancelledAt: new Date().toISOString(), history
             });
             toast('🚫 تم الإلغاء', 'ok');
-            if (typeof logAudit === 'function') logAudit('إلغاء', 'أوامر الشراء', `إلغاء أمر الشراء ${po.poNumber} — ${po.supplierName || '-'}`);
+            if (typeof logAudit === 'function') logAudit('إلغاء', 'أوامر الشراء', `إلغاء أمر الشراء ${po.poNumber} — ${esc(po.supplierName || '-')}`);
         } catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
 };
@@ -14660,7 +14660,7 @@ function fillGRNProjectFilter() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">-- جميع المشاريع --</option>';
     Object.entries(projects).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
-        .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${p.name}</option>`);
+        .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${esc(p.name)}</option>`);
     if (cur) sel.value = cur;
 }
 
@@ -14688,7 +14688,7 @@ window.renderPendingPOsForGRN = function () {
                         ${isPartial ? '<span style="background:#fef9e7;color:#7d4e00;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">استلام جزئي سابق</span>' : ''}
                     </div>
                     <div style="font-size:12px;color:#555;margin-bottom:4px">
-                        <strong>${po.materialName || '-'}</strong> · 🏭 ${po.supplierName || '-'} · 📁 ${po.projectName || '-'}
+                        <strong>${po.materialName || '-'}</strong> · 🏭 ${esc(po.supplierName || '-')} · 📁 ${po.projectName || '-'}
                     </div>
                     <div style="font-size:11px;color:#666">
                         📅 صادر: ${po.sentAt ? new Date(po.sentAt).toLocaleDateString('ar-SA') : '-'} · 🚚 تسليم: ${po.deliveryDays || 0} يوم
@@ -14728,7 +14728,7 @@ window.openGRNFromPO = function (poKey) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
                 <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:4px">📄 أمر شراء ${po.poNumber}</div>
-                <div style="font-size:12px;color:#555">🏭 ${po.supplierName} · 📁 ${po.projectName}</div>
+                <div style="font-size:12px;color:#555">🏭 ${esc(po.supplierName)} · 📁 ${po.projectName}</div>
                 <div style="font-size:12px;color:#555;margin-top:2px"><strong>${po.materialName}</strong></div>
             </div>
             <div style="display:flex;gap:10px">
@@ -14912,7 +14912,7 @@ window.saveGRN = async function () {
         }
 
         toast(`✅ تم تسجيل ${grnNumber}`, 'ok', 4000);
-        if (typeof logAudit === 'function') logAudit('استلام بضاعة', 'استلام البضاعة (GRN)', `${grnNumber} — ${po.poNumber || ''} — ${po.supplierName || '-'} — كمية ${netReceived} ${po.unit || ''}`);
+        if (typeof logAudit === 'function') logAudit('استلام بضاعة', 'استلام البضاعة (GRN)', `${grnNumber} — ${po.poNumber || ''} — ${esc(po.supplierName || '-')} — كمية ${netReceived} ${po.unit || ''}`);
         cov('mGRN');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
@@ -14941,14 +14941,14 @@ window.renderGRNs = function () {
                 <div style="flex:1;min-width:200px">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                         <span style="font-weight:800;color:#1a3a5c;font-size:14px">📥 ${g.grnNumber}</span>
-                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${status.label}</span>
+                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${esc(status.label)}</span>
                         <span style="font-size:14px" title="جودة">${qualityIcons[g.quality] || ''}</span>
                     </div>
                     <div style="font-size:12px;color:#555;margin-bottom:2px">
                         <strong>${g.materialName}</strong>${g.totalReceivedQty ? ` · ${g.totalReceivedQty} ${g.unit || ''}` : ''}
                     </div>
                     <div style="font-size:11px;color:#666">
-                        🏭 ${g.supplierName} · 📁 ${g.projectName} · 👤 ${g.receivedBy || g.createdByName}
+                        🏭 ${esc(g.supplierName)} · 📁 ${g.projectName} · 👤 ${g.receivedBy || g.createdByName}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
                         📅 ${new Date(g.grnDate).toLocaleDateString('ar-SA')} · 📄 من أمر: ${g.poNumber || '-'}
@@ -14986,7 +14986,7 @@ window.openGRNView = function (gk) {
                     <div style="font-size:22px;font-weight:900">${g.grnNumber}</div>
                     <div style="font-size:11px;opacity:.9;margin-top:4px">📅 ${new Date(g.grnDate).toLocaleDateString('ar-SA')}</div>
                 </div>
-                <span style="background:${status.bg};color:${status.color};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${status.label}</span>
+                <span style="background:${status.bg};color:${status.color};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${esc(status.label)}</span>
             </div>
         </div>
 
@@ -14994,7 +14994,7 @@ window.openGRNView = function (gk) {
             <div style="background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:10px;padding:12px">
                 <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:700">📁 المشروع والمورد</div>
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c">${g.projectName}</div>
-                <div style="font-size:12px;color:#666;margin-top:2px">🏭 ${g.supplierName}</div>
+                <div style="font-size:12px;color:#666;margin-top:2px">🏭 ${esc(g.supplierName)}</div>
                 <div style="font-size:11px;color:#666;margin-top:2px">📄 من أمر: <strong>${g.poNumber || '-'}</strong></div>
             </div>
             <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:12px">
@@ -15086,7 +15086,7 @@ window.printGRN = function (gk) {
             <div style="font-size:11px;color:#666;margin-top:4px">${new Date(g.grnDate).toLocaleDateString('ar-SA')}</div>
         </div>
         <div class="info">
-            <div>الحالة: <strong>${status.label}</strong></div>
+            <div>الحالة: <strong>${esc(status.label)}</strong></div>
             <div>أمر الشراء: ${g.poNumber || '-'}</div>
         </div>
     </div>
@@ -15099,7 +15099,7 @@ window.printGRN = function (gk) {
         </div>
         <div class="box">
             <div class="label">🏭 المورد</div>
-            <div class="value">${g.supplierName}</div>
+            <div class="value">${esc(g.supplierName)}</div>
             ${s.phone ? `<div style="font-size:11px;color:#666;margin-top:4px">📞 ${s.phone}</div>` : ''}
         </div>
     </div>
@@ -15189,10 +15189,10 @@ window.renderPendingGRNsForInvoice = function () {
                 <div style="flex:1;min-width:200px">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                         <span style="font-weight:800;color:#1a3a5c;font-size:14px">📥 ${g.grnNumber}</span>
-                        <span style="background:${status.bg};color:${status.color};padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">${status.label}</span>
+                        <span style="background:${status.bg};color:${status.color};padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">${esc(status.label)}</span>
                     </div>
                     <div style="font-size:12px;color:#555">
-                        <strong>${g.materialName}</strong> · 🏭 ${g.supplierName}
+                        <strong>${g.materialName}</strong> · 🏭 ${esc(g.supplierName)}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
                         📅 ${new Date(g.grnDate).toLocaleDateString('ar-SA')} · 📁 ${g.projectName}
@@ -15225,7 +15225,7 @@ window.openInvoiceFromGRN = function (grnKey) {
             <div style="flex:1;min-width:200px">
                 <div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:4px">📥 ${g.grnNumber} ← 📄 ${g.poNumber || ''}</div>
                 <div style="font-size:12px;color:#555">${g.materialName} · ${g.totalReceivedQty} ${g.unit || ''}</div>
-                <div style="font-size:11px;color:#666">🏭 ${g.supplierName} · 📁 ${g.projectName}</div>
+                <div style="font-size:11px;color:#666">🏭 ${esc(g.supplierName)} · 📁 ${g.projectName}</div>
             </div>
             <div style="text-align:center;background:white;border-radius:8px;padding:8px 14px;border:1.5px solid #abebc6">
                 <div style="font-size:10px;color:#888">القيمة المتوقعة</div>
@@ -15330,7 +15330,7 @@ function renderInvoiceMatching() {
         const diffText = r.isMatch ? '0' : (r.diff > 0 ? '+' : '') + (typeof r.diff === 'number' ? r.diff.toFixed(2) : r.diff);
         const statusIcon = r.isMatch ? '✅' : '⚠️';
         return `<tr style="background:${r.isMatch ? '#f8fafc' : '#fef5e7'}">
-            <td style="padding:8px;font-weight:700;color:#1a3a5c">${r.label}</td>
+            <td style="padding:8px;font-weight:700;color:#1a3a5c">${esc(r.label)}</td>
             <td style="padding:8px;text-align:center">${r.po}</td>
             <td style="padding:8px;text-align:center">${r.grn}</td>
             <td style="padding:8px;text-align:center;font-weight:700">${r.inv}</td>
@@ -15451,12 +15451,12 @@ window.renderInvoices = function () {
                 <div style="flex:1;min-width:200px">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                         <span style="font-weight:800;color:#1a3a5c;font-size:14px">🧾 ${inv.invoiceNumber}</span>
-                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${status.label}</span>
+                        <span style="background:${status.bg};color:${status.color};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${esc(status.label)}</span>
                         ${isOverdue ? '<span style="background:#fadbd8;color:#c0392b;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">⏰ تجاوز الاستحقاق</span>' : ''}
                     </div>
                     <div style="font-size:11px;color:#666;margin-bottom:2px">داخلي: ${inv.internalNumber}</div>
                     <div style="font-size:12px;color:#555">
-                        <strong>${inv.materialName}</strong> · 🏭 ${inv.supplierName}
+                        <strong>${inv.materialName}</strong> · 🏭 ${esc(inv.supplierName)}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
                         📅 ${new Date(inv.invoiceDate).toLocaleDateString('ar-SA')} · 📁 ${inv.projectName}${dueDate ? ' · ⏰ يستحق: ' + dueDate.toLocaleDateString('ar-SA') : ''}
@@ -15497,14 +15497,14 @@ window.openInvoiceView = function (ik) {
                     <div style="font-size:11px;opacity:.9;margin-top:4px">داخلي: ${inv.internalNumber}</div>
                     <div style="font-size:11px;opacity:.9">📅 ${new Date(inv.invoiceDate).toLocaleDateString('ar-SA')}</div>
                 </div>
-                <span style="background:${status.bg};color:${status.color};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${status.label}</span>
+                <span style="background:${status.bg};color:${status.color};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${esc(status.label)}</span>
             </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
             <div style="background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:10px;padding:12px">
                 <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:700">🏭 المورد</div>
-                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${inv.supplierName}</div>
+                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${esc(inv.supplierName)}</div>
                 ${inv.vatNumber ? `<div style="font-size:11px;color:#666;margin-top:2px">رقم ضريبي: ${inv.vatNumber}</div>` : ''}
                 ${s.phone ? `<div style="font-size:11px;color:#666">📞 ${s.phone}</div>` : ''}
             </div>
@@ -15595,7 +15595,7 @@ window.printInvoice = function (ik) {
             <div style="font-size:11px;color:#666;margin-top:4px">داخلي: ${inv.internalNumber} · ${new Date(inv.invoiceDate).toLocaleDateString('ar-SA')}</div>
         </div>
         <div style="text-align:left;font-size:11px;color:#666">
-            <div>الحالة: <strong>${status.label}</strong></div>
+            <div>الحالة: <strong>${esc(status.label)}</strong></div>
             ${inv.dueDate ? `<div>الاستحقاق: ${new Date(inv.dueDate).toLocaleDateString('ar-SA')}</div>` : ''}
         </div>
     </div>
@@ -15603,7 +15603,7 @@ window.printInvoice = function (ik) {
     <div class="grid">
         <div class="box">
             <div class="label">🏭 المورد</div>
-            <div class="value">${inv.supplierName}</div>
+            <div class="value">${esc(inv.supplierName)}</div>
             ${inv.vatNumber ? `<div style="font-size:11px;color:#666;margin-top:4px">ر.ضريبي: ${inv.vatNumber}</div>` : ''}
             ${s.phone ? `<div style="font-size:11px;color:#666">📞 ${s.phone}</div>` : ''}
         </div>
@@ -16007,7 +16007,7 @@ window.renderPortfolioHealth = function () {
                     <th style="padding:9px;text-align:right">الصحة</th><th style="text-align:right">المشروع</th><th>الإنجاز</th><th style="text-align:left">قيمة العقد</th><th style="text-align:left">التكلفة الفعلية</th><th>CPI</th><th>SPI</th><th></th>
                 </tr></thead>
                 <tbody>${rows.length ? rows.map(r => `<tr style="border-bottom:1px solid #f0f0f0;background:${r.h.level === 1 ? '#fff5f5' : '#fff'}">
-                    <td style="padding:8px 9px;white-space:nowrap"><span style="color:${r.h.color};font-weight:800">${r.h.label}</span></td>
+                    <td style="padding:8px 9px;white-space:nowrap"><span style="color:${r.h.color};font-weight:800">${esc(r.h.label)}</span></td>
                     <td style="font-weight:700;color:#1a3a5c">${(r.name || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>
                     <td style="text-align:center;white-space:nowrap"><div style="display:inline-block;width:60px;background:#eef1f5;border-radius:5px;height:8px;overflow:hidden;vertical-align:middle"><div style="width:${Math.round(r.h.pct * 100)}%;height:100%;background:#2d6a9f"></div></div> ${Math.round(r.h.pct * 100)}%</td>
                     <td style="text-align:left;font-weight:600">${fmt(r.h.contractValue)}</td>
@@ -16368,7 +16368,7 @@ function renderProjectsRankingTable() {
             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''};cursor:pointer" onclick="openProjectFinanceReport('${k}')">
                 <td style="padding:10px;text-align:right;font-weight:700;color:#888">${i + 1}</td>
                 <td style="padding:10px;text-align:right">
-                    <div style="font-weight:700;color:#1a3a5c">${p.name || '-'}</div>
+                    <div style="font-weight:700;color:#1a3a5c">${esc(p.name || '-')}</div>
                     <div style="font-size:10px;color:#666">${p.ownerName || '-'}</div>
                 </td>
                 <td style="padding:10px;text-align:center;font-weight:700">${fmt(budget.contractValue)}</td>
@@ -16424,7 +16424,7 @@ function renderProjectsOverBudgetTable() {
         <div style="background:white;border:1.5px solid #f1948a;border-radius:8px;padding:10px;border-right:4px solid #c0392b;cursor:pointer" onclick="openProjectFinanceReport('${k}')">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                 <div style="flex:1;min-width:0">
-                    <div style="font-size:13px;font-weight:800;color:#1a3a5c">${p.name || '-'}</div>
+                    <div style="font-size:13px;font-weight:800;color:#1a3a5c">${esc(p.name || '-')}</div>
                     <div style="font-size:11px;color:#666;margin-top:2px">الميزانية: ${fmt(b.totalBudget)} · الفعلي: ${fmt(a.total)}</div>
                 </div>
                 <div style="text-align:center;background:#fadbd8;border-radius:8px;padding:6px 12px">
@@ -16465,7 +16465,7 @@ window.openProjectFinanceReport = function (projectKey) {
             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
                 <div>
                     <div style="font-size:11px;opacity:.85">FINANCIAL REPORT</div>
-                    <div style="font-size:20px;font-weight:900">${p.name}</div>
+                    <div style="font-size:20px;font-weight:900">${esc(p.name)}</div>
                     <div style="font-size:12px;opacity:.9;margin-top:4px">${p.ownerName || '-'} · ${p.city || ''} ${p.area || ''}</div>
                 </div>
                 <div style="text-align:center;background:rgba(255,255,255,.15);border-radius:10px;padding:8px 16px">
@@ -17215,7 +17215,7 @@ function renderProfitabilityReport(projectFilter, from, to) {
                                     { c: '#c0392b', l: '🚨 خاسر' };
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''};cursor:pointer" onclick="openProjectFinanceReport('${d.k}')">
                             <td style="padding:10px;font-weight:700;color:#888">${i + 1}</td>
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.p.name || '-'}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.p.name || '-')}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60">${fmt(d.revenue)}</td>
                             <td style="padding:10px;text-align:center;color:#e67e22">${fmt(d.costs)}</td>
                             <td style="padding:10px;text-align:center;font-weight:800;color:${d.profit >= 0 ? '#8e44ad' : '#c0392b'}">${d.profit >= 0 ? '+' : ''}${fmt(d.profit)}</td>
@@ -17393,7 +17393,7 @@ function renderSuppliersPerformanceReport(projectFilter, from, to) {
                     ${dataArr.map((d, i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:10px;font-weight:700;color:#888">${i + 1}${i === 0 ? ' 🥇' : i === 1 ? ' 🥈' : i === 2 ? ' 🥉' : ''}</td>
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.name || '-'}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.name || '-')}</td>
                             <td style="padding:10px;text-align:center">${d.poCount}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60;font-weight:700">${fmt(d.poValue)}</td>
                             <td style="padding:10px;text-align:center">${d.grnCount}</td>
@@ -17523,7 +17523,7 @@ function renderTopMaterialsReport(projectFilter, from, to) {
                         const pct = totalValue > 0 ? (d.totalValue / totalValue * 100) : 0;
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:10px;font-weight:700;color:#888">${i + 1}${i < 3 ? ' ' + ['🥇', '🥈', '🥉'][i] : ''}</td>
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.name}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.name)}</td>
                             <td style="padding:10px;text-align:center">${fmt(d.totalQty)} ${d.unit}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60;font-weight:800">${fmt(d.totalValue)}</td>
                             <td style="padding:10px;text-align:center">${d.orderCount}</td>
@@ -17657,7 +17657,7 @@ function renderWorkforceCostReport(projectFilter, from, to) {
                     ${data.map((d, i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:10px;font-weight:700;color:#888">${i + 1}</td>
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.p.name || '-'}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.p.name || '-')}</td>
                             <td style="padding:10px;text-align:center">${d.empCount}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60;font-weight:700">${fmt(d.monthlySalaries)}</td>
                             <td style="padding:10px;text-align:center">${fmt(d.avgSalary)}</td>
@@ -17911,7 +17911,7 @@ function renderTimelineReport(projectFilter) {
                     return `<div style="background:#f8fafc;border-radius:10px;padding:12px;border-right:4px solid ${statusColor}">
                         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
                             <div style="flex:1;min-width:0">
-                                <div style="font-size:13px;font-weight:800;color:#1a3a5c">${d.p.name || '-'}</div>
+                                <div style="font-size:13px;font-weight:800;color:#1a3a5c">${esc(d.p.name || '-')}</div>
                                 <div style="font-size:11px;color:#666;margin-top:2px">
                                     📅 ${d.start.toLocaleDateString('ar-SA')} → ${d.end.toLocaleDateString('ar-SA')} (${d.totalDays} يوم)
                                 </div>
@@ -17993,7 +17993,7 @@ function renderBOQPerformanceReport(projectFilter) {
                 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
                     <div>
                         <div style="font-size:11px;opacity:.85">PROJECT BOQ</div>
-                        <div style="font-size:18px;font-weight:900">🎯 ${p.name || '-'}</div>
+                        <div style="font-size:18px;font-weight:900">🎯 ${esc(p.name || '-')}</div>
                         <div style="font-size:11px;opacity:.9;margin-top:4px">${items.length} بند | إجمالي القيمة: ${fmt(totalValue)} ر</div>
                     </div>
                     <div style="text-align:center;background:rgba(255,255,255,.15);border-radius:10px;padding:8px 16px">
@@ -18142,7 +18142,7 @@ function renderAgingReport(projectFilter) {
                 <tbody>
                     ${dataArr.map(([sid, d], i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.name}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.name)}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60">${d.current ? fmt(d.current) : '—'}</td>
                             <td style="padding:10px;text-align:center;color:#f39c12">${d.days30 ? fmt(d.days30) : '—'}</td>
                             <td style="padding:10px;text-align:center;color:#e67e22">${d.days60 ? fmt(d.days60) : '—'}</td>
@@ -18353,7 +18353,7 @@ function renderEVMReport(projectFilter) {
                     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
                         <div>
                             <div style="font-size:11px;color:#666">EVM ANALYSIS</div>
-                            <div style="font-size:18px;font-weight:900;color:#1a3a5c">📈 ${d.p.name || '-'}</div>
+                            <div style="font-size:18px;font-weight:900;color:#1a3a5c">📈 ${esc(d.p.name || '-')}</div>
                         </div>
                         <div style="background:${d.healthColor};color:white;padding:8px 16px;border-radius:10px;font-weight:800">${d.health}</div>
                     </div>
@@ -18544,8 +18544,8 @@ function renderExecutiveSummary() {
             ${topProject ? `<div class="card" style="margin:0">
                 <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🏆 أكبر مشروع نشط</div>
                 <div style="background:linear-gradient(135deg,#fff8e1,#fff);border-radius:8px;padding:12px;border-right:4px solid #f39c12">
-                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">${topProject[1].name || '-'}</div>
-                    <div style="font-size:11px;color:#666;margin-top:4px">${topProject[1].ownerName || '-'}</div>
+                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(topProject[1].name || '-')}</div>
+                    <div style="font-size:11px;color:#666;margin-top:4px">${esc(topProject[1].ownerName || '-')}</div>
                     <div style="margin-top:8px;font-size:18px;font-weight:900;color:#27ae60">${fmt(parseFloat(topProject[1].contractValue) || 0)}</div>
                 </div>
             </div>` : ''}
@@ -18553,7 +18553,7 @@ function renderExecutiveSummary() {
             ${topSupplier ? `<div class="card" style="margin:0">
                 <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:10px">🏭 أكثر مورد تعاملاً</div>
                 <div style="background:linear-gradient(135deg,#e8f4fd,#fff);border-radius:8px;padding:12px;border-right:4px solid #2d6a9f">
-                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">${topSupplier.name || '-'}</div>
+                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(topSupplier.name || '-')}</div>
                     <div style="font-size:11px;color:#666;margin-top:4px">إجمالي المشتريات</div>
                     <div style="margin-top:8px;font-size:18px;font-weight:900;color:#2d6a9f">${fmt(topSupplier.total)}</div>
                 </div>
@@ -18610,7 +18610,7 @@ function renderExecutiveSummary() {
                         const health = spend > 100 ? { c: '#c0392b', l: '🚨 تجاوز' } : spend > 80 ? { c: '#f39c12', l: '⚠️ يقترب' } : { c: '#27ae60', l: '✅ جيد' };
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:10px;font-weight:700;color:#888">${['🥇', '🥈', '🥉', '4', '5'][i]}</td>
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${p.name || '-'}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(p.name || '-')}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60;font-weight:700">${fmt(parseFloat(p.contractValue) || 0)}</td>
                             <td style="padding:10px;text-align:center">${progress.toFixed(1)}%</td>
                             <td style="padding:10px;text-align:center"><span style="background:${health.c};color:white;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${health.l}</span></td>
@@ -18741,7 +18741,7 @@ function renderFinancialRatiosReport(projectFilter, from, to) {
                 <div style="background:#f8fafc;border-radius:10px;padding:14px;border-right:4px solid ${currentRating.color}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
                         <span style="font-size:12px;color:#666;font-weight:700">📊 النسبة الجارية</span>
-                        <span style="background:${currentRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${currentRating.label}</span>
+                        <span style="background:${currentRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${esc(currentRating.label)}</span>
                     </div>
                     <div style="font-size:28px;font-weight:900;color:${currentRating.color}">${currentRatio.toFixed(2)}</div>
                     <div style="font-size:10px;color:#666;margin-top:4px">الأصول الجارية ÷ الخصوم الجارية<br><strong>المثالي:</strong> 1.5 - 3</div>
@@ -18749,7 +18749,7 @@ function renderFinancialRatiosReport(projectFilter, from, to) {
                 <div style="background:#f8fafc;border-radius:10px;padding:14px;border-right:4px solid ${quickRating.color}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
                         <span style="font-size:12px;color:#666;font-weight:700">⚡ النسبة السريعة</span>
-                        <span style="background:${quickRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${quickRating.label}</span>
+                        <span style="background:${quickRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${esc(quickRating.label)}</span>
                     </div>
                     <div style="font-size:28px;font-weight:900;color:${quickRating.color}">${quickRatio.toFixed(2)}</div>
                     <div style="font-size:10px;color:#666;margin-top:4px">(نقدية + ذمم) ÷ الخصوم<br><strong>المثالي:</strong> > 1</div>
@@ -18777,7 +18777,7 @@ function renderFinancialRatiosReport(projectFilter, from, to) {
                 <div style="background:#f8fafc;border-radius:10px;padding:14px;border-right:4px solid ${grossRating.color}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
                         <span style="font-size:12px;color:#666;font-weight:700">📈 هامش الربح الإجمالي</span>
-                        <span style="background:${grossRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${grossRating.label}</span>
+                        <span style="background:${grossRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${esc(grossRating.label)}</span>
                     </div>
                     <div style="font-size:28px;font-weight:900;color:${grossRating.color}">${grossMargin.toFixed(1)}%</div>
                     <div style="font-size:10px;color:#666;margin-top:4px">${fmt(grossProfit)} ر ربح إجمالي<br><strong>للمقاولات المثالي:</strong> > 15%</div>
@@ -18785,7 +18785,7 @@ function renderFinancialRatiosReport(projectFilter, from, to) {
                 <div style="background:#f8fafc;border-radius:10px;padding:14px;border-right:4px solid ${netRating.color}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
                         <span style="font-size:12px;color:#666;font-weight:700">💎 هامش الربح الصافي</span>
-                        <span style="background:${netRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${netRating.label}</span>
+                        <span style="background:${netRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${esc(netRating.label)}</span>
                     </div>
                     <div style="font-size:28px;font-weight:900;color:${netRating.color}">${netMargin.toFixed(1)}%</div>
                     <div style="font-size:10px;color:#666;margin-top:4px">${fmt(netProfit)} ر ربح صافي<br><strong>المثالي:</strong> > 10%</div>
@@ -18793,7 +18793,7 @@ function renderFinancialRatiosReport(projectFilter, from, to) {
                 <div style="background:#f8fafc;border-radius:10px;padding:14px;border-right:4px solid ${roaRating.color}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
                         <span style="font-size:12px;color:#666;font-weight:700">🏆 العائد على الأصول</span>
-                        <span style="background:${roaRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${roaRating.label}</span>
+                        <span style="background:${roaRating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${esc(roaRating.label)}</span>
                     </div>
                     <div style="font-size:28px;font-weight:900;color:${roaRating.color}">${ROA.toFixed(1)}%</div>
                     <div style="font-size:10px;color:#666;margin-top:4px">ROA = الربح ÷ الأصول<br><strong>المثالي:</strong> > 8%</div>
@@ -19349,7 +19349,7 @@ function renderABCAnalysisReport(projectFilter, from, to) {
                     ${matsWithABC.slice(0, 20).map((m, i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:8px;font-weight:700;color:#888">${i + 1}</td>
-                            <td style="padding:8px;font-weight:700;color:#1a3a5c">${m.name}</td>
+                            <td style="padding:8px;font-weight:700;color:#1a3a5c">${esc(m.name)}</td>
                             <td style="padding:8px;text-align:center;font-weight:700">${fmt(m.value)}</td>
                             <td style="padding:8px;text-align:center">${m.pct.toFixed(1)}%</td>
                             <td style="padding:8px;text-align:center;font-weight:700">${m.cumPct.toFixed(1)}%</td>
@@ -19385,7 +19385,7 @@ function renderABCAnalysisReport(projectFilter, from, to) {
                     ${supsWithABC.slice(0, 20).map((s, i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:8px;font-weight:700;color:#888">${i + 1}</td>
-                            <td style="padding:8px;font-weight:700;color:#1a3a5c">${s.name}</td>
+                            <td style="padding:8px;font-weight:700;color:#1a3a5c">${esc(s.name)}</td>
                             <td style="padding:8px;text-align:center;font-weight:700">${fmt(s.value)}</td>
                             <td style="padding:8px;text-align:center">${s.pct.toFixed(1)}%</td>
                             <td style="padding:8px;text-align:center;font-weight:700">${s.cumPct.toFixed(1)}%</td>
@@ -19678,13 +19678,13 @@ function renderHeatmapReport() {
                     ${data.map(d => {
                         const risk = colorForRisk(d.risk);
                         return `<tr style="cursor:pointer" onclick="openProjectFinanceReport('${d.k}')">
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.p.name || '-'}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.p.name || '-')}</td>
                             <td style="padding:0;text-align:center"><div style="background:${colorForValue(d.progress, 'progress')};color:white;padding:14px 6px;font-weight:800;font-size:13px">${d.progress.toFixed(0)}%</div></td>
                             <td style="padding:0;text-align:center"><div style="background:${colorForValue(d.spendPct, 'spend')};color:white;padding:14px 6px;font-weight:800;font-size:13px">${d.spendPct.toFixed(0)}%</div></td>
                             <td style="padding:0;text-align:center"><div style="background:${colorForValue(d.cpi, 'cpi')};color:white;padding:14px 6px;font-weight:800;font-size:13px">${d.cpi.toFixed(2)}</div></td>
                             <td style="padding:0;text-align:center"><div style="background:${colorForValue(d.margin, 'margin')};color:white;padding:14px 6px;font-weight:800;font-size:13px">${d.margin.toFixed(0)}%</div></td>
                             <td style="padding:0;text-align:center"><div style="background:${risk.bg};color:${risk.text};padding:14px 6px;font-weight:800;font-size:13px">${d.risk}/100</div></td>
-                            <td style="padding:10px;text-align:center"><span style="background:${risk.bg};color:white;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700">${risk.label}</span></td>
+                            <td style="padding:10px;text-align:center"><span style="background:${risk.bg};color:white;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700">${esc(risk.label)}</span></td>
                         </tr>`;
                     }).join('')}
                 </tbody>
@@ -19825,7 +19825,7 @@ function renderBreakEvenReport(projectFilter) {
                 <tbody>
                     ${data.map((d, i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''};cursor:pointer" onclick="openProjectFinanceReport('${d.k}')">
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${d.p.name || '-'}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(d.p.name || '-')}</td>
                             <td style="padding:10px;text-align:center;color:#27ae60;font-weight:700">${fmt(d.contractValue)}</td>
                             <td style="padding:10px;text-align:center;color:#e67e22">${fmt(d.variableCosts)}</td>
                             <td style="padding:10px;text-align:center;color:#8e44ad">${fmt(d.fixedCosts)}</td>
@@ -19902,7 +19902,7 @@ function renderRiskAnalysisReport() {
             const overage = ((actual.total - budget.totalBudget) / budget.totalBudget * 100);
             risks.push({
                 category: 'financial', icon: '💸', severity: overage > 20 ? 'high' : 'medium',
-                title: `تجاوز ميزانية: ${p.name}`,
+                title: `تجاوز ميزانية: ${esc(p.name)}`,
                 description: `المشروع تجاوز ميزانيته بنسبة ${overage.toFixed(1)}%`,
                 impact: actual.total - budget.totalBudget,
                 action: 'مراجعة عاجلة للتكاليف ووضع خطة احتواء'
@@ -19920,7 +19920,7 @@ function renderRiskAnalysisReport() {
             const daysLate = Math.ceil((today - end) / (1000 * 60 * 60 * 24));
             risks.push({
                 category: 'schedule', icon: '⏰', severity: daysLate > 30 ? 'high' : 'medium',
-                title: `تأخّر: ${p.name}`,
+                title: `تأخّر: ${esc(p.name)}`,
                 description: `متأخر ${daysLate} يوم عن الموعد المخطط، الإنجاز ${progress.toFixed(1)}%`,
                 impact: 0,
                 action: 'إعادة جدولة + إضافة موارد إضافية'
@@ -20000,7 +20000,7 @@ function renderRiskAnalysisReport() {
         if (margin < 0) {
             risks.push({
                 category: 'profitability', icon: '📉', severity: 'high',
-                title: `خسارة متوقعة: ${p.name}`,
+                title: `خسارة متوقعة: ${esc(p.name)}`,
                 description: `هامش ربح سالب ${margin.toFixed(1)}%`,
                 impact: Math.abs(profit),
                 action: 'إعادة تقييم النطاق + تفاوض على تعديل العقد'
@@ -20020,7 +20020,7 @@ function renderRiskAnalysisReport() {
             if (cpi < 0.8 && progress > 20) {
                 risks.push({
                     category: 'efficiency', icon: '⚙️', severity: cpi < 0.6 ? 'high' : 'medium',
-                    title: `كفاءة منخفضة: ${p.name}`,
+                    title: `كفاءة منخفضة: ${esc(p.name)}`,
                     description: `CPI = ${cpi.toFixed(2)} (الصرف أسرع من الإنجاز بنسبة كبيرة)`,
                     impact: 0,
                     action: 'مراجعة آلية العمل وكفاءة استخدام الموارد'
@@ -20100,7 +20100,7 @@ function renderRiskAnalysisReport() {
                             <div style="flex:1;min-width:200px">
                                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                                     <span style="font-size:22px">${r.icon}</span>
-                                    <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title}</span>
+                                    <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title)}</span>
                                 </div>
                                 <div style="font-size:12px;color:#444;margin-bottom:6px">${esc(r.description)}</div>
                                 <div style="background:#f8fafc;border-radius:6px;padding:8px;font-size:11px;color:#444">
@@ -20215,7 +20215,7 @@ function renderSensitivityReport(projectFilter) {
                         const changeColor = s.profitChange >= 0 ? '#27ae60' : '#c0392b';
                         return `<tr style="${isBase ? 'background:#e8f4fd' : (i % 2 ? 'background:#fafbfc' : '')};${isBase ? 'border:2px solid #2d6a9f' : ''}">
                             <td style="padding:10px;font-weight:700;color:${s.color}">
-                                ${s.name}
+                                ${esc(s.name)}
                                 ${!isBase ? `<div style="font-size:10px;color:#888;margin-top:2px">
                                     ${s.rev !== 0 ? `إيرادات ${s.rev > 0 ? '+' : ''}${s.rev}% · ` : ''}
                                     ${s.mat !== 0 ? `مواد ${s.mat > 0 ? '+' : ''}${s.mat}% · ` : ''}
@@ -20354,7 +20354,7 @@ function renderCashConversionCycleReport() {
             <div style="font-size:11px;opacity:.85;letter-spacing:2px">CASH CONVERSION CYCLE</div>
             <div style="font-size:64px;font-weight:900;margin-top:8px">${CCC.toFixed(0)}</div>
             <div style="font-size:18px;opacity:.95">يوم</div>
-            <div style="margin-top:10px;background:rgba(255,255,255,.2);padding:6px 16px;border-radius:8px;display:inline-block;font-weight:700">${rating.label}</div>
+            <div style="margin-top:10px;background:rgba(255,255,255,.2);padding:6px 16px;border-radius:8px;display:inline-block;font-weight:700">${esc(rating.label)}</div>
             <div style="font-size:13px;opacity:.95;margin-top:8px">${esc(rating.desc)}</div>
         </div>
 
@@ -20596,7 +20596,7 @@ function renderKPIScorecardReport() {
             <div style="font-size:11px;opacity:.85;letter-spacing:2px">OVERALL PERFORMANCE SCORE</div>
             <div style="font-size:64px;font-weight:900;margin-top:8px">${overallScore.toFixed(0)}</div>
             <div style="font-size:14px;opacity:.95">/ 100</div>
-            <div style="margin-top:10px;background:rgba(255,255,255,.2);padding:6px 16px;border-radius:8px;display:inline-block;font-weight:700;font-size:14px">${overallRating.label}</div>
+            <div style="margin-top:10px;background:rgba(255,255,255,.2);padding:6px 16px;border-radius:8px;display:inline-block;font-weight:700;font-size:14px">${esc(overallRating.label)}</div>
         </div>
 
         <!-- KPIs by Category -->
@@ -20613,7 +20613,7 @@ function renderKPIScorecardReport() {
                             (item.decimals !== undefined ? item.target.toFixed(item.decimals) : item.target);
                         return `<div style="background:#f8fafc;border-radius:10px;padding:12px;border-right:4px solid ${rating.color}">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-                                <span style="font-size:12px;color:#666;font-weight:700">${item.name}</span>
+                                <span style="font-size:12px;color:#666;font-weight:700">${esc(item.name)}</span>
                                 <span style="background:${rating.color};color:white;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${score.toFixed(0)}</span>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
@@ -20623,7 +20623,7 @@ function renderKPIScorecardReport() {
                             <div style="background:#e0e8f0;border-radius:6px;height:8px;overflow:hidden">
                                 <div style="background:${rating.color};height:100%;width:${Math.min(score, 100)}%;border-radius:6px"></div>
                             </div>
-                            <div style="text-align:center;margin-top:6px;font-size:10px;color:${rating.color};font-weight:700">${rating.label}</div>
+                            <div style="text-align:center;margin-top:6px;font-size:10px;color:${rating.color};font-weight:700">${esc(rating.label)}</div>
                         </div>`;
                     }).join('')}
                 </div>
@@ -20758,7 +20758,7 @@ function renderMonthlyBudgetReport(projectFilter) {
                                 m.variancePct < -20 ? { c: '#c0392b', l: '🚨 تجاوز كبير' } :
                                     { c: '#f39c12', l: '⚠️ تجاوز' };
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                            <td style="padding:10px;font-weight:700">${m.label}</td>
+                            <td style="padding:10px;font-weight:700">${esc(m.label)}</td>
                             <td style="padding:10px;text-align:center;color:#2d6a9f;font-weight:700">${fmt(m.budgeted)}</td>
                             <td style="padding:10px;text-align:center;color:#e67e22;font-weight:700">${fmt(m.actual)}</td>
                             <td style="padding:10px;text-align:center;font-weight:800;color:${m.variance >= 0 ? '#27ae60' : '#c0392b'}">${m.variance >= 0 ? '+' : ''}${fmt(m.variance)}</td>
@@ -21079,7 +21079,7 @@ function renderRevenueCostReport(projectFilter, from, to) {
                         const barW = totalRev > 0 ? Math.max(3, (r.rev / totalRev * 100)).toFixed(1) : 0;
                         const costBarW = totalRev > 0 ? Math.max(3, (r.totalCost / totalRev * 100)).toFixed(1) : 0;
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${r.name}</td>
+                            <td style="padding:10px;font-weight:700;color:#1a3a5c">${esc(r.name)}</td>
                             <td style="padding:10px;text-align:center;color:#1e8449;font-weight:800">${fmt(r.rev)}</td>
                             <td style="padding:10px;text-align:center;color:#2d6a9f">${fmt(r.pmc)}</td>
                             <td style="padding:10px;text-align:center;color:#8e44ad">${fmt(r.payroll)}</td>
@@ -21241,7 +21241,7 @@ window.openPayrollSettings = function (payrollKey) {
         <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:white;border:1px solid #e0e8f0;border-radius:8px">
             <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer">
                 <input type="checkbox" data-col-key="${c.key}" class="mps-vis" ${c.visible?'checked':''} style="width:16px;height:16px;cursor:pointer">
-                <span style="font-size:13px;color:#1a3a5c;font-weight:600">${c.label}</span>
+                <span style="font-size:13px;color:#1a3a5c;font-weight:600">${esc(c.label)}</span>
             </label>
             <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:11px;color:#888">العرض:</span>
@@ -21517,7 +21517,7 @@ function fillBulkEmpsList() {
         <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:6px;border:1px solid #e0e8f0;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'">
             <input type="checkbox" data-emp-id="${k}" data-emp-name="${(e.name||'').replace(/"/g,'&quot;')}" class="bulk-emp-cb" onchange="updateBulkSelectedCount()" style="width:16px;height:16px;cursor:pointer">
             <div style="flex:1;min-width:0;overflow:hidden">
-                <div style="font-size:13px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name || '-'}</div>
+                <div style="font-size:13px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name || '-')}</div>
                 <div style="font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.job || ''}${e.dept ? ' · ' + e.dept : ''}</div>
             </div>
         </label>
@@ -21622,7 +21622,7 @@ function fillAtAdminEmpSelect() {
     Object.entries(emp).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
         .forEach(([id, e]) => {
             if (e.status !== 'inactive')
-                sel.innerHTML += `<option value="${id}|${e.name || ''}">${e.name || id}</option>`;
+                sel.innerHTML += `<option value="${id}|${esc(e.name || '')}">${e.name || id}</option>`;
         });
     if (cur) sel.value = cur;
 }
@@ -21705,7 +21705,7 @@ function geoCheckLoc(loc, empKey) {
     fences.forEach(f => { const d = geoDistanceM(loc.lat, loc.lng, f.lat, f.lng); if (d < minD) { minD = d; nearest = f; } });
     const rad = (nearest.radius || 150) + (loc.acc || 0);              // نتساهل بمقدار دقّة الـGPS
     if (minD <= rad) return { ok: true, fence: nearest, dist: Math.round(minD) };
-    return { ok: false, reason: 'outside', dist: Math.round(minD), fence: nearest, msg: `🚫 أنت خارج نطاق العمل المسموح للحضور.\nأقرب موقع: «${nearest.name}» — يبعد ${Math.round(minD)} م (المسموح ${nearest.radius} م).` };
+    return { ok: false, reason: 'outside', dist: Math.round(minD), fence: nearest, msg: `🚫 أنت خارج نطاق العمل المسموح للحضور.\nأقرب موقع: «${esc(nearest.name)}» — يبعد ${Math.round(minD)} م (المسموح ${nearest.radius} م).` };
 }
 // 🎯 لوحة إدارة النطاق الجغرافي (للمسؤول) داخل صفحة الحضور
 window.renderGeofenceAdmin = function () {
@@ -21734,7 +21734,7 @@ window.renderGeofenceAdmin = function () {
         <div style="font-size:11px;color:#8a97a5;margin:-4px 0 4px">💡 لتحديد موقع لست فيه: افتحه في خرائط جوجل، انسخ الرابط أو الإحداثيات والصقها هنا. الموقع يسري على جميع الموظفين (أو على المُسنَدين للوردية).</div>
         ${fences.length ? `<div style="margin-top:12px;display:grid;gap:8px">${fences.map(([id, f]) => `
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:10px 12px;flex-wrap:wrap">
-                <div><b style="color:#1a3a5c">${f.name || 'موقع'}</b> <span style="color:#16a085;font-size:12px;font-weight:700">— نطاق ${f.radius} م</span><br><a href="https://www.google.com/maps?q=${f.lat},${f.lng}" target="_blank" rel="noopener" style="font-size:11px;color:#2980b9;direction:ltr;display:inline-block">📍 ${f.lat}, ${f.lng}</a></div>
+                <div><b style="color:#1a3a5c">${esc(f.name || 'موقع')}</b> <span style="color:#16a085;font-size:12px;font-weight:700">— نطاق ${f.radius} م</span><br><a href="https://www.google.com/maps?q=${f.lat},${f.lng}" target="_blank" rel="noopener" style="font-size:11px;color:#2980b9;direction:ltr;display:inline-block">📍 ${f.lat}, ${f.lng}</a></div>
                 <button class="btn b-r" style="padding:4px 10px;font-size:11px" onclick="geofenceDelete('${id}')">🗑️ حذف</button>
             </div>`).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:14px;font-size:12px">لا مواقع مُضافة بعد — قف في مقر العمل واضغط «📍 إضافة موقعي الحالي».</div>`}
         ${fences.length ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #eef2f6">
@@ -21742,9 +21742,9 @@ window.renderGeofenceAdmin = function () {
             <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
                 <thead><tr style="background:#f8fafc"><th style="padding:7px 10px;text-align:right">الموظف</th><th style="padding:7px 10px;text-align:right">القسم</th><th style="padding:7px 10px;text-align:right;width:230px">الموقع المسموح للحضور</th></tr></thead>
                 <tbody>${gEmps.map(([k, e]) => { const cur = (gf.empFences && gf.empFences[k]) || ''; return `<tr>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8;font-weight:600">${e.name || '-'}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8;font-weight:600">${esc(e.name || '-')}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8;color:#888">${e.dept || '-'}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8"><select onchange="geofenceAssignEmp('${k}',this.value)" style="width:100%;padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12px;background:#fafbfc"><option value="">— كل المواقع (افتراضي) —</option>${fences.map(([fid, f]) => `<option value="${fid}" ${cur === fid ? 'selected' : ''}>${f.name}</option>`).join('')}</select></td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #f2f5f8"><select onchange="geofenceAssignEmp('${k}',this.value)" style="width:100%;padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12px;background:#fafbfc"><option value="">— كل المواقع (افتراضي) —</option>${fences.map(([fid, f]) => `<option value="${fid}" ${cur === fid ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></td>
                 </tr>`; }).join('')}</tbody>
             </table></div>
         </div>` : ''}
@@ -21876,7 +21876,7 @@ window.renderAttFixRequests = function () {
         ${reqs.length ? `<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead><tr style="background:#f8fafc"><th style="padding:7px 10px;text-align:right">الموظف</th><th style="padding:7px 10px">التاريخ</th><th style="padding:7px 10px">دخول</th><th style="padding:7px 10px">خروج</th><th style="padding:7px 10px;text-align:right">السبب</th><th style="padding:7px 10px">الحالة</th><th style="padding:7px 10px">إجراءات</th></tr></thead>
             <tbody>${reqs.slice(0, 40).map(r => `<tr>
-                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;font-weight:600">${r.empName || '-'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;font-weight:600">${esc(r.empName || '-')}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center">${r.date || '-'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;color:#27ae60;font-weight:700">${r.checkIn || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;color:#e74c3c;font-weight:700">${r.checkOut || '—'}</td>
@@ -21889,7 +21889,7 @@ window.renderAttFixRequests = function () {
 };
 window.approveAttFix = function (id) {
     const r = (window.attRequests || {})[id]; if (!r) return;
-    cf2(`اعتماد تصحيح حضور ${r.empName} ليوم ${r.date}؟\nسيُطبَّق مباشرةً على سجل الحضور.`, async () => {
+    cf2(`اعتماد تصحيح حضور ${esc(r.empName)} ليوم ${r.date}؟\nسيُطبَّق مباشرةً على سجل الحضور.`, async () => {
         try {
             const mk = t => t ? new Date(r.date + 'T' + t + ':00').toISOString() : null;
             const ci = mk(r.checkIn), co = mk(r.checkOut);
@@ -21982,7 +21982,7 @@ window.doCheckIn = async function () {
             const wi = shiftWindowInfo(myShift, nowDt);
             if (!wi.checkInOpen) {
                 const from = fmtMinHM(wi.startMin - wi.openBefore), to = fmtMinHM(wi.startMin + wi.lateLimit);
-                setSt(`⏰ خارج وقت الدخول لوردية «${myShift.name}»`);
+                setSt(`⏰ خارج وقت الدخول لوردية «${esc(myShift.name)}»`);
                 toast(`⏰ لا يمكن تسجيل الدخول الآن.\nوردية «${myShift.name}» تسمح بالدخول من ${from} إلى ${to}.`, 'er', 8000);
                 return;
             }
@@ -22253,7 +22253,7 @@ window.renderSelfService = function () {
     } else {
         body = `
         ${scard(`${secTitle('👤 ملفّي الشخصي')}
-            ${listRow('الاسم', '', `<b style="font-size:12.5px">${e.name || '—'}</b>`)}
+            ${listRow('الاسم', '', `<b style="font-size:12.5px">${esc(e.name || '—')}</b>`)}
             ${e.empId ? listRow('الرقم الوظيفي', '', e.empId) : ''}
             ${e.job ? listRow('الوظيفة', '', e.job) : ''}
             ${e.dept ? listRow('القسم', '', e.dept) : ''}
@@ -22261,8 +22261,8 @@ window.renderSelfService = function () {
             ${e.hireDate || e.joinDate ? listRow('تاريخ التعيين', '', (e.hireDate || e.joinDate)) : ''}
             ${e.phone ? listRow('الجوال', '', `<span style="direction:ltr">${e.phone}</span>`) : ''}
             ${e.iban ? listRow('الآيبان', '', `<span style="direction:ltr;font-size:11px">${e.iban}</span>`) : ''}`, 'margin-bottom:13px')}
-        ${scard(`${secTitle('📁 مستنداتي')}${myDocs.length ? myDocs.map(d => { const st = docStatus(d.expiry); return listRow(`${d.label}${d.name ? ' · ' + d.name : ''}`, d.expiry ? 'تنتهي: ' + d.expiry : 'بدون تاريخ', `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:8px;font-size:10.5px;font-weight:800;white-space:nowrap">${st.label}</span>`); }).join('') : empty('لا مستندات مسجّلة')}`, 'margin-bottom:13px')}
-        ${scard(`${secTitle('📦 عُهدي')}${myCustody.length ? myCustody.map(cu => listRow(`${cu.name || 'عهدة'}${cu.serial ? ' · ' + cu.serial : ''}`, cu.type || '', cu.status === 'returned' ? '<span style="color:#95a5a6;font-size:11px;font-weight:800">↩ مُعادة</span>' : '<span style="color:#16a085;font-size:11px;font-weight:800">بحوزتي</span>')).join('') : empty('لا عُهد بحوزتك')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('📁 مستنداتي')}${myDocs.length ? myDocs.map(d => { const st = docStatus(d.expiry); return listRow(`${esc(d.label)}${d.name ? ' · ' + d.name : ''}`, d.expiry ? 'تنتهي: ' + d.expiry : 'بدون تاريخ', `<span style="background:${st.bg};color:${st.color};padding:3px 9px;border-radius:8px;font-size:10.5px;font-weight:800;white-space:nowrap">${esc(st.label)}</span>`); }).join('') : empty('لا مستندات مسجّلة')}`, 'margin-bottom:13px')}
+        ${scard(`${secTitle('📦 عُهدي')}${myCustody.length ? myCustody.map(cu => listRow(`${esc(cu.name || 'عهدة')}${cu.serial ? ' · ' + cu.serial : ''}`, cu.type || '', cu.status === 'returned' ? '<span style="color:#95a5a6;font-size:11px;font-weight:800">↩ مُعادة</span>' : '<span style="color:#16a085;font-size:11px;font-weight:800">بحوزتي</span>')).join('') : empty('لا عُهد بحوزتك')}`, 'margin-bottom:13px')}
         ${(() => { const mt = (typeof hsMyTraining === 'function') ? hsMyTraining(key).slice(0, 8) : []; return scard(`${secTitle('🎓 تدريبي وشهاداتي')}${mt.length ? mt.map(t => listRow(`${esc(t.course || 'دورة')}${t.hasCert ? ' 📜' : ''}`, `${t.provider ? esc(t.provider) + ' · ' : ''}${t.startDate || ''}`, essStatusBadge(t.status === 'completed' ? 'approved' : t.status === 'cancelled' ? 'rejected' : 'pending'))).join('') : empty('لا سجلات تدريب بعد')}`, 'margin-bottom:13px'); })()}
         ${scard(`${secTitle('📄 طلب خطاب تعريف')}
             <div style="margin-bottom:11px">${lbl('نوع الخطاب')}<select id="essLetterType" style="${inp}">${typeof hsLetterTypeOptions === 'function' ? hsLetterTypeOptions() : '<option value="salary_cert">تعريف بالراتب</option>'}</select></div>
@@ -22278,14 +22278,14 @@ window.renderSelfService = function () {
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;opacity:.9;margin-bottom:14px"><span>${dateStr}</span><span style="display:flex;align-items:center;gap:10px">🟢 متصل<button onclick="doLogout()" title="تسجيل الخروج" style="background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:9px;padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">🚪 خروج</button></span></div>
             <div style="display:flex;align-items:center;gap:13px">
                 <div style="width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;border:1.5px solid rgba(255,255,255,.25)">${initial}</div>
-                <div style="min-width:0"><div style="font-size:12px;opacity:.85">${greet}</div><div style="font-size:19px;font-weight:900;line-height:1.2">${e.name || ''}</div><div style="font-size:11.5px;opacity:.82;margin-top:1px">${e.job || 'موظف'}${e.dept ? ' · ' + e.dept : ''}</div></div>
+                <div style="min-width:0"><div style="font-size:12px;opacity:.85">${greet}</div><div style="font-size:19px;font-weight:900;line-height:1.2">${esc(e.name || '')}</div><div style="font-size:11.5px;opacity:.82;margin-top:1px">${e.job || 'موظف'}${e.dept ? ' · ' + e.dept : ''}</div></div>
             </div>
         </div>
         <div style="padding:0 12px">
             <!-- بطاقة الحضور (تتداخل مع الترويسة برفق) -->
             <div style="background:#fff;border-radius:17px;padding:14px 16px;box-shadow:0 6px 20px rgba(20,50,80,.1);margin:-30px 0 14px;position:relative;z-index:2">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-                    <div style="min-width:0;flex:1"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم${myShiftToday ? ` <span style="color:${myShiftToday.color || '#2d6a9f'};background:${myShiftToday.color || '#2d6a9f'}14;border-radius:8px;padding:1px 7px;font-size:10px">🕗 ${myShiftToday.name} ${myShiftToday.start}–${myShiftToday.end}</span>` : ''}</div>
+                    <div style="min-width:0;flex:1"><div style="font-size:11.5px;color:#8a97a5;font-weight:800">حضور اليوم${myShiftToday ? ` <span style="color:${myShiftToday.color || '#2d6a9f'};background:${myShiftToday.color || '#2d6a9f'}14;border-radius:8px;padding:1px 7px;font-size:10px">🕗 ${esc(myShiftToday.name)} ${myShiftToday.start}–${myShiftToday.end}</span>` : ''}</div>
                     <div style="font-size:13.5px;font-weight:800;margin-top:3px;color:${checkedOut ? '#27ae60' : checkedIn ? '#e67e22' : '#8a97a5'}">${checkedOut ? `✅ مكتمل · ${(todayRec.totalHours || 0).toFixed(1)} ساعة${todayRec.overtimeMinutes > 0 ? ` · ⏱️ إضافي ${todayRec.overtimeMinutes}د` : ''}` : checkedIn ? `🟠 حاضر منذ ${new Date(todayRec.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}` : 'لم تُسجّل حضورك اليوم'}${(todayRec && todayRec.lateMinutes > 0) ? ` <span style="color:#c0392b">· ⏰ متأخر ${todayRec.lateMinutes}د</span>` : ''}</div></div>
                     ${(() => {
                         const gbtn = `<button onclick="doCheckIn()" style="flex-shrink:0;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#27ae60,#1e8e50);color:#fff;font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:13px;box-shadow:0 4px 12px rgba(39,174,96,.32)">🟢 حضور</button>`;
@@ -22967,7 +22967,7 @@ window.renderDeferredReport = function () {
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}${inactive ? ';opacity:.6' : ''}">
                                 <td style="padding:8px;font-weight:700;color:#1a3a5c">${formatMonthLabel(d.month)}</td>
                                 <td style="padding:8px">
-                                    <div style="font-weight:700">${d.name}${inactive ? ' <span style="font-size:9px;color:#c0392b">(غير نشط)</span>' : ''}</div>
+                                    <div style="font-weight:700">${esc(d.name)}${inactive ? ' <span style="font-size:9px;color:#c0392b">(غير نشط)</span>' : ''}</div>
                                 </td>
                                 <td style="padding:8px">${affLabel}</td>
                                 <td style="padding:8px;font-size:11px;color:#666">${d.job || '—'}</td>
@@ -23080,7 +23080,7 @@ window.printDeferredReport = function () {
                              d.dept ? '🏢 ' + d.dept : '—';
             return `<tr>
                 <td>${formatMonthLabel(d.month)}</td>
-                <td style="font-weight:700">${d.name}</td>
+                <td style="font-weight:700">${esc(d.name)}</td>
                 <td>${affLabel}</td>
                 <td>${d.job || '-'}</td>
                 <td style="text-align:left;font-weight:700;color:#2d6a9f">${fmt(d.netSalary)}</td>
@@ -23687,7 +23687,7 @@ function updatePPJournalPreview() {
         const grouped = Object.values(payableInfo.accountsMap);
         preview += `<div style="background:#e8f4fd;padding:6px 10px;border-radius:4px;margin-bottom:6px;font-size:10px;color:#0d4f7c">✅ تم قراءة الحسابات من القيد المرحَّل (${p.journalEntryNumber})</div>`;
         grouped.forEach(g => {
-            preview += `<div style="color:#2d6a9f">🔵 مدين: ${g.code} — ${g.name}: <strong>${fmt(g.total)}</strong></div>`;
+            preview += `<div style="color:#2d6a9f">🔵 مدين: ${g.code} — ${esc(g.name)}: <strong>${fmt(g.total)}</strong></div>`;
         });
     } else {
         // Fallback: من الإعدادات
@@ -23788,7 +23788,7 @@ window.confirmPayrollPayment = async function () {
                        p.scope === 'dept' ? `(🏢 ${p.dept || ''})` : '';
 
     const sourceText = payableInfo.fromJournal
-        ? `\n📋 الحسابات من القيد المرحَّل (${p.journalEntryNumber}):\n   ${Object.values(payableInfo.accountsMap).map(g => `• ${g.code} ${g.name}: ${fmt(g.total)}`).join('\n   ')}`
+        ? `\n📋 الحسابات من القيد المرحَّل (${p.journalEntryNumber}):\n   ${Object.values(payableInfo.accountsMap).map(g => `• ${g.code} ${esc(g.name)}: ${fmt(g.total)}`).join('\n   ')}`
         : `\n📋 الحسابات من الإعدادات الافتراضية`;
 
     cf2(`تأكيد دفع ${fmt(totalToPay)} ر من حساب "${paymentAcc.nameAr}"؟${sourceText}\n\nسيتم:\n✅ إنشاء سند صرف ${voucherNumber}\n✅ إنشاء قيد محاسبي (مرحَّل تلقائياً)\n✅ تحديث حالة المسير إلى "مدفوع"`, async () => {
@@ -24135,7 +24135,7 @@ window.renderLaborCostReport = function () {
             </div>
             <div style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);border-radius:12px;padding:14px;color:white;box-shadow:0 4px 12px rgba(142,68,173,.2)">
                 <div style="font-size:11px;opacity:.85">🏆 أعلى مشروع تكلفة</div>
-                <div style="font-size:16px;font-weight:900;margin-top:4px">${topProject?.name || '—'}</div>
+                <div style="font-size:16px;font-weight:900;margin-top:4px">${esc(topProject?.name || '—')}</div>
                 <div style="font-size:11px;opacity:.95;margin-top:4px">${fmt(topProject?.totalNet || 0)}</div>
             </div>
             <div style="background:linear-gradient(135deg,${paidPercent >= 80 ? '#196f3d,#27ae60' : paidPercent >= 50 ? '#b9770e,#e67e22' : '#7b2c1c,#c0392b'});border-radius:12px;padding:14px;color:white;box-shadow:0 4px 12px rgba(0,0,0,.1)">
@@ -24230,7 +24230,7 @@ function renderLaborCostByProject(arr, stats) {
                 const c = colors[i % colors.length];
                 return `<div style="margin-bottom:10px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                        <div style="font-size:12px;font-weight:700;color:#1a3a5c">${p.name}</div>
+                        <div style="font-size:12px;font-weight:700;color:#1a3a5c">${esc(p.name)}</div>
                         <div style="font-size:11px;color:#666"><strong style="color:${c}">${fmt(p.totalNet)}</strong> · ${sharePct.toFixed(1)}%</div>
                     </div>
                     <div style="height:14px;background:#e0e8f0;border-radius:7px;overflow:hidden">
@@ -24308,7 +24308,7 @@ function renderLaborCostByDept(arr, stats) {
                 const c = colors[i % colors.length];
                 return `<div style="margin-bottom:10px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                        <div style="font-size:12px;font-weight:700;color:#1a3a5c">🏢 ${d.name}</div>
+                        <div style="font-size:12px;font-weight:700;color:#1a3a5c">🏢 ${esc(d.name)}</div>
                         <div style="font-size:11px;color:#666"><strong style="color:${c}">${fmt(d.totalNet)}</strong> · ${sharePct.toFixed(1)}%</div>
                     </div>
                     <div style="height:14px;background:#e0e8f0;border-radius:7px;overflow:hidden">
@@ -24338,7 +24338,7 @@ function renderLaborCostByDept(arr, stats) {
                         const sharePct = totalAll > 0 ? (d.totalNet / totalAll) * 100 : 0;
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:8px;text-align:center;font-weight:800;color:#888">${i + 1}</td>
-                            <td style="padding:8px;font-weight:800;color:#1a3a5c">🏢 ${d.name}</td>
+                            <td style="padding:8px;font-weight:800;color:#1a3a5c">🏢 ${esc(d.name)}</td>
                             <td style="padding:8px;text-align:center"><span style="background:#e8f4fd;color:#0d4f7c;padding:3px 8px;border-radius:5px;font-weight:700">${empCount}</span></td>
                             <td style="padding:8px;text-align:left;color:#666">${fmt(d.totalGross)}</td>
                             <td style="padding:8px;text-align:left;font-weight:800;color:#2d6a9f">${fmt(d.totalNet)}</td>
@@ -24481,7 +24481,7 @@ function renderLaborCostByEmployee(arr, stats) {
                         const rankColor = rank === 1 ? '#d4af37' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : '#888';
                         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:8px;text-align:center"><span style="background:${rankColor};color:white;padding:3px 10px;border-radius:50%;font-weight:900;display:inline-block;min-width:24px">${rank}</span></td>
-                            <td style="padding:8px;font-weight:800;color:#1a3a5c">${e.name}</td>
+                            <td style="padding:8px;font-weight:800;color:#1a3a5c">${esc(e.name)}</td>
                             <td style="padding:8px;color:#666">${e.job || '—'}</td>
                             <td style="padding:8px;font-size:11px;color:#666">${projsLabel}</td>
                             <td style="padding:8px;text-align:center">${e.monthsCount.size}</td>
@@ -24554,7 +24554,7 @@ window.printLaborCostReport = function () {
         const pct = totalNet > 0 ? (p.totalNet / totalNet) * 100 : 0;
         return `<tr>
             <td style="text-align:center">${i + 1}</td>
-            <td style="font-weight:700">${p.name}</td>
+            <td style="font-weight:700">${esc(p.name)}</td>
             <td style="text-align:center">${p.empCount.size}</td>
             <td style="text-align:left">${fmt(p.totalGross)}</td>
             <td style="text-align:left;font-weight:700">${fmt(p.totalNet)}</td>
@@ -24777,7 +24777,7 @@ window.renderPayrollDashboard = function () {
                     <div style="display:flex;align-items:flex-start;gap:10px">
                         <div style="font-size:28px">${a.icon}</div>
                         <div style="flex:1">
-                            <div style="font-size:13px;font-weight:800;color:${a.color}">${a.title}</div>
+                            <div style="font-size:13px;font-weight:800;color:${a.color}">${esc(a.title)}</div>
                             <div style="font-size:11px;color:#666;margin-top:4px;line-height:1.5">${esc(a.desc)}</div>
                             <button class="btn" onclick="${a.actionCall}" style="margin-top:8px;background:${a.color};color:white;padding:5px 12px;font-size:11px;font-weight:700">${a.actionLabel} →</button>
                         </div>
@@ -24859,7 +24859,7 @@ window.renderPayrollDashboard = function () {
                         ${payableArr.map((p, i) => {
                             const sharePct = totalPayableLedger > 0 ? (p.balance / totalPayableLedger) * 100 : 0;
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                <td style="padding:10px;font-weight:800;color:#1a3a5c">${p.code} — ${p.name}</td>
+                                <td style="padding:10px;font-weight:800;color:#1a3a5c">${p.code} — ${esc(p.name)}</td>
                                 <td style="padding:10px;text-align:left;color:#666">${fmt(p.credit)}</td>
                                 <td style="padding:10px;text-align:left;color:#666">${fmt(p.debit)}</td>
                                 <td style="padding:10px;text-align:left;font-weight:800;color:#16a085">${fmt(p.balance)}</td>
@@ -24897,7 +24897,7 @@ window.renderPayrollDashboard = function () {
                                     <div style="font-size:10px;color:#888;margin-top:2px">${p.totalEmployees || 0} موظف · ${fmt(p.totalNet)} ر</div>
                                 </div>
                                 <div style="display:flex;gap:6px;align-items:center">
-                                    <span style="background:${sm.bg};color:${sm.color};padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">${sm.label}</span>
+                                    <span style="background:${sm.bg};color:${sm.color};padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">${esc(sm.label)}</span>
                                     ${p.paymentStatus === 'paid' ? '<span style="background:#27ae60;color:white;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">💸 مدفوع</span>' : ''}
                                 </div>
                             </div>
@@ -25039,7 +25039,7 @@ window.renderBOQ = function () {
         <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,#e8f8f5,#fff);border-right:5px solid #16a085">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
                 <div>
-                    <div style="font-size:16px;font-weight:800;color:#0e4d3a">📁 ${selectedProj.name || ''}</div>
+                    <div style="font-size:16px;font-weight:800;color:#0e4d3a">📁 ${esc(selectedProj.name || '')}</div>
                     <div style="font-size:11px;color:#0e6655;margin-top:4px">
                         ${selectedProj.client ? `👤 ${selectedProj.client}` : ''}
                         ${selectedProj.startDate ? ` · 📅 ${selectedProj.startDate}` : ''}
@@ -25569,7 +25569,7 @@ window.renderProgressBillings = function () {
                         <option value="">-- كل المشاريع --</option>
                         ${allProjects.map(([k, p]) => {
                             const count = allBillings.filter(([, b]) => b.projectId === k).length;
-                            return `<option value="${k}" ${k === pbState.selectedProject ? 'selected' : ''}>${p.name} ${count > 0 ? `(${count})` : ''}</option>`;
+                            return `<option value="${k}" ${k === pbState.selectedProject ? 'selected' : ''}>${esc(p.name)} ${count > 0 ? `(${count})` : ''}</option>`;
                         }).join('')}
                     </select>
                 </div>
@@ -25644,7 +25644,7 @@ function renderBillingCard(billingKey, b) {
                 <div style="font-size:12px;color:#888;margin-top:4px">📅 ${b.billingDate || '-'} · 🏷️ ${b.contractRef || ''}</div>
                 ${b.fromDate && b.toDate ? `<div style="font-size:11px;color:#666;margin-top:3px">📆 الفترة: ${b.fromDate} → ${b.toDate}</div>` : ''}
             </div>
-            <span style="background:${sm.bg};color:${sm.color};padding:5px 14px;border-radius:12px;font-size:12px;font-weight:800">${sm.label}</span>
+            <span style="background:${sm.bg};color:${sm.color};padding:5px 14px;border-radius:12px;font-size:12px;font-weight:800">${esc(sm.label)}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:12px 0">
             <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
@@ -25776,7 +25776,7 @@ window.openNewBillingModal = function () {
                     <option value="">-- اختر المشروع --</option>
                     ${allProjects.map(([k, p]) => {
                         const billCount = Object.values(window.progressBillings || {}).filter(b => b.projectId === k && b.status !== 'cancelled').length;
-                        return `<option value="${k}">${p.name} (مستخلصات سابقة: ${billCount})</option>`;
+                        return `<option value="${k}">${esc(p.name)} (مستخلصات سابقة: ${billCount})</option>`;
                     }).join('')}
                 </select>
             </div>
@@ -25978,7 +25978,7 @@ window.openBillingDetail = function (billingKey) {
         <div style="background:linear-gradient(135deg,#0e4d3a,#196f3d);color:white;padding:14px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <div>
                 <div style="font-size:11px;opacity:.85">INTERIM PAYMENT CERTIFICATE</div>
-                <div style="font-size:18px;font-weight:900;margin-top:2px">📑 مستخلص رقم ${b.billingNo} — ${proj?.name || ''}</div>
+                <div style="font-size:18px;font-weight:900;margin-top:2px">📑 مستخلص رقم ${b.billingNo} — ${esc(proj?.name || '')}</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 ${isEditable ? `<button id="billSaveBtn" class="btn b-g" onclick="saveBillingDetail('${billingKey}')" style="padding:9px 20px;font-weight:800">💾 حفظ التغييرات</button>
@@ -27171,7 +27171,7 @@ window.openBillingSettings = function () {
         `<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;border:2px solid ${s.theme === k ? '#2d6a9f' : '#e0e8f0'};background:${s.theme === k ? '#e8f4fd' : 'white'}">
             <input type="radio" name="bTheme" value="${k}" ${s.theme === k ? 'checked' : ''} onchange="document.querySelectorAll('label[for-theme]').forEach(l=>l.style.borderColor='#e0e8f0');this.closest('label').style.borderColor='#2d6a9f'">
             <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:${t.hdr}"></span>
-            <span style="font-size:12px;font-weight:700">${t.name}</span>
+            <span style="font-size:12px;font-weight:700">${esc(t.name)}</span>
         </label>`
     ).join('');
 
@@ -27481,11 +27481,11 @@ window.renderAllProjectTasks = function () {
     // تعبئة قوائم الفلترة (مرة واحدة بدون فقدان التحديد الحالي)
     if (projSel && projSel.options.length <= 1) {
         Object.entries(window.projects || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
-            .forEach(([k, p]) => projSel.insertAdjacentHTML('beforeend', `<option value="${k}">${p.name || '-'}</option>`));
+            .forEach(([k, p]) => projSel.insertAdjacentHTML('beforeend', `<option value="${k}">${esc(p.name || '-')}</option>`));
     }
     if (empSel && empSel.options.length <= 1) {
         Object.entries(window.emp || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
-            .forEach(([k, e]) => empSel.insertAdjacentHTML('beforeend', `<option value="${k}">${e.name}</option>`));
+            .forEach(([k, e]) => empSel.insertAdjacentHTML('beforeend', `<option value="${k}">${esc(e.name)}</option>`));
     }
     enhanceLongSelects($('pg-prjtasks'));
 
@@ -27546,8 +27546,8 @@ window.renderAllProjectTasks = function () {
                 const assignee = (window.emp || {})[t.assigneeId];
                 const [plLabel, plColor] = PT_PRIORITY_LABELS[t.priority] || PT_PRIORITY_LABELS.normal;
                 return `<tr style="border-bottom:1px solid #f5f5f5">
-                    <td style="padding:8px 10px;font-weight:700;color:#1a3a5c">${t.title || ''}${t.desc ? `<div style="font-size:10.5px;color:#999;font-weight:400;margin-top:2px">${esc(t.desc)}</div>` : ''}</td>
-                    <td style="padding:8px 10px;color:#2d6a9f;cursor:pointer" onclick="openProjectDetail('${pid}')">${proj?.name || '-'}</td>
+                    <td style="padding:8px 10px;font-weight:700;color:#1a3a5c">${esc(t.title || '')}${t.desc ? `<div style="font-size:10.5px;color:#999;font-weight:400;margin-top:2px">${esc(t.desc)}</div>` : ''}</td>
+                    <td style="padding:8px 10px;color:#2d6a9f;cursor:pointer" onclick="openProjectDetail('${pid}')">${esc(proj?.name || '-')}</td>
                     <td style="padding:8px 10px;text-align:center">${PT_COL_LABELS[t.status] || t.status || '-'}</td>
                     <td style="padding:8px 10px;text-align:center"><span style="background:${plColor}1a;color:${plColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${plLabel}</span></td>
                     <td style="padding:8px 10px;text-align:center">${assignee ? assignee.name : '-'}</td>
@@ -27609,9 +27609,9 @@ function ptAllRenderGantt(rows, today) {
                 const durDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
                 const widthPct = Math.max(2, durDays / totalDays * 100);
                 const barColor = t.status === 'done' ? '#27ae60' : overdue ? '#c0392b' : plColor;
-                return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer" onclick="openProjectDetail('${pid}');window._pd.tab='tasks';pdSwitchTab('tasks')" title="${t.title}">
-                    <div style="width:140px;flex-shrink:0;font-size:11px;font-weight:700;color:#1a3a5c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title || ''}</div>
-                    <div style="width:110px;flex-shrink:0;font-size:10px;color:#2d6a9f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${proj?.name || '-'}</div>
+                return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer" onclick="openProjectDetail('${pid}');window._pd.tab='tasks';pdSwitchTab('tasks')" title="${esc(t.title)}">
+                    <div style="width:140px;flex-shrink:0;font-size:11px;font-weight:700;color:#1a3a5c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title || '')}</div>
+                    <div style="width:110px;flex-shrink:0;font-size:10px;color:#2d6a9f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(proj?.name || '-')}</div>
                     <div style="flex:1;background:#f4f6f8;border-radius:6px;height:20px;position:relative">
                         <div style="position:absolute;right:${offsetPct}%;width:${widthPct}%;height:100%;background:${barColor};border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;min-width:24px">${durDays}ي</div>
                     </div>
@@ -28833,7 +28833,7 @@ window.saveAssetDispose = async function() {
     });
     $('ovAssetDispose').classList.remove('show');
     toast('تم تسجيل التخريد/البيع', 's');
-    if (typeof logAudit === 'function') logAudit(type === 'sale' ? 'بيع أصل' : 'تخريد أصل', 'الأصول', `${type === 'sale' ? 'بيع' : 'تخريد'} أصل: ${a.name} بمبلغ ${fmt(amount)}`);
+    if (typeof logAudit === 'function') logAudit(type === 'sale' ? 'بيع أصل' : 'تخريد أصل', 'الأصول', `${type === 'sale' ? 'بيع' : 'تخريد'} أصل: ${esc(a.name)} بمبلغ ${fmt(amount)}`);
     // 🆕 قيد محاسبي تلقائي للتخريد/البيع (الربح/الخسارة)
     try { await postAssetDisposalJournal(id); } catch (e) { console.warn('disposal journal skipped', e); }
     if ($('pg-assetdetail')?.classList.contains('act') && window._assetActiveId === id) renderAssetDetail();
@@ -28903,13 +28903,13 @@ async function postAssetAcquisitionJournal(id) {
     const now = new Date().toISOString();
     const num = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AST-' + Date.now());
     const lines = [
-        { accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `اقتناء أصل: ${a.name}`, costCenter: a.projectId || '', projectId: (window.projects || {})[a.projectId] ? a.projectId : '', debit: cost, credit: 0 },
-        { accountCode: credAcc.code, accountName: credAcc.nameAr, description: `استحقاق ثمن أصل: ${a.name}${a.supplierName ? ' - ' + a.supplierName : ''}`, costCenter: a.projectId || '', projectId: (window.projects || {})[a.projectId] ? a.projectId : '', debit: 0, credit: cost }
+        { accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `اقتناء أصل: ${esc(a.name)}`, costCenter: a.projectId || '', projectId: (window.projects || {})[a.projectId] ? a.projectId : '', debit: cost, credit: 0 },
+        { accountCode: credAcc.code, accountName: credAcc.nameAr, description: `استحقاق ثمن أصل: ${esc(a.name)}${a.supplierName ? ' - ' + a.supplierName : ''}`, costCenter: a.projectId || '', projectId: (window.projects || {})[a.projectId] ? a.projectId : '', debit: 0, credit: cost }
     ];
     const jrnRef = await push(R.jrn, {
         number: num, date: a.purchaseDate || today(), lines, totalDebit: cost, totalCredit: cost,
         status: 'posted', sourceType: 'asset_acquisition', sourceKey: id,
-        reference: a.code || '', description: `اقتناء أصل ثابت: ${a.name}`,
+        reference: a.code || '', description: `اقتناء أصل ثابت: ${esc(a.name)}`,
         createdAt: now, createdBy: userId, postedAt: now, postedBy: userId,
         autoGenerated: true, autoGeneratedFrom: 'asset_acquisition'
     });
@@ -28937,18 +28937,18 @@ async function postAssetDisposalJournal(id) {
     const now = new Date().toISOString();
     const cc = a.projectId || ''; const pj = (window.projects || {})[a.projectId] ? a.projectId : '';
     const lines = [];
-    if (accum > 0) lines.push({ accountCode: accumAcc.code, accountName: accumAcc.nameAr, description: `إلغاء مجمع إهلاك: ${a.name}`, costCenter: cc, projectId: pj, debit: accum, credit: 0 });
-    if (proceeds > 0 && cashAcc) lines.push({ accountCode: cashAcc.code, accountName: cashAcc.nameAr, description: `متحصلات بيع: ${a.name}`, costCenter: cc, projectId: pj, debit: proceeds, credit: 0 });
-    if (gain < 0) { const lossAcc = assetFindAcc(cfg.disposalLossAcc); if (lossAcc) lines.push({ accountCode: lossAcc.code, accountName: lossAcc.nameAr, description: `خسارة ${a.disposal.type === 'sale' ? 'بيع' : 'تخريد'}: ${a.name}`, costCenter: cc, projectId: pj, debit: Math.abs(gain), credit: 0 }); }
-    lines.push({ accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `استبعاد أصل: ${a.name}`, costCenter: cc, projectId: pj, debit: 0, credit: cost });
-    if (gain > 0) { const gainAcc = assetFindAcc(cfg.disposalGainAcc); if (gainAcc) lines.push({ accountCode: gainAcc.code, accountName: gainAcc.nameAr, description: `ربح بيع أصل: ${a.name}`, costCenter: cc, projectId: pj, debit: 0, credit: gain }); }
+    if (accum > 0) lines.push({ accountCode: accumAcc.code, accountName: accumAcc.nameAr, description: `إلغاء مجمع إهلاك: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: accum, credit: 0 });
+    if (proceeds > 0 && cashAcc) lines.push({ accountCode: cashAcc.code, accountName: cashAcc.nameAr, description: `متحصلات بيع: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: proceeds, credit: 0 });
+    if (gain < 0) { const lossAcc = assetFindAcc(cfg.disposalLossAcc); if (lossAcc) lines.push({ accountCode: lossAcc.code, accountName: lossAcc.nameAr, description: `خسارة ${a.disposal.type === 'sale' ? 'بيع' : 'تخريد'}: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: Math.abs(gain), credit: 0 }); }
+    lines.push({ accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `استبعاد أصل: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: 0, credit: cost });
+    if (gain > 0) { const gainAcc = assetFindAcc(cfg.disposalGainAcc); if (gainAcc) lines.push({ accountCode: gainAcc.code, accountName: gainAcc.nameAr, description: `ربح بيع أصل: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: 0, credit: gain }); }
     const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
     const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
     const num = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-ASTD-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: num, date: a.disposal.date || today(), lines, totalDebit, totalCredit,
         status: 'posted', sourceType: 'asset_disposal', sourceKey: id,
-        reference: a.code || '', description: `${a.disposal.type === 'sale' ? 'بيع' : 'تخريد'} أصل ثابت: ${a.name}`,
+        reference: a.code || '', description: `${a.disposal.type === 'sale' ? 'بيع' : 'تخريد'} أصل ثابت: ${esc(a.name)}`,
         createdAt: now, createdBy: userId, postedAt: now, postedBy: userId,
         autoGenerated: true, autoGeneratedFrom: 'asset_disposal'
     });
@@ -28996,7 +28996,7 @@ function buildAssetDepRun(period) {
         const accAcc = assetFindAcc(gl.accumCode);
         if (!expAcc || !accAcc) { missing.push({ name: a.name || id, gl }); return; }
         const cc = a.projectId || ''; const pj = (window.projects || {})[a.projectId] ? a.projectId : '';
-        lines.push({ accountCode: expAcc.code, accountName: expAcc.nameAr, description: `إهلاك ${period}: ${a.name}`, costCenter: cc, projectId: pj, debit: dep, credit: 0 });
+        lines.push({ accountCode: expAcc.code, accountName: expAcc.nameAr, description: `إهلاك ${period}: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: dep, credit: 0 });
         const e = (accumByCode[accAcc.code] = accumByCode[accAcc.code] || { acc: accAcc, total: 0 });
         e.total += dep;
         detail.push({ id, a, dep, expAcc, accAcc, cc });
@@ -29371,7 +29371,7 @@ window.printAssetReport = function() {
 // 🏷️ ملصق الأصل مع QR/باركود
 window.openAssetLabel = function(id) {
     const a = (window.assets || {})[id]; if (!a) return;
-    const payload = `ASSET|${id}|${a.code || ''}|${a.name || ''}`;
+    const payload = `ASSET|${id}|${a.code || ''}|${esc(a.name || '')}`;
     const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(payload)}`;
     $('astLabelBody').innerHTML = `
         <div id="astLabelPrintable" style="border:2px solid #2c3e50;border-radius:10px;padding:16px;display:inline-block;min-width:260px">
@@ -29470,7 +29470,7 @@ window.capitalizeAsset = async function(id) {
     if (!confirm(`رسملة الأصل "${a.name}" بتكلفة ${fmt(total)} ريال وبدء إهلاكه من ${inService}؟`)) return;
     await update(ref(db, `ledger/assets/${id}`), { status: 'active', cost: total, purchaseDate: inService, capitalizedAt: Date.now() });
     toast(`✅ تم تشغيل الأصل بتكلفة ${fmt(total)} ريال`, 's', 6000);
-    if (typeof logAudit === 'function') logAudit('رسملة أصل', 'الأصول', `رسملة وتشغيل أصل: ${a.name} بتكلفة ${fmt(total)}`);
+    if (typeof logAudit === 'function') logAudit('رسملة أصل', 'الأصول', `رسملة وتشغيل أصل: ${esc(a.name)} بتكلفة ${fmt(total)}`);
     try { await postAssetAcquisitionJournal(id); } catch (e) { console.warn('acquisition journal skipped', e); }
     if ($('pg-assetdetail')?.classList.contains('act') && window._assetActiveId === id) renderAssetDetail();
 };
@@ -29527,7 +29527,7 @@ window.saveAssetReval = async function() {
     await update(ref(db, `ledger/assets/${id}`), { revalBasis: { date, bookValue: newValue, lifeMonthsRemaining } });
     $('ovAssetReval').classList.remove('show');
     toast('✅ تم تطبيق التقييم وإعادة احتساب الإهلاك', 's', 5000);
-    if (typeof logAudit === 'function') logAudit(type === 'impairment' ? 'انخفاض قيمة' : 'إعادة تقييم', 'الأصول', `${type === 'impairment' ? 'انخفاض قيمة' : 'إعادة تقييم'} أصل: ${a.name} من ${fmt(oldBook)} إلى ${fmt(newValue)}`);
+    if (typeof logAudit === 'function') logAudit(type === 'impairment' ? 'انخفاض قيمة' : 'إعادة تقييم', 'الأصول', `${type === 'impairment' ? 'انخفاض قيمة' : 'إعادة تقييم'} أصل: ${esc(a.name)} من ${fmt(oldBook)} إلى ${fmt(newValue)}`);
     try { await postAssetRevalJournal(id, key, { ...rec, lifeMonthsRemaining }); } catch (e) { console.warn('reval journal skipped', e); }
     if ($('pg-assetdetail')?.classList.contains('act') && window._assetActiveId === id) renderAssetDetail();
 };
@@ -29546,16 +29546,16 @@ async function postAssetRevalJournal(id, key, rec) {
     if (rec.adjustment >= 0) {
         // زيادة: مدين الأصل / دائن فائض إعادة التقييم
         const surAcc = assetFindAcc(cfg.revalSurplusAcc);
-        lines.push({ accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `إعادة تقييم (زيادة): ${a.name}`, costCenter: cc, projectId: pj, debit: amt, credit: 0 });
-        if (surAcc) lines.push({ accountCode: surAcc.code, accountName: surAcc.nameAr, description: `فائض إعادة تقييم: ${a.name}`, costCenter: cc, projectId: pj, debit: 0, credit: amt });
+        lines.push({ accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `إعادة تقييم (زيادة): ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: amt, credit: 0 });
+        if (surAcc) lines.push({ accountCode: surAcc.code, accountName: surAcc.nameAr, description: `فائض إعادة تقييم: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: 0, credit: amt });
         else { toast('⚠️ حساب فائض إعادة التقييم (3300) غير موجود — أُنشئ القيد بدون الطرف الدائن', 'wn', 7000); }
-        desc = `إعادة تقييم أصل (زيادة): ${a.name}`;
+        desc = `إعادة تقييم أصل (زيادة): ${esc(a.name)}`;
     } else {
         // انخفاض: مدين خسارة انخفاض القيمة / دائن الأصل
         const impAcc = assetFindAcc(cfg.impairmentAcc);
-        if (impAcc) lines.push({ accountCode: impAcc.code, accountName: impAcc.nameAr, description: `خسارة انخفاض قيمة: ${a.name}`, costCenter: cc, projectId: pj, debit: amt, credit: 0 });
-        lines.push({ accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `انخفاض قيمة أصل: ${a.name}`, costCenter: cc, projectId: pj, debit: 0, credit: amt });
-        desc = `انخفاض قيمة أصل: ${a.name}`;
+        if (impAcc) lines.push({ accountCode: impAcc.code, accountName: impAcc.nameAr, description: `خسارة انخفاض قيمة: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: amt, credit: 0 });
+        lines.push({ accountCode: assetAcc.code, accountName: assetAcc.nameAr, description: `انخفاض قيمة أصل: ${esc(a.name)}`, costCenter: cc, projectId: pj, debit: 0, credit: amt });
+        desc = `انخفاض قيمة أصل: ${esc(a.name)}`;
     }
     const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
     const totalCredit = lines.reduce((s, l) => s + l.credit, 0);

@@ -157,7 +157,7 @@ window.renderProjectDetail = function () {
     <!-- ── رأس الصفحة ── -->
     <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;border-radius:14px;padding:20px 24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div style="flex:1;min-width:200px">
-            <div style="font-size:22px;font-weight:800;margin-bottom:6px">📁 ${p.name || '-'}</div>
+            <div style="font-size:22px;font-weight:800;margin-bottom:6px">📁 ${esc(p.name || '-')}</div>
             <div style="font-size:13px;opacity:.85;margin-bottom:8px">${esc(p.description || '')}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <span style="background:${sbg};color:${scl};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700">${statusMap[p.status] || p.status}</span>
@@ -492,7 +492,7 @@ function pdRenderOverview(pid) {
                 ${assignments.map(a => {
                     const e = (window.emp || {})[a.empId];
                     return e ? `<div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:8px;padding:8px 10px">
-                        <div style="font-weight:600;font-size:12px;color:#1a3a5c">${e.name}</div>
+                        <div style="font-weight:600;font-size:12px;color:#1a3a5c">${esc(e.name)}</div>
                         <div style="font-size:11px;color:#666">${a.role || e.job || '-'}</div>
                     </div>` : '';
                 }).join('')}
@@ -532,7 +532,7 @@ function pdRenderOverview(pid) {
                     ${overdue.length ? `<span style="background:#fdecea;color:#c0392b;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700">⚠️ متأخرة: ${overdue.length}</span>` : ''}
                 </div>
                 ${overdue.length ? `<div style="display:flex;flex-direction:column;gap:6px">
-                    ${overdue.slice(0, 4).map(([, t]) => `<div style="background:#fdecea;border-right:3px solid #c0392b;border-radius:6px;padding:6px 10px;font-size:12px;color:#922b21;display:flex;justify-content:space-between"><span>${t.title}</span><span>${t.dueDate}</span></div>`).join('')}
+                    ${overdue.slice(0, 4).map(([, t]) => `<div style="background:#fdecea;border-right:3px solid #c0392b;border-radius:6px;padding:6px 10px;font-size:12px;color:#922b21;display:flex;justify-content:space-between"><span>${esc(t.title)}</span><span>${t.dueDate}</span></div>`).join('')}
                 </div>` : ''}`;
             })()}
         </div>
@@ -721,13 +721,13 @@ function pdRenderContract(pid) {
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
                     <td style="font-weight:700;color:#2d6a9f">${co.number || '-'}</td>
-                    <td style="font-weight:600">${co.title || '-'}${co.reason ? `<div style="font-size:11px;color:#888;margin-top:2px">${esc(co.reason)}</div>` : ''}</td>
+                    <td style="font-weight:600">${esc(co.title || '-')}${co.reason ? `<div style="font-size:11px;color:#888;margin-top:2px">${esc(co.reason)}</div>` : ''}</td>
                     <td style="text-align:center">
                         <span style="background:${co.type === 'deduction' ? '#fdecea' : '#e8f8f5'};color:${co.type === 'deduction' ? '#7b1c1c' : '#0e6655'};padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700">${co.type === 'deduction' ? '➖ خصم' : '➕ إضافة'}</span>
                     </td>
                     <td style="font-weight:700;color:${signedAmount < 0 ? '#e74c3c' : '#27ae60'}">${signedAmount < 0 ? '-' : '+'}${fmt(Math.abs(signedAmount))}</td>
                     <td style="font-size:12px;color:#555">${co.date || '-'}</td>
-                    <td><span style="background:${sm.bg};color:${sm.color};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${sm.label}</span></td>
+                    <td><span style="background:${sm.bg};color:${sm.color};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${esc(sm.label)}</span></td>
                     <td><div style="display:flex;gap:4px;flex-wrap:wrap">
                         ${co.status === 'draft' ? `
                         <button class="btn b-b" style="padding:3px 7px;font-size:11px" onclick="pdOpenCOForm('${pid}','${ck}')" title="تعديل">✏️</button>
@@ -1140,7 +1140,7 @@ window.pdDeleteCO = function (pid, coKey) {
     cf2('هل تريد حذف أمر التغيير هذا؟', async () => {
         try {
             await remove(ref(db, `ledger/projectChangeOrders/${pid}/${coKey}`));
-            pdLogActivity(pid, '🗑️', `حذف أمر تغيير: ${co?.title || ''}`);
+            pdLogActivity(pid, '🗑️', `حذف أمر تغيير: ${esc(co?.title || '')}`);
             toast('تم الحذف', 'ok');
             setTimeout(() => pdRenderTab('contract'), 400);
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
@@ -1158,15 +1158,15 @@ window.pdAdvanceCO = function (pid, coKey, newStatus) {
             }
             await update(ref(db, `ledger/projectChangeOrders/${pid}/${coKey}`), data);
             const statusLabel = { approved: '✅ اعتماد', rejected: '❌ رفض', draft: '↩️ إعادة لمسودة' }[newStatus] || newStatus;
-            pdLogActivity(pid, '🧾', `${statusLabel} أمر التغيير: ${co.title || ''} (${fmt(co.amount)})`);
+            pdLogActivity(pid, '🧾', `${statusLabel} أمر التغيير: ${esc(co.title || '')} (${fmt(co.amount)})`);
             toast('تم تحديث حالة أمر التغيير ✓', 'ok');
             setTimeout(() => pdRenderTab('contract'), 400);
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
     };
     if (newStatus === 'approved') {
-        cf2(`اعتماد أمر التغيير "${co.title || ''}" بقيمة ${fmt(co.amount)} ريال (${co.type === 'deduction' ? 'خصم من قيمة العقد' : 'إضافة لقيمة العقد'}) — سيتم تعديل القيمة المعدّلة للعقد بناءً عليه. هل أنت متأكد؟`, doUpdate);
+        cf2(`اعتماد أمر التغيير "${esc(co.title || '')}" بقيمة ${fmt(co.amount)} ريال (${co.type === 'deduction' ? 'خصم من قيمة العقد' : 'إضافة لقيمة العقد'}) — سيتم تعديل القيمة المعدّلة للعقد بناءً عليه. هل أنت متأكد؟`, doUpdate);
     } else if (newStatus === 'rejected') {
-        cf2(`رفض أمر التغيير "${co.title || ''}"؟`, doUpdate);
+        cf2(`رفض أمر التغيير "${esc(co.title || '')}"؟`, doUpdate);
     } else {
         doUpdate();
     }
@@ -1392,7 +1392,7 @@ function pdBillingSummaryTable(filtered) {
                     <td style="font-weight:600;color:#2d6a9f;text-align:left">${fmt(b.cumulativeAmount || 0)}</td>
                     <td style="font-weight:600;color:#e67e22;text-align:left">${fmt(b.retentionAmount || 0)}</td>
                     <td style="font-weight:700;color:#27ae60;text-align:left">${fmt(b.netAmount || 0)}</td>
-                    <td><span style="background:${st.bg};color:${st.color};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap">${st.label}</span></td>
+                    <td><span style="background:${st.bg};color:${st.color};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap">${esc(st.label)}</span></td>
                     <td style="white-space:nowrap">${invCell}</td>
                     <td><div style="display:flex;gap:4px">
                         <button onclick="openBillingDetail && openBillingDetail('${bk}')" class="btn b-b" style="padding:3px 8px;font-size:11px" title="عرض التفاصيل">👁️</button>
@@ -1457,7 +1457,7 @@ window.pdPrintProjectBillings = function (pid) {
 <html lang="ar" dir="rtl">
 <head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <meta charset="UTF-8">
-<title>مستخلصات المشروع — ${p.name || ''}</title>
+<title>مستخلصات المشروع — ${esc(p.name || '')}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
   * { margin:0; padding:0; box-sizing:border-box }
@@ -1490,7 +1490,7 @@ window.pdPrintProjectBillings = function (pid) {
 <body>
 <div class="hdr">
   <div>
-    <div class="hdr-title">📑 مستخلصات المشروع — ${p.name || ''}</div>
+    <div class="hdr-title">📑 مستخلصات المشروع — ${esc(p.name || '')}</div>
     <div class="hdr-sub">${cA} ${customer ? '| العميل: ' + customer.nameAr : ''} | عدد المستخلصات: ${bills.length}</div>
   </div>
   <div style="font-size:22px">📑</div>
@@ -1609,7 +1609,7 @@ window.pdShowBillingListPage = function (pid, filterType) {
     <!-- مسار الرجوع -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn" onclick="renderProjectDetail()" style="background:#f8fafc;color:#2d6a9f;border:1.5px solid #d0d7e0;font-size:12px;font-weight:700">→ رجوع لملف المشروع</button>
-        <div style="font-size:12px;color:#888">📁 ${p.name || ''} <span style="color:#ccc">/</span> 📑 المستخلصات <span style="color:#ccc">/</span> <span style="color:${color};font-weight:800">${icon} ${isCollected ? 'محصَّل' : 'مستحق'}</span></div>
+        <div style="font-size:12px;color:#888">📁 ${esc(p.name || '')} <span style="color:#ccc">/</span> 📑 المستخلصات <span style="color:#ccc">/</span> <span style="color:${color};font-weight:800">${icon} ${isCollected ? 'محصَّل' : 'مستحق'}</span></div>
     </div>
 
     <!-- ترويسة -->
@@ -1837,7 +1837,7 @@ function pdRenderProjectInvoices(pid) {
                     <td style="font-weight:700;color:#1a3a5c;text-align:left">${fmt(inv.grandTotal || 0)}</td>
                     <td style="font-weight:600;color:#27ae60;text-align:left">${fmt(inv.paidAmount || 0)}</td>
                     <td style="font-weight:700;color:${pending > 0 ? '#c0392b' : '#27ae60'};text-align:left">${fmt(pending)}</td>
-                    <td><span style="background:${st.bg};color:${st.color};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${st.label}</span></td>
+                    <td><span style="background:${st.bg};color:${st.color};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${esc(st.label)}</span></td>
                     <td><div style="display:flex;gap:4px">
                         <button onclick="viewSInv && viewSInv('${k}')" class="btn b-b" style="padding:3px 8px;font-size:11px">👁️</button>
                         ${inv.status === 'draft' ? `<button onclick="editSInv && editSInv('${k}')" class="btn" style="padding:3px 8px;font-size:11px;background:#f39c12;color:white">✏️</button>` : ''}
@@ -1894,7 +1894,7 @@ window.pdOpenInvoicePrintSettings = function (pid) {
             ${PD_INV_PRINT_COLS.map(c => `
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a3a5c;background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:8px;padding:7px 10px;cursor:pointer">
                 <input type="checkbox" class="pd-inv-print-col" value="${c.id}" ${(!saved || saved.includes(c.id)) ? 'checked' : ''} style="accent-color:#2d6a9f;width:15px;height:15px">
-                <span style="flex:1">${c.label}</span>
+                <span style="flex:1">${esc(c.label)}</span>
                 <span style="font-size:11px;color:#888">العرض %</span>
                 <input type="number" class="pd-inv-print-width" data-col="${c.id}" min="3" max="60" value="${(savedWidths && savedWidths[c.id]) || c.width}" style="width:55px;padding:3px 6px;border:1.5px solid #e0e8f0;border-radius:6px;font-size:12px;text-align:center">
             </label>`).join('')}
@@ -1930,7 +1930,7 @@ window.pdPrintProjectInvoices = function (pid, cols, widths, title) {
     if (!Array.isArray(cols) || !cols.length) cols = PD_INV_PRINT_COLS.map(c => c.id);
     if (!widths) { try { widths = JSON.parse(localStorage.getItem('pdInvPrintWidths') || 'null'); } catch (e) { widths = null; } }
     if (title === undefined) title = localStorage.getItem('pdInvPrintTitle') || '';
-    const reportTitle = (title && title.trim()) ? title.trim() : `🧾 فواتير المبيعات — ${p.name || ''}`;
+    const reportTitle = (title && title.trim()) ? title.trim() : `🧾 فواتير المبيعات — ${esc(p.name || '')}`;
     const has = id => cols.includes(id);
     const colWidth = id => (widths && widths[id]) || PD_INV_PRINT_COLS.find(c => c.id === id)?.width || 10;
     const numColWidth = Math.max(3, 100 - cols.reduce((s, id) => s + colWidth(id), 0));
@@ -1944,7 +1944,7 @@ window.pdPrintProjectInvoices = function (pid, cols, widths, title) {
     const totalPaid    = allInv.reduce((s, [, inv]) => s + (parseFloat(inv.paidAmount) || 0), 0);
     const totalPending = totalAmount - totalPaid;
 
-    const headCells = '<th>#</th>' + PD_INV_PRINT_COLS.filter(c => has(c.id)).map(c => `<th${c.id === 'subject' ? ' class="subj-col"' : ''}>${c.label}</th>`).join('');
+    const headCells = '<th>#</th>' + PD_INV_PRINT_COLS.filter(c => has(c.id)).map(c => `<th${c.id === 'subject' ? ' class="subj-col"' : ''}>${esc(c.label)}</th>`).join('');
 
     const tRows = allInv.map(([k, inv], i) => {
         const pending = (parseFloat(inv.grandTotal)||0) - (parseFloat(inv.paidAmount)||0);
@@ -1958,7 +1958,7 @@ window.pdPrintProjectInvoices = function (pid, cols, widths, title) {
             total:   `<td>${f(inv.grandTotal)}</td>`,
             paid:    `<td style="color:#27ae60">${f(inv.paidAmount)}</td>`,
             pending: `<td style="color:${pending>0?'#c0392b':'#27ae60'}">${f(pending)}</td>`,
-            status:  `<td><span style="background:${st.bg};color:${st.color};padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700">${st.label}</span></td>`,
+            status:  `<td><span style="background:${st.bg};color:${st.color};padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700">${esc(st.label)}</span></td>`,
         };
         return `<tr class="${i%2?'even':''}">
             <td>${i+1}</td>
@@ -2355,7 +2355,7 @@ function pdRenderSuppliers(pid) {
                             <thead><tr><th>المورد</th><th>رقم الفاتورة</th><th>التاريخ</th><th>المادة</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
                             <tbody>
                             ${g.invs.map(inv => `<tr>
-                                <td style="font-weight:600">${inv.supplierName || '-'}</td>
+                                <td style="font-weight:600">${esc(inv.supplierName || '-')}</td>
                                 <td>${inv.invoiceNumber || '-'}</td>
                                 <td>${inv.invoiceDate || '-'}</td>
                                 <td>${inv.materialName || '-'}</td>
@@ -2379,7 +2379,7 @@ function pdRenderSuppliers(pid) {
             <thead><tr><th>المورد</th><th>عدد الفواتير</th><th>التصنيفات</th><th>الإجمالي</th></tr></thead>
             <tbody>
             ${Object.values(supGroups).sort((a, b) => b.total - a.total).map(s => `<tr>
-                <td style="font-weight:700;color:#1a3a5c">${s.name}</td>
+                <td style="font-weight:700;color:#1a3a5c">${esc(s.name)}</td>
                 <td>${s.count}</td>
                 <td>${[...s.cats].map(c => `<span style="font-size:11px;background:#f0f5fa;padding:2px 8px;border-radius:8px;margin-left:4px">${catLabel(c)}</span>`).join('')}</td>
                 <td style="font-weight:800;color:#16a085">${fmt(s.total)}</td>
@@ -2513,7 +2513,7 @@ function pdRenderPayroll(pid) {
             if (typeof empFinance === 'function') {
                 const f = empFinance(e);
                 return `<div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:12px">
-                    <div style="font-weight:700;color:#1a3a5c;font-size:13px;margin-bottom:4px">${e.name}</div>
+                    <div style="font-weight:700;color:#1a3a5c;font-size:13px;margin-bottom:4px">${esc(e.name)}</div>
                     <div style="font-size:11px;color:#666;margin-bottom:6px">${e.job || '-'}</div>
                     <div style="display:flex;justify-content:space-between;font-size:12px">
                         <span style="color:#555">الراتب الشهري</span><span style="font-weight:700;color:#27ae60">${fmt(f.netSalary)}</span>
@@ -2524,7 +2524,7 @@ function pdRenderPayroll(pid) {
                 </div>`;
             }
             return `<div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:12px">
-                <div style="font-weight:700;color:#1a3a5c">${e.name}</div>
+                <div style="font-weight:700;color:#1a3a5c">${esc(e.name)}</div>
                 <div style="font-size:11px;color:#666">${e.job || '-'}</div>
                 <div style="font-size:12px;margin-top:4px">إجمالي: <strong>${fmt(total)} ريال</strong></div>
             </div>`;
@@ -2585,7 +2585,7 @@ function pdRenderNotes(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="background:${tcl}22;color:${tcl};padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">${tl}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${n.title || 'ملاحظة'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(n.title || 'ملاحظة')}</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
                         <span style="font-size:11px;color:#888">${date}</span>
@@ -2893,7 +2893,7 @@ function pdRenderMeetings(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         ${r.meetingType ? `<span style="background:#eef3f8;color:#2d6a9f;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_MTG_TYPES[r.meetingType] || r.meetingType}</span>` : ''}
                         ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ بند متأخر</span>' : ''}
@@ -3093,7 +3093,7 @@ function pdRenderTenders(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         ${r.category ? `<span style="background:#eef3f8;color:#2d6a9f;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_BID_CATS[r.category] || r.category}</span>` : ''}
                         ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ انتهى موعد العروض</span>' : ''}
@@ -3269,7 +3269,7 @@ function pdRenderPunch(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
                         ${ov ? '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:800">⏰ متأخر</span>' : ''}
@@ -3449,7 +3449,7 @@ function pdRenderInspections(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${rbg};color:${rc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${rl}</span>
                         ${chk.length ? `<span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">☑️ ${okN}/${chk.length}</span>` : ''}
                     </div>
@@ -3564,7 +3564,7 @@ function pdRenderObservations(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${cat[1]}18;color:${cat[1]};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${cat[0]}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
@@ -3685,7 +3685,7 @@ function pdRenderIncidents(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         ${tp ? `<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${tp}</span>` : ''}
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
@@ -3844,7 +3844,7 @@ function pdRenderSubmittals(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}${r.revision ? ` · ${r.revision}` : ''}</span>
-                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title || '—'}</span>
+                        <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         ${r.subType ? `<span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_SUB_TYPE[r.subType] || r.subType}</span>` : ''}
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
@@ -4276,7 +4276,7 @@ function pdLineChart(xLabels, series) {
         const dots = s.points.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.5" fill="${s.color}"/>`).join('');
         return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" ${s.dash ? 'stroke-dasharray="6 4"' : ''}/>${dots}`;
     }).join('');
-    const legend = series.map(s => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#555"><span style="width:16px;height:3px;background:${s.color};border-radius:2px;${s.dash ? 'background:repeating-linear-gradient(90deg,' + s.color + ' 0 5px,transparent 5px 8px)' : ''}"></span>${s.label}</span>`).join('');
+    const legend = series.map(s => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#555"><span style="width:16px;height:3px;background:${s.color};border-radius:2px;${s.dash ? 'background:repeating-linear-gradient(90deg,' + s.color + ' 0 5px,transparent 5px 8px)' : ''}"></span>${esc(s.label)}</span>`).join('');
     return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;min-width:${Math.min(W, 600)}px">${grid}${xlab}${paths}</svg></div>
         <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:8px">${legend}</div>`;
 }
@@ -4666,7 +4666,7 @@ function pdRenderTasks(pid) {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
                 <div style="display:flex;gap:6px;align-items:flex-start;flex:1;min-width:0">
                     ${canDeleteTasks ? `<input type="checkbox" class="pd-task-chk" data-tk="${tk}" onchange="pdUpdateTaskBulkBar('${pid}')" style="margin-top:3px">` : ''}
-                    <div style="font-size:12.5px;font-weight:700;color:#1a3a5c;line-height:1.5">${isCrit ? '<span title="مهمة على المسار الحرج">🔴 </span>' : ''}${t.title || ''}${depCount ? ` <span style="color:#aaa;font-size:10px" title="يعتمد على ${depCount} مهمة سابقة">🔗${depCount}</span>` : ''}</div>
+                    <div style="font-size:12.5px;font-weight:700;color:#1a3a5c;line-height:1.5">${isCrit ? '<span title="مهمة على المسار الحرج">🔴 </span>' : ''}${esc(t.title || '')}${depCount ? ` <span style="color:#aaa;font-size:10px" title="يعتمد على ${depCount} مهمة سابقة">🔗${depCount}</span>` : ''}</div>
                 </div>
                 <div style="display:flex;gap:4px;flex-shrink:0">
                     <button onclick="pdOpenTaskForm('${pid}','${tk}')" style="border:none;background:none;cursor:pointer;font-size:12px" title="تعديل">✏️</button>
@@ -4678,7 +4678,7 @@ function pdRenderTasks(pid) {
                 <span style="background:${plColor}1a;color:${plColor};padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${plLabel}</span>
                 ${chkChip}
                 ${effChip}
-                ${assignee ? `<span style="background:#eef3f8;color:#1a3a5c;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600">👤 ${assignee.name}</span>` : ''}
+                ${assignee ? `<span style="background:#eef3f8;color:#1a3a5c;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600">👤 ${esc(assignee.name)}</span>` : ''}
                 ${t.dueDate ? `<span style="background:${overdue ? '#fdecea' : '#f4f6f8'};color:${overdue ? '#c0392b' : '#888'};padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600">📅 ${t.dueDate}${overdue ? ' ⚠️' : ''}</span>` : ''}
             </div>
         </div>`;
@@ -4743,7 +4743,7 @@ function pdRenderTasks(pid) {
             <div><label style="${lblStyle()}">الأولوية</label>
                 <select id="pt-priority" style="${inputStyle()}">${Object.entries(PD_TASK_PRIORITY).map(([k, [lb]]) => `<option value="${k}">${lb}</option>`).join('')}</select></div>
             <div><label style="${lblStyle()}">المسؤول</label>
-                <select id="pt-assignee" style="${inputStyle()}"><option value="">— غير محدد —</option>${Object.entries(window.emp || {}).map(([k, e]) => `<option value="${k}">${e.name}</option>`).join('')}</select></div>
+                <select id="pt-assignee" style="${inputStyle()}"><option value="">— غير محدد —</option>${Object.entries(window.emp || {}).map(([k, e]) => `<option value="${k}">${esc(e.name)}</option>`).join('')}</select></div>
             <div><label style="${lblStyle()}">تاريخ البداية</label><input type="date" id="pt-start" style="${inputStyle()}"></div>
             <div><label style="${lblStyle()}">تاريخ التسليم</label><input type="date" id="pt-due" style="${inputStyle()}"></div>
         </div>
@@ -4853,7 +4853,7 @@ function pdRenderCpmTable(pid) {
                     <th style="padding:8px">حرجة</th>
                 </tr></thead>
                 <tbody>${rows.map(r => `<tr style="border-top:1px solid #eef2f7;background:${r.critical ? '#fdf0ee' : '#fff'}">
-                    <td style="padding:7px 10px;font-weight:700;color:#1a3a5c">${r.critical ? '🔴 ' : ''}${r.t.title || '—'}</td>
+                    <td style="padding:7px 10px;font-weight:700;color:#1a3a5c">${r.critical ? '🔴 ' : ''}${esc(r.t.title || '—')}</td>
                     ${cell(r.duration + ' ي')}${cell(r.ES)}${cell(r.EF)}${cell(r.LS)}${cell(r.LF)}
                     ${cell(r.float, true)}${cell(r.freeFloat)}
                     <td style="padding:7px 8px;text-align:center">${r.critical ? '<span style="color:#c0392b;font-weight:800">🔴 نعم</span>' : '<span style="color:#27ae60">لا</span>'}</td>
@@ -4932,11 +4932,11 @@ function pdRenderTasksGantt(pid, tasks, today) {
                 const depCount = (t.deps || []).filter(d => Tp[d]).length;
                 const sIso = t.startDate || t.dueDate;
                 return `<div style="position:relative;height:${RH}px">
-                    <div onclick="pdOpenTaskForm('${pid}','${tk}')" title="اضغط للتعديل" style="position:absolute;right:0;width:170px;height:${RH}px;display:flex;align-items:center;font-size:12px;font-weight:700;color:#1a3a5c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;z-index:2;cursor:pointer">${isCrit ? '🔴 ' : ''}${t.title || ''}${depCount ? ` <span style="color:#888;font-weight:400">🔗${depCount}</span>` : ''}</div>
+                    <div onclick="pdOpenTaskForm('${pid}','${tk}')" title="اضغط للتعديل" style="position:absolute;right:0;width:170px;height:${RH}px;display:flex;align-items:center;font-size:12px;font-weight:700;color:#1a3a5c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;z-index:2;cursor:pointer">${isCrit ? '🔴 ' : ''}${esc(t.title || '')}${depCount ? ` <span style="color:#888;font-weight:400">🔗${depCount}</span>` : ''}</div>
                     <div style="position:absolute;left:0;width:${timelineW}px;height:${RH}px">
                         <div onmousedown="pdGanttDown(event,'${pid}','${tk}','${sIso}','${t.dueDate}',${rightPx.toFixed(1)})"
                             style="position:absolute;right:${rightPx.toFixed(1)}px;width:${widthPx}px;top:${(RH - 22) / 2}px;height:22px;background:${barColor};border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;cursor:grab;z-index:1;${isCrit ? 'box-shadow:0 0 0 2px #922b21' : ''}"
-                            title="${t.title}${isCrit ? ' — حرجة' : ' — مرونة ' + Math.max(0, Math.round(ci.float)) + 'ي'} — اسحب لإعادة الجدولة">${durDays}ي</div>
+                            title="${esc(t.title)}${isCrit ? ' — حرجة' : ' — مرونة ' + Math.max(0, Math.round(ci.float)) + 'ي'} — اسحب لإعادة الجدولة">${durDays}ي</div>
                     </div>
                 </div>`;
             }).join('')}
@@ -5056,7 +5056,7 @@ window.pdApplyTemplatePicker = function (pid) {
     pdEnsureTplPicker();
     document.getElementById('pdTplList').innerHTML = tpls.sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || '')).map(([k, t]) => `
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border:1.5px solid #eef0f3;border-radius:10px;margin-bottom:8px">
-            <div><div style="font-weight:800;color:#1a3a5c">${t.name || 'قالب'}</div><div style="font-size:12px;color:#888">${(t.taskCount || (t.tasks || []).length)} مهمة</div></div>
+            <div><div style="font-weight:800;color:#1a3a5c">${esc(t.name || 'قالب')}</div><div style="font-size:12px;color:#888">${(t.taskCount || (t.tasks || []).length)} مهمة</div></div>
             <div style="display:flex;gap:6px">
                 <button class="btn b-g" onclick="pdApplyTemplate('${pid}','${k}')" style="font-size:12px;padding:5px 12px">➕ تطبيق</button>
                 <button class="btn b-r" onclick="pdDeleteTemplate('${k}')" style="font-size:12px;padding:5px 10px">🗑️</button>
@@ -5066,7 +5066,7 @@ window.pdApplyTemplatePicker = function (pid) {
 };
 window.pdApplyTemplate = async function (pid, tplKey) {
     const tpl = (window.projectTemplates || {})[tplKey]; if (!tpl || !tpl.tasks) return;
-    if (!(await cf2(`تطبيق قالب «${tpl.name}» (${tpl.tasks.length} مهمة)؟ ستُضاف المهام بتواريخ محسوبة من تاريخ بدء المشروع.`))) return;
+    if (!(await cf2(`تطبيق قالب «${esc(tpl.name)}» (${tpl.tasks.length} مهمة)؟ ستُضاف المهام بتواريخ محسوبة من تاريخ بدء المشروع.`))) return;
     const proj = (window.projects || {})[pid] || {};
     const anchor = proj.startDate || new Date().toISOString().slice(0, 10);
     const base = `ledger/projectTasks/${pid}`;
@@ -5340,7 +5340,7 @@ window.pdOpenExecSummary = function (pid) {
             <div style="font-size:20px;font-weight:900;color:${color};margin-top:4px">${value}</div>
         </div>`;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>ملخص تنفيذي — ${p.name || ''}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>ملخص تنفيذي — ${esc(p.name || '')}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { font-family: 'Tajawal', 'Tahoma', Arial, sans-serif; padding: 24px; color: #1a3a5c; direction: rtl; }
@@ -5350,7 +5350,7 @@ window.pdOpenExecSummary = function (pid) {
 
     <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;border-radius:14px;padding:22px;margin-bottom:18px">
         <div style="font-size:11px;opacity:.85;letter-spacing:1px">EXECUTIVE SUMMARY</div>
-        <div style="font-size:24px;font-weight:900;margin-top:4px">${p.name || '-'}</div>
+        <div style="font-size:24px;font-weight:900;margin-top:4px">${esc(p.name || '-')}</div>
         <div style="font-size:13px;opacity:.95;margin-top:6px">${p.ownerName || p.clientName || ''}${p.contractNo ? ' · عقد رقم ' + p.contractNo : ''}${p.city ? ' · ' + p.city : ''}</div>
         <div style="font-size:11px;opacity:.85;margin-top:8px">📅 تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')}</div>
     </div>
@@ -5637,7 +5637,7 @@ window.pdAddDocVersion = function (pid, docKey) {
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
     ov.innerHTML = `<div dir="rtl" style="background:#fff;border-radius:16px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
         <div style="background:linear-gradient(135deg,#16a085,#0e6b5e);color:#fff;padding:15px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
-            <div style="font-weight:900;font-size:15px">📚 إصدار جديد — ${d.name || 'مستند'}</div>
+            <div style="font-weight:900;font-size:15px">📚 إصدار جديد — ${esc(d.name || 'مستند')}</div>
             <button onclick="pdCloseDocVer()" style="border:0;background:rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
         </div>
         <div style="padding:20px">
@@ -5669,7 +5669,7 @@ window.pdSaveDocVersion = async function () {
     const versions = [...pdDocVersions(d), v];
     try {
         await update(ref(db, `ledger/projectDocuments/${pid}/${docKey}`), { versions, url: v.url, revision: v.rev, updatedAt: new Date().toISOString() });
-        pdLogActivity(pid, '📚', `إصدار جديد للمستند ${d.name || ''}: ${rev}`);
+        pdLogActivity(pid, '📚', `إصدار جديد للمستند ${esc(d.name || '')}: ${rev}`);
         toast('تم حفظ الإصدار ✓', 'ok');
         pdCloseDocVer();
         setTimeout(() => pdRenderTab('docs'), 400);
@@ -5796,7 +5796,7 @@ https://..." style="${inputStyle('resize:vertical')}"></textarea></div>
                 </div>
                 <div style="font-size:13px;color:#333;line-height:1.7"><strong>الأعمال المنجزة:</strong> ${(r.workDone || '-').replace(/\n/g, '<br>')}</div>
                 ${labor.length ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">👷 ${labor.map(x => chip(`${x.trade || 'عمالة'}: ${x.count || 0}`)).join('')}</div>` : ''}
-                ${equip.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">🚜 ${equip.map(x => chip(`${x.name}${x.count ? ' ×' + x.count : ''}${x.hours ? ' · ' + x.hours + 'س' : ''}`)).join('')}</div>` : ''}
+                ${equip.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">🚜 ${equip.map(x => chip(`${esc(x.name)}${x.count ? ' ×' + x.count : ''}${x.hours ? ' · ' + x.hours + 'س' : ''}`)).join('')}</div>` : ''}
                 ${mat.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">📦 ${mat.map(x => chip(`${x.material}: ${x.qty || ''} ${x.unit || ''}`)).join('')}</div>` : ''}
                 ${r.issues ? `<div style="font-size:12px;color:#922b21;margin-top:6px"><strong>التأخيرات/المعوقات:</strong> ${r.issues.replace(/\n/g, '<br>')}</div>` : ''}
                 ${r.safetyNotes ? `<div style="font-size:12px;color:#7d4e00;margin-top:6px"><strong>🦺 السلامة:</strong> ${r.safetyNotes.replace(/\n/g, '<br>')}</div>` : ''}
@@ -6171,7 +6171,7 @@ function pdRenderTimeline(pid) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
                     <div style="flex:1;min-width:200px">
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                            <span style="font-size:14px;font-weight:800;color:#1a3a5c">${m.name || 'مرحلة'}</span>
+                            <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(m.name || 'مرحلة')}</span>
                             <span style="background:${sbg};color:${scl};padding:2px 9px;border-radius:8px;font-size:11px;font-weight:700">${sl}</span>
                             ${delayed ? '<span style="background:#fdedec;color:#922b21;padding:2px 9px;border-radius:8px;font-size:11px;font-weight:700">🚨 متأخرة</span>' : ''}
                             ${parseFloat(m.weight) ? `<span style="background:#f4ecf7;color:#6c3483;padding:2px 9px;border-radius:8px;font-size:11px;font-weight:700">⚖️ ${m.weight}%</span>` : ''}
@@ -6291,7 +6291,7 @@ window.pdQuickMsStatus = async function (pid, msKey, action) {
         : { status: 'done', actualEnd: m.actualEnd || todayStr, actualStart: m.actualStart || m.plannedStart || todayStr, progress: 100, updatedAt: new Date().toISOString() };
     try {
         await update(ref(db, `ledger/projectMilestones/${pid}/${msKey}`), data);
-        if (window.pdLogActivity) pdLogActivity(pid, action === 'start' ? '▶️' : '✅', `${action === 'start' ? 'بدء' : 'إنهاء'} مرحلة: ${m.name || ''}`);
+        if (window.pdLogActivity) pdLogActivity(pid, action === 'start' ? '▶️' : '✅', `${action === 'start' ? 'بدء' : 'إنهاء'} مرحلة: ${esc(m.name || '')}`);
         toast(action === 'start' ? 'بدأت المرحلة ▶️' : 'اكتملت المرحلة ✅', 'ok');
         setTimeout(() => pdRenderTab('timeline'), 400);
     } catch (e) { toast('خطأ: ' + e.message, 'er'); }
@@ -6302,7 +6302,7 @@ window.pdDeleteMilestone = function (pid, msKey) {
     cf2('هل تريد حذف هذه المرحلة؟', async () => {
         try {
             await remove(ref(db, `ledger/projectMilestones/${pid}/${msKey}`));
-            if (window.pdLogActivity) pdLogActivity(pid, '🗑️', `حذف مرحلة: ${m?.name || ''}`);
+            if (window.pdLogActivity) pdLogActivity(pid, '🗑️', `حذف مرحلة: ${esc(m?.name || '')}`);
             toast('تم الحذف', 'ok');
             setTimeout(() => pdRenderTab('timeline'), 400);
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
@@ -6384,7 +6384,7 @@ function pdRenderEVM(pid) {
         </div>
         <p style="font-size:12px;color:#666;line-height:1.8;margin:8px 0 0">
             يقيس EVM أداء المشروع بمقارنة <strong>القيمة المخططة (PV)</strong> و<strong>المكتسبة (EV)</strong> و<strong>التكلفة الفعلية (AC)</strong> — ليجيب فورًا: هل المشروع متأخر؟ متجاوز للميزانية؟
-            ${base ? `<br>📌 خط الأساس النشط: <strong>${base.name || 'خط الأساس'}</strong> (${base.date || '—'}) — الميزانية المرجعية ${f(base.bac)} ريال.` : '<br>⚠️ لم يُحفظ خط أساس بعد — تُحسب القيمة المخططة من تواريخ المشروع الحالية.'}
+            ${base ? `<br>📌 خط الأساس النشط: <strong>${esc(base.name || 'خط الأساس')}</strong> (${base.date || '—'}) — الميزانية المرجعية ${f(base.bac)} ريال.` : '<br>⚠️ لم يُحفظ خط أساس بعد — تُحسب القيمة المخططة من تواريخ المشروع الحالية.'}
         </p>
     </div>
     ${pdBaselinesPanel(pid, bac, p)}
@@ -6467,7 +6467,7 @@ function pdBaselinesPanel(pid, curBac, p) {
         const drift = dayDiff(b.plannedEnd, curEnd);
         return `<tr style="border-top:1px solid #eee;background:${isAct ? '#eef6ff' : '#fff'}">
                 <td style="padding:7px;text-align:center">${k === '_legacy' ? '✅' : `<input type="radio" name="pdBl_${pid}" ${isAct ? 'checked' : ''} onchange="pdSetActiveBaseline('${pid}','${k}')" style="width:16px;height:16px;cursor:pointer">`}</td>
-                <td style="padding:7px;font-weight:700;color:#1a3a5c">${b.name || 'خط الأساس'}${isAct ? ' <span style="font-size:10px;color:#2980b9">(نشط)</span>' : ''}</td>
+                <td style="padding:7px;font-weight:700;color:#1a3a5c">${esc(b.name || 'خط الأساس')}${isAct ? ' <span style="font-size:10px;color:#2980b9">(نشط)</span>' : ''}</td>
                 <td style="padding:7px;text-align:center;color:#666">${b.date || '—'}</td>
                 <td style="padding:7px;text-align:left">${fmt(parseFloat(b.bac) || 0)}</td>
                 <td style="padding:7px;text-align:left;font-weight:700;color:${dBac > 0 ? '#c0392b' : dBac < 0 ? '#1e8449' : '#888'}">${dBac > 0 ? '+' : ''}${fmt(dBac)}</td>
@@ -6552,7 +6552,7 @@ window.pdClientPortal = function (pid) {
     const card = (label, value, color, sub) => `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:12px;padding:16px;border-top:4px solid ${color}"><div style="font-size:12px;color:#888">${label}</div><div style="font-size:22px;font-weight:900;color:${color};margin-top:4px">${value}</div>${sub ? `<div style="font-size:11px;color:#aaa;margin-top:3px">${sub}</div>` : ''}</div>`;
     const barRow = (label, pct, color) => `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="font-weight:700;color:#1a3a5c">${label}</span><span style="font-weight:800;color:${color}">${pct}%</span></div><div style="background:#eef1f5;border-radius:20px;height:12px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:20px"></div></div></div>`;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>حالة المشروع — ${p.name || ''}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>حالة المشروع — ${esc(p.name || '')}</title>
     <style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
     body{font-family:"Segoe UI",Tahoma,sans-serif;margin:0;background:#f4f6f8;color:#1a3a5c;direction:rtl}
     .wrap{max-width:900px;margin:0 auto;padding:20px}
@@ -6572,7 +6572,7 @@ window.pdClientPortal = function (pid) {
       </div>
       <div class="head">
         <div style="font-size:12px;opacity:.85;letter-spacing:.05em">${company} · تقرير حالة المشروع</div>
-        <div style="font-size:26px;font-weight:900;margin:6px 0">${p.name || '—'}</div>
+        <div style="font-size:26px;font-weight:900;margin:6px 0">${esc(p.name || '—')}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;opacity:.92">
           ${client ? `<span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:8px">👤 العميل: ${client}</span>` : ''}
           <span style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:8px">📌 ${statusMap[p.status] || p.status || ''}</span>

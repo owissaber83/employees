@@ -55,7 +55,7 @@ window.renderHrLetters = function () {
     const empOpts = Object.entries(window.emp || {}).filter(([, e]) => (e.status || 'active') === 'active' || !e.status)
         .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
         .map(([k, e]) => `<option value="${k}" ${f.emp === k ? 'selected' : ''}>${hsEsc(e.name)}${e.empId ? ' · ' + hsEsc(e.empId) : ''}</option>`).join('');
-    const typeOpts = Object.entries(HS_LETTER_TYPES).map(([t, d]) => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${d.label}</option>`).join('');
+    const typeOpts = Object.entries(HS_LETTER_TYPES).map(([t, d]) => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${esc(d.label)}</option>`).join('');
 
     const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
 
@@ -68,7 +68,7 @@ window.renderHrLetters = function () {
         const e = (window.emp || {})[l.empKey] || {};
         return `<tr style="border-bottom:1px solid #f2f5f8">
             <td style="padding:8px 10px;font-weight:700">${hsEsc(l.empName || e.name || '—')}</td>
-            <td style="padding:8px 10px;color:${t.color};font-weight:700;font-size:12px">${t.label}</td>
+            <td style="padding:8px 10px;color:${t.color};font-weight:700;font-size:12px">${esc(t.label)}</td>
             <td style="padding:8px 10px;color:#666;font-size:12px">${hsEsc(l.addressee || 'لمن يهمه الأمر')}</td>
             <td style="padding:8px 10px;color:#888;font-size:11px;white-space:nowrap">${(l.issuedAt || l.requestedAt || '').slice(0, 10)}</td>
             <td style="padding:8px 10px;text-align:center">${statusBadge(l)}</td>
@@ -208,7 +208,7 @@ function hsOpenLetterWindow(l, e) {
             </tbody>
         </table>` : '';
 
-    const html = `<!doctype html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>${t.label} — ${hsEsc(e.name || '')}</title>
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="utf-8"><title>${esc(t.label)} — ${hsEsc(e.name || '')}</title>
     <style>
       @page { margin: 18mm; }
       body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; color:#1a2733; direction:rtl; padding:24px; max-width:820px; margin:0 auto; line-height:2 }
@@ -261,7 +261,7 @@ window.essRequestLetter = async function () {
     } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
 };
 // خيارات نوع الخطاب للخدمة الذاتية (تُستخدم في app.js)
-window.hsLetterTypeOptions = function () { return Object.entries(HS_LETTER_TYPES).map(([t, d]) => `<option value="${t}">${d.label}</option>`).join(''); };
+window.hsLetterTypeOptions = function () { return Object.entries(HS_LETTER_TYPES).map(([t, d]) => `<option value="${t}">${esc(d.label)}</option>`).join(''); };
 window.hsLetterLabel = function (t) { return (HS_LETTER_TYPES[t] || HS_LETTER_TYPES.employment).label; };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -396,7 +396,7 @@ window.renderAnnouncements = function () {
             <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
                     <div style="font-weight:800;color:${pr.color};font-size:14px">${hsEsc(a.title || 'إعلان')}</div>
-                    <span style="font-size:10px;color:${pr.color};background:${pr.color}18;border-radius:8px;padding:2px 8px;white-space:nowrap">${pr.label}</span>
+                    <span style="font-size:10px;color:${pr.color};background:${pr.color}18;border-radius:8px;padding:2px 8px;white-space:nowrap">${esc(pr.label)}</span>
                 </div>
                 <div style="font-size:10.5px;color:#95a5a6;margin-top:3px">${(a.date || a.createdAt || '').slice(0, 10)}${a.expiry ? ` · ينتهي ${a.expiry}` : ''}${off ? ' · موقوف' : expired ? ' · منتهٍ' : ''}</div>
             </div>
@@ -415,7 +415,7 @@ window.renderAnnouncements = function () {
 function hsEnsureAnnModal() {
     if (document.getElementById('hsAnnModal')) return;
     const fg = (label, inner) => `<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:3px">${label}</label>${inner}</div>`;
-    const prOpts = Object.entries(HS_ANN_PRIORITY).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+    const prOpts = Object.entries(HS_ANN_PRIORITY).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('');
     const d = document.createElement('div');
     d.id = 'hsAnnModal';
     d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
@@ -526,7 +526,7 @@ window.renderHrAnalytics = function () {
         <div class="card" style="margin-bottom:16px;border-right:5px solid ${band.color};background:${band.bg}">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
                 <div>
-                    <div style="font-size:14px;font-weight:800;color:${band.color}">🇸🇦 نطاق السعودة التقريبي: ${band.label}</div>
+                    <div style="font-size:14px;font-weight:800;color:${band.color}">🇸🇦 نطاق السعودة التقريبي: ${esc(band.label)}</div>
                     <div style="font-size:12px;color:#5b6b7b;margin-top:4px">نسبة السعودة الحالية <b>${satzPct}%</b> (${saudis} من ${total}). النطاق الفعلي يعتمد على نشاط المنشأة وحجمها لدى وزارة الموارد البشرية.</div>
                 </div>
                 <div style="font-size:34px;font-weight:900;color:${band.color}">${satzPct}%</div>
@@ -653,7 +653,7 @@ function hsEnsureGoalModal() {
         </div>
         ${fg('العنوان *', `<input id="hsGoalName" placeholder="مثال: رفع رضا العملاء" style="width:100%;${hsInp()}">`)}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-            ${fg('النوع', `<select id="hsGoalType" style="width:100%;${hsInp()}">${Object.entries(HS_GOAL_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>`)}
+            ${fg('النوع', `<select id="hsGoalType" style="width:100%;${hsInp()}">${Object.entries(HS_GOAL_TYPES).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('')}</select>`)}
             ${fg('الوزن %', `<input id="hsGoalWeight" type="number" min="0" max="100" placeholder="25" style="width:100%;${hsInp()}">`)}
             ${fg('تاريخ الاستحقاق', `<input id="hsGoalDue" type="date" style="width:100%;${hsInp()}">`)}
         </div>
@@ -743,7 +743,7 @@ window.renderTraining = function () {
     const expCerts = all.filter(t => t.certExpiry && dTo(t.certExpiry) != null && dTo(t.certExpiry) <= 60);
 
     const empOpts = Object.entries(window.emp || {}).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).map(([k, e]) => `<option value="${k}" ${f.emp === k ? 'selected' : ''}>${hsEsc(e.name)}</option>`).join('');
-    const statusFilterOpts = Object.entries(HS_TRN_STATUS).map(([k, v]) => `<option value="${k}" ${f.status === k ? 'selected' : ''}>${v.label}</option>`).join('');
+    const statusFilterOpts = Object.entries(HS_TRN_STATUS).map(([k, v]) => `<option value="${k}" ${f.status === k ? 'selected' : ''}>${esc(v.label)}</option>`).join('');
     const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
 
     c.innerHTML = `<div style="padding:0 4px">
@@ -774,7 +774,7 @@ window.renderTraining = function () {
                     <td style="padding:7px 9px">${hsEsc(t.course || '—')}${t.provider ? `<div style="font-size:10px;color:#95a5a6">${hsEsc(t.provider)}</div>` : ''}</td>
                     <td style="padding:7px 9px;color:#666">${HS_TRN_TYPES[t.type] || t.type || '—'}</td>
                     <td style="padding:7px 9px;color:#666;font-size:11px;white-space:nowrap">${t.startDate || '—'}${t.endDate ? ' ← ' + t.endDate : ''}</td>
-                    <td style="padding:7px 9px;text-align:center"><span style="background:${st.color}18;color:${st.color};padding:2px 8px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap">${st.label}</span></td>
+                    <td style="padding:7px 9px;text-align:center"><span style="background:${st.color}18;color:${st.color};padding:2px 8px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap">${esc(st.label)}</span></td>
                     <td style="padding:7px 9px;text-align:center">${t.hasCert ? `<span title="${hsEsc(t.certName || '')}${t.certExpiry ? ' · تنتهي ' + t.certExpiry : ''}" style="cursor:help">📜</span>` : '—'}</td>
                     <td style="padding:7px 9px;text-align:center;white-space:nowrap"><button class="btn" onclick="hsOpenTrn('${t.k}')" style="font-size:10px;padding:3px 7px">✏️</button> <button class="btn b-r" onclick="hsDeleteTrn('${t.k}')" style="font-size:10px;padding:3px 7px">🗑️</button></td>
                 </tr>`; }).join('')}</tbody>
@@ -804,7 +804,7 @@ function hsEnsureTrnModal() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
             ${fg('من تاريخ', `<input id="hsTrnStart" type="date" style="width:100%;${hsInp()}">`)}
             ${fg('إلى تاريخ', `<input id="hsTrnEnd" type="date" style="width:100%;${hsInp()}">`)}
-            ${fg('الحالة', `<select id="hsTrnStatus" style="width:100%;${hsInp()}">${Object.entries(HS_TRN_STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>`)}
+            ${fg('الحالة', `<select id="hsTrnStatus" style="width:100%;${hsInp()}">${Object.entries(HS_TRN_STATUS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('')}</select>`)}
         </div>
         <div style="background:#f7fbff;border:1px solid #e3eef7;border-radius:10px;padding:10px 12px;margin-bottom:10px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2980b9;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="hsTrnHasCert" onchange="document.getElementById('hsTrnCertRow').style.display=this.checked?'grid':'none'"> 📜 نتج عنها شهادة</label>
