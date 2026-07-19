@@ -1076,7 +1076,7 @@ function authEr(code) {
     const m = {
         'auth/email-already-in-use': 'البريد مستخدم بالفعل',
         'auth/invalid-email': 'بريد إلكتروني غير صالح',
-        'auth/weak-password': 'كلمة المرور ضعيفة (6 أحرف على الأقل)',
+        'auth/weak-password': 'كلمة المرور ضعيفة (8 أحرف على الأقل مع حرف ورقم)',
         'auth/user-not-found': 'المستخدم غير موجود',
         'auth/wrong-password': 'كلمة المرور خاطئة',
         'auth/invalid-credential': 'بيانات الدخول غير صحيحة',
@@ -1457,7 +1457,7 @@ window.doSetup = async function () {
     const er = $('sErr'); er.classList.remove('show');
     if (!cn || !nm || !em || !ps) { er.textContent = 'جميع الحقول مطلوبة (بما فيها اسم الشركة)'; er.classList.add('show'); return }
     if (ps !== ps2) { er.textContent = 'كلمتا المرور غير متطابقتين'; er.classList.add('show'); return }
-    if (ps.length < 6) { er.textContent = 'كلمة المرور 6 أحرف على الأقل'; er.classList.add('show'); return }
+    { const _w = pwWeak(ps); if (_w) { er.textContent = _w; er.classList.add('show'); return } }
     window.__registering = true; // أوقف معالج onAuthStateChanged مؤقتاً حتى تُكتب بيانات الشركة
     let sec = null;
     try {
@@ -1493,13 +1493,49 @@ window.doLogin = async function () {
     catch (e) { er.textContent = authEr(e.code); er.classList.add('show') }
 };
 
-window.doLogout = () => cf2('هل تريد تسجيل الخروج؟', () => signOut(auth));
+window.doLogout = () => cf2('هل تريد تسجيل الخروج؟', () => { stopIdleGuard(); signOut(auth) });
+
+// ── 🔐 سياسة كلمة المرور ────────────────────────────────────────────────────
+// 8 أحرف على الأقل + حرف ورقم. تُكمّل سياسة Firebase Console من جهة الواجهة.
+// تُعيد رسالة الخطأ، أو '' إذا كانت كلمة المرور مقبولة.
+const PW_MIN = 8;
+const pwWeak = p => {
+    const s = String(p == null ? '' : p);
+    if (s.length < PW_MIN) return `كلمة المرور ${PW_MIN} أحرف على الأقل`;
+    if (!/[A-Za-z؀-ۿ]/.test(s) || !/[0-9]/.test(s)) return 'كلمة المرور يجب أن تحوي حرفاً ورقماً على الأقل';
+    return '';
+};
+window.pwWeak = pwWeak; window.PW_MIN = PW_MIN;
+
+// ── ⏲️ قفل الجلسة عند الخمول ────────────────────────────────────────────────
+// تسجيل خروج تلقائي بعد سكون طويل — يحمي الأجهزة المشتركة في المكتب من ترك جلسة مفتوحة.
+const IDLE_LIMIT_MIN = 30;
+let _idleTimer = null, _idleLast = 0;
+function stopIdleGuard() { clearTimeout(_idleTimer); _idleTimer = null; _idleLast = 0; }
+function resetIdleTimer() {
+    if (!curU) return;                                  // فقط بعد تسجيل الدخول
+    const now = Date.now();
+    if (now - _idleLast < 30000) return;                // خنق: إعادة ضبط مرة كل 30 ثانية كحد أقصى
+    _idleLast = now;
+    clearTimeout(_idleTimer);
+    _idleTimer = setTimeout(async () => {
+        if (!curU) return;
+        stopIdleGuard();
+        try { await signOut(auth) } catch (e) { }
+        try { toast(`🔒 أُقفلت الجلسة تلقائياً بعد ${IDLE_LIMIT_MIN} دقيقة خمول`, 'er') } catch (e) { }
+    }, IDLE_LIMIT_MIN * 60000);
+}
+function startIdleGuard() { _idleLast = 0; resetIdleTimer() }
+['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(ev =>
+    document.addEventListener(ev, resetIdleTimer, { passive: true, capture: true }));
+window.startIdleGuard = startIdleGuard; window.stopIdleGuard = stopIdleGuard;
 
 onAuthStateChanged(auth, async fbU => {
     if (fbU) {
         // 🚧 أثناء تسجيل شركة جديدة نؤجّل المعالجة حتى تُكتب بيانات المستأجر
         if (window.__registering) return;
         curU = fbU; window.curU = fbU;
+        startIdleGuard();   // ⏲️ ابدأ عدّاد الخمول مع بداية الجلسة
         // 0) مالك المنصّة (operator): تحكّم في اشتراكات كل الشركات — لا ينتمي لأي شركة
         try {
             const opSn = await get(_rawRef(db, `operators/${fbU.uid}`));
@@ -1552,6 +1588,7 @@ onAuthStateChanged(auth, async fbU => {
             toast('حساب غير مسجل في الشركة. تواصل مع المدير.', 'er', 6000);
         }
     } else {
+        stopIdleGuard();   // ⏲️ أوقف عدّاد الخمول عند انتهاء الجلسة
         curU = null; myP = null; window.curU = null; window.myP = null;
         currentTenantId = null; window.currentTenantId = null; buildRefs();
         // 🔒 إعادة تحميل كاملة عند الخروج بعد جلسة فعّالة: تفصل كل مستمعات Firebase وتمسح
@@ -4206,7 +4243,7 @@ window.openAUM = function () {
 window.saveNU = async function () {
     const nm = $('auNm').value.trim(), em = $('auEm').value.trim(), ps = $('auPs').value;
     if (!nm || !em || !ps) { toast('جميع الحقول مطلوبة', 'er'); return }
-    if (ps.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'er'); return }
+    { const _w = pwWeak(ps); if (_w) { toast(_w, 'er'); return } }
     const perms = getSel('auPS');
     // اكتشف الدور المطابق من البريسيتات
     let role = 'viewer';
@@ -4274,7 +4311,7 @@ window.doInviteEmployee = async function () {
     const empKey = $('invEmpKey').value; const e = emp[empKey]; if (!e) return;
     const em = $('invEmail').value.trim(), ps = $('invPass').value;
     if (!em) { toast('أدخل البريد الإلكتروني', 'er'); return; }
-    if (!ps || ps.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'er'); return; }
+    { const _w = !ps ? 'أدخل كلمة المرور' : pwWeak(ps); if (_w) { toast(_w, 'er'); return; } }
     try {
         const sec = initializeApp(fbApp.options, 'sec_' + Date.now());
         const sAuth = getAuth(sec);
@@ -4396,7 +4433,7 @@ window.adminSetPassword = async function (uid) {
     if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return; }
     const u = us[uid]; if (!u) { toast('المستخدم غير موجود', 'er'); return; }
     const inp = $('euNewPwd'); const np = (inp && inp.value || '').trim();
-    if (np.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'er'); return; }
+    { const _w = pwWeak(np); if (_w) { toast(_w, 'er'); return; } }
     if (!(await cf2(`ضبط كلمة مرور جديدة مباشرةً للمستخدم "${u.name || u.email}"؟\n\nستُطبَّق فوراً، وأبلغ المستخدم بها.`))) return;
     try {
         await httpsCallable(fns, 'adminSetUserPassword')({ uid, newPassword: np });
@@ -4654,7 +4691,7 @@ window.updProfile = async function () {
         await fbUpP(curU, { displayName: nm });
         await update(ref(db, `ledger/users/${curU.uid}`), { name: nm });
         myP.name = nm; $('sbNm').textContent = nm; $('sbAv').textContent = nm.charAt(0).toUpperCase();
-        if (np) { if (np.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'er'); return } await updatePassword(curU, np) }
+        if (np) { const _w = pwWeak(np); if (_w) { toast(_w, 'er'); return } await updatePassword(curU, np) }
         toast('تم التحديث ✓', 'ok');
     } catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
