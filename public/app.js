@@ -95,7 +95,7 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
-import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
 import { getStorage, ref as _sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
 // تعطيل مؤقت: Firebase Storage يتطلب الترقية لخطة Blaze — مركز المستندات يعتمد حالياً على روابط خارجية
 // import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
@@ -112,16 +112,16 @@ const fbApp = initializeApp({
     measurementId: "G-8GF66TXBNL"
 });
 // ── 🛡️ App Check — يمنع أي عميل خارج تطبيقك من الوصول للقاعدة ────────────────
-// الإعداد لمرة واحدة: Firebase Console ← App Check ← سجّل تطبيق الويب بمزوّد reCAPTCHA v3،
-// ثم الصق «مفتاح الموقع» (Site key) أدناه. المفتاح عام ويُوضع في كود المتصفح — هذا طبيعي وآمن.
-// ما دام فارغاً تبقى الحماية معطّلة ولا يتأثر التطبيق إطلاقاً.
-const APP_CHECK_SITE_KEY = '';   // ← الصق مفتاح reCAPTCHA v3 هنا لتفعيل الحماية
+// المزوّد: reCAPTCHA Enterprise (مفتاح الموقع عام ويُوضع في كود المتصفح — هذا تصميمه الطبيعي).
+// لا حاجة لإضافة وسم <script> لـ enterprise.js يدوياً — SDK الخاص بـ App Check يحمّله بنفسه.
+// شرط العمل: تسجيل تطبيق الويب في Firebase Console ← App Check بنفس المفتاح.
+const APP_CHECK_SITE_KEY = '6LcSJlstAAAAAKqdzArCKYlkMYONda8DN6CYXhoq';
 if (APP_CHECK_SITE_KEY) {
     try {
         // أثناء التطوير المحلي: يطبع رمز تصحيح في الـconsole سجّله في App Check ← Manage debug tokens
         if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-        initializeAppCheck(fbApp, { provider: new ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
-        console.log('🛡️ App Check مُفعّل');
+        initializeAppCheck(fbApp, { provider: new ReCaptchaEnterpriseProvider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
+        console.log('🛡️ App Check مُفعّل (reCAPTCHA Enterprise)');
     } catch (e) { console.warn('🛡️ تعذّر تفعيل App Check:', e && e.message); }
 }
 
