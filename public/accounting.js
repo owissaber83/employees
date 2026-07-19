@@ -12166,7 +12166,7 @@ function custOldestOverdueDays(key) {
     Object.values(window.salesInvoices || {}).forEach(inv => {
         if (inv.customerId !== key || inv.status !== 'posted') return;
         if (inv.fullyCredited) return;
-        const rem = Math.round(((parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0) - (parseFloat(inv.creditedAmount) || 0)) * 100) / 100;
+        const rem = Math.round((sinvDue(inv) - (parseFloat(inv.paidAmount) || 0) - (parseFloat(inv.creditedAmount) || 0)) * 100) / 100;
         if (rem <= 0.01) return;
         const due = custInvoiceDue(inv, terms); if (!due) return;
         const days = Math.floor((today.getTime() - new Date(due).getTime()) / 86400000);
@@ -12470,7 +12470,7 @@ function cust360Body(key, tab, c, bal, kp, cr) {
         const today = new Date().toISOString().slice(0, 10);
         return `<div class="card" style="padding:12px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px">
             <thead style="background:#1a3a5c;color:#fff"><tr><th style="padding:8px;text-align:right">التاريخ</th><th style="padding:8px;text-align:right">الرقم</th><th style="padding:8px;text-align:right">البيان</th><th style="padding:8px;text-align:left">الإجمالي</th><th style="padding:8px;text-align:left">المسدد</th><th style="padding:8px;text-align:left">المتبقي</th><th style="padding:8px;text-align:center">الحالة</th><th></th></tr></thead>
-            <tbody>${invs.length ? invs.map(([ik, inv]) => { const g = Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100, p = Math.round((parseFloat(inv.paidAmount) || 0) * 100) / 100, r = Math.max(0, g - p); const od = inv.dueDate && inv.dueDate < today && r > 0.01 && inv.status === 'posted'; return `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:7px">${inv.date || '—'}</td><td style="padding:7px;font-family:monospace;font-weight:700">${esc(inv.number || '—')}</td><td style="padding:7px;color:#555">${(inv.subject || '—')}</td><td style="padding:7px;text-align:left;direction:ltr;font-weight:700">${fmt(g)}</td><td style="padding:7px;text-align:left;direction:ltr;color:#1e8449">${fmt(p)}</td><td style="padding:7px;text-align:left;direction:ltr;color:${r > 0.01 ? '#c0392b' : '#1e8449'};font-weight:700">${fmt(r)}</td><td style="padding:7px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${inv.status === 'draft' ? '#fef9e7' : od ? '#fdedec' : r <= 0.01 ? '#eafaf1' : '#eaf4fd'};color:${inv.status === 'draft' ? '#f39c12' : od ? '#c0392b' : r <= 0.01 ? '#1e8449' : '#2471a3'}">${inv.status === 'draft' ? 'مسودة' : od ? 'متأخرة' : r <= 0.01 ? 'مسددة' : 'مرحّلة'}</span></td><td style="padding:7px">${(inv.status === 'posted' && r > 0.01) ? `<button class="btn" onclick="openReceiptForInvoice('${ik}')" style="background:#16a085;color:#fff;padding:2px 8px;font-size:10px">💵 سداد</button>` : ''}</td></tr>`; }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:#999">لا توجد فواتير</td></tr>'}</tbody>
+            <tbody>${invs.length ? invs.map(([ik, inv]) => { const g = Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100, p = Math.round((parseFloat(inv.paidAmount) || 0) * 100) / 100, r = Math.max(0, sinvDue(inv) - p); const od = inv.dueDate && inv.dueDate < today && r > 0.01 && inv.status === 'posted'; return `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:7px">${inv.date || '—'}</td><td style="padding:7px;font-family:monospace;font-weight:700">${esc(inv.number || '—')}</td><td style="padding:7px;color:#555">${(inv.subject || '—')}</td><td style="padding:7px;text-align:left;direction:ltr;font-weight:700">${fmt(g)}</td><td style="padding:7px;text-align:left;direction:ltr;color:#1e8449">${fmt(p)}</td><td style="padding:7px;text-align:left;direction:ltr;color:${r > 0.01 ? '#c0392b' : '#1e8449'};font-weight:700">${fmt(r)}</td><td style="padding:7px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${inv.status === 'draft' ? '#fef9e7' : od ? '#fdedec' : r <= 0.01 ? '#eafaf1' : '#eaf4fd'};color:${inv.status === 'draft' ? '#f39c12' : od ? '#c0392b' : r <= 0.01 ? '#1e8449' : '#2471a3'}">${inv.status === 'draft' ? 'مسودة' : od ? 'متأخرة' : r <= 0.01 ? 'مسددة' : 'مرحّلة'}</span></td><td style="padding:7px">${(inv.status === 'posted' && r > 0.01) ? `<button class="btn" onclick="openReceiptForInvoice('${ik}')" style="background:#16a085;color:#fff;padding:2px 8px;font-size:10px">💵 سداد</button>` : ''}</td></tr>`; }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:#999">لا توجد فواتير</td></tr>'}</tbody>
         </table></div></div>`;
     }
     if (tab === 'payments') {
@@ -12543,7 +12543,7 @@ function cust360Statement(key, c) {
     const s = window._cust360;
     const opening = parseFloat(c.openingBalance) || 0;
     let entries = [];
-    Object.values(window.salesInvoices || {}).forEach(inv => { if (inv.customerId === key && inv.status === 'posted') entries.push({ date: inv.date || '', doc: inv.number || '', desc: inv.subject || 'فاتورة مبيعات', debit: Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100, credit: 0 }); });
+    Object.values(window.salesInvoices || {}).forEach(inv => { if (inv.customerId === key && inv.status === 'posted') entries.push({ date: inv.date || '', doc: inv.number || '', desc: (inv.subject || 'فاتورة مبيعات') + (sinvDue(inv) < (parseFloat(inv.grandTotal) || 0) - 0.01 ? ' (صافٍ بعد الاحتجاز/الدفعة)' : ''), debit: sinvDue(inv), credit: 0 }); });
     customerReceipts(key).forEach(r => { if (r.status === 'posted') entries.push({ date: r.date || '', doc: r.number || '', desc: 'سند قبض', debit: 0, credit: Math.round((parseFloat(r.amount) || 0) * 100) / 100 }); });
     if (s.stmtFrom) entries = entries.filter(e => e.date >= s.stmtFrom);
     if (s.stmtTo) entries = entries.filter(e => e.date <= s.stmtTo);
@@ -13390,6 +13390,94 @@ function generateSInvNumber() {
 window.generateSInvNumber = generateSInvNumber;
 window.createJournalForSInv = createJournalForSInv;
 
+// ══════════ 💰 الدفعات المقدمة من العملاء (تُسترد على الفواتير) ══════════
+// رصيد الدفعة المقدمة = إجمالي الدفعات المقبوضة − ما استُرد على الفواتير المرحّلة
+window.custAdvanceBalance = function (customerId, projectId, excludeInvKey) {
+    if (!customerId) return { total: 0, recovered: 0, remaining: 0 };
+    let total = 0;
+    Object.values(window.customerAdvances || {}).forEach(a => {
+        if (a.customerId !== customerId) return;
+        if (projectId && a.projectId && a.projectId !== projectId) return;
+        total += parseFloat(a.amount) || 0;
+    });
+    let recovered = 0;
+    Object.entries(window.salesInvoices || {}).forEach(([k, inv]) => {
+        if (k === excludeInvKey) return;
+        if (inv.customerId !== customerId || inv.status !== 'posted') return;
+        if (projectId && inv.projectId && inv.projectId !== projectId) return;
+        recovered += parseFloat(inv.advanceRecoveryAmount) || 0;
+    });
+    total = Math.round(total * 100) / 100; recovered = Math.round(recovered * 100) / 100;
+    return { total, recovered, remaining: Math.round((total - recovered) * 100) / 100 };
+};
+function cashBankAccountOptions(selectedCode) {
+    const all = Object.values(window.chartOfAccounts || {}).filter(a => a.type === 'asset' && a.nature === 'detail');
+    const cash = all.filter(a => /بنك|صندوق|نقد/.test(a.nameAr || ''));
+    return (cash.length ? cash : all).map(a => `<option value="${a.code}" ${selectedCode === a.code ? 'selected' : ''}>${a.code} — ${esc(a.nameAr)}</option>`).join('');
+}
+window.openCustomerAdvance = function () {
+    if (!Object.values(window.chartOfAccounts || {}).find(a => a.code === '2150')) { toast('⚠️ حساب 2150 (دفعات مقدمة من العملاء) غير موجود في شجرة الحسابات', 'er', 7000); return; }
+    let m = document.getElementById('mCustAdvance');
+    if (!m) { m = document.createElement('div'); m.id = 'mCustAdvance'; m.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px'; m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; }); document.body.appendChild(m); }
+    const custOpts = Object.entries(window.customers || {}).sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '', 'ar')).map(([k, c]) => `<option value="${k}">${esc(c.nameAr)}</option>`).join('');
+    const projOpts = Object.entries(window.projects || {}).map(([k, p]) => `<option value="${k}">${esc(p.name)}</option>`).join('');
+    const fg = (l, i) => `<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:3px">${l}</label>${i}</div>`;
+    const inp = 'width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box';
+    m.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;max-height:92vh;overflow:auto;padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0;color:#16a085;font-size:18px">💰 تسجيل دفعة مقدمة من عميل</h3><button onclick="document.getElementById('mCustAdvance').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        ${fg('العميل *', `<select id="mCAdvCustomer" onchange="custAdvBalHint()" style="${inp}"><option value="">— اختر —</option>${custOpts}</select>`)}
+        ${fg('المشروع (اختياري)', `<select id="mCAdvProject" onchange="custAdvBalHint()" style="${inp}"><option value="">— بدون مشروع —</option>${projOpts}</select>`)}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${fg('المبلغ *', `<input id="mCAdvAmount" type="number" min="0" step="0.01" oninput="custAdvBalHint()" placeholder="0.00" style="${inp}">`)}
+            ${fg('التاريخ *', `<input id="mCAdvDate" type="date" value="${new Date().toISOString().slice(0, 10)}" style="${inp}">`)}
+        </div>
+        ${fg('استُلمت في حساب (بنك/صندوق) *', `<select id="mCAdvBank" style="${inp}">${cashBankAccountOptions()}</select>`)}
+        ${fg('ملاحظة', `<input id="mCAdvNote" placeholder="مثال: دفعة مقدمة 10% من قيمة العقد" style="${inp}">`)}
+        <div id="mCAdvBalHint" style="font-size:11.5px;color:#0e6655;background:#eafaf1;border-radius:8px;padding:7px 10px;margin-bottom:10px;display:none"></div>
+        <div style="display:flex;gap:8px"><button class="btn b-g" onclick="saveCustomerAdvance()" style="flex:1;font-weight:800">💾 حفظ وترحيل القيد</button><button class="btn" onclick="document.getElementById('mCustAdvance').style.display='none'" style="background:#f0f0f0">إلغاء</button></div>
+    </div>`;
+    m.style.display = 'flex';
+};
+window.custAdvBalHint = function () {
+    const el = document.getElementById('mCAdvBalHint'); if (!el) return;
+    const cid = document.getElementById('mCAdvCustomer')?.value, pid = document.getElementById('mCAdvProject')?.value;
+    if (!cid) { el.style.display = 'none'; return; }
+    const bal = custAdvanceBalance(cid, pid);
+    el.style.display = 'block';
+    el.textContent = `رصيد الدفعة المقدمة الحالي${pid ? ' لهذا المشروع' : ' لهذا العميل'}: ${fmt(bal.remaining)} (إجمالي ${fmt(bal.total)} − مُسترد ${fmt(bal.recovered)})`;
+};
+window.saveCustomerAdvance = async function () {
+    const customerId = document.getElementById('mCAdvCustomer')?.value;
+    const projectId = document.getElementById('mCAdvProject')?.value || '';
+    const amount = Math.round((parseFloat(document.getElementById('mCAdvAmount')?.value) || 0) * 100) / 100;
+    const date = document.getElementById('mCAdvDate')?.value;
+    const bankCode = document.getElementById('mCAdvBank')?.value;
+    const note = document.getElementById('mCAdvNote')?.value.trim() || '';
+    if (!customerId) { toast('⚠️ اختر العميل', 'er'); return; }
+    if (amount <= 0) { toast('⚠️ أدخل مبلغاً صحيحاً', 'er'); return; }
+    if (!date) { toast('⚠️ اختر التاريخ', 'er'); return; }
+    if (!bankCode) { toast('⚠️ اختر حساب الاستلام', 'er'); return; }
+    const accounts = Object.values(window.chartOfAccounts || {});
+    const bankAcc = accounts.find(a => a.code === bankCode); const advAcc = accounts.find(a => a.code === '2150');
+    if (!bankAcc || !advAcc) { toast('⚠️ الحساب غير موجود', 'er'); return; }
+    const customer = window.customers?.[customerId];
+    try {
+        const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
+        const now = new Date().toISOString();
+        const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-ADV-' + Date.now());
+        const desc = `دفعة مقدمة من العميل ${esc(customer?.nameAr || '')}${note ? ' — ' + esc(note) : ''}`;
+        const lines = [
+            { accountCode: bankAcc.code, accountName: bankAcc.nameAr, description: desc, costCenter: projectId, debit: amount, credit: 0 },
+            { accountCode: advAcc.code, accountName: advAcc.nameAr, description: desc, costCenter: projectId, debit: 0, credit: amount }
+        ];
+        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'دفعة مقدمة', description: desc, lines, totalDebit: amount, totalCredit: amount, status: 'posted', sourceType: 'customer_advance', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
+        await push(R.custAdvances, { customerId, projectId, amount, date, bankAccountCode: bankCode, journalEntryKey: jrnRef.key, journalEntryNumber: jrnNumber, note, createdBy: userId, createdAt: now });
+        if (typeof logAudit === 'function') logAudit('دفعة مقدمة', 'فواتير المبيعات', `تسجيل دفعة مقدمة ${fmt(amount)} من ${esc(customer?.nameAr || '')}`);
+        toast('✅ سُجّلت الدفعة المقدمة وأُنشئ القيد المحاسبي', 'ok');
+        document.getElementById('mCustAdvance').style.display = 'none';
+    } catch (e) { toast('❌ خطأ: ' + (e.message || e), 'er'); }
+};
+
 // ── دالة العرض الرئيسية لفواتير المبيعات ─────────────────
 window.renderSalesInvoices = function () {
     const container = $('pg-salesinvoices'); if (!container) return;
@@ -13427,6 +13515,7 @@ window.renderSalesInvoices = function () {
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                     ${canCreate ? '<button class="btn" onclick="openSInvEditor()" style="background:white;color:#1f618d;padding:10px 18px;font-weight:800;font-size:14px">➕ فاتورة جديدة</button>' : ''}
+                    ${canCreate ? '<button class="btn" onclick="openCustomerAdvance()" style="background:rgba(255,255,255,.2);color:white;padding:10px 18px;font-weight:700;backdrop-filter:blur(10px)" title="تسجيل دفعة مقدمة من عميل (تُسترد على الفواتير)">💰 دفعة مقدمة</button>' : ''}
                     <button class="btn" onclick="openSalesAnalytics()" style="background:rgba(255,255,255,.2);color:white;padding:10px 16px;font-weight:700;backdrop-filter:blur(10px)">📈 تحليلات</button>
                     <button class="btn" onclick="openRecurringManager()" style="background:rgba(255,255,255,.2);color:white;padding:10px 16px;font-weight:700;backdrop-filter:blur(10px)">🔁 دورية</button>
                     ${(typeof myP !== 'undefined' && (myP?.role === 'admin' || myP?.role === 'finance_manager')) ? `<button class="btn" onclick="setSInvApprovalThreshold()" title="حد اعتماد الفواتير" style="background:rgba(255,255,255,.15);color:white;padding:10px 14px;font-weight:700;font-size:12px">🔐 حد الاعتماد</button>` : ''}
@@ -13549,12 +13638,15 @@ window.renderSalesInvoices = function () {
     `;
 };
 
+// 💵 صافي المستحق على العميل للفاتورة = الإجمالي − الاحتجاز − استرداد الدفعة (للفواتير القديمة = الإجمالي)
+window.sinvDue = function (inv) { if (!inv) return 0; return Math.round((parseFloat(inv.netDue != null ? inv.netDue : inv.grandTotal) || 0) * 100) / 100; };
 function renderSInvRow(key, inv, idx) {
     const customer = window.customers?.[inv.customerId];
     const today = new Date().toISOString().slice(0, 10);
     const grand = Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100;
+    const due = sinvDue(inv);
     const paid  = Math.round((parseFloat(inv.paidAmount)  || 0) * 100) / 100;
-    const isPaid = paid >= grand - 0.01;
+    const isPaid = paid >= due - 0.01;
     const isOverdue = inv.dueDate && inv.dueDate < today && !isPaid && inv.status === 'posted';
 
     // مرحَّلة: تُعرض حسب موقف السداد — مسددة / متأخرة / مسددة جزئياً / غير مسددة
@@ -13595,7 +13687,7 @@ function renderSInvRow(key, inv, idx) {
         </td>
         <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.subject || ''}">${inv.subject || '—'}</td>
         <td style="padding:8px;color:${isOverdue ? '#c0392b' : '#666'};font-weight:${isOverdue ? '700' : 'normal'}">${inv.dueDate || '-'}</td>
-        <td style="padding:8px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(grand)}</td>
+        <td style="padding:8px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(grand)}${sinvDue(inv) < grand - 0.01 ? `<div style="font-size:9px;color:#16a085;font-weight:700" title="صافي المستحق بعد الاحتجاز واسترداد الدفعة">صافي: ${fmt(sinvDue(inv))}</div>` : ''}</td>
         <td style="padding:8px;text-align:center;color:${isPaid ? '#27ae60' : '#666'};font-weight:700">${fmt(paid)}</td>
         <td style="padding:8px;text-align:center">
             <span style="background:${sc.bg};color:white;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700">${esc(sc.label)}</span>
@@ -13786,7 +13878,7 @@ window.printSInvList = function (cols) {
 
     const tRows = list.map(([, inv], i) => {
         const customer = window.customers?.[inv.customerId];
-        const pending = (parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0);
+        const pending = sinvDue(inv) - (parseFloat(inv.paidAmount) || 0);
         const st = sinvStatusInfo(inv);
         const cells = {
             number:   `<td>${esc(inv.number || '—')} ${inv.billingKey ? '<span class="badge">مستخلص</span>' : ''}</td>`,
@@ -13954,6 +14046,8 @@ window.openSInvEditor = function () {
     $('mSInvRef').value = '';
     $('mSInvSubject').value = '';
     $('mSInvDiscount').value = 0;
+    if ($('mSInvRetentionPct')) $('mSInvRetentionPct').value = 0;
+    if ($('mSInvAdvRecPct')) $('mSInvAdvRecPct').value = 0;
     window._sInvCustDiscPct = 0; window._sInvLastAutoDisc = 0; // إعادة ضبط الخصم الافتراضي
     $('mSInvNotes').value = '';
     if ($('mSInvAttach')) $('mSInvAttach').value = '';
@@ -14387,6 +14481,25 @@ window.updateSInvTotals = function () {
     $('mSInvNetBeforeTax').textContent = fmt(netBeforeTax);
     $('mSInvVATTotal').textContent = fmt(vatTotal);
     $('mSInvGrandTotal').textContent = fmt(grandTotal);
+    // 🏗️ ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة — على قيمة الأعمال قبل الضريبة
+    const retPct = parseFloat($('mSInvRetentionPct')?.value) || 0;
+    const advPct = parseFloat($('mSInvAdvRecPct')?.value) || 0;
+    const retentionAmt = Math.round(netBeforeTax * retPct) / 100;
+    const advRecAmt = Math.round(netBeforeTax * advPct) / 100;
+    const netDue = Math.round((grandTotal - retentionAmt - advRecAmt) * 100) / 100;
+    if ($('mSInvRetentionAmt')) $('mSInvRetentionAmt').textContent = '-' + fmt(retentionAmt);
+    if ($('mSInvAdvRecAmt')) $('mSInvAdvRecAmt').textContent = '-' + fmt(advRecAmt);
+    if ($('mSInvNetDue')) $('mSInvNetDue').textContent = fmt(netDue);
+    if ($('mSInvNetDueRow')) $('mSInvNetDueRow').style.display = (retentionAmt > 0.01 || advRecAmt > 0.01) ? 'flex' : 'none';
+    const advHint = $('mSInvAdvBalHint');
+    if (advHint) {
+        let ht = '';
+        if (typeof custAdvanceBalance === 'function') {
+            const bal = custAdvanceBalance($('mSInvCustomer')?.value, $('mSInvProject')?.value, $('mSInvKey')?.value);
+            if (bal && bal.total > 0.01) { ht = `رصيد الدفعة المقدمة المتاح: ${fmt(bal.remaining)} من ${fmt(bal.total)}`; if (advRecAmt > bal.remaining + 0.01) ht += ' ⚠️ الاسترداد يتجاوز الرصيد المتاح'; }
+        }
+        advHint.textContent = ht;
+    }
     // ملخص ضريبي حسب النسبة
     const bd = $('mSInvTaxBreakdown');
     if (bd) {
@@ -14428,6 +14541,8 @@ window.editSInv = function (key) {
         $('mSInvRef').value = inv.reference || '';
         $('mSInvSubject').value = inv.subject || '';
         $('mSInvDiscount').value = inv.discount || 0;
+        if ($('mSInvRetentionPct')) $('mSInvRetentionPct').value = inv.retentionPct || 0;
+        if ($('mSInvAdvRecPct')) $('mSInvAdvRecPct').value = inv.advanceRecoveryPct || 0;
         window._sInvCustDiscPct = 0; window._sInvLastAutoDisc = 0; // عدم تطبيق الخصم الافتراضي عند تعديل فاتورة محفوظة
         $('mSInvNotes').value = inv.notes || '';
         if ($('mSInvAttach')) $('mSInvAttach').value = sinvAttachToText(inv.attachments);
@@ -14475,6 +14590,8 @@ window.editPostedSInv = async function (key) {
         $('mSInvRef').value = inv.reference || '';
         $('mSInvSubject').value = inv.subject || '';
         $('mSInvDiscount').value = inv.discount || 0;
+        if ($('mSInvRetentionPct')) $('mSInvRetentionPct').value = inv.retentionPct || 0;
+        if ($('mSInvAdvRecPct')) $('mSInvAdvRecPct').value = inv.advanceRecoveryPct || 0;
         window._sInvCustDiscPct = 0; window._sInvLastAutoDisc = 0; // عدم تطبيق الخصم الافتراضي عند تعديل فاتورة محفوظة
         $('mSInvNotes').value = inv.notes || '';
         if ($('mSInvAttach')) $('mSInvAttach').value = sinvAttachToText(inv.attachments);
@@ -14531,6 +14648,12 @@ window.saveSInv = async function (status) {
     }
     vatTotal = Math.round(vatTotal * 100) / 100;
     const grandTotal = Math.round((netBeforeTax + vatTotal) * 100) / 100;
+    // 🏗️ ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة — على قيمة الأعمال قبل الضريبة
+    const retentionPct = parseFloat($('mSInvRetentionPct')?.value) || 0;
+    const advanceRecoveryPct = parseFloat($('mSInvAdvRecPct')?.value) || 0;
+    const retentionAmount = Math.round(netBeforeTax * retentionPct) / 100;
+    const advanceRecoveryAmount = Math.round(netBeforeTax * advanceRecoveryPct) / 100;
+    const netDue = Math.round((grandTotal - retentionAmount - advanceRecoveryAmount) * 100) / 100;
 
     // الإيقاف الائتماني اليدوي يمنع الترحيل
     if (status === 'posted' && window.customers?.[customerId]?.creditHold) {
@@ -14591,6 +14714,11 @@ window.saveSInv = async function (status) {
         netBeforeTax,
         vatTotal,
         grandTotal,
+        retentionPct,
+        retentionAmount,
+        advanceRecoveryPct,
+        advanceRecoveryAmount,
+        netDue,
         currency: $('mSInvCurrency')?.value || baseCurrencyCode(),
         exchangeRate: parseFloat($('mSInvRate')?.value) || 1,
         grandTotalBase: grandTotal * (parseFloat($('mSInvRate')?.value) || 1),
@@ -14764,7 +14892,7 @@ window.sendSInvShare = function (key, mode) {
     let txt = (c ? `السادة / ${esc(c.nameAr)}\n` : '') + `${co}\nفاتورة رقم: ${esc(inv.number)}\nالتاريخ: ${inv.date || ''}\n`;
     if (inv.dueDate) txt += `الاستحقاق: ${inv.dueDate}\n`;
     txt += `الإجمالي شامل الضريبة: ${fmt(inv.grandTotal)} ر.س\n`;
-    const rem = Math.max(0, (parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0));
+    const rem = Math.max(0, sinvDue(inv) - (parseFloat(inv.paidAmount) || 0));
     if (rem > 0.01) txt += `المتبقي: ${fmt(rem)} ر.س\n`;
     txt += 'نشكر تعاملكم معنا.';
     if (mode === 'email') location.href = 'mailto:' + (c?.email || '') + '?subject=' + encodeURIComponent('فاتورة ' + inv.number + ' — ' + co) + '&body=' + encodeURIComponent(txt);
@@ -15199,6 +15327,8 @@ async function createJournalForSInv(invKey, inv) {
     const accounts = Object.values(window.chartOfAccounts || {});
     const receivableAcc = accounts.find(a => a.code === custReceivableAccount(inv.customerId)); // العملاء (حساب مجموعته أو الموحّد)
     const vatPayableAcc = accounts.find(a => a.code === '2140'); // VAT مستحقة
+    const retentionAcc = accounts.find(a => a.code === '1131'); // محتجزات (ضمان) لدى العملاء
+    const advanceAcc = accounts.find(a => a.code === '2150');   // دفعات مقدمة من العملاء
 
     // حساب الإيرادات: من الفاتورة أو الافتراضي 4100
     const salesAccCode = inv.salesAccountCode || '4100';
@@ -15217,15 +15347,22 @@ async function createJournalForSInv(invKey, inv) {
     const cvt = (v) => Math.round(((+v || 0) * fx) * 100) / 100;
     const grandBase = cvt(inv.grandTotal);
     const curNote = fx !== 1 ? ` [${fmt(inv.grandTotal)} ${curCode} × ${fx}]` : '';
+    // 🏗️ ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة
+    let retBase = cvt(inv.retentionAmount || 0);
+    let advBase = cvt(inv.advanceRecoveryAmount || 0);
+    // إن كان الحساب مفقوداً، لا نحتجز محاسبياً (نُبقي المبلغ على ذمة العميل) مع تنبيه
+    if (retBase > 0.005 && !retentionAcc) { toast('⚠️ حساب 1131 (محتجزات ضمان لدى العملاء) غير موجود — لم يُفصل الاحتجاز في القيد', 'wn', 7000); retBase = 0; }
+    if (advBase > 0.005 && !advanceAcc) { toast('⚠️ حساب 2150 (دفعات مقدمة من العملاء) غير موجود — لم يُسترد المقدّم في القيد', 'wn', 7000); advBase = 0; }
+    const custDueBase = Math.round((grandBase - retBase - advBase) * 100) / 100; // صافي المستحق على العميل
 
     const lines = [];
-    // مدين: العملاء (الإجمالي بما فيه VAT)
+    // مدين: العملاء (صافي المستحق = الإجمالي − الاحتجاز − استرداد الدفعة)
     lines.push({
         accountCode: receivableAcc.code,
         accountName: receivableAcc.nameAr,
         description: `فاتورة ${esc(inv.number)} - ${esc(customer?.nameAr || '')}${curNote}`,
         costCenter: inv.projectId || '',
-        debit: grandBase,
+        debit: custDueBase,
         credit: 0
     });
     // دائن: الإيرادات (الصافي قبل الضريبة)
@@ -15251,6 +15388,14 @@ async function createJournalForSInv(invKey, inv) {
         // VAT موجود لكن الحساب 2140 غير موجود → أضف للإيرادات (مؤقت)
         lines[1].credit += cvt(inv.vatTotal);
         toast('⚠️ حساب 2140 (VAT مستحقة) غير موجود — تم إضافة الضريبة للإيرادات', 'wn', 6000);
+    }
+    // مدين: محتجزات ضمان لدى العملاء (1131)
+    if (retBase > 0.005 && retentionAcc) {
+        lines.push({ accountCode: retentionAcc.code, accountName: retentionAcc.nameAr, description: `ضمان أعمال محتجز - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: retBase, credit: 0 });
+    }
+    // مدين: دفعات مقدمة من العملاء (2150) — استرداد جزء من الدفعة المقبوضة سابقاً
+    if (advBase > 0.005 && advanceAcc) {
+        lines.push({ accountCode: advanceAcc.code, accountName: advanceAcc.nameAr, description: `استرداد دفعة مقدمة - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: advBase, credit: 0 });
     }
     // ضمان توازن القيد بعد التقريب: عدّل سطر الإيراد بفرق التقريب إن وُجد
     const totCredit = lines.slice(1).reduce((s, l) => s + l.credit, 0);
@@ -16424,7 +16569,7 @@ function renderPInvRow(key, inv, idx) {
         </td>
         <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.subject || ''}">${inv.subject || '—'}</td>
         <td style="padding:8px;color:${isOverdue ? '#c0392b' : '#666'};font-weight:${isOverdue ? '700' : 'normal'}">${inv.dueDate || '-'}</td>
-        <td style="padding:8px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(grand)}</td>
+        <td style="padding:8px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(grand)}${sinvDue(inv) < grand - 0.01 ? `<div style="font-size:9px;color:#16a085;font-weight:700" title="صافي المستحق بعد الاحتجاز واسترداد الدفعة">صافي: ${fmt(sinvDue(inv))}</div>` : ''}</td>
         <td style="padding:8px;text-align:center;color:${isPaid ? '#27ae60' : '#666'};font-weight:700">${fmt(paid)}</td>
         <td style="padding:8px;text-align:center">
             <span style="background:${sc.bg};color:white;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700">${esc(sc.label)}</span>
@@ -17907,7 +18052,7 @@ window.openVoucherEditor = function (type) {
 window.openReceiptForInvoice = function (invKey) {
     const inv = window.salesInvoices?.[invKey]; if (!inv) return;
     if (inv.status !== 'posted') { toast('⚠️ لا يمكن تسجيل سداد إلا لفاتورة مرحَّلة', 'er'); return; }
-    const remaining = Math.round(((parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0)) * 100) / 100;
+    const remaining = Math.round((sinvDue(inv) - (parseFloat(inv.paidAmount) || 0)) * 100) / 100;
     if (remaining <= 0.01) { toast('✅ هذه الفاتورة مسددة بالكامل', 'ok'); return; }
 
     openVoucherEditor('receipt');
@@ -18017,7 +18162,7 @@ function renderUnpaidInvoicesForVoucher(partyId, type) {
 
     const unpaid = Object.entries(invoices)
         .filter(([, inv]) => inv[partyKey] === partyId && inv.status === 'posted')
-        .filter(([, inv]) => Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100 > Math.round((parseFloat(inv.paidAmount) || 0) * 100) / 100 + 0.01)
+        .filter(([, inv]) => Math.round((sinvDue(inv)) * 100) / 100 > Math.round((parseFloat(inv.paidAmount) || 0) * 100) / 100 + 0.01)
         .sort((a, b) => (a[1].dueDate || a[1].date || '').localeCompare(b[1].dueDate || b[1].date || ''));
 
     const section = $('mVoucherInvoicesSection');
@@ -18041,7 +18186,7 @@ function renderUnpaidInvoicesForVoucher(partyId, type) {
     list.innerHTML = unpaid.map(([key, inv]) => {
         const grand = parseFloat(inv.grandTotal) || 0;
         const paid = parseFloat(inv.paidAmount) || 0;
-        const remaining = grand - paid;
+        const remaining = sinvDue(inv) - paid;
         const isOverdue = inv.dueDate && inv.dueDate < today;
         return `<div style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;align-items:center;padding:6px;border-bottom:1px solid #eef;font-size:11px">
             <div>

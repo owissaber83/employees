@@ -251,6 +251,7 @@ function buildRefs() {
     fsBudgets: ref(db, 'ledger/fsBudgets'),
     cust: ref(db, 'ledger/customers'),
     sinv: ref(db, 'ledger/salesInvoices'),
+    custAdvances: ref(db, 'ledger/customerAdvances'), // 💰 دفعات مقدمة من العملاء { key:{ customerId, projectId, amount, date, bankAccountCode, journalEntryKey, note, createdBy, createdAt } }
     crmOpps: ref(db, 'ledger/crmOpportunities'), // 🤝 CRM: فرص البيع { key:{ title, customerName, value, stage, status, source, expectedClose, notes, activities:{} } }
     // 🏗️ مقاولو الباطن
     subc: ref(db, 'ledger/subcontractors'),
@@ -2908,6 +2909,7 @@ function startListeners() {
         if ($('pg-customers')?.classList.contains('act') && typeof renderCustomers === 'function') renderCustomers();
         if (typeof refreshNotifBell === 'function') refreshNotifBell();
     });
+    onValue(R.custAdvances, sn => { window.customerAdvances = sn.exists() ? sn.val() : {}; if ($('pg-salesinvoices')?.classList.contains('act') && typeof renderSalesInvoices === 'function') renderSalesInvoices(); });
     // 📋 قوالب المشاريع
     onValue(R.projTemplates, sn => { window.projectTemplates = sn.exists() ? sn.val() : {}; });
     // ⏱️ تسجيل الأوقات (Timesheets)
