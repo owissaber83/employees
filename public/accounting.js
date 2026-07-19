@@ -555,15 +555,15 @@ function renderCoaNode(node, level, color) {
     const isHeader = node.nature === 'header';
     const balance = parseFloat(node.openingBalance) || 0;
 
-    return `<div class="coa-node" data-code="${node.code}" data-name="${(node.nameAr || '').toLowerCase()}">
+    return `<div class="coa-node" data-code="${esc(node.code)}" data-name="${(node.nameAr || '').toLowerCase()}">
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:2px;background:${isHeader ? '#f8fafc' : 'white'};border:1px solid ${isHeader ? '#e0e8f0' : '#f0f5fa'};margin-right:${indent}px;${!isActive ? 'opacity:.5' : ''}">
             ${hasChildren ?
-            `<span onclick="toggleCoaNode('${node.code}')" style="cursor:pointer;color:${color};font-size:12px;width:18px;text-align:center" class="coa-toggle-${node.code}">▼</span>` :
+            `<span onclick="toggleCoaNode('${node.code}')" style="cursor:pointer;color:${color};font-size:12px;width:18px;text-align:center" class="coa-toggle-${esc(node.code)}">▼</span>` :
             `<span style="width:18px;text-align:center;color:#ccc;font-size:10px">●</span>`
         }
-            <span style="font-family:monospace;font-weight:700;color:${color};font-size:12px;min-width:50px">${node.code}</span>
-            <span style="flex:1;font-size:13px;font-weight:${isHeader ? '800' : '600'};color:#1a3a5c">${node.nameAr || '-'}</span>
-            ${node.nameEn ? `<span style="font-size:10px;color:#888;direction:ltr">${node.nameEn}</span>` : ''}
+            <span style="font-family:monospace;font-weight:700;color:${color};font-size:12px;min-width:50px">${esc(node.code)}</span>
+            <span style="flex:1;font-size:13px;font-weight:${isHeader ? '800' : '600'};color:#1a3a5c">${esc(node.nameAr || '-')}</span>
+            ${node.nameEn ? `<span style="font-size:10px;color:#888;direction:ltr">${esc(node.nameEn)}</span>` : ''}
             ${isHeader ?
             `<span style="background:#e0e8f0;color:#1a3a5c;font-size:9px;padding:2px 6px;border-radius:4px">📁 رئيسي</span>` :
             `<span style="background:${color}22;color:${color};font-size:9px;padding:2px 6px;border-radius:4px">🔹 تفصيلي</span>`
@@ -571,12 +571,12 @@ function renderCoaNode(node, level, color) {
             ${balance !== 0 ? `<span style="font-size:11px;color:#27ae60;font-weight:700">${fmt(balance)} ر</span>` : ''}
             ${!isActive ? `<span style="background:#888;color:white;font-size:9px;padding:2px 6px;border-radius:4px">⏸️ غير نشط</span>` : ''}
             <div style="display:flex;gap:4px">
-                ${isHeader ? `<button class="btn" onclick="addChildAccount('${node.code}')" style="background:#27ae60;color:white;padding:3px 10px;font-size:11px;font-weight:800" title="إضافة حساب فرعي تحت ${node.nameAr}">➕</button>` : ''}
+                ${isHeader ? `<button class="btn" onclick="addChildAccount('${node.code}')" style="background:#27ae60;color:white;padding:3px 10px;font-size:11px;font-weight:800" title="إضافة حساب فرعي تحت ${esc(node.nameAr)}">➕</button>` : ''}
                 <button class="btn" onclick="editCoaAccount('${node.key}')" style="background:#2d6a9f;color:white;padding:3px 8px;font-size:10px" title="تعديل">✏️</button>
                 <button class="btn" onclick="deleteCoaAccount('${node.key}')" style="background:#c0392b;color:white;padding:3px 8px;font-size:10px" title="حذف">🗑️</button>
             </div>
         </div>
-        ${hasChildren ? `<div class="coa-children-${node.code}">
+        ${hasChildren ? `<div class="coa-children-${esc(node.code)}">
             ${node.children.sort((a, b) => (a.code || '').localeCompare(b.code || '')).map(child => renderCoaNode(child, level + 1, color)).join('')}
         </div>` : ''}
     </div>`;
@@ -841,7 +841,7 @@ window.updateCoaParentOptions = function () {
         .sort((a, b) => (a[1].code || '').localeCompare(b[1].code || ''));
     accs.forEach(([k, a]) => {
         const indent = '— '.repeat((a.code || '').length / 2 - 1);
-        sel.innerHTML += `<option value="${a.code}">${indent}${a.code} - ${a.nameAr}</option>`;
+        sel.innerHTML += `<option value="${esc(a.code)}">${indent}${esc(a.code)} - ${esc(a.nameAr)}</option>`;
     });
 };
 
@@ -923,7 +923,7 @@ window.deleteCoaAccount = async function (key) {
         return;
     }
 
-    if (!await cf2(`هل تريد حذف الحساب "${acc.nameAr}" (${acc.code})؟`)) return;
+    if (!await cf2(`هل تريد حذف الحساب "${esc(acc.nameAr)}" (${esc(acc.code)})؟`)) return;
 
     try {
         await remove(ref(db, 'ledger/chartOfAccounts/' + key));
@@ -1198,16 +1198,16 @@ function coaRenderBalTab(st) {
                     const ti = typeInfo(r.a.type);
                     const lvlBg = r.header ? (r.depth === 0 ? ti.color : ti.bg) : '';
                     const lvlColor = r.header && r.depth === 0 ? 'white' : '#1a3a5c';
-                    return `<tr data-code="${r.a.code || ''}" data-search="${(r.a.code || '').toLowerCase()} ${(r.a.nameAr || '').toLowerCase()} ${(r.a.nameEn || '').toLowerCase()}" data-header="${r.header ? 1 : 0}" data-debit="${r.t.debit || 0}" data-credit="${r.t.credit || 0}" style="${r.header ? `background:${lvlBg};font-weight:800` : ''}${r.a.active === false ? ';opacity:.55' : ''}">
-                        <td style="font-family:monospace;font-weight:800;color:${r.header && r.depth === 0 ? 'white' : ti.color}">${r.a.code}</td>
-                        <td style="text-align:right;padding-right:${10 + r.depth * 22}px;color:${lvlColor};font-weight:${r.header ? '800' : '600'}">${r.header ? '📁 ' : ''}${r.a.nameAr || ''}${r.a.active === false ? ' <span style="font-size:9px;background:#fdecea;color:#7b1c1c;padding:1px 6px;border-radius:4px">موقوف</span>' : ''}</td>
+                    return `<tr data-code="${esc(r.a.code || '')}" data-search="${(r.a.code || '').toLowerCase()} ${(r.a.nameAr || '').toLowerCase()} ${(r.a.nameEn || '').toLowerCase()}" data-header="${r.header ? 1 : 0}" data-debit="${r.t.debit || 0}" data-credit="${r.t.credit || 0}" style="${r.header ? `background:${lvlBg};font-weight:800` : ''}${r.a.active === false ? ';opacity:.55' : ''}">
+                        <td style="font-family:monospace;font-weight:800;color:${r.header && r.depth === 0 ? 'white' : ti.color}">${esc(r.a.code)}</td>
+                        <td style="text-align:right;padding-right:${10 + r.depth * 22}px;color:${lvlColor};font-weight:${r.header ? '800' : '600'}">${r.header ? '📁 ' : ''}${esc(r.a.nameAr || '')}${r.a.active === false ? ' <span style="font-size:9px;background:#fdecea;color:#7b1c1c;padding:1px 6px;border-radius:4px">موقوف</span>' : ''}</td>
                         <td><span style="background:${r.header && r.depth === 0 ? 'rgba(255,255,255,.25)' : ti.bg};color:${r.header && r.depth === 0 ? 'white' : ti.color};padding:2px 9px;border-radius:6px;font-size:10px;font-weight:700">${ti.ar}</span></td>
                         ${num(r.t.opening, r.header && r.depth === 0 ? 'white' : '#888')}
                         ${num(r.t.debit, r.header && r.depth === 0 ? 'white' : '#2d6a9f')}
                         ${num(r.t.credit, r.header && r.depth === 0 ? 'white' : '#c0392b')}
                         <td style="text-align:left;font-weight:800;white-space:nowrap;color:${r.header && r.depth === 0 ? 'white' : (r.t.closing >= 0 ? '#1e8449' : '#c0392b')}">${fmt(r.t.closing)}</td>
                         <td style="text-align:center;color:${r.header && r.depth === 0 ? 'white' : '#888'};font-size:11px">${r.t.count || '—'}</td>
-                        <td style="text-align:center">${!r.header ? `<button onclick="coaOpenAccStmt('${r.a.code}')" title="كشف حساب ${r.a.nameAr || ''}" style="background:#8e44ad;color:white;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">🔎</button>` : ''}</td>
+                        <td style="text-align:center">${!r.header ? `<button onclick="coaOpenAccStmt('${r.a.code}')" title="كشف حساب ${esc(r.a.nameAr || '')}" style="background:#8e44ad;color:white;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">🔎</button>` : ''}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>
@@ -1247,8 +1247,8 @@ function coaRenderStmtTab(st) {
                         ${Object.values(window.chartOfAccounts || {}).filter(a => a.nature === 'detail' && a.code && a.active !== false).sort((a, b) => (a.code || '').localeCompare(b.code || '')).map(a => {
                             const ti = COA_TYPES[a.type] || { color: '#888', bg: '#f0f5fa' };
                             return `<div class="coa-acc-drop-it" data-search="${(a.code || '').toLowerCase()} ${(a.nameAr || '').toLowerCase()} ${(a.nameEn || '').toLowerCase()}" onclick="coaBalPickAccountKey('${a.code}')" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;border:1px solid ${st.opAccount === a.code ? '#8e44ad' : 'transparent'};background:${st.opAccount === a.code ? '#faf5fc' : 'white'}" onmouseover="this.style.background='#f4ecf7'" onmouseout="this.style.background='${st.opAccount === a.code ? '#faf5fc' : 'white'}'">
-                                <span style="font-family:monospace;font-weight:800;color:${ti.color};background:${ti.bg};padding:2px 8px;border-radius:5px;font-size:11px">${a.code}</span>
-                                <span style="color:#1a3a5c;font-weight:600">${a.nameAr || ''}</span>
+                                <span style="font-family:monospace;font-weight:800;color:${ti.color};background:${ti.bg};padding:2px 8px;border-radius:5px;font-size:11px">${esc(a.code)}</span>
+                                <span style="color:#1a3a5c;font-weight:600">${esc(a.nameAr || '')}</span>
                             </div>`;
                         }).join('')}
                     </div>
@@ -1408,7 +1408,7 @@ function coaRenderOpsPanel(st) {
     return `
     <div class="card" style="border:2px solid #8e44ad;margin-bottom:14px">
         <div class="tlb">
-            <div class="c-tl" style="margin:0;border:none;padding:0">🔎 عمليات الحساب: <span style="font-family:monospace;color:#8e44ad">${code}</span> ${acc.nameAr || ''} <span style="background:#f4ecf7;color:#5b2c6f;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">${ops.length} عملية</span></div>
+            <div class="c-tl" style="margin:0;border:none;padding:0">🔎 عمليات الحساب: <span style="font-family:monospace;color:#8e44ad">${code}</span> ${esc(acc.nameAr || '')} <span style="background:#f4ecf7;color:#5b2c6f;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">${ops.length} عملية</span></div>
             <div style="display:flex;gap:8px">
                 <button onclick="openGLForAccount('${code}')" style="padding:7px 14px;background:#8e44ad;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700">📖 دفتر الأستاذ الكامل</button>
                 <button onclick="coaBalCloseOps()" style="padding:7px 14px;background:#f8fafc;color:#666;border:1.5px solid #d0d7e0;border-radius:8px;cursor:pointer;font-size:12px">✕ إغلاق</button>
@@ -1425,7 +1425,7 @@ function coaRenderOpsPanel(st) {
                     return `<tr ${o.status !== 'posted' ? 'style="opacity:.65"' : ''}>
                         <td style="color:#888">${i + 1}</td>
                         <td style="white-space:nowrap">${o.date || '—'}</td>
-                        <td><span onclick="jrnRowMenu && jrnRowMenu('${o.entryKey}', event)" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-family:monospace;font-size:11px" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">${o.number || '—'}</span>${o.status !== 'posted' ? ' <span style="background:#fef9e7;color:#7d4e00;font-size:9px;padding:1px 5px;border-radius:4px">مسودة</span>' : ''}</td>
+                        <td><span onclick="jrnRowMenu && jrnRowMenu('${o.entryKey}', event)" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-family:monospace;font-size:11px" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">${esc(o.number || '—')}</span>${o.status !== 'posted' ? ' <span style="background:#fef9e7;color:#7d4e00;font-size:9px;padding:1px 5px;border-radius:4px">مسودة</span>' : ''}</td>
                         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="${esc(o.description)}">${esc(o.description || '—')}</td>
                         <td style="font-size:10.5px;white-space:nowrap">${ccProjLabel(o, '')}</td>
                         <td style="text-align:left;font-weight:700;color:#2d6a9f">${o.debit ? fmt(o.debit) : '—'}</td>
@@ -1460,7 +1460,7 @@ window.coaPrintAccountStatement = function () {
     let running = opening;
     const tRows = ops.map((o, i) => {
         running += o.debit - o.credit;
-        return `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${o.date || '—'}</td><td>${o.number || '—'}</td><td style="text-align:right">${esc(o.description || '—')}</td><td>${ccProjLabel(o, '') }</td><td>${o.debit ? f(o.debit) : '—'}</td><td>${o.credit ? f(o.credit) : '—'}</td><td style="font-weight:800">${f(running)}</td></tr>`;
+        return `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${o.date || '—'}</td><td>${esc(o.number || '—')}</td><td style="text-align:right">${esc(o.description || '—')}</td><td>${ccProjLabel(o, '') }</td><td>${o.debit ? f(o.debit) : '—'}</td><td>${o.credit ? f(o.credit) : '—'}</td><td style="font-weight:800">${f(running)}</td></tr>`;
     }).join('');
     const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب — ${acc.nameAr || st.opAccount}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
@@ -1479,8 +1479,8 @@ table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:12px}th{paddi
     </div>
   </div>
   <div style="text-align:left">
-    <div style="font-size:15px;font-weight:900">🔎 ${acc.code} — ${acc.nameAr || ''}</div>
-    ${acc.nameEn ? `<div style="font-size:9.5px;opacity:.85;direction:ltr;margin-top:2px">${acc.nameEn}</div>` : ''}
+    <div style="font-size:15px;font-weight:900">🔎 ${esc(acc.code)} — ${esc(acc.nameAr || '')}</div>
+    ${acc.nameEn ? `<div style="font-size:9.5px;opacity:.85;direction:ltr;margin-top:2px">${esc(acc.nameEn)}</div>` : ''}
     <div style="font-size:9.5px;opacity:.85;margin-top:3px">الفترة: ${st.from || 'البداية'} ← ${st.to || 'اليوم'}${st.includeDraft ? ' | شامل المسودات' : ''} | ${ops.length} عملية</div>
   </div>
 </div>
@@ -1517,7 +1517,7 @@ window.coaExportAccountStatementExcel = function () {
         ws['!cols'] = [4, 12, 14, 30, 18, 18, 14, 14, 14, 10].map(w => ({ wch: w }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'كشف الحساب');
-        XLSX.writeFile(wb, `كشف_حساب_${acc.code}_${new Date().toISOString().substring(0, 10)}.xlsx`);
+        XLSX.writeFile(wb, `كشف_حساب_${esc(acc.code)}_${new Date().toISOString().substring(0, 10)}.xlsx`);
         toast('✅ تم التصدير', 'ok');
     } catch (e) { toast('❌ ' + e.message, 'er'); }
 };
@@ -1533,8 +1533,8 @@ window.coaPrintBalances = function () {
     const totCredit = rows.filter(r => !r.header).reduce((s, r) => s + r.t.credit, 0);
 
     const tRows = rows.map(r => `<tr class="${r.header ? (r.depth === 0 ? 'h0' : 'h1') : ''}">
-        <td style="font-family:monospace;font-weight:700">${r.a.code}</td>
-        <td style="text-align:right;padding-right:${8 + r.depth * 18}px">${r.header ? '📁 ' : ''}${r.a.nameAr || ''}</td>
+        <td style="font-family:monospace;font-weight:700">${esc(r.a.code)}</td>
+        <td style="text-align:right;padding-right:${8 + r.depth * 18}px">${r.header ? '📁 ' : ''}${esc(r.a.nameAr || '')}</td>
         <td>${r.t.opening ? f(r.t.opening) : '—'}</td>
         <td>${r.t.debit ? f(r.t.debit) : '—'}</td>
         <td>${r.t.credit ? f(r.t.credit) : '—'}</td>
@@ -1960,8 +1960,8 @@ function showCoaImportPreview() {
                         <div style="border-right:3px solid #c0392b;padding:8px;margin-bottom:8px;background:#fff5f5;border-radius:6px">
                             <div style="font-size:12px;font-weight:700;color:#c0392b">
                                 📍 الصف رقم ${e.rowNum}
-                                ${e.code ? ` — كود: <code style="background:#fadbd8;padding:1px 6px;border-radius:3px">${e.code}</code>` : ''}
-                                ${e.nameAr ? ` — ${e.nameAr}` : ''}
+                                ${e.code ? ` — كود: <code style="background:#fadbd8;padding:1px 6px;border-radius:3px">${esc(e.code)}</code>` : ''}
+                                ${e.nameAr ? ` — ${esc(e.nameAr)}` : ''}
                             </div>
                             <ul style="margin:6px 0 0;padding-right:18px;font-size:11px;color:#641e16">
                                 ${e.errors.map(err => `<li>${err}</li>`).join('')}
@@ -1984,7 +1984,7 @@ function showCoaImportPreview() {
                 <div style="max-height:200px;overflow-y:auto;background:white;border-radius:8px;padding:10px">
                     ${warnings.slice(0, 20).map(w => `
                         <div style="border-right:3px solid #f39c12;padding:6px 8px;margin-bottom:6px;background:#fffef5;border-radius:6px;font-size:11px">
-                            <strong>الصف ${w.rowNum}</strong> ${w.code ? `(${w.code})` : ''} ${w.nameAr ? `— ${w.nameAr}` : ''}:
+                            <strong>الصف ${w.rowNum}</strong> ${w.code ? `(${esc(w.code)})` : ''} ${w.nameAr ? `— ${esc(w.nameAr)}` : ''}:
                             <span style="color:#7d4e00">${w.warnings.join(' · ')}</span>
                         </div>
                     `).join('')}
@@ -2020,8 +2020,8 @@ function showCoaImportPreview() {
                                 const tc = COA_TYPES[item.type];
                                 return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                                     <td style="padding:5px;color:#888">${i + 1}</td>
-                                    <td style="padding:5px;font-family:monospace;font-weight:700;color:${tc?.color || '#1a3a5c'}">${item.code}</td>
-                                    <td style="padding:5px">${item.nameAr}</td>
+                                    <td style="padding:5px;font-family:monospace;font-weight:700;color:${tc?.color || '#1a3a5c'}">${esc(item.code)}</td>
+                                    <td style="padding:5px">${esc(item.nameAr)}</td>
                                     <td style="padding:5px"><span style="background:${tc?.bg};color:${tc?.color};padding:1px 6px;border-radius:4px;font-size:10px">${tc?.ar || item.type}</span></td>
                                     <td style="padding:5px;font-size:10px">${item.nature === 'header' ? '📁 رئيسي' : '🔹 تفصيلي'}</td>
                                     <td style="padding:5px;font-family:monospace;color:#888">${item.parent || '—'}</td>
@@ -2308,7 +2308,7 @@ function ccRenderTreeTab() {
     const ccRow = ([k, c], isChild) => `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:${c.active === false ? '#f8f9fa' : 'white'};border:1px solid #e3eaf2;border-radius:10px;padding:10px 14px;margin-bottom:6px;${isChild ? 'margin-right:34px' : ''}${c.active === false ? ';opacity:.6' : ''}">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <span style="font-family:monospace;font-weight:800;color:#5b2c6f;background:#f4ecf7;padding:3px 10px;border-radius:6px;font-size:12px">${c.code || '—'}</span>
+                <span style="font-family:monospace;font-weight:800;color:#5b2c6f;background:#f4ecf7;padding:3px 10px;border-radius:6px;font-size:12px">${esc(c.code || '—')}</span>
                 <span style="font-weight:${isChild ? '600' : '800'};color:#1a3a5c;font-size:${isChild ? '13' : '14'}px">${isChild ? '↳ ' : '🎯 '}${c.nameAr || k}</span>
                 ${c.active === false ? '<span style="background:#fdecea;color:#7b1c1c;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">موقوف</span>' : ''}
                 ${usage[k] ? `<span style="background:#e8f4fd;color:#0d4f7c;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">${usage[k]} حركة</span>` : ''}
@@ -2374,8 +2374,8 @@ function ccRenderStatementTab() {
         const lineRow = (r, i, running) => `<tr ${r.status !== 'posted' ? 'style="opacity:.65"' : ''}>
             <td style="color:#888">${i + 1}</td>
             <td style="white-space:nowrap">${r.date || '—'}</td>
-            <td><span onclick="jrnRowMenu && jrnRowMenu('${r.entryKey}', event)" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-family:monospace;font-size:11px" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">${r.number || '—'}</span>${r.status !== 'posted' ? ' <span style="background:#fef9e7;color:#7d4e00;font-size:9px;padding:1px 5px;border-radius:4px">مسودة</span>' : ''}</td>
-            <td style="font-size:11px"><span style="font-family:monospace;color:#5b2c6f;font-weight:700">${r.accountCode}</span> ${r.accountName}</td>
+            <td><span onclick="jrnRowMenu && jrnRowMenu('${r.entryKey}', event)" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-family:monospace;font-size:11px" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">${esc(r.number || '—')}</span>${r.status !== 'posted' ? ' <span style="background:#fef9e7;color:#7d4e00;font-size:9px;padding:1px 5px;border-radius:4px">مسودة</span>' : ''}</td>
+            <td style="font-size:11px"><span style="font-family:monospace;color:#5b2c6f;font-weight:700">${r.accountCode}</span> ${esc(r.accountName)}</td>
             <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="${esc(r.description)}">${esc(r.description || '—')}</td>
             <td style="font-size:10.5px;white-space:nowrap">${ccProjLabel(r, '')}</td>
             <td style="text-align:left;font-weight:700;color:#2d6a9f">${r.debit ? fmt(r.debit) : '—'}</td>
@@ -2567,7 +2567,7 @@ window.ccPrintStatement = function () {
     const cA = (typeof cfg !== 'undefined' && cfg.companyAr) || 'اسم الشركة';
     const f = v => (parseFloat(v) || 0).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const totD = rows.reduce((s, r) => s + r.debit, 0), totC = rows.reduce((s, r) => s + r.credit, 0);
-    const printLine = (r, i, running) => `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${r.date}</td><td>${r.number}</td><td style="text-align:right">${r.accountCode} ${r.accountName}</td><td style="text-align:right">${esc(r.description || '—')}</td><td>${r.debit ? f(r.debit) : '—'}</td><td>${r.credit ? f(r.credit) : '—'}</td><td>${f(running)}</td></tr>`;
+    const printLine = (r, i, running) => `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${r.date}</td><td>${esc(r.number)}</td><td style="text-align:right">${r.accountCode} ${esc(r.accountName)}</td><td style="text-align:right">${esc(r.description || '—')}</td><td>${r.debit ? f(r.debit) : '—'}</td><td>${r.credit ? f(r.credit) : '—'}</td><td>${f(running)}</td></tr>`;
     const isMainP = (window.costCenters || {})[st.stmtTarget] && !(window.costCenters || {})[st.stmtTarget].parent;
     let tRows = '';
     if (isMainP) {
@@ -2750,9 +2750,9 @@ window.openCcForm = function (key = null, parentKey = null) {
         <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px">${key ? '✏️ تعديل مركز تكلفة' : '🎯 مركز تكلفة جديد'}</div>
         <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;margin-bottom:10px">
             <div><label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px">الرمز</label>
-                <input id="cc-code" value="${c.code || ''}" placeholder="CC-01" style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:monospace;font-size:13px;box-sizing:border-box"></div>
+                <input id="cc-code" value="${esc(c.code || '')}" placeholder="CC-01" style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:monospace;font-size:13px;box-sizing:border-box"></div>
             <div><label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px">اسم المركز *</label>
-                <input id="cc-name" value="${c.nameAr || ''}" placeholder="مثال: المكتب الرئيسي" style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit"></div>
+                <input id="cc-name" value="${esc(c.nameAr || '')}" placeholder="مثال: المكتب الرئيسي" style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit"></div>
         </div>
         <div style="margin-bottom:10px"><label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px">المركز الرئيسي (اختياري — اتركه فارغاً ليكون رئيسياً)</label>
             <select id="cc-parent" style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;font-family:inherit;background:white">
@@ -3055,7 +3055,7 @@ window.renderJournalEntries = function () {
     // 🔍 فلاتر + بحث نصّي (رقم/بيان) → القائمة المعروضة (إحصائيات على نفس المجموعة)
     const q = (window._jrnSearchQ || '').toLowerCase().trim();
     let filteredArr = entriesArr.filter(([, e]) => jrnEntryPassesFilters(e));
-    if (q) filteredArr = filteredArr.filter(([, e]) => (`${e.number || ''} ${esc(e.description || '')}`).toLowerCase().includes(q));
+    if (q) filteredArr = filteredArr.filter(([, e]) => (`${esc(e.number || '')} ${esc(e.description || '')}`).toLowerCase().includes(q));
 
     // 📄 ترقيم الصفحات — يمنع التعليق عند كثرة القيود (نرسم صفحة واحدة فقط)
     const JRN_PAGE = 100;
@@ -3148,7 +3148,7 @@ window.renderJournalEntries = function () {
                     <button class="btn" onclick="deleteAllVisibleJrnEntries()" style="background:#922b21;color:white;padding:6px 12px;font-size:12px;font-weight:700" title="حذف جميع القيود المعروضة حالياً (مسودات أو ملغاة فقط)">🗑️ حذف الكل المعروض</button>
                     <select id="jrnFilterBook" onchange="window._jrnBookFilter=this.value;window._jrnListPage=0;renderJournalEntries()" title="تصفية حسب الدفتر" style="padding:6px 10px;border:1.5px solid #d0d7e0;border-radius:6px;font-size:12px">
                         <option value="" ${!window._jrnBookFilter ? 'selected' : ''}>📓 كل الدفاتر</option>
-                        ${JRN_BOOKS.map(b => `<option value="${b.code}" ${window._jrnBookFilter === b.code ? 'selected' : ''}>${esc(b.name)} (${b.prefix})</option>`).join('')}
+                        ${JRN_BOOKS.map(b => `<option value="${esc(b.code)}" ${window._jrnBookFilter === b.code ? 'selected' : ''}>${esc(b.name)} (${b.prefix})</option>`).join('')}
                     </select>
                     <select id="jrnFilterStatus" onchange="window._jrnStatusFilter=this.value;renderJournalEntries()" style="padding:6px 10px;border:1.5px solid #d0d7e0;border-radius:6px;font-size:12px">
                         <option value="" ${!window._jrnStatusFilter ? 'selected' : ''}>📋 كل الحالات</option>
@@ -3302,7 +3302,7 @@ function renderJrnRow(key, entry, idx) {
 
     return `<tr style="background:${rowBg}" data-jrn-key="${key}" data-search="${(entry.number || '').toLowerCase()} ${(entry.description || '').toLowerCase()}">
         <td style="padding:8px;text-align:center"><input type="checkbox" class="jrn-row-check" value="${key}" title="حدّد للتصدير — أو للحذف (مسودات/ملغاة فقط)"></td>
-        <td style="padding:8px;font-family:monospace;font-weight:700;color:#1a3a5c">${entry.number || '-'}${sourceBadge}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:700;color:#1a3a5c">${esc(entry.number || '-')}${sourceBadge}</td>
         <td style="padding:8px">${entry.date || '-'}</td>
         <td style="padding:8px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(entry.description || '')}">${esc(entry.description || '—')}</td>
         <td style="padding:8px;font-size:11px;color:#666">${ccDisplay}</td>
@@ -3368,7 +3368,7 @@ window.jrnSetBook = function (code) {
 function jrnUpdateBookUI() {
     const sel = $('mJrnBook'); if (!sel) return;
     const cur = jrnEditorState.book || 'GEN';
-    sel.innerHTML = JRN_BOOKS.map(b => `<option value="${b.code}" ${b.code === cur ? 'selected' : ''}>${esc(b.name)} (${b.prefix})</option>`).join('');
+    sel.innerHTML = JRN_BOOKS.map(b => `<option value="${esc(b.code)}" ${b.code === cur ? 'selected' : ''}>${esc(b.name)} (${b.prefix})</option>`).join('');
     sel.value = cur;
     sel.disabled = !!jrnEditorState.browsing;
 }
@@ -3394,13 +3394,13 @@ window.openJrnBookSettings = function () {
     document.getElementById('jrnBookSettings')?.remove();
     const defs = jrnBookDefaults();
     const leaf = Object.values(window.chartOfAccounts || {}).filter(a => a.nature !== 'header' && a.active !== false).sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-    const optFor = sel => `<option value="">— بلا —</option>` + leaf.map(a => `<option value="${a.code}" ${sel === a.code ? 'selected' : ''}>${a.code} — ${a.nameAr || ''}</option>`).join('');
+    const optFor = sel => `<option value="">— بلا —</option>` + leaf.map(a => `<option value="${esc(a.code)}" ${sel === a.code ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr || '')}</option>`).join('');
     const rows = JRN_BOOKS.map(b => {
         const d = defs[b.code] || {};
         return `<tr>
             <td style="padding:6px;font-weight:700;color:#1a3a5c">${esc(b.name)} <span style="font-family:monospace;color:#888">(${b.prefix})</span></td>
-            <td style="padding:6px"><select id="jbs-acc-${b.code}" style="width:100%;padding:6px;border:1px solid #d0d7e0;border-radius:6px;font-size:12px">${optFor(d.account || '')}</select></td>
-            <td style="padding:6px"><select id="jbs-side-${b.code}" style="padding:6px;border:1px solid #d0d7e0;border-radius:6px;font-size:12px"><option value="debit" ${d.side !== 'credit' ? 'selected' : ''}>مدين</option><option value="credit" ${d.side === 'credit' ? 'selected' : ''}>دائن</option></select></td>
+            <td style="padding:6px"><select id="jbs-acc-${esc(b.code)}" style="width:100%;padding:6px;border:1px solid #d0d7e0;border-radius:6px;font-size:12px">${optFor(d.account || '')}</select></td>
+            <td style="padding:6px"><select id="jbs-side-${esc(b.code)}" style="padding:6px;border:1px solid #d0d7e0;border-radius:6px;font-size:12px"><option value="debit" ${d.side !== 'credit' ? 'selected' : ''}>مدين</option><option value="credit" ${d.side === 'credit' ? 'selected' : ''}>دائن</option></select></td>
         </tr>`;
     }).join('');
     const m = document.createElement('div'); m.id = 'jrnBookSettings';
@@ -3482,7 +3482,7 @@ window.openCurrencySettings = function () {
 function curRowHTML(code, c, i) {
     return `<tr>
         <td style="padding:5px"><input value="${code || ''}" placeholder="USD" maxlength="3" style="width:70px;padding:6px;border:1px solid #ddd;border-radius:6px;text-transform:uppercase;font-size:12px" class="cur-code"></td>
-        <td style="padding:5px"><input value="${c?.nameAr || ''}" placeholder="دولار أمريكي" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px" class="cur-name"></td>
+        <td style="padding:5px"><input value="${esc(c?.nameAr || '')}" placeholder="دولار أمريكي" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px" class="cur-name"></td>
         <td style="padding:5px"><input value="${c?.symbol || ''}" placeholder="$" style="width:60px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px" class="cur-sym"></td>
         <td style="padding:5px"><input value="${c?.rate || ''}" type="number" step="0.0001" min="0" placeholder="3.75" style="width:90px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px" class="cur-rate"></td>
         <td style="padding:5px;text-align:center"><button onclick="this.closest('tr').remove()" style="background:#e74c3c;color:white;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">✕</button></td>
@@ -3514,7 +3514,7 @@ window.saveCurrencySettings = async function () {
 // ══════════════════════════════════════════════════════════════════════════
 function recAccountOptions(sel) {
     const accs = Object.values(window.chartOfAccounts || {}).filter(a => a.nature !== 'header').sort((x, y) => (x.code || '').localeCompare(y.code || ''));
-    return '<option value="">— اختر الحساب —</option>' + accs.map(a => `<option value="${a.code}" ${sel === a.code ? 'selected' : ''}>${a.code} — ${a.nameAr || ''}</option>`).join('');
+    return '<option value="">— اختر الحساب —</option>' + accs.map(a => `<option value="${esc(a.code)}" ${sel === a.code ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr || '')}</option>`).join('');
 }
 function recCostCenterOptions(sel) {
     const projs = Object.entries(window.projects || {}).map(([id, p]) => `<option value="${id}" ${sel === id ? 'selected' : ''}>🏗️ ${(p.name || id)}</option>`).join('');
@@ -3968,10 +3968,10 @@ window.renderFXRevaluation = function () {
                 ${rows.length ? rows.map(r => {
                     const canPost = Math.abs(r.arDelta) >= 1 || Math.abs(r.apDelta) >= 1;
                     return `<tr style="border-bottom:1px solid #f0f0f0">
-                        <td style="padding:9px"><strong>${esc(r.c.nameAr)} (${r.code})</strong></td>
+                        <td style="padding:9px"><strong>${esc(r.c.nameAr)} (${esc(r.code)})</strong></td>
                         <td style="padding:9px;text-align:center">${r.rate}</td>
-                        <td style="padding:9px;text-align:center">${fmt(r.exp.arForeign)} ${r.code}</td>
-                        <td style="padding:9px;text-align:center">${fmt(r.exp.apForeign)} ${r.code}</td>
+                        <td style="padding:9px;text-align:center">${fmt(r.exp.arForeign)} ${esc(r.code)}</td>
+                        <td style="padding:9px;text-align:center">${fmt(r.exp.apForeign)} ${esc(r.code)}</td>
                         <td style="padding:9px;text-align:center;font-weight:700;color:${r.arDelta >= 0 ? '#27ae60' : '#c0392b'}">${fmt(r.arDelta)}</td>
                         <td style="padding:9px;text-align:center;font-weight:700;color:${r.apDelta <= 0 ? '#27ae60' : '#c0392b'}">${fmt(r.apDelta)}</td>
                         <td style="padding:9px;text-align:center">${canPost ? `<button onclick="postFXRevaluation('${r.code}')" style="background:#1f618d;color:white;border:none;border-radius:6px;padding:5px 11px;cursor:pointer;font-size:11px;font-weight:700">💱 إعادة تقييم</button>` : '<span style="color:#27ae60;font-size:11px">✓ محدّث</span>'}</td>
@@ -4494,7 +4494,7 @@ function renderJrnNav() {
     if (idx >= 0 && idx < N) {
         const e = window.journalEntries[keys[idx]] || {};
         const st = e.status === 'posted' ? '✅' : (e.status === 'cancelled' ? '❌' : '📝');
-        label.innerHTML = `${st} قيد <b>${idx + 1}</b> من <b>${N}</b> · <span style="font-family:monospace">${e.number || ''}</span>`;
+        label.innerHTML = `${st} قيد <b>${idx + 1}</b> من <b>${N}</b> · <span style="font-family:monospace">${esc(e.number || '')}</span>`;
     } else {
         label.innerHTML = `🆕 قيد جديد · إجمالي القيود المحفوظة: <b>${N}</b>`;
     }
@@ -4587,7 +4587,7 @@ function renderJrnLinesReadonly() {
         <tr style="${isAuto ? 'background:#fffdf3' : ''}">
             <td style="padding:6px;text-align:center;color:${isAuto ? '#b9770e' : '#888'};font-weight:700">${isAuto ? '🔒' : (i + 1)}</td>
             <td style="padding:6px;font-family:monospace;font-weight:700;font-size:11px">${line.accountCode || ''}</td>
-            <td style="padding:6px;font-size:11px">${line.accountName || ''}</td>
+            <td style="padding:6px;font-size:11px">${esc(line.accountName || '')}</td>
             <td style="padding:6px;font-size:11px;color:#555">${esc(line.description || '—')}</td>
             <td style="padding:6px;text-align:center;font-size:10px">${line.date || '—'}</td>
             <td style="padding:6px;font-size:10px;color:#5b2c6f">${cc || '—'}</td>
@@ -4612,7 +4612,7 @@ window.openJrnHeaderCcPicker = function () {
             </div>`;
         const ccs = Object.entries(window.costCenters || {})
             .filter(([, c]) => c.active !== false)
-            .filter(([, c]) => !qq || `${c.code || ''} ${c.nameAr || ''}`.toLowerCase().includes(qq))
+            .filter(([, c]) => !qq || `${esc(c.code || '')} ${esc(c.nameAr || '')}`.toLowerCase().includes(qq))
             .sort((a, b) => (a[1].code || '').localeCompare(b[1].code || ''));
         const projs = Object.entries(window.projects || {}).filter(([, p]) => !qq || (p.name || '').toLowerCase().includes(qq));
         return `
@@ -4830,8 +4830,8 @@ function jrnAcRender() {
     if (!s || !s.items.length) { box.style.display = 'none'; return; }
     box.innerHTML = s.items.map((a, idx) => `
         <div onmousedown="event.preventDefault();jrnAcPick(${idx})" style="padding:7px 11px;cursor:pointer;display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid #f0f3f8;${idx === s.hi ? 'background:#e8f4fd' : ''}">
-            <span style="font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nameAr || ''}${a._hint ? ` <span style="font-size:9px;color:#16a085;font-weight:800">• ${a._hint}</span>` : ''}</span>
-            <span style="font-family:monospace;color:#2d6a9f;font-weight:700">${a.code || ''}</span>
+            <span style="font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.nameAr || '')}${a._hint ? ` <span style="font-size:9px;color:#16a085;font-weight:800">• ${a._hint}</span>` : ''}</span>
+            <span style="font-family:monospace;color:#2d6a9f;font-weight:700">${esc(a.code || '')}</span>
         </div>`).join('');
     const r = s.el.getBoundingClientRect();
     box.style.display = 'block';
@@ -5055,7 +5055,7 @@ function jrnPrePostChecks(userLines, entryDate, currentKey) {
         Object.values(window.journalEntries || {}).forEach(e => { if (e.status !== 'posted') return; (e.lines || []).forEach(x => { if (x.accountCode === l.accountCode) { const a = (parseFloat(x.debit) || 0) + (parseFloat(x.credit) || 0); if (a > maxHist) maxHist = a; count++; } }); });
         if (count >= 5 && maxHist > 0 && amt > maxHist * 5) w.push(`💰 مبلغ ${fmt(amt)} على الحساب ${l.accountCode} أكبر بكثير من المعتاد (أعلى مبلغ سابق ${fmt(maxHist)}).`);
     });
-    jrnFindDuplicates(userLines.map(l => l.accountCode), entryDate, currentKey).slice(0, 3).forEach(d => w.push(`♻️ قيد مشابه بنفس التاريخ والحسابات: ${d.number || '—'} (إجمالي ${fmt(d.totalDebit || 0)}).`));
+    jrnFindDuplicates(userLines.map(l => l.accountCode), entryDate, currentKey).slice(0, 3).forEach(d => w.push(`♻️ قيد مشابه بنفس التاريخ والحسابات: ${esc(d.number || '—')} (إجمالي ${fmt(d.totalDebit || 0)}).`));
     return w;
 }
 
@@ -5082,7 +5082,7 @@ window.showJrnAudit = function (key) {
     const e = window.journalEntries?.[key]; if (!e) { toast('القيد غير متاح', 'er'); return; }
     const ev = [];
     const push = (t, icon, color, title, by, detail) => ev.push({ t: t || '', icon, color, title, by: by || '—', detail: detail || '' });
-    const createdDetail = `${e.number || ''} — إجمالي ${fmt(e.totalDebit || 0)}` + (e.reversalOf ? ` · عكسٌ للقيد ${(window.journalEntries[e.reversalOf] || {}).number || e.reversalOf}` : '');
+    const createdDetail = `${esc(e.number || '')} — إجمالي ${fmt(e.totalDebit || 0)}` + (e.reversalOf ? ` · عكسٌ للقيد ${(window.journalEntries[e.reversalOf] || {}).number || e.reversalOf}` : '');
     push(e.createdAt, e.reversalOf ? '↩️' : '🆕', '#2d6a9f', e.reversalOf ? 'إنشاء قيد عكسي' : 'إنشاء القيد', jrnUserName(e.createdBy), createdDetail);
     if (e.submittedAt) push(e.submittedAt, '📤', '#2980b9', 'إرسال للاعتماد', jrnUserName(e.submittedBy));
     if (e.approvalStatus === 'approved' && e.approvedAt) push(e.approvedAt, '✅', '#1e8449', 'اعتماد', jrnUserName(e.approvedBy));
@@ -5103,7 +5103,7 @@ window.showJrnAudit = function (key) {
     m.innerHTML = `
     <div style="background:#fff;border-radius:14px;padding:20px;max-width:620px;width:94%;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:2px solid #2d6a9f;padding-bottom:10px">
-            <div style="font-size:15px;font-weight:800;color:#1a3a5c">📜 سجل التدقيق — قيد ${e.number || ''}</div>
+            <div style="font-size:15px;font-weight:800;color:#1a3a5c">📜 سجل التدقيق — قيد ${esc(e.number || '')}</div>
             <button class="btn b-gr" onclick="document.getElementById('jrnAuditModal').remove()" style="padding:4px 12px">إغلاق</button>
         </div>
         ${ev.length ? ev.map(x => `
@@ -5252,7 +5252,7 @@ function renderJrnLines() {
         <tr style="background:#fffdf3">
             <td style="padding:4px;text-align:center;color:#b9770e">🔒</td>
             <td style="padding:4px;font-family:monospace;font-weight:700;font-size:11px;color:#7d5a00">${line.accountCode || ''}</td>
-            <td style="padding:4px;font-size:11px;color:#7d5a00">${line.accountName || ''}</td>
+            <td style="padding:4px;font-size:11px;color:#7d5a00">${esc(line.accountName || '')}</td>
             <td colspan="3" style="padding:4px;font-size:10.5px;color:#b9770e">🏷️ ${esc(line.description || '')} <span style="color:#c9a227">— سطر ضريبة تلقائي</span></td>
             <td style="padding:4px;text-align:left;direction:ltr;font-weight:700;color:#2d6a9f;font-size:12px">${line.debit ? fmt(line.debit) : ''}</td>
             <td style="padding:4px;text-align:left;direction:ltr;font-weight:700;color:#c0392b;font-size:12px">${line.credit ? fmt(line.credit) : ''}</td>
@@ -5278,7 +5278,7 @@ function renderJrnLines() {
                 </div>
             </td>
             <td style="padding:4px">
-                <input type="text" value="${line.accountName || ''}" readonly placeholder="اضغط 🔍 لاختيار" style="width:100%;padding:5px;border:1px solid #d0d7e0;border-radius:4px;background:#f8fafc;font-size:11px">
+                <input type="text" value="${esc(line.accountName || '')}" readonly placeholder="اضغط 🔍 لاختيار" style="width:100%;padding:5px;border:1px solid #d0d7e0;border-radius:4px;background:#f8fafc;font-size:11px">
             </td>
             <td style="padding:4px">
                 <input type="text" id="jl-desc-${i}" value="${esc(line.description || '')}" oninput="jrnEditorState.lines[${i}].description=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();jrnFocus('jl-deb-${i}')}" placeholder="بيان السطر..." style="width:100%;padding:5px;border:1px solid #d0d7e0;border-radius:4px;font-size:11px">
@@ -5564,7 +5564,7 @@ window.openJrnCcPicker = function (idx) {
 
         const ccs = Object.entries(window.costCenters || {})
             .filter(([, c]) => c.active !== false)
-            .filter(([, c]) => !qq || `${c.code || ''} ${c.nameAr || ''}`.toLowerCase().includes(qq))
+            .filter(([, c]) => !qq || `${esc(c.code || '')} ${esc(c.nameAr || '')}`.toLowerCase().includes(qq))
             .sort((a, b) => (a[1].code || '').localeCompare(b[1].code || ''));
         const projs = Object.entries(window.projects || {})
             .filter(([, p]) => !qq || (p.name || '').toLowerCase().includes(qq));
@@ -5822,11 +5822,11 @@ function renderAccountSearchResults(query) {
     container.innerHTML = accs.map(a => `
         <div onclick="selectAccount('${a.code}','${(a.nameAr || '').replace(/'/g, "\\'")}')" style="padding:10px;border:1px solid #e0e8f0;border-radius:8px;margin-bottom:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:white;transition:.2s" onmouseover="this.style.background='#e8f4fd'" onmouseout="this.style.background='white'">
             <div>
-                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${a.nameAr}</div>
-                <div style="font-size:10px;color:#888;direction:ltr;text-align:right">${a.nameEn || ''}</div>
+                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${esc(a.nameAr)}</div>
+                <div style="font-size:10px;color:#888;direction:ltr;text-align:right">${esc(a.nameEn || '')}</div>
             </div>
             <div style="text-align:left">
-                <div style="font-family:monospace;font-weight:700;color:#2d6a9f;font-size:13px">${a.code}</div>
+                <div style="font-family:monospace;font-weight:700;color:#2d6a9f;font-size:13px">${esc(a.code)}</div>
                 <div style="font-size:9px;color:#666">${typeLabels[a.type] || ''}</div>
             </div>
         </div>
@@ -5990,7 +5990,7 @@ window.saveJrnEntry = async function (status) {
             updateData.auditLog = { ...existingAudit, [auditKey]: auditEntry };
 
             await update(ref(db, 'ledger/journalEntries/' + key), updateData);
-            logAudit('تعديل قيد مرحّل', 'القيود اليومية', `تعديل القيد المرحّل ${data.number}`);
+            logAudit('تعديل قيد مرحّل', 'القيود اليومية', `تعديل القيد المرحّل ${esc(data.number)}`);
             toast(`✅ تم تعديل القيد المرحّل ${data.number} — مُسجَّل في سجل التدقيق`, 'ok');
             jrnBrowseEntry(key, updateData); // 🧭 اعرض القيد بعد الحفظ (طباعة/تصدير/تعديل + تنقّل)
             return;
@@ -6066,7 +6066,7 @@ window.reverseJrnEntry = function (key) {
     const ov = document.createElement('div'); ov.id = 'taskEditorOverlay';
     ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10003;display:flex;align-items:center;justify-content:center;padding:20px';
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">🔄 عكس القيد ${entry.number || ''}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
+        <div style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">🔄 عكس القيد ${esc(entry.number || '')}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
         <div style="padding:18px">
             <div style="font-size:12px;color:#666;line-height:1.7;margin-bottom:12px">سيُنشأ قيد جديد مرحّل يعكس المدين/الدائن لكل سطر — يُستخدم عادةً لعكس قيود الاستحقاق في بداية الفترة التالية. القيد الأصلي يبقى كما هو.</div>
             <input type="hidden" id="revJrnKey" value="${key}">
@@ -6091,9 +6091,9 @@ window.submitReverseJrn = async function () {
     const totalCredit = Math.round(lines.reduce((s, l) => s + l.credit, 0) * 100) / 100;
     const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-REV-' + Date.now());
     try {
-        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'عكس قيد ' + (entry.number || ''), description: `قيد عكسي للقيد ${entry.number || ''}${reason ? ' — ' + reason : ''}`, lines, totalDebit, totalCredit, currency: entry.currency || baseCurrencyCode(), exchangeRate: entry.exchangeRate || 1, foreignTotal: entry.foreignTotal || 0, status: 'posted', sourceType: 'reversal', sourceKey: key, reversalOf: key, reversalOfNumber: entry.number || '', projectId: entry.projectId || '', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
+        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'عكس قيد ' + (entry.number || ''), description: `قيد عكسي للقيد ${esc(entry.number || '')}${reason ? ' — ' + reason : ''}`, lines, totalDebit, totalCredit, currency: entry.currency || baseCurrencyCode(), exchangeRate: entry.exchangeRate || 1, foreignTotal: entry.foreignTotal || 0, status: 'posted', sourceType: 'reversal', sourceKey: key, reversalOf: key, reversalOfNumber: entry.number || '', projectId: entry.projectId || '', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
         await update(ref(db, 'ledger/journalEntries/' + key), { reversedByKey: jrnRef.key, reversedByNumber: jrnNumber, reversedAt: now, reversedBy: userId });
-        if (typeof logAudit === 'function') logAudit('عكس قيد', 'المحاسبة', `قيد عكسي ${jrnNumber} للقيد ${entry.number || ''}`);
+        if (typeof logAudit === 'function') logAudit('عكس قيد', 'المحاسبة', `قيد عكسي ${jrnNumber} للقيد ${esc(entry.number || '')}`);
         document.getElementById('taskEditorOverlay')?.remove();
         toast(`✅ أُنشئ القيد العكسي ${jrnNumber}`, 'ok', 5000);
         if (typeof renderJournalEntries === 'function' && $('pg-journalentries')?.classList.contains('act')) renderJournalEntries();
@@ -6118,9 +6118,9 @@ async function jrnAutoReverseOne(key) {
     const totalCredit = Math.round(lines.reduce((s, l) => s + l.credit, 0) * 100) / 100;
     const jrnNumber = generateJrnNumber(entry.journalBook || 'GEN');
     try {
-        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'عكس تلقائي ' + (entry.number || ''), description: `قيد عكسي تلقائي للقيد ${entry.number || ''}`, lines, totalDebit, totalCredit, currency: entry.currency || baseCurrencyCode(), exchangeRate: entry.exchangeRate || 1, journalBook: entry.journalBook || 'GEN', status: 'posted', sourceType: 'reversal', sourceKey: key, reversalOf: key, reversalOfNumber: entry.number || '', autoGenerated: true, createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
+        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'عكس تلقائي ' + (entry.number || ''), description: `قيد عكسي تلقائي للقيد ${esc(entry.number || '')}`, lines, totalDebit, totalCredit, currency: entry.currency || baseCurrencyCode(), exchangeRate: entry.exchangeRate || 1, journalBook: entry.journalBook || 'GEN', status: 'posted', sourceType: 'reversal', sourceKey: key, reversalOf: key, reversalOfNumber: entry.number || '', autoGenerated: true, createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
         await update(ref(db, 'ledger/journalEntries/' + key), { reversedByKey: jrnRef.key, reversedByNumber: jrnNumber, reversedAt: now, reversedBy: userId, autoReversed: true });
-        if (typeof logAudit === 'function') logAudit('عكس تلقائي', 'المحاسبة', `قيد عكسي تلقائي ${jrnNumber} للقيد ${entry.number || ''}`);
+        if (typeof logAudit === 'function') logAudit('عكس تلقائي', 'المحاسبة', `قيد عكسي تلقائي ${jrnNumber} للقيد ${esc(entry.number || '')}`);
         return jrnNumber;
     } catch (e) { console.error('auto-reverse error', e); return false; }
 }
@@ -6180,7 +6180,7 @@ window.openJrnRecon = async function () {
             <label style="font-size:12px;font-weight:700;color:#444">الحساب:</label>
             <select id="jrecAcc" onchange="window._jrnReconAcc=this.value;jrnReconRender()" style="flex:1;min-width:240px;padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px">
                 <option value="">— اختر حساباً —</option>
-                ${leaf.map(a => `<option value="${a.code}" ${window._jrnReconAcc === a.code ? 'selected' : ''}>${a.code} — ${a.nameAr || ''}</option>`).join('')}
+                ${leaf.map(a => `<option value="${esc(a.code)}" ${window._jrnReconAcc === a.code ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr || '')}</option>`).join('')}
             </select>
         </div>
         <div id="jrecBody"></div>
@@ -6204,7 +6204,7 @@ window.jrnReconRender = function () {
                     <label style="display:flex;gap:8px;align-items:center;padding:7px 9px;border-bottom:1px solid #f4f6f9;cursor:pointer;font-size:11.5px">
                         <input type="checkbox" class="jrec-chk" value="${i.id}" data-side="${i.side}" data-res="${i.residual}" onchange="jrnReconSel()">
                         <div style="flex:1;min-width:0">
-                            <div style="font-weight:700;color:#1a3a5c">${i.number} <span style="color:#999;font-weight:400">${i.date}</span></div>
+                            <div style="font-weight:700;color:#1a3a5c">${esc(i.number)} <span style="color:#999;font-weight:400">${i.date}</span></div>
                             <div style="color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.desc || '—')}</div>
                         </div>
                         <div style="font-weight:800;color:${color};direction:ltr">${fmt(i.residual)}${i.reconciled > 0.01 ? ' <span style="font-size:9px;color:#e67e22">جزئي</span>' : ''}</div>
@@ -6308,7 +6308,7 @@ window.jrnRowMenu = function (key, ev) {
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:10002;display:flex;align-items:center;justify-content:center';
     m.innerHTML = `
     <div style="background:white;border-radius:12px;padding:14px;min-width:220px;box-shadow:0 10px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">
-        <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">📒 قيد ${entry.number || ''}</div>
+        <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:8px">📒 قيد ${esc(entry.number || '')}</div>
         ${items.join('')}
     </div>`;
     m.onclick = () => m.remove();
@@ -6327,7 +6327,7 @@ window.viewJrnEntry = function (key) {
     // مساعد للحصول على اسم مركز التكلفة (مركز مخصص أو مشروع أو عام)
     const ccName = (cc) => cc ? ccDisplayName(cc) : '—';
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>قيد ${entry.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>قيد ${esc(entry.number)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; background: white; }
@@ -6343,7 +6343,7 @@ window.viewJrnEntry = function (key) {
         @page { size: A4 landscape; margin: 1.5cm; }
         button { display: none; }
     </style></head><body>
-    <h1>📒 قيد يومية رقم: ${entry.number}</h1>
+    <h1>📒 قيد يومية رقم: ${esc(entry.number)}</h1>
     <div class="header">
         <div><strong>📅 التاريخ:</strong> ${entry.date}</div>
         <div><strong>🔗 المرجع:</strong> ${entry.reference || '—'}</div>
@@ -6362,7 +6362,7 @@ window.viewJrnEntry = function (key) {
                 <tr>
                     <td style="text-align:center">${i + 1}</td>
                     <td style="font-family:monospace;font-weight:700">${l.accountCode}</td>
-                    <td>${l.accountName}</td>
+                    <td>${esc(l.accountName)}</td>
                     <td>${esc(l.description || '—')}</td>
                     <td style="text-align:center;font-size:10px">${l.date ? `<strong>${l.date}</strong>` : (entry.date || '—')}</td>
                     <td style="background:#f4ecf7;font-size:10px">${ccProjLabel(l, entry.projectId)}</td>
@@ -6642,11 +6642,11 @@ window.editPostedJrnEntry = async function (key) {
     }
 
     // ⚠️ تأكيد قوي
-    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل قيد مرحّل (نهائي).\n\nرقم القيد: ${entry.number}\nالمبلغ: ${fmt(entry.totalDebit || 0)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• تؤثر على دفتر الأستاذ\n• يجب أن يكون لها مبرر محاسبي قوي\n\nهل تريد المتابعة؟`;
+    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل قيد مرحّل (نهائي).\n\nرقم القيد: ${esc(entry.number)}\nالمبلغ: ${fmt(entry.totalDebit || 0)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• تؤثر على دفتر الأستاذ\n• يجب أن يكون لها مبرر محاسبي قوي\n\nهل تريد المتابعة؟`;
     if (!await cf2(warningMsg)) return;
 
     jrnEditorState = { lines: [], currentSearchLineIdx: -1, currentSearchField: 'account' };
-    $('mJrnTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل قيد مرحّل</span> — ${entry.number}`;
+    $('mJrnTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل قيد مرحّل</span> — ${esc(entry.number)}`;
     $('mJrnKey').value = key;
     $('mJrnNumber').value = entry.number || '';
     $('mJrnDate').value = entry.date || '';
@@ -6707,7 +6707,7 @@ window.postJrnEntry = async function (key) {
     if (jrnNeedsApproval(entry, totalDebit) && entry.approvalStatus !== 'approved') {
         toast('🔒 هذا القيد يتطلّب اعتماداً قبل الترحيل — أرسله للاعتماد أولاً من قائمة القيد', 'er', 7000); return;
     }
-    if (!await cf2(`هل تريد ترحيل القيد ${entry.number}؟ بعد الترحيل لا يمكن تعديله.`)) return;
+    if (!await cf2(`هل تريد ترحيل القيد ${esc(entry.number)}؟ بعد الترحيل لا يمكن تعديله.`)) return;
 
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -6716,7 +6716,7 @@ window.postJrnEntry = async function (key) {
             postedAt: new Date().toISOString(),
             postedBy: userId
         });
-        logAudit('ترحيل', 'القيود اليومية', `ترحيل القيد ${entry.number} بمبلغ ${fmt(totalDebit)}`);
+        logAudit('ترحيل', 'القيود اليومية', `ترحيل القيد ${esc(entry.number)} بمبلغ ${fmt(totalDebit)}`);
         toast('✅ تم ترحيل القيد', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -6734,7 +6734,7 @@ window.submitJrnForApproval = async function (key) {
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     try {
         await update(ref(db, 'ledger/journalEntries/' + key), { approvalStatus: 'pending', submittedBy: userId, submittedAt: new Date().toISOString(), rejectReason: null });
-        if (typeof logAudit === 'function') logAudit('إرسال للاعتماد', 'القيود اليومية', `القيد ${e.number || ''}`);
+        if (typeof logAudit === 'function') logAudit('إرسال للاعتماد', 'القيود اليومية', `القيد ${esc(e.number || '')}`);
         toast('📤 أُرسل القيد للاعتماد', 'ok');
     } catch (err) { toast('❌ ' + (err.message || err), 'er'); }
 };
@@ -6744,7 +6744,7 @@ window.approveJrn = async function (key) {
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     try {
         await update(ref(db, 'ledger/journalEntries/' + key), { approvalStatus: 'approved', approvedBy: userId, approvedAt: new Date().toISOString() });
-        if (typeof logAudit === 'function') logAudit('اعتماد قيد', 'القيود اليومية', `القيد ${e.number || ''}`);
+        if (typeof logAudit === 'function') logAudit('اعتماد قيد', 'القيود اليومية', `القيد ${esc(e.number || '')}`);
         toast('✅ اعتُمد القيد — يمكن ترحيله الآن', 'ok');
     } catch (err) { toast('❌ ' + (err.message || err), 'er'); }
 };
@@ -6755,7 +6755,7 @@ window.rejectJrn = async function (key) {
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     try {
         await update(ref(db, 'ledger/journalEntries/' + key), { approvalStatus: 'rejected', rejectedBy: userId, rejectedAt: new Date().toISOString(), rejectReason: reason });
-        if (typeof logAudit === 'function') logAudit('رفض قيد', 'القيود اليومية', `القيد ${e.number || ''}${reason ? ' — ' + reason : ''}`);
+        if (typeof logAudit === 'function') logAudit('رفض قيد', 'القيود اليومية', `القيد ${esc(e.number || '')}${reason ? ' — ' + reason : ''}`);
         toast('❌ رُفض القيد', 'wn');
     } catch (err) { toast('❌ ' + (err.message || err), 'er'); }
 };
@@ -6773,7 +6773,7 @@ window.cancelJrnEntry = async function (key) {
         const lock = pcIsLocked(entry.date);
         if (lock) { toast(`🔒 الفترة ${lock.period} مقفلة ولا يمكن إلغاء قيود بتاريخ ${entry.date}`, 'er', 8000); return; }
     }
-    if (!await cf2(`هل تريد إلغاء القيد ${entry.number}؟`)) return;
+    if (!await cf2(`هل تريد إلغاء القيد ${esc(entry.number)}؟`)) return;
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
         await update(ref(db, 'ledger/journalEntries/' + key), {
@@ -6781,7 +6781,7 @@ window.cancelJrnEntry = async function (key) {
             cancelledAt: new Date().toISOString(),
             cancelledBy: userId
         });
-        logAudit('إلغاء', 'القيود اليومية', `إلغاء القيد ${entry.number}`);
+        logAudit('إلغاء', 'القيود اليومية', `إلغاء القيد ${esc(entry.number)}`);
         toast('✅ تم إلغاء القيد', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -6796,10 +6796,10 @@ window.deleteJrnEntry = async function (key) {
         const lock = pcIsLocked(entry.date);
         if (lock) { toast(`🔒 الفترة ${lock.period} مقفلة ولا يمكن حذف قيود بتاريخ ${entry.date}`, 'er', 8000); return; }
     }
-    if (!await cf2(`هل تريد حذف القيد ${entry.number} نهائياً؟`)) return;
+    if (!await cf2(`هل تريد حذف القيد ${esc(entry.number)} نهائياً؟`)) return;
     try {
         await remove(ref(db, 'ledger/journalEntries/' + key));
-        logAudit('حذف', 'القيود اليومية', `حذف القيد ${entry.number}`);
+        logAudit('حذف', 'القيود اليومية', `حذف القيد ${esc(entry.number)}`);
         toast('✅ تم الحذف', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -6839,7 +6839,7 @@ async function bulkDeleteJrnEntries(keys) {
     for (const [key, entry] of deletable) {
         try {
             await remove(ref(db, 'ledger/journalEntries/' + key));
-            logAudit('حذف', 'القيود اليومية', `حذف القيد ${entry.number}`);
+            logAudit('حذف', 'القيود اليومية', `حذف القيد ${esc(entry.number)}`);
             ok++;
         } catch (e) { fail++; }
     }
@@ -10596,9 +10596,9 @@ function renderGLAccountSelector(container) {
                             const type = COA_TYPES[a.type] || { ar: '—', color: '#888', bg: '#f0f5fa' };
                             const movements = movementCounts[a.code] || 0;
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}" data-search="${(a.code || '').toLowerCase()} ${(a.nameAr || '').toLowerCase()} ${(a.nameEn || '').toLowerCase()}">
-                                <td style="padding:8px;font-family:monospace;font-weight:800;color:${type.color}">${a.code}</td>
-                                <td style="padding:8px;font-weight:600">${a.nameAr}
-                                    ${a.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${a.nameEn}</div>` : ''}
+                                <td style="padding:8px;font-family:monospace;font-weight:800;color:${type.color}">${esc(a.code)}</td>
+                                <td style="padding:8px;font-weight:600">${esc(a.nameAr)}
+                                    ${a.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(a.nameEn)}</div>` : ''}
                                 </td>
                                 <td style="padding:8px"><span style="background:${type.bg};color:${type.color};padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700">${type.ar}</span></td>
                                 <td style="padding:8px;text-align:center">
@@ -10748,11 +10748,11 @@ function renderGLReport(container) {
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
                 <div>
                     <div style="font-size:11px;opacity:.85;letter-spacing:1px">GENERAL LEDGER · ${type.en || ''}</div>
-                    <h1 style="margin:4px 0 0;font-size:24px;font-weight:900">📖 ${account.nameAr}</h1>
+                    <h1 style="margin:4px 0 0;font-size:24px;font-weight:900">📖 ${esc(account.nameAr)}</h1>
                     <div style="margin-top:6px;font-size:12px;opacity:.95;display:flex;gap:14px;flex-wrap:wrap">
-                        <span>🔢 <strong>${account.code}</strong></span>
+                        <span>🔢 <strong>${esc(account.code)}</strong></span>
                         <span>${type.ar}</span>
-                        ${account.nameEn ? `<span style="direction:ltr">${account.nameEn}</span>` : ''}
+                        ${account.nameEn ? `<span style="direction:ltr">${esc(account.nameEn)}</span>` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -10869,7 +10869,7 @@ function renderGLReport(container) {
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''};cursor:pointer" onclick="jrnRowMenu('${m.entryKey}', event)" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">
                                 <td style="padding:7px;text-align:center;color:#888">${i + 1}</td>
                                 <td style="padding:7px;font-family:monospace">${m.date || '-'}</td>
-                                <td style="padding:7px;font-family:monospace;font-weight:700;color:#2d6a9f">${m.number || '-'} ${statusBadge}</td>
+                                <td style="padding:7px;font-family:monospace;font-weight:700;color:#2d6a9f">${esc(m.number || '-')} ${statusBadge}</td>
                                 <td style="padding:7px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.description || '')}">
                                     ${esc(m.description || '—')}
                                     ${m.lineDescription && m.lineDescription !== m.description ? `<div style="font-size:10px;color:#888">↳ ${m.lineDescription}</div>` : ''}
@@ -10979,7 +10979,7 @@ window.printGLReport = function () {
     const totalCredit = movements.reduce((s, m) => s + m.credit, 0);
     const closingBalance = openingBalance + totalDebit - totalCredit;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>دفتر الأستاذ - ${account.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>دفتر الأستاذ - ${esc(account.nameAr)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; background: white; }
@@ -10993,7 +10993,7 @@ window.printGLReport = function () {
         .closing { background: ${type.color}; color: white; font-weight: 900; }
         @page { size: A4 landscape; margin: 1.5cm; }
     </style></head><body>
-    <h1>📖 دفتر الأستاذ — ${account.nameAr} (${account.code})</h1>
+    <h1>📖 دفتر الأستاذ — ${esc(account.nameAr)} (${esc(account.code)})</h1>
     <div class="info">
         <div><strong>📅 الفترة:</strong> ${glState.fromDate || 'من البداية'} → ${glState.toDate || 'حتى الآن'}</div>
         <div><strong>🏷️ النوع:</strong> ${type.ar}</div>
@@ -11009,7 +11009,7 @@ window.printGLReport = function () {
             ${movements.map((m, i) => `<tr>
                 <td style="text-align:center">${i + 1}</td>
                 <td>${m.date || '-'}</td>
-                <td style="font-family:monospace;font-weight:700">${m.number || '-'}</td>
+                <td style="font-family:monospace;font-weight:700">${esc(m.number || '-')}</td>
                 <td>${esc(m.description || '-')}${m.lineDescription && m.lineDescription !== m.description ? '<br><small>↳ ' + m.lineDescription + '</small>' : ''}</td>
                 <td style="text-align:left;color:#27ae60">${m.debit ? fmt(m.debit) : '—'}</td>
                 <td style="text-align:left;color:#c0392b">${m.credit ? fmt(m.credit) : '—'}</td>
@@ -11088,7 +11088,7 @@ window.exportGLExcel = function () {
         ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 30 }, { wch: 25 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 10 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'دفتر الأستاذ');
-        XLSX.writeFile(wb, `دفتر_الأستاذ_${account.code}_${account.nameAr}_${new Date().toISOString().substring(0, 10)}.xlsx`);
+        XLSX.writeFile(wb, `دفتر_الأستاذ_${esc(account.code)}_${esc(account.nameAr)}_${new Date().toISOString().substring(0, 10)}.xlsx`);
         toast('✅ تم التصدير', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -11442,11 +11442,11 @@ function renderTBGrouped(balances) {
             const a = b.account;
             const anomalyMark = b.isAnomaly ? ' <span style="background:#f39c12;color:white;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700" title="رصيد بعكس طبيعة الحساب">⚠️ شاذ</span>' : '';
             html += `<tr style="${i % 2 ? 'background:#fafbfc' : ''}" data-search="${(a.code || '').toLowerCase()} ${(a.nameAr || '').toLowerCase()}">
-                <td style="padding:7px;font-family:monospace;font-weight:700;color:${typeInfo.color}">${a.code}</td>
+                <td style="padding:7px;font-family:monospace;font-weight:700;color:${typeInfo.color}">${esc(a.code)}</td>
                 <td style="padding:7px;font-weight:600">
-                    <span style="cursor:pointer;color:#2d6a9f;text-decoration:underline" onclick="openGLForAccount('${a.code}');nav('generalledger')" title="عرض دفتر الأستاذ">${a.nameAr}</span>
+                    <span style="cursor:pointer;color:#2d6a9f;text-decoration:underline" onclick="openGLForAccount('${a.code}');nav('generalledger')" title="عرض دفتر الأستاذ">${esc(a.nameAr)}</span>
                     ${anomalyMark}
-                    ${a.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${a.nameEn}</div>` : ''}
+                    ${a.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(a.nameEn)}</div>` : ''}
                 </td>
                 <td style="padding:7px;font-size:11px;color:#666">${typeInfo.ar}</td>
                 <td style="padding:7px;text-align:center;color:#666">${b.opening !== 0 ? fmt(b.opening) : '—'}</td>
@@ -11566,8 +11566,8 @@ window.printTrialBalance = function () {
             gt.opening += b.opening; gt.debit += b.debit; gt.credit += b.credit;
             gt.finalDebit += b.finalDebit; gt.finalCredit += b.finalCredit;
             rowsHtml += `<tr>
-                <td style="font-family:monospace;font-weight:700">${b.account.code}</td>
-                <td>${b.account.nameAr}</td>
+                <td style="font-family:monospace;font-weight:700">${esc(b.account.code)}</td>
+                <td>${esc(b.account.nameAr)}</td>
                 <td style="text-align:left">${b.opening !== 0 ? fmt(b.opening) : '—'}</td>
                 <td style="text-align:left;color:#2d6a9f">${b.debit ? fmt(b.debit) : '—'}</td>
                 <td style="text-align:left;color:#8e44ad">${b.credit ? fmt(b.credit) : '—'}</td>
@@ -12002,11 +12002,11 @@ function renderCustomerRow(key, c, idx, canManage) {
         : '<span style="color:#ccc;font-size:11px">بلا حد</span>';
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(c.code || '').toLowerCase()} ${(c.nameAr || '').toLowerCase()} ${(c.nameEn || '').toLowerCase()} ${(c.phone || '').toLowerCase()} ${(c.vatNumber || '').toLowerCase()} ${(c.salespersonName || '').toLowerCase()}">
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${c.code || '—'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(c.code || '—')}</td>
         <td style="padding:8px"><span style="background:${t.color}22;color:${t.color};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${esc(t.label)}</span></td>
         <td style="padding:8px;font-weight:700">
-            <span onclick="openCustomer360('${key}')" style="color:#0e6251;cursor:pointer;text-decoration:underline" title="فتح بطاقة العميل 360°">${c.nameAr || '—'}</span>
-            ${c.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${c.nameEn}</div>` : ''}
+            <span onclick="openCustomer360('${key}')" style="color:#0e6251;cursor:pointer;text-decoration:underline" title="فتح بطاقة العميل 360°">${esc(c.nameAr || '—')}</span>
+            ${c.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(c.nameEn)}</div>` : ''}
             ${c.category ? `<div style="font-size:9px;color:#8e44ad;font-weight:700">🗂️ ${c.category}</div>` : ''}
         </td>
         <td style="padding:8px;font-size:11px;color:#555">${c.salespersonName || '<span style="color:#ccc">—</span>'}${c.region ? `<div style="font-size:9px;color:#999">📍 ${c.region}</div>` : ''}</td>
@@ -12241,13 +12241,13 @@ window.custCreateCollectionTask = function (key) {
     const ds = due.getFullYear() + '-' + String(due.getMonth() + 1).padStart(2, '0') + '-' + String(due.getDate()).padStart(2, '0');
     const uid = (window.curU && window.curU.uid) || 'system'; const now = Date.now();
     push(R.tasks, {
-        title: `تحصيل من ${c.nameAr} — ${fmt(bal.overdue)} (${esc(dun.label)})`,
+        title: `تحصيل من ${esc(c.nameAr)} — ${fmt(bal.overdue)} (${esc(dun.label)})`,
         parent: '', priority: days > 90 ? 'urgent' : days > 60 ? 'high' : 'medium', status: 'open',
         notes: `متأخرات ${fmt(bal.overdue)} · أقدم تأخر ${days} يوم${c.phone ? ' · 📞 ' + c.phone : ''}`,
         dueDate: ds, dueTime: '10:00',
         linkType: 'customer', linkId: key, linkName: c.nameAr || c.code,
         tags: ['تحصيل'],
-        reminder: { enabled: true, type: 'once', date: ds, time: '10:00', lead: 0, note: `تحصيل من ${c.nameAr}`, lastFiredAt: now, snoozeUntil: null },
+        reminder: { enabled: true, type: 'once', date: ds, time: '10:00', lead: 0, note: `تحصيل من ${esc(c.nameAr)}`, lastFiredAt: now, snoozeUntil: null },
         createdAt: now, createdBy: uid, updatedAt: now
     }).then(() => toast('⏰ أُنشئت مهمة تحصيل بتذكير في ' + ds, 'ok', 3500)).catch(e => toast('❌ ' + (e.message || e), 'er'));
 };
@@ -12259,7 +12259,7 @@ window.custDunningMessage = function (key) {
     if (dun.level >= 4) intro = 'نفيدكم بأن المبلغ المستحق متأخر منذ فترة طويلة، ونطالب بسداده عاجلاً تفادياً للإجراءات';
     else if (dun.level === 3) intro = 'هذا إنذار بضرورة سداد المبلغ المستحق المتأخر';
     else if (dun.level === 2) intro = 'نذكّركم بالمبلغ المستحق المتأخر ونأمل سداده';
-    const txt = `${co}\nالسادة / ${c.nameAr}\nتحية طيبة،\n${intro}.\nالمبلغ المتأخر: ${fmt(bal.overdue)} ر.س\nإجمالي الرصيد المستحق: ${fmt(bal.balance)} ر.س\nأقدم تأخر: ${days} يوم\nشاكرين تعاونكم.`;
+    const txt = `${co}\nالسادة / ${esc(c.nameAr)}\nتحية طيبة،\n${intro}.\nالمبلغ المتأخر: ${fmt(bal.overdue)} ر.س\nإجمالي الرصيد المستحق: ${fmt(bal.balance)} ر.س\nأقدم تأخر: ${days} يوم\nشاكرين تعاونكم.`;
     window.open('https://wa.me/' + (c.phone || '').replace(/[^\d]/g, '') + '?text=' + encodeURIComponent(txt), '_blank');
     push(ref(db, 'ledger/customers/' + key + '/activity'), { type: 'call', text: `أُرسلت رسالة مطالبة (${esc(dun.label)}) بمبلغ ${fmt(bal.overdue)}`, byName: (window.myP && window.myP.name) || '', at: Date.now() });
 };
@@ -12341,7 +12341,7 @@ window.openCustMergeTool = function () {
             <div style="font-weight:800;color:#c0392b;margin-bottom:8px">⚠️ مجموعة مكررة (${set.length})</div>
             ${opts.map(o => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px dashed #eee">
                 <input type="radio" name="primary${gi}" value="${o.k}" ${o === opts[0] ? 'checked' : ''} title="السجل الأساسي الذي يُحتفظ به">
-                <span style="flex:1"><b>${(o.c.nameAr || o.c.code).replace(/</g, '&lt;')}</b> <span style="color:#888;font-family:monospace">${o.c.code || ''}</span>${o.c.phone ? ` · ${o.c.phone}` : ''} · رصيد ${fmt(o.bal.balance)}</span>
+                <span style="flex:1"><b>${(o.c.nameAr || o.c.code).replace(/</g, '&lt;')}</b> <span style="color:#888;font-family:monospace">${esc(o.c.code || '')}</span>${o.c.phone ? ` · ${o.c.phone}` : ''} · رصيد ${fmt(o.bal.balance)}</span>
             </div>`).join('')}
             <button class="btn" onclick="custDoMerge(${gi})" data-keys="${set.join(',')}" style="background:#c0392b;color:#fff;padding:6px 14px;font-size:12px;font-weight:700;margin-top:8px">🔗 دمج في الأساسي المحدد</button>
         </div>`;
@@ -12409,9 +12409,9 @@ function cust360Render() {
         <div style="background:linear-gradient(135deg,#0e6251,#16a085);color:#fff;padding:16px 20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                 <div>
-                    <div style="font-size:11px;opacity:.85;font-family:monospace">${c.code || ''} · <span style="background:rgba(255,255,255,.2);padding:1px 7px;border-radius:5px">${esc(t.label)}</span> ${c.active === false ? '· ⏸️ معطّل' : '· ✅ نشط'} · <span style="background:${risk.color};padding:1px 7px;border-radius:5px;font-weight:800" title="درجة المخاطر ${risk.score}/100">مخاطر ${risk.rating}</span>${c.creditHold ? ' · <span style="background:#c0392b;padding:1px 7px;border-radius:5px;font-weight:800">🔒 موقوف ائتمانياً</span>' : ''}</div>
+                    <div style="font-size:11px;opacity:.85;font-family:monospace">${esc(c.code || '')} · <span style="background:rgba(255,255,255,.2);padding:1px 7px;border-radius:5px">${esc(t.label)}</span> ${c.active === false ? '· ⏸️ معطّل' : '· ✅ نشط'} · <span style="background:${risk.color};padding:1px 7px;border-radius:5px;font-weight:800" title="درجة المخاطر ${risk.score}/100">مخاطر ${risk.rating}</span>${c.creditHold ? ' · <span style="background:#c0392b;padding:1px 7px;border-radius:5px;font-weight:800">🔒 موقوف ائتمانياً</span>' : ''}</div>
                     <h2 style="margin:5px 0 0;font-size:20px;font-weight:900">${(c.nameAr || '').replace(/</g, '&lt;')}</h2>
-                    ${c.nameEn ? `<div style="font-size:12px;opacity:.85;direction:ltr">${c.nameEn}</div>` : ''}
+                    ${c.nameEn ? `<div style="font-size:12px;opacity:.85;direction:ltr">${esc(c.nameEn)}</div>` : ''}
                 </div>
                 <button onclick="closeCust360()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px">✖</button>
             </div>
@@ -12470,7 +12470,7 @@ function cust360Body(key, tab, c, bal, kp, cr) {
         const today = new Date().toISOString().slice(0, 10);
         return `<div class="card" style="padding:12px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px">
             <thead style="background:#1a3a5c;color:#fff"><tr><th style="padding:8px;text-align:right">التاريخ</th><th style="padding:8px;text-align:right">الرقم</th><th style="padding:8px;text-align:right">البيان</th><th style="padding:8px;text-align:left">الإجمالي</th><th style="padding:8px;text-align:left">المسدد</th><th style="padding:8px;text-align:left">المتبقي</th><th style="padding:8px;text-align:center">الحالة</th><th></th></tr></thead>
-            <tbody>${invs.length ? invs.map(([ik, inv]) => { const g = Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100, p = Math.round((parseFloat(inv.paidAmount) || 0) * 100) / 100, r = Math.max(0, g - p); const od = inv.dueDate && inv.dueDate < today && r > 0.01 && inv.status === 'posted'; return `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:7px">${inv.date || '—'}</td><td style="padding:7px;font-family:monospace;font-weight:700">${inv.number || '—'}</td><td style="padding:7px;color:#555">${(inv.subject || '—')}</td><td style="padding:7px;text-align:left;direction:ltr;font-weight:700">${fmt(g)}</td><td style="padding:7px;text-align:left;direction:ltr;color:#1e8449">${fmt(p)}</td><td style="padding:7px;text-align:left;direction:ltr;color:${r > 0.01 ? '#c0392b' : '#1e8449'};font-weight:700">${fmt(r)}</td><td style="padding:7px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${inv.status === 'draft' ? '#fef9e7' : od ? '#fdedec' : r <= 0.01 ? '#eafaf1' : '#eaf4fd'};color:${inv.status === 'draft' ? '#f39c12' : od ? '#c0392b' : r <= 0.01 ? '#1e8449' : '#2471a3'}">${inv.status === 'draft' ? 'مسودة' : od ? 'متأخرة' : r <= 0.01 ? 'مسددة' : 'مرحّلة'}</span></td><td style="padding:7px">${(inv.status === 'posted' && r > 0.01) ? `<button class="btn" onclick="openReceiptForInvoice('${ik}')" style="background:#16a085;color:#fff;padding:2px 8px;font-size:10px">💵 سداد</button>` : ''}</td></tr>`; }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:#999">لا توجد فواتير</td></tr>'}</tbody>
+            <tbody>${invs.length ? invs.map(([ik, inv]) => { const g = Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100, p = Math.round((parseFloat(inv.paidAmount) || 0) * 100) / 100, r = Math.max(0, g - p); const od = inv.dueDate && inv.dueDate < today && r > 0.01 && inv.status === 'posted'; return `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:7px">${inv.date || '—'}</td><td style="padding:7px;font-family:monospace;font-weight:700">${esc(inv.number || '—')}</td><td style="padding:7px;color:#555">${(inv.subject || '—')}</td><td style="padding:7px;text-align:left;direction:ltr;font-weight:700">${fmt(g)}</td><td style="padding:7px;text-align:left;direction:ltr;color:#1e8449">${fmt(p)}</td><td style="padding:7px;text-align:left;direction:ltr;color:${r > 0.01 ? '#c0392b' : '#1e8449'};font-weight:700">${fmt(r)}</td><td style="padding:7px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${inv.status === 'draft' ? '#fef9e7' : od ? '#fdedec' : r <= 0.01 ? '#eafaf1' : '#eaf4fd'};color:${inv.status === 'draft' ? '#f39c12' : od ? '#c0392b' : r <= 0.01 ? '#1e8449' : '#2471a3'}">${inv.status === 'draft' ? 'مسودة' : od ? 'متأخرة' : r <= 0.01 ? 'مسددة' : 'مرحّلة'}</span></td><td style="padding:7px">${(inv.status === 'posted' && r > 0.01) ? `<button class="btn" onclick="openReceiptForInvoice('${ik}')" style="background:#16a085;color:#fff;padding:2px 8px;font-size:10px">💵 سداد</button>` : ''}</td></tr>`; }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:#999">لا توجد فواتير</td></tr>'}</tbody>
         </table></div></div>`;
     }
     if (tab === 'payments') {
@@ -12478,7 +12478,7 @@ function cust360Body(key, tab, c, bal, kp, cr) {
         const methodLbl = { cash: '💵 نقدي', bank_transfer: '🏦 تحويل', check: '📄 شيك', card: '💳 بطاقة', other: 'أخرى' };
         return `<div class="card" style="padding:12px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px">
             <thead style="background:#1a3a5c;color:#fff"><tr><th style="padding:8px;text-align:right">التاريخ</th><th style="padding:8px;text-align:right">رقم السند</th><th style="padding:8px;text-align:right">الطريقة</th><th style="padding:8px;text-align:left">المبلغ</th><th style="padding:8px;text-align:center">الحالة</th></tr></thead>
-            <tbody>${recs.length ? recs.map(r => `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:7px">${r.date || '—'}</td><td style="padding:7px;font-family:monospace;font-weight:700">${r.number || '—'}</td><td style="padding:7px">${methodLbl[r.method] || r.method || '—'}</td><td style="padding:7px;text-align:left;direction:ltr;font-weight:800;color:#1e8449">${fmt(r.amount)}</td><td style="padding:7px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${r.status === 'posted' ? '#eafaf1' : '#fef9e7'};color:${r.status === 'posted' ? '#1e8449' : '#f39c12'}">${r.status === 'posted' ? 'مرحّل' : 'مسودة'}</span></td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:24px;color:#999">لا توجد دفعات</td></tr>'}</tbody>
+            <tbody>${recs.length ? recs.map(r => `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:7px">${r.date || '—'}</td><td style="padding:7px;font-family:monospace;font-weight:700">${esc(r.number || '—')}</td><td style="padding:7px">${methodLbl[r.method] || r.method || '—'}</td><td style="padding:7px;text-align:left;direction:ltr;font-weight:800;color:#1e8449">${fmt(r.amount)}</td><td style="padding:7px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${r.status === 'posted' ? '#eafaf1' : '#fef9e7'};color:${r.status === 'posted' ? '#1e8449' : '#f39c12'}">${r.status === 'posted' ? 'مرحّل' : 'مسودة'}</span></td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:24px;color:#999">لا توجد دفعات</td></tr>'}</tbody>
         </table></div></div>`;
     }
     if (tab === 'documents') {
@@ -12576,8 +12576,8 @@ window.custNewReceipt = function (key) { closeCust360(); if (typeof openVoucherE
 window.custShare = function (key, mode) {
     const c = window.customers?.[key]; if (!c) return; const bal = calcCustomerBalance(key); const ag = calcCustomerAging(key);
     const co = custCoName();
-    let txt = `${co}\nكشف حساب العميل: ${c.nameAr}\n`;
-    if (c.code) txt += `الرمز: ${c.code}\n`;
+    let txt = `${co}\nكشف حساب العميل: ${esc(c.nameAr)}\n`;
+    if (c.code) txt += `الرمز: ${esc(c.code)}\n`;
     txt += `الرصيد المستحق: ${fmt(bal.balance)} ر.س\n`;
     if (bal.overdue > 0.01) txt += `المتأخرات: ${fmt(bal.overdue)} ر.س\n`;
     if (ag.total > 0.01) txt += `أعمار الديون — جاري ${fmt(ag.current)} / 1-30 ${fmt(ag.d30)} / 31-60 ${fmt(ag.d60)} / +60 ${fmt(ag.d90 + ag.d120 + ag.over120)}\n`;
@@ -13007,7 +13007,7 @@ window.deleteCustomer = async function (key) {
         return;
     }
 
-    if (!await cf2(`هل تريد حذف العميل "${c.nameAr}" نهائياً؟`)) return;
+    if (!await cf2(`هل تريد حذف العميل "${esc(c.nameAr)}" نهائياً؟`)) return;
     try {
         await remove(ref(db, 'ledger/customers/' + key));
         toast('✅ تم الحذف', 'ok');
@@ -13047,7 +13047,7 @@ window.viewCustomerStatement = function (key) {
 
         return `<tr style="background:${rowBg}">
             <td style="padding:9px 10px;color:#555;font-size:11px;white-space:nowrap">${inv.date || '—'}</td>
-            <td style="padding:9px 10px;font-family:monospace;font-weight:800;color:#1a3a5c;font-size:12px">${inv.number || '—'}</td>
+            <td style="padding:9px 10px;font-family:monospace;font-weight:800;color:#1a3a5c;font-size:12px">${esc(inv.number || '—')}</td>
             <td style="padding:9px 10px;color:#444;font-size:11px;max-width:180px">${inv.subject || '—'}</td>
             <td style="padding:9px 10px;font-size:11px;color:${isOverdue ? '#c0392b' : '#555'};font-weight:${isOverdue ? '700' : 'normal'};white-space:nowrap">${inv.dueDate || '—'}</td>
             <td style="padding:9px 10px;text-align:left;direction:ltr;font-weight:700;color:#1a3a5c;font-size:12px">${fmt(grand)}</td>
@@ -13068,11 +13068,11 @@ window.viewCustomerStatement = function (key) {
     const _co = (typeof cfg !== 'undefined' ? cfg : (window.gbrCfg || {}));
     const coName = _co.companyAr || _co.companyEn || 'بنيان للمقاولات';
     const coVat = _co.vat || '', coPhone = _co.phone || '', coAddr = _co.address || '';
-    const qrText = `${coName}\nكشف حساب: ${c.nameAr}\nالرصيد المستحق: ${fmt(bal.balance)} ر.س\nبتاريخ ${new Date().toLocaleDateString('ar-SA')}`;
+    const qrText = `${coName}\nكشف حساب: ${esc(c.nameAr)}\nالرصيد المستحق: ${fmt(bal.balance)} ر.س\nبتاريخ ${new Date().toLocaleDateString('ar-SA')}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrText)}`;
 
     const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8">
-    <title>كشف حساب — ${c.nameAr}</title>
+    <title>كشف حساب — ${esc(c.nameAr)}</title>
     <style>
         *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
         body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:24px;color:#1a3a5c;direction:rtl;margin:0;background:white}
@@ -13102,8 +13102,8 @@ window.viewCustomerStatement = function (key) {
     <div class="header">
         <div>
             <div class="header-title">📋 كشف حساب العميل</div>
-            <div class="header-sub" style="font-size:17px;font-weight:900;color:#16a085;margin-top:6px">${c.nameAr}</div>
-            ${c.nameEn ? `<div class="header-sub">${c.nameEn}</div>` : ''}
+            <div class="header-sub" style="font-size:17px;font-weight:900;color:#16a085;margin-top:6px">${esc(c.nameAr)}</div>
+            ${c.nameEn ? `<div class="header-sub">${esc(c.nameEn)}</div>` : ''}
         </div>
         <div style="text-align:left;display:flex;gap:12px;align-items:flex-start">
             <div>
@@ -13117,7 +13117,7 @@ window.viewCustomerStatement = function (key) {
     </div>
 
     <div class="meta">
-        <div class="meta-item"><div class="lbl">رمز العميل</div><div class="val">${c.code || '—'}</div></div>
+        <div class="meta-item"><div class="lbl">رمز العميل</div><div class="val">${esc(c.code || '—')}</div></div>
         <div class="meta-item"><div class="lbl">الهاتف</div><div class="val">${c.phone || '—'}</div></div>
         <div class="meta-item"><div class="lbl">الرقم الضريبي</div><div class="val">${c.vatNumber || '—'}</div></div>
         <div class="meta-item"><div class="lbl">تاريخ الإصدار</div><div class="val">${new Date().toLocaleDateString('ar-SA')}</div></div>
@@ -13587,11 +13587,11 @@ function renderSInvRow(key, inv, idx) {
         data-paid="${isPaid ? '1' : '0'}"
         data-overdue="${isOverdue ? '1' : '0'}">
         <td style="padding:8px;text-align:center"><input type="checkbox" class="sinvSelChk" onchange="sinvToggleSel('${key}',this.checked)" ${(window._sinvSel && window._sinvSel[key]) ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer"></td>
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${inv.number || '-'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(inv.number || '-')}</td>
         <td style="padding:8px">${inv.date || '-'}</td>
         <td style="padding:8px">
-            <div style="font-weight:700">${customer?.nameAr || '—'}</div>
-            ${customer?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${customer.code}</div>` : ''}
+            <div style="font-weight:700">${esc(customer?.nameAr || '—')}</div>
+            ${customer?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${esc(customer.code)}</div>` : ''}
         </td>
         <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.subject || ''}">${inv.subject || '—'}</td>
         <td style="padding:8px;color:${isOverdue ? '#c0392b' : '#666'};font-weight:${isOverdue ? '700' : 'normal'}">${inv.dueDate || '-'}</td>
@@ -13703,7 +13703,7 @@ function sinvGetFilteredInvoices() {
         .sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''))
         .filter(([, inv]) => {
             const customer = window.customers?.[inv.customerId];
-            const txt = `${inv.number || ''} ${customer?.nameAr || ''} ${inv.subject || ''}`.toLowerCase();
+            const txt = `${esc(inv.number || '')} ${esc(customer?.nameAr || '')} ${inv.subject || ''}`.toLowerCase();
             const grand = Math.round((parseFloat(inv.grandTotal) || 0) * 100) / 100;
             const paid  = Math.round((parseFloat(inv.paidAmount)  || 0) * 100) / 100;
             const isPaid = paid >= grand - 0.01;
@@ -13789,9 +13789,9 @@ window.printSInvList = function (cols) {
         const pending = (parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0);
         const st = sinvStatusInfo(inv);
         const cells = {
-            number:   `<td>${inv.number || '—'} ${inv.billingKey ? '<span class="badge">مستخلص</span>' : ''}</td>`,
+            number:   `<td>${esc(inv.number || '—')} ${inv.billingKey ? '<span class="badge">مستخلص</span>' : ''}</td>`,
             date:     `<td>${inv.date || '—'}</td>`,
-            customer: `<td style="text-align:right">${customer?.nameAr || '—'}</td>`,
+            customer: `<td style="text-align:right">${esc(customer?.nameAr || '—')}</td>`,
             subject:  `<td style="text-align:right">${inv.subject || '—'}</td>`,
             due:      `<td>${inv.dueDate || '—'}</td>`,
             total:    `<td>${f(inv.grandTotal)}</td>`,
@@ -13922,11 +13922,11 @@ window.sInvFilterAccounts = function (query) {
             onmouseover="this.style.background='#f0fff4';this.style.borderColor='#27ae60'"
             onmouseout="this.style.background='white';this.style.borderColor='#e0e8f0'">
             <div>
-                <span style="font-weight:700;color:#1a3a5c">${a.nameAr}</span>
-                ${a.nameEn ? `<span style="font-size:10px;color:#aaa;margin-right:6px">${a.nameEn}</span>` : ''}
+                <span style="font-weight:700;color:#1a3a5c">${esc(a.nameAr)}</span>
+                ${a.nameEn ? `<span style="font-size:10px;color:#aaa;margin-right:6px">${esc(a.nameEn)}</span>` : ''}
             </div>
             <div style="text-align:left;flex-shrink:0">
-                <div style="font-family:monospace;font-weight:800;color:${color};font-size:13px">${a.code}</div>
+                <div style="font-family:monospace;font-weight:800;color:${color};font-size:13px">${esc(a.code)}</div>
                 <div style="font-size:9px;color:${color};font-weight:700">${typeLabels[a.type]||''}</div>
             </div>
         </div>`;
@@ -13996,7 +13996,7 @@ function fillSInvCustomers() {
         .filter(([, c]) => c.active !== false)
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || ''));
     customers.forEach(([k, c]) => {
-        sel.innerHTML += `<option value="${k}">${c.nameAr} (${c.code || ''})</option>`;
+        sel.innerHTML += `<option value="${k}">${esc(c.nameAr)} (${esc(c.code || '')})</option>`;
     });
     if (current) sel.value = current;
 }
@@ -14170,12 +14170,12 @@ window.ssAutoEnhance = function (root) {
 })();
 
 // عرض اسم الصنف
-function sInvItemDisplay(key) { const it = window.inventoryItems?.[key]; return it ? `${it.nameAr} (${it.code || ''})` : ''; }
+function sInvItemDisplay(key) { const it = window.inventoryItems?.[key]; return it ? `${esc(it.nameAr)} (${esc(it.code || '')})` : ''; }
 // فتح منتقي الأصناف القابل للبحث لبند فاتورة المبيعات
 window.sinvOpenItemPicker = function (i, btn) {
     const list = Object.entries(window.inventoryItems || {}).filter(([, it]) => it.active !== false)
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '', 'ar'))
-        .map(([k, it]) => ({ value: k, label: `${it.nameAr} (${it.code || ''})`, sub: it.type === 'service' ? '🔧 خدمة' : '🏗️ مادة' + (it.salePrice ? ' · سعر ' + fmt(it.salePrice) : '') }));
+        .map(([k, it]) => ({ value: k, label: `${esc(it.nameAr)} (${esc(it.code || '')})`, sub: it.type === 'service' ? '🔧 خدمة' : '🏗️ مادة' + (it.salePrice ? ' · سعر ' + fmt(it.salePrice) : '') }));
     if (!list.length) { toast('⚠️ لا توجد أصناف — أضف صنفاً جديداً بالزر ➕', 'wn'); return; }
     SS.open(btn, list, (val) => onSInvLineItemChange(i, val));
 };
@@ -14183,7 +14183,7 @@ window.sinvOpenItemPicker = function (i, btn) {
 window.pinvOpenItemPicker = function (i, btn) {
     const list = Object.entries(window.inventoryItems || {}).filter(([, it]) => it.active !== false)
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '', 'ar'))
-        .map(([k, it]) => ({ value: k, label: `${it.nameAr} (${it.code || ''})`, sub: it.type === 'service' ? '🔧 خدمة' : '🏗️ مادة' + (it.costPrice ? ' · تكلفة ' + fmt(it.costPrice) : '') }));
+        .map(([k, it]) => ({ value: k, label: `${esc(it.nameAr)} (${esc(it.code || '')})`, sub: it.type === 'service' ? '🔧 خدمة' : '🏗️ مادة' + (it.costPrice ? ' · تكلفة ' + fmt(it.costPrice) : '') }));
     if (!list.length) { toast('⚠️ لا توجد أصناف — أضف صنفاً جديداً بالزر ➕', 'wn'); return; }
     SS.open(btn, list, (val) => onPInvLineItemChange(i, val));
 };
@@ -14195,7 +14195,7 @@ window.onSInvItemPick = function (i, text) {
     let key = '';
     const m = t.match(/\(([^)]+)\)\s*$/); const code = m ? m[1].trim() : '';
     if (code) { const f = entries.find(([, it]) => (it.code || '') === code); if (f) key = f[0]; }
-    if (!key) { const f = entries.find(([, it]) => (it.nameAr || '') === t || `${it.nameAr} (${it.code || ''})` === t); if (f) key = f[0]; }
+    if (!key) { const f = entries.find(([, it]) => (it.nameAr || '') === t || `${esc(it.nameAr)} (${esc(it.code || '')})` === t); if (f) key = f[0]; }
     if (key) { onSInvLineItemChange(i, key); }
     else { // نص حر بلا صنف مرتبط
         const line = sInvEditorState.lines[i]; if (line) { line.itemId = ''; line.description = t; renderSInvLines(); }
@@ -14336,7 +14336,7 @@ function sInvLineNet(l) {
 function populateSInvCurrency(selected) {
     const sel = $('mSInvCurrency'); if (!sel) return;
     const list = currencyList();
-    sel.innerHTML = Object.entries(list).map(([code, c]) => `<option value="${code}" ${selected === code ? 'selected' : ''}>${c.nameAr} (${code})${c.isBase ? ' — دفترية' : ''}</option>`).join('');
+    sel.innerHTML = Object.entries(list).map(([code, c]) => `<option value="${code}" ${selected === code ? 'selected' : ''}>${esc(c.nameAr)} (${code})${c.isBase ? ' — دفترية' : ''}</option>`).join('');
     onSInvCurrencyChange();
     if (selected) sel.value = selected;
 }
@@ -14460,12 +14460,12 @@ window.editPostedSInv = async function (key) {
 
     // ⚠️ تأكيد قوي
     const customer = window.customers?.[inv.customerId];
-    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل فاتورة مرحّلة (نهائية).\n\nرقم الفاتورة: ${inv.number}\nالعميل: ${customer?.nameAr || ''}\nالإجمالي: ${fmt(inv.grandTotal)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• يُعاد إنشاء القيد المحاسبي بالقيم الجديدة\n• تؤثر على رصيد العميل ودفتر الأستاذ\n• يجب أن يكون لها مبرر محاسبي قوي\n\nهل تريد المتابعة؟`;
+    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل فاتورة مرحّلة (نهائية).\n\nرقم الفاتورة: ${esc(inv.number)}\nالعميل: ${esc(customer?.nameAr || '')}\nالإجمالي: ${fmt(inv.grandTotal)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• يُعاد إنشاء القيد المحاسبي بالقيم الجديدة\n• تؤثر على رصيد العميل ودفتر الأستاذ\n• يجب أن يكون لها مبرر محاسبي قوي\n\nهل تريد المتابعة؟`;
     if (!await cf2(warningMsg)) return;
 
     openSInvEditor();
     setTimeout(() => {
-        $('mSInvTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل فاتورة مرحّلة</span> — ${inv.number}`;
+        $('mSInvTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل فاتورة مرحّلة</span> — ${esc(inv.number)}`;
         $('mSInvKey').value = key;
         $('mSInvNumber').value = inv.number || '';
         $('mSInvDate').value = inv.date || '';
@@ -14652,7 +14652,7 @@ window.saveSInv = async function (status) {
                         status: 'cancelled',
                         cancelledAt: now,
                         cancelledBy: userId,
-                        cancelReason: `تعديل الفاتورة ${data.number} — استُبدل بقيد جديد`
+                        cancelReason: `تعديل الفاتورة ${esc(data.number)} — استُبدل بقيد جديد`
                     });
                 } catch (e) { console.error('Cancel old journal error:', e); }
             }
@@ -14732,7 +14732,7 @@ window.approveSInv = async function (key) {
     const inv = window.salesInvoices?.[key]; if (!inv) return;
     if (!sinvIsMgr()) { toast('🚫 الاعتماد للمدير المالي/النظام فقط', 'er'); return; }
     if (!inv.needsApproval) { toast('هذه الفاتورة لا تنتظر اعتماداً', 'wn'); return; }
-    if (!await cf2(`اعتماد وترحيل الفاتورة ${inv.number} بمبلغ ${fmt(inv.grandTotal)} ر؟`)) return;
+    if (!await cf2(`اعتماد وترحيل الفاتورة ${esc(inv.number)} بمبلغ ${fmt(inv.grandTotal)} ر؟`)) return;
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     await update(ref(db, 'ledger/salesInvoices/' + key), { needsApproval: null, approvedBy: userId, approvedAt: new Date().toISOString() });
     await postSInv(key, true);
@@ -14761,7 +14761,7 @@ window.copySInv = function (key) {
 window.sendSInvShare = function (key, mode) {
     const inv = window.salesInvoices?.[key]; if (!inv) return; const c = window.customers?.[inv.customerId];
     const co = custCoName();
-    let txt = (c ? `السادة / ${c.nameAr}\n` : '') + `${co}\nفاتورة رقم: ${inv.number}\nالتاريخ: ${inv.date || ''}\n`;
+    let txt = (c ? `السادة / ${esc(c.nameAr)}\n` : '') + `${co}\nفاتورة رقم: ${esc(inv.number)}\nالتاريخ: ${inv.date || ''}\n`;
     if (inv.dueDate) txt += `الاستحقاق: ${inv.dueDate}\n`;
     txt += `الإجمالي شامل الضريبة: ${fmt(inv.grandTotal)} ر.س\n`;
     const rem = Math.max(0, (parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0));
@@ -14826,7 +14826,7 @@ window.openCreditNote = function (key) {
         <td style="padding:6px;text-align:left;direction:ltr;font-size:12px" id="cnLineAmt${i}">${fmt(l.total)}</td>
     </tr>`).join('');
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:620px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">↩️🧾 إشعار دائن / مرتجع — فاتورة ${inv.number}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
+        <div style="background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">↩️🧾 إشعار دائن / مرتجع — فاتورة ${esc(inv.number)}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
         <div style="padding:16px;max-height:72vh;overflow:auto">
             <div style="font-size:12px;color:#666;margin-bottom:8px">حدّد الكمية المرتجعة لكل بند (الافتراضي = إرجاع كامل). تُعكس القيمة المختارة فقط في القيد والمخزون ورصيد العميل.</div>
             <input type="hidden" id="cnInvKey" value="${key}">
@@ -14875,7 +14875,7 @@ window.submitCreditNote = async function () {
     const c = cnCompute(key); if (!c || c.grandTotal <= 0.01) { toast('⚠️ حدّد كمية إرجاع موجبة', 'er'); return; }
     const prevCredited = parseFloat(inv.creditedAmount) || 0;
     const isFull = (prevCredited + c.grandTotal) >= (parseFloat(inv.grandTotal) || 0) - 0.01;
-    if (!await cf2(`إصدار إشعار دائن بمبلغ ${fmt(c.grandTotal)} ر للفاتورة ${inv.number}؟\n${isFull ? 'سيُلغي الفاتورة بالكامل.' : 'مرتجع جزئي — سيُخفّض المتبقي.'}\nيُعكس القيد ويُعاد المخزون.`)) return;
+    if (!await cf2(`إصدار إشعار دائن بمبلغ ${fmt(c.grandTotal)} ر للفاتورة ${esc(inv.number)}؟\n${isFull ? 'سيُلغي الفاتورة بالكامل.' : 'مرتجع جزئي — سيُخفّض المتبقي.'}\nيُعكس القيد ويُعاد المخزون.`)) return;
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system'; const now = new Date().toISOString(); const today = now.slice(0, 10);
     const cnNumber = generateCNNumber();
     try {
@@ -14909,17 +14909,17 @@ async function createJournalForCreditNote(cnKey, cn) {
     const grandBase = cvt(cn.grandTotal);
     const lines = [];
     // عكس: مدين الإيرادات (الصافي) + مدين الضريبة، دائن العملاء (الإجمالي)
-    lines.push({ accountCode: revAcc.code, accountName: revAcc.nameAr, description: `مرتجع/إشعار دائن ${cn.number} — فاتورة ${cn.invoiceNumber}`, costCenter: cn.projectId || '', debit: cvt(cn.netBeforeTax), credit: 0 });
-    if (cn.vatTotal > 0 && vatAcc) lines.push({ accountCode: vatAcc.code, accountName: vatAcc.nameAr, description: `عكس ضريبة ${cn.number}`, costCenter: cn.projectId || '', debit: cvt(cn.vatTotal), credit: 0 });
+    lines.push({ accountCode: revAcc.code, accountName: revAcc.nameAr, description: `مرتجع/إشعار دائن ${esc(cn.number)} — فاتورة ${cn.invoiceNumber}`, costCenter: cn.projectId || '', debit: cvt(cn.netBeforeTax), credit: 0 });
+    if (cn.vatTotal > 0 && vatAcc) lines.push({ accountCode: vatAcc.code, accountName: vatAcc.nameAr, description: `عكس ضريبة ${esc(cn.number)}`, costCenter: cn.projectId || '', debit: cvt(cn.vatTotal), credit: 0 });
     else if (cn.vatTotal > 0) lines[0].debit += cvt(cn.vatTotal);
-    lines.push({ accountCode: receivableAcc.code, accountName: receivableAcc.nameAr, description: `إشعار دائن ${cn.number} - ${customer?.nameAr || ''}`, costCenter: cn.projectId || '', debit: 0, credit: grandBase });
+    lines.push({ accountCode: receivableAcc.code, accountName: receivableAcc.nameAr, description: `إشعار دائن ${esc(cn.number)} - ${esc(customer?.nameAr || '')}`, costCenter: cn.projectId || '', debit: 0, credit: grandBase });
     // موازنة التقريب
     const totDebit = lines.filter(l => l.debit).reduce((s, l) => s + l.debit, 0);
     const rd = Math.round((grandBase - totDebit) * 100) / 100;
     if (Math.abs(rd) >= 0.01) lines[0].debit = Math.round((lines[0].debit + rd) * 100) / 100;
     const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-CN-' + Date.now());
     const jrnRef = await push(R.jrn, {
-        number: jrnNumber, date: cn.date, reference: 'إشعار دائن ' + cn.number, description: `عكس فاتورة ${cn.invoiceNumber} بإشعار دائن ${cn.number}`,
+        number: jrnNumber, date: cn.date, reference: 'إشعار دائن ' + cn.number, description: `عكس فاتورة ${cn.invoiceNumber} بإشعار دائن ${esc(cn.number)}`,
         lines, totalDebit: grandBase, totalCredit: grandBase, currency: cn.currency, exchangeRate: fx, foreignTotal: cn.grandTotal,
         status: 'posted', sourceType: 'credit_note', sourceKey: cnKey, createdAt: now, createdBy: userId, postedAt: now, postedBy: userId
     });
@@ -14933,7 +14933,7 @@ async function createReturnMovementsForCN(cnKey, cn) {
         const bal = calcInvItemBalance(line.itemId);
         const cogs = bal.avgCost > 0 ? bal.avgCost : (parseFloat(item.costPrice) || parseFloat(line.unitPrice) || 0);
         try {
-            await push(R.invmov, { number: generateInvMovNumber('in'), date: cn.date, type: 'in', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: cogs, projectId: cn.projectId || '', reason: 'sales_return', description: `مرتجع - إشعار دائن ${cn.number}${line.description ? ' - ' + line.description : ''}`, sourceType: 'credit_note', sourceKey: cnKey, createdAt: now, createdBy: userId });
+            await push(R.invmov, { number: generateInvMovNumber('in'), date: cn.date, type: 'in', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: cogs, projectId: cn.projectId || '', reason: 'sales_return', description: `مرتجع - إشعار دائن ${esc(cn.number)}${line.description ? ' - ' + line.description : ''}`, sourceType: 'credit_note', sourceKey: cnKey, createdAt: now, createdBy: userId });
             count++;
         } catch (e) { console.error('CN movement error:', e); }
     }
@@ -14964,7 +14964,7 @@ window.openDebitNote = function (key) {
         <td style="padding:6px;text-align:left;direction:ltr;font-size:12px" id="dnLineAmt${i}">${fmt(l.total)}</td>
     </tr>`).join('');
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:620px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="background:linear-gradient(135deg,#1f618d,#2980b9);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">↩️🧾 إشعار مدين / مرتجع مشتريات — فاتورة ${inv.number}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
+        <div style="background:linear-gradient(135deg,#1f618d,#2980b9);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">↩️🧾 إشعار مدين / مرتجع مشتريات — فاتورة ${esc(inv.number)}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
         <div style="padding:16px;max-height:72vh;overflow:auto">
             <div style="font-size:12px;color:#666;margin-bottom:8px">حدّد الكمية المرتجعة للمورد لكل بند (الافتراضي = إرجاع كامل). تُعكس القيمة المختارة في القيد والمخزون ورصيد المورد.</div>
             <input type="hidden" id="dnInvKey" value="${key}">
@@ -15012,7 +15012,7 @@ window.submitDebitNote = async function () {
     const c = dnCompute(key); if (!c || c.grandTotal <= 0.01) { toast('⚠️ حدّد كمية إرجاع موجبة', 'er'); return; }
     const prevDebited = parseFloat(inv.debitedAmount) || 0;
     const isFull = (prevDebited + c.grandTotal) >= (parseFloat(inv.grandTotal) || 0) - 0.01;
-    if (!await cf2(`إصدار إشعار مدين بمبلغ ${fmt(c.grandTotal)} ر على فاتورة المشتريات ${inv.number}؟\n${isFull ? 'سيُلغي الفاتورة بالكامل (مرتجع كامل).' : 'مرتجع جزئي — سيُخفّض المتبقي للمورد.'}\nيُعكس القيد ويُخصم المخزون.`)) return;
+    if (!await cf2(`إصدار إشعار مدين بمبلغ ${fmt(c.grandTotal)} ر على فاتورة المشتريات ${esc(inv.number)}؟\n${isFull ? 'سيُلغي الفاتورة بالكامل (مرتجع كامل).' : 'مرتجع جزئي — سيُخفّض المتبقي للمورد.'}\nيُعكس القيد ويُخصم المخزون.`)) return;
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system'; const now = new Date().toISOString(); const today = now.slice(0, 10);
     const dnNumber = generateDNNumber();
     try {
@@ -15046,9 +15046,9 @@ async function createJournalForDebitNote(dnKey, dn) {
     const grandBase = cvt(dn.grandTotal);
     const lines = [];
     // عكس: مدين الموردون (الإجمالي)، دائن المصروف/المخزون (الصافي) + دائن ضريبة المدخلات
-    lines.push({ accountCode: apAcc.code, accountName: apAcc.nameAr, description: `إشعار مدين ${dn.number} - ${vendor?.nameAr || ''}`, costCenter: dn.projectId || '', debit: grandBase, credit: 0 });
-    lines.push({ accountCode: expAcc.code, accountName: expAcc.nameAr, description: `مرتجع/إشعار مدين ${dn.number} — فاتورة ${dn.invoiceNumber}`, costCenter: dn.projectId || '', debit: 0, credit: cvt(dn.netBeforeTax) });
-    if (dn.vatTotal > 0 && vatAcc) lines.push({ accountCode: vatAcc.code, accountName: vatAcc.nameAr, description: `عكس ضريبة مدخلات ${dn.number}`, costCenter: dn.projectId || '', debit: 0, credit: cvt(dn.vatTotal) });
+    lines.push({ accountCode: apAcc.code, accountName: apAcc.nameAr, description: `إشعار مدين ${esc(dn.number)} - ${esc(vendor?.nameAr || '')}`, costCenter: dn.projectId || '', debit: grandBase, credit: 0 });
+    lines.push({ accountCode: expAcc.code, accountName: expAcc.nameAr, description: `مرتجع/إشعار مدين ${esc(dn.number)} — فاتورة ${dn.invoiceNumber}`, costCenter: dn.projectId || '', debit: 0, credit: cvt(dn.netBeforeTax) });
+    if (dn.vatTotal > 0 && vatAcc) lines.push({ accountCode: vatAcc.code, accountName: vatAcc.nameAr, description: `عكس ضريبة مدخلات ${esc(dn.number)}`, costCenter: dn.projectId || '', debit: 0, credit: cvt(dn.vatTotal) });
     else if (dn.vatTotal > 0) lines[1].credit += cvt(dn.vatTotal);
     // موازنة التقريب على سطر المصروف
     const totCredit = lines.filter(l => l.credit).reduce((s, l) => s + l.credit, 0);
@@ -15056,7 +15056,7 @@ async function createJournalForDebitNote(dnKey, dn) {
     if (Math.abs(rd) >= 0.01) lines[1].credit = Math.round((lines[1].credit + rd) * 100) / 100;
     const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-DN-' + Date.now());
     const jrnRef = await push(R.jrn, {
-        number: jrnNumber, date: dn.date, reference: 'إشعار مدين ' + dn.number, description: `عكس فاتورة مشتريات ${dn.invoiceNumber} بإشعار مدين ${dn.number}`,
+        number: jrnNumber, date: dn.date, reference: 'إشعار مدين ' + dn.number, description: `عكس فاتورة مشتريات ${dn.invoiceNumber} بإشعار مدين ${esc(dn.number)}`,
         lines, totalDebit: grandBase, totalCredit: grandBase, currency: dn.currency, exchangeRate: fx, foreignTotal: dn.grandTotal,
         status: 'posted', sourceType: 'debit_note', sourceKey: dnKey, createdAt: now, createdBy: userId, postedAt: now, postedBy: userId
     });
@@ -15068,7 +15068,7 @@ async function createReturnMovementsForDN(dnKey, dn) {
     for (const line of dn.lines) {
         if (!line.itemId) continue; const item = window.inventoryItems?.[line.itemId]; if (!item || item.type === 'service') continue;
         try {
-            await push(R.invmov, { number: generateInvMovNumber('out'), date: dn.date, type: 'out', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: parseFloat(line.unitPrice) || 0, projectId: dn.projectId || '', reason: 'purchase_return', description: `مرتجع مشتريات - إشعار مدين ${dn.number}${line.description ? ' - ' + line.description : ''}`, sourceType: 'debit_note', sourceKey: dnKey, createdAt: now, createdBy: userId });
+            await push(R.invmov, { number: generateInvMovNumber('out'), date: dn.date, type: 'out', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: parseFloat(line.unitPrice) || 0, projectId: dn.projectId || '', reason: 'purchase_return', description: `مرتجع مشتريات - إشعار مدين ${esc(dn.number)}${line.description ? ' - ' + line.description : ''}`, sourceType: 'debit_note', sourceKey: dnKey, createdAt: now, createdBy: userId });
             count++;
         } catch (e) { console.error('DN movement error:', e); }
     }
@@ -15223,7 +15223,7 @@ async function createJournalForSInv(invKey, inv) {
     lines.push({
         accountCode: receivableAcc.code,
         accountName: receivableAcc.nameAr,
-        description: `فاتورة ${inv.number} - ${customer?.nameAr || ''}${curNote}`,
+        description: `فاتورة ${esc(inv.number)} - ${esc(customer?.nameAr || '')}${curNote}`,
         costCenter: inv.projectId || '',
         debit: grandBase,
         credit: 0
@@ -15232,7 +15232,7 @@ async function createJournalForSInv(invKey, inv) {
     lines.push({
         accountCode: revenueAcc.code,
         accountName: revenueAcc.nameAr,
-        description: `إيرادات فاتورة ${inv.number}`,
+        description: `إيرادات فاتورة ${esc(inv.number)}`,
         costCenter: inv.projectId || '',
         debit: 0,
         credit: cvt(inv.netBeforeTax)
@@ -15242,7 +15242,7 @@ async function createJournalForSInv(invKey, inv) {
         lines.push({
             accountCode: vatPayableAcc.code,
             accountName: vatPayableAcc.nameAr,
-            description: `ضريبة فاتورة ${inv.number}`,
+            description: `ضريبة فاتورة ${esc(inv.number)}`,
             costCenter: inv.projectId || '',
             debit: 0,
             credit: cvt(inv.vatTotal)
@@ -15263,7 +15263,7 @@ async function createJournalForSInv(invKey, inv) {
         number: jrnNumber,
         date: inv.date,
         reference: 'فاتورة ' + inv.number,
-        description: `إثبات فاتورة مبيعات ${inv.number} - ${customer?.nameAr || ''}`,
+        description: `إثبات فاتورة مبيعات ${esc(inv.number)} - ${esc(customer?.nameAr || '')}`,
         lines,
         totalDebit: grandBase,
         totalCredit: grandBase,
@@ -15303,7 +15303,7 @@ window.postSInv = async function (key, silent) {
             if (!await cf2(`🚫 تنبيه ائتماني: ترحيل هذه الفاتورة سيتجاوز الحد الائتماني للعميل (الحد ${fmt(cr.limit)}، بعد الترحيل ${fmt(cr.used + g)}). هل تريد المتابعة؟`)) return;
         }
     }
-    if (!silent && !await cf2(`هل تريد ترحيل الفاتورة ${inv.number}؟\nسيُنشأ قيد محاسبي تلقائي بمبلغ ${fmt(inv.grandTotal)} ر`)) return;
+    if (!silent && !await cf2(`هل تريد ترحيل الفاتورة ${esc(inv.number)}؟\nسيُنشأ قيد محاسبي تلقائي بمبلغ ${fmt(inv.grandTotal)} ر`)) return;
 
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -15342,7 +15342,7 @@ window.unpostSInv = async function (key) {
         return;
     }
 
-    if (!await cf2(`هل تريد تحويل الفاتورة ${inv.number} إلى مسودة؟\n\nسيتم حذف القيد المحاسبي وحركات المخزون المرتبطة بها، ويمكن تعديلها وإعادة ترحيلها بعد ذلك.`)) return;
+    if (!await cf2(`هل تريد تحويل الفاتورة ${esc(inv.number)} إلى مسودة؟\n\nسيتم حذف القيد المحاسبي وحركات المخزون المرتبطة بها، ويمكن تعديلها وإعادة ترحيلها بعد ذلك.`)) return;
 
     try {
         const updates = {};
@@ -15357,7 +15357,7 @@ window.unpostSInv = async function (key) {
         updates['ledger/salesInvoices/' + key + '/postedAt'] = null;
         updates['ledger/salesInvoices/' + key + '/postedBy'] = null;
         await update(ref(db, '/'), updates);
-        logAudit('تراجع عن ترحيل', 'فواتير المبيعات', `تحويل الفاتورة ${inv.number} إلى مسودة`);
+        logAudit('تراجع عن ترحيل', 'فواتير المبيعات', `تحويل الفاتورة ${esc(inv.number)} إلى مسودة`);
         toast('↩️ تم تحويل الفاتورة إلى مسودة', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -15368,7 +15368,7 @@ window.unpostSInv = async function (key) {
 window.deleteSInv = async function (key) {
     const inv = window.salesInvoices?.[key]; if (!inv) return;
     if (inv.status !== 'draft') { toast('⚠️ لا يمكن حذف فاتورة مرحّلة من هنا — استخدم زر 🗑️🔓', 'er'); return; }
-    if (!await cf2(`هل تريد حذف الفاتورة ${inv.number} نهائياً؟`)) return;
+    if (!await cf2(`هل تريد حذف الفاتورة ${esc(inv.number)} نهائياً؟`)) return;
     try {
         await remove(ref(db, 'ledger/salesInvoices/' + key));
         toast('✅ تم الحذف', 'ok');
@@ -15383,9 +15383,9 @@ window.deletePostedSInv = async function (key) {
     if (inv.status !== 'posted') { toast('هذه الفاتورة ليست مرحّلة', 'er'); return; }
 
     // تأكيد مزدوج — العملية لا يمكن التراجع عنها
-    const msg = `⚠️ تحذير: حذف فاتورة مرحّلة\n\nالفاتورة: ${inv.number}\nالإجمالي: ${fmt(inv.grandTotal)} ر${inv.journalEntryKey ? '\n\nسيُحذف القيد المحاسبي المرتبط (' + (inv.journalEntryNumber || inv.journalEntryKey) + ') أيضاً.' : ''}\n\nهذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد؟`;
+    const msg = `⚠️ تحذير: حذف فاتورة مرحّلة\n\nالفاتورة: ${esc(inv.number)}\nالإجمالي: ${fmt(inv.grandTotal)} ر${inv.journalEntryKey ? '\n\nسيُحذف القيد المحاسبي المرتبط (' + (inv.journalEntryNumber || inv.journalEntryKey) + ') أيضاً.' : ''}\n\nهذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد؟`;
     if (!await cf2(msg)) return;
-    if (!await cf2(`تأكيد أخير: حذف ${inv.number} نهائياً؟`)) return;
+    if (!await cf2(`تأكيد أخير: حذف ${esc(inv.number)} نهائياً؟`)) return;
 
     try {
         const updates = {};
@@ -15444,7 +15444,7 @@ window.isValidSaudiVAT = function (v) { return /^3\d{13}3$/.test(String(v || '')
 window.openInvItemLabel = function (key) {
     const it = window.inventoryItems?.[key]; if (!it) { toast('الصنف غير موجود', 'er'); return; }
     const codeVal = (it.barcode || it.code || key).toString();
-    const payload = `ITEM|${it.code || ''}|${it.barcode || ''}|${it.nameAr || ''}`;
+    const payload = `ITEM|${esc(it.code || '')}|${it.barcode || ''}|${esc(it.nameAr || '')}`;
     const qrImg = (typeof zatcaQRDataURL === 'function') ? zatcaQRDataURL(payload) : '';
     const company = (window.cfg?.companyAr) || (typeof cfg !== 'undefined' && cfg.companyAr) || 'بنيان للمقاولات';
     const esc = s => String(s || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
@@ -15491,7 +15491,7 @@ window.viewSInv = function (key, proforma) {
     const _rateRows = Object.keys(_byRate).filter(r => _byRate[r].vat > 0.01);
     const taxBreakdownHtml = _rateRows.length > 1 ? _rateRows.map(r => `<tr><td style="font-size:10px;color:#666">• ضريبة ${r}% (وعاء ${fmt(_byRate[r].base)}):</td><td style="text-align:left;font-size:10px;color:#666">${fmt(_byRate[r].vat)}</td></tr>`).join('') : '';
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>فاتورة ${inv.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>فاتورة ${esc(inv.number)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
@@ -15531,7 +15531,7 @@ window.viewSInv = function (key, proforma) {
             <div class="invoice-info">
                 <div class="title">${proforma ? '📄 عرض سعر / فاتورة مبدئية' : invTypeLabel}</div>
                 ${proforma ? '' : `<div style="font-size:9px;color:#888;margin-top:3px;direction:ltr">${invTypeLabelEn}</div>`}
-                <div class="number">${inv.number}</div>
+                <div class="number">${esc(inv.number)}</div>
                 <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.7">
                     📅 التاريخ: ${inv.date}<br>
                     📅 الاستحقاق: ${inv.dueDate || '-'}
@@ -15548,8 +15548,8 @@ window.viewSInv = function (key, proforma) {
             <div class="party">
                 <h4>👤 العميل (Bill To)</h4>
                 <div class="party-detail">
-                    <strong>${customer?.nameAr || '—'}</strong>
-                    ${customer?.nameEn ? `<br><span style="direction:ltr">${customer.nameEn}</span>` : ''}
+                    <strong>${esc(customer?.nameAr || '—')}</strong>
+                    ${customer?.nameEn ? `<br><span style="direction:ltr">${esc(customer.nameEn)}</span>` : ''}
                     ${customer?.address ? `<br>📍 ${esc(customer.address)}` : ''}
                     ${customer?.phone ? `<br>📞 ${customer.phone}` : ''}
                     ${customer?.vatNumber ? `<br>🆔 VAT: ${customer.vatNumber}` : ''}
@@ -15815,11 +15815,11 @@ function renderVendorRow(key, v, idx, canManage) {
     const isActive = v.active !== false;
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(v.code || '').toLowerCase()} ${(v.nameAr || '').toLowerCase()} ${(v.nameEn || '').toLowerCase()} ${(v.phone || '').toLowerCase()} ${(v.vatNumber || '').toLowerCase()}">
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${v.code || '—'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(v.code || '—')}</td>
         <td style="padding:8px"><span style="background:${t.color}22;color:${t.color};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${esc(t.label)}</span></td>
         <td style="padding:8px;font-weight:700">
-            ${v.nameAr || '—'}
-            ${v.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${v.nameEn}</div>` : ''}
+            ${esc(v.nameAr || '—')}
+            ${v.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(v.nameEn)}</div>` : ''}
         </td>
         <td style="padding:8px;font-size:11px">
             ${v.contact ? `<div>👤 ${v.contact}</div>` : ''}
@@ -15995,7 +15995,7 @@ window.deleteVendor = async function (key) {
         return;
     }
 
-    if (!await cf2(`هل تريد حذف المورد "${v.nameAr}" نهائياً؟`)) return;
+    if (!await cf2(`هل تريد حذف المورد "${esc(v.nameAr)}" نهائياً؟`)) return;
     try {
         await remove(ref(db, 'ledger/vendors/' + key));
         toast('✅ تم الحذف', 'ok');
@@ -16012,7 +16012,7 @@ window.viewVendorStatement = function (key) {
         .filter(([, inv]) => inv.vendorId === key)
         .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب - ${v.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب - ${esc(v.nameAr)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
@@ -16025,9 +16025,9 @@ window.viewVendorStatement = function (key) {
         td { padding: 7px; border: 1px solid #ddd; }
         @page { size: A4 landscape; margin: 1.5cm; }
     </style></head><body>
-    <h1>📋 كشف حساب المورد — ${v.nameAr}</h1>
+    <h1>📋 كشف حساب المورد — ${esc(v.nameAr)}</h1>
     <div class="info">
-        <div><strong>🔢 رمز المورد:</strong> ${v.code}</div>
+        <div><strong>🔢 رمز المورد:</strong> ${esc(v.code)}</div>
         <div><strong>📞 الهاتف:</strong> ${v.phone || '—'}</div>
         <div><strong>🆔 الرقم الضريبي:</strong> ${v.vatNumber || '—'}</div>
         <div><strong>📅 تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('ar-SA')}</div>
@@ -16051,7 +16051,7 @@ window.viewVendorStatement = function (key) {
                 const remaining = grand - paid;
                 return `<tr>
                     <td>${inv.date || '-'}</td>
-                    <td style="font-family:monospace;font-weight:700">${inv.number || '-'}</td>
+                    <td style="font-family:monospace;font-weight:700">${esc(inv.number || '-')}</td>
                     <td style="font-family:monospace">${inv.vendorRef || '-'}</td>
                     <td>${inv.subject || '-'}</td>
                     <td style="text-align:left;font-weight:700">${fmt(grand)}</td>
@@ -16415,12 +16415,12 @@ function renderPInvRow(key, inv, idx) {
     const canDelete = inv.status === 'draft' && (isAdmin || canFn('delete_purchase_invoice'));
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(inv.number || '').toLowerCase()} ${(inv.vendorRef || '').toLowerCase()} ${(vendor?.nameAr || '').toLowerCase()} ${(inv.subject || '').toLowerCase()}">
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${inv.number || '-'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(inv.number || '-')}</td>
         <td style="padding:8px;font-family:monospace;font-size:11px;color:#666">${inv.vendorRef || '—'}</td>
         <td style="padding:8px">${inv.date || '-'}</td>
         <td style="padding:8px">
-            <div style="font-weight:700">${vendor?.nameAr || '—'}</div>
-            ${vendor?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${vendor.code}</div>` : ''}
+            <div style="font-weight:700">${esc(vendor?.nameAr || '—')}</div>
+            ${vendor?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${esc(vendor.code)}</div>` : ''}
         </td>
         <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.subject || ''}">${inv.subject || '—'}</td>
         <td style="padding:8px;color:${isOverdue ? '#c0392b' : '#666'};font-weight:${isOverdue ? '700' : 'normal'}">${inv.dueDate || '-'}</td>
@@ -16515,7 +16515,7 @@ function fillPInvDebitAccounts() {
     const buildGroup = (label, arr) => {
         if (!arr.length) return '';
         return `<optgroup label="${label}">` +
-            arr.map(a => `<option value="${a.code}">${a.code} — ${a.nameAr}</option>`).join('') +
+            arr.map(a => `<option value="${esc(a.code)}">${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('') +
             `</optgroup>`;
     };
 
@@ -16551,7 +16551,7 @@ window.fillPInvVendors = function () {
         .filter(([, v]) => v.active !== false)
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || ''));
     vendors.forEach(([k, v]) => {
-        sel.innerHTML += `<option value="${k}">${v.nameAr} (${v.code || ''})</option>`;
+        sel.innerHTML += `<option value="${k}">${esc(v.nameAr)} (${esc(v.code || '')})</option>`;
     });
     if (current) sel.value = current;
 };
@@ -16646,12 +16646,12 @@ window.buildInvItemsOptions = function (selectedKey, filter) {
     let html = '';
     if (materials.length) {
         html += '<optgroup label="🏗️ المواد">';
-        html += materials.map(([k, it]) => `<option value="${k}" ${k === selectedKey ? 'selected' : ''}>${it.nameAr} (${it.code || ''})</option>`).join('');
+        html += materials.map(([k, it]) => `<option value="${k}" ${k === selectedKey ? 'selected' : ''}>${esc(it.nameAr)} (${esc(it.code || '')})</option>`).join('');
         html += '</optgroup>';
     }
     if (services.length) {
         html += '<optgroup label="🔧 الخدمات">';
-        html += services.map(([k, it]) => `<option value="${k}" ${k === selectedKey ? 'selected' : ''}>${it.nameAr} (${it.code || ''})</option>`).join('');
+        html += services.map(([k, it]) => `<option value="${k}" ${k === selectedKey ? 'selected' : ''}>${esc(it.nameAr)} (${esc(it.code || '')})</option>`).join('');
         html += '</optgroup>';
     }
     return html;
@@ -16730,7 +16730,7 @@ window.updatePInvTotals = function () {
 function populatePInvCurrency(selected) {
     const sel = $('mPInvCurrency'); if (!sel) return;
     const list = currencyList();
-    sel.innerHTML = Object.entries(list).map(([code, c]) => `<option value="${code}" ${selected === code ? 'selected' : ''}>${c.nameAr} (${code})${c.isBase ? ' — دفترية' : ''}</option>`).join('');
+    sel.innerHTML = Object.entries(list).map(([code, c]) => `<option value="${code}" ${selected === code ? 'selected' : ''}>${esc(c.nameAr)} (${code})${c.isBase ? ' — دفترية' : ''}</option>`).join('');
     if (selected) sel.value = selected;
     onPInvCurrencyChange();
 }
@@ -16793,12 +16793,12 @@ window.editPostedPInv = async function (key) {
     }
 
     const vendor = window.vendors?.[inv.vendorId];
-    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل فاتورة مشتريات مرحّلة.\n\nرقم الفاتورة: ${inv.number}\nالمورد: ${vendor?.nameAr || ''}\nالإجمالي: ${fmt(inv.grandTotal)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• يُعاد إنشاء القيد المحاسبي بالقيم الجديدة\n• تؤثر على رصيد المورد ودفتر الأستاذ\n\nهل تريد المتابعة؟`;
+    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل فاتورة مشتريات مرحّلة.\n\nرقم الفاتورة: ${esc(inv.number)}\nالمورد: ${esc(vendor?.nameAr || '')}\nالإجمالي: ${fmt(inv.grandTotal)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• يُعاد إنشاء القيد المحاسبي بالقيم الجديدة\n• تؤثر على رصيد المورد ودفتر الأستاذ\n\nهل تريد المتابعة؟`;
     if (!await cf2(warningMsg)) return;
 
     openPInvEditor();
     setTimeout(() => {
-        $('mPInvTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل فاتورة مرحّلة</span> — ${inv.number}`;
+        $('mPInvTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل فاتورة مرحّلة</span> — ${esc(inv.number)}`;
         $('mPInvKey').value = key;
         $('mPInvNumber').value = inv.number || '';
         $('mPInvDate').value = inv.date || '';
@@ -16994,7 +16994,7 @@ window.savePInv = async function (status) {
                         status: 'cancelled',
                         cancelledAt: now,
                         cancelledBy: userId,
-                        cancelReason: `تعديل فاتورة المشتريات ${data.number} — استُبدل بقيد جديد`
+                        cancelReason: `تعديل فاتورة المشتريات ${esc(data.number)} — استُبدل بقيد جديد`
                     });
                 } catch (e) { console.error('Cancel old journal error:', e); }
             }
@@ -17130,7 +17130,7 @@ window.createJournalForPayroll = async function (payrollKey, payroll) {
 
     const lines = [];
     const mLabel = typeof formatMonthLabel === 'function' ? formatMonthLabel(payroll.month) : payroll.month;
-    const scopeLabel = payroll.scope === 'project' ? `(📁 ${payroll.projectName || ''})` :
+    const scopeLabel = payroll.scope === 'project' ? `(📁 ${esc(payroll.projectName || '')})` :
                        payroll.scope === 'dept' ? `(🏢 ${payroll.dept || ''})` : '';
 
     // 🎯 لكل مشروع: أنشئ سطور القيد الخاصة به
@@ -17288,7 +17288,7 @@ async function createJournalForPInv(invKey, inv) {
     lines.push({
         accountCode: expenseAcc.code,
         accountName: expenseAcc.nameAr,
-        description: `فاتورة ${inv.number} (مورد: ${inv.vendorRef}) - ${vendor?.nameAr || ''}${curNote}`,
+        description: `فاتورة ${esc(inv.number)} (مورد: ${inv.vendorRef}) - ${esc(vendor?.nameAr || '')}${curNote}`,
         costCenter: inv.costCenter || inv.projectId || '',
         debit: cvt(inv.netBeforeTax),
         credit: 0
@@ -17298,7 +17298,7 @@ async function createJournalForPInv(invKey, inv) {
         lines.push({
             accountCode: vatInputAcc.code,
             accountName: vatInputAcc.nameAr,
-            description: `VAT مدخل - فاتورة ${inv.number}`,
+            description: `VAT مدخل - فاتورة ${esc(inv.number)}`,
             costCenter: inv.costCenter || inv.projectId || '',
             debit: cvt(inv.vatTotal),
             credit: 0
@@ -17316,7 +17316,7 @@ async function createJournalForPInv(invKey, inv) {
     lines.push({
         accountCode: vendorAcc.code,
         accountName: vendorAcc.nameAr,
-        description: `استحقاق فاتورة ${inv.number}`,
+        description: `استحقاق فاتورة ${esc(inv.number)}`,
         costCenter: inv.costCenter || inv.projectId || '',
         debit: 0,
         credit: grandBase
@@ -17327,7 +17327,7 @@ async function createJournalForPInv(invKey, inv) {
         number: jrnNumber,
         date: inv.date,
         reference: 'فاتورة مشتريات ' + inv.number + ' / مورد: ' + inv.vendorRef,
-        description: `إثبات فاتورة مشتريات ${inv.number} - ${vendor?.nameAr || ''}`,
+        description: `إثبات فاتورة مشتريات ${esc(inv.number)} - ${esc(vendor?.nameAr || '')}`,
         lines,
         totalDebit: grandBase,
         totalCredit: grandBase,
@@ -17351,7 +17351,7 @@ async function createJournalForPInv(invKey, inv) {
 window.postPInv = async function (key) {
     const inv = window.purchaseInvoices?.[key]; if (!inv) return;
     if (inv.status !== 'draft') return;
-    if (!await cf2(`هل تريد ترحيل فاتورة المشتريات ${inv.number}؟\nسيُنشأ قيد محاسبي تلقائي بمبلغ ${fmt(inv.grandTotal)} ر`)) return;
+    if (!await cf2(`هل تريد ترحيل فاتورة المشتريات ${esc(inv.number)}؟\nسيُنشأ قيد محاسبي تلقائي بمبلغ ${fmt(inv.grandTotal)} ر`)) return;
 
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -17374,7 +17374,7 @@ window.postPInv = async function (key) {
 window.deletePInv = async function (key) {
     const inv = window.purchaseInvoices?.[key]; if (!inv) return;
     if (inv.status !== 'draft') { toast('⚠️ لا يمكن حذف فاتورة مرحّلة', 'er'); return; }
-    if (!await cf2(`هل تريد حذف الفاتورة ${inv.number} نهائياً؟`)) return;
+    if (!await cf2(`هل تريد حذف الفاتورة ${esc(inv.number)} نهائياً؟`)) return;
     try {
         await remove(ref(db, 'ledger/purchaseInvoices/' + key));
         toast('✅ تم الحذف', 'ok');
@@ -17389,7 +17389,7 @@ window.viewPInv = function (key) {
     const vendor = window.vendors?.[inv.vendorId];
     const projectName = inv.projectId && window.projects?.[inv.projectId] ? window.projects[inv.projectId].name : '';
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>فاتورة مشتريات ${inv.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>فاتورة مشتريات ${esc(inv.number)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
@@ -17424,7 +17424,7 @@ window.viewPInv = function (key) {
             </div>
             <div class="invoice-info">
                 <div class="title">📋 PURCHASE INV</div>
-                <div class="number">${inv.number}</div>
+                <div class="number">${esc(inv.number)}</div>
                 <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.7">
                     📅 التاريخ: ${inv.date}<br>
                     📅 الاستحقاق: ${inv.dueDate || '-'}<br>
@@ -17437,8 +17437,8 @@ window.viewPInv = function (key) {
             <div class="party">
                 <h4>🏭 المورد (Bill From)</h4>
                 <div class="party-detail">
-                    <strong>${vendor?.nameAr || '—'}</strong>
-                    ${vendor?.nameEn ? `<br><span style="direction:ltr">${vendor.nameEn}</span>` : ''}
+                    <strong>${esc(vendor?.nameAr || '—')}</strong>
+                    ${vendor?.nameEn ? `<br><span style="direction:ltr">${esc(vendor.nameEn)}</span>` : ''}
                     ${vendor?.address ? `<br>📍 ${esc(vendor.address)}` : ''}
                     ${vendor?.phone ? `<br>📞 ${vendor.phone}` : ''}
                     ${vendor?.vatNumber ? `<br>🆔 VAT: ${vendor.vatNumber}` : ''}
@@ -17803,11 +17803,11 @@ function renderVoucherRow(key, v, idx, type) {
     const tableBody = type === 'receipt' ? 'rcptTableBody' : 'paymTableBody';
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(v.number || '').toLowerCase()} ${(party?.nameAr || '').toLowerCase()} ${(v.description || '').toLowerCase()}">
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${v.number || '-'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(v.number || '-')}</td>
         <td style="padding:8px">${v.date || '-'}</td>
         <td style="padding:8px">
-            <div style="font-weight:700">${party?.nameAr || '—'}</div>
-            ${party?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${party.code}</div>` : ''}
+            <div style="font-weight:700">${esc(party?.nameAr || '—')}</div>
+            ${party?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${esc(party.code)}</div>` : ''}
         </td>
         <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.description || '')}">${esc(v.description || '—')}</td>
         <td style="padding:8px"><span style="background:${m.color}22;color:${m.color};padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700">${esc(m.label)}</span></td>
@@ -17933,7 +17933,7 @@ function fillVoucherParties(type) {
         .filter(([, p]) => p.active !== false)
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || ''));
     arr.forEach(([k, p]) => {
-        sel.innerHTML += `<option value="${k}">${p.nameAr} (${p.code || ''})</option>`;
+        sel.innerHTML += `<option value="${k}">${esc(p.nameAr)} (${esc(p.code || '')})</option>`;
     });
 }
 
@@ -17959,7 +17959,7 @@ function fillVoucherAccounts() {
     // كل الحسابات النقدية + البنكية (111x, 112x)
     const allMoney = [...cashAccs, ...bankAccs];
 
-    const buildOpts = (arr) => arr.map(a => `<option value="${a.code}">${a.code} — ${a.nameAr}</option>`).join('');
+    const buildOpts = (arr) => arr.map(a => `<option value="${esc(a.code)}">${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('');
 
     if ($('mVoucherCashAccount')) $('mVoucherCashAccount').innerHTML = '<option value="">-- اختر --</option>' + buildOpts(cashAccs.length ? cashAccs : allMoney);
     if ($('mVoucherBankAccount')) $('mVoucherBankAccount').innerHTML = '<option value="">-- اختر --</option>' + buildOpts(bankAccs.length ? bankAccs : allMoney);
@@ -18045,7 +18045,7 @@ function renderUnpaidInvoicesForVoucher(partyId, type) {
         const isOverdue = inv.dueDate && inv.dueDate < today;
         return `<div style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;align-items:center;padding:6px;border-bottom:1px solid #eef;font-size:11px">
             <div>
-                <strong style="font-family:monospace">${inv.number}</strong>
+                <strong style="font-family:monospace">${esc(inv.number)}</strong>
                 ${isOverdue ? '<span style="background:#c0392b;color:white;padding:1px 4px;border-radius:3px;font-size:9px;margin-right:4px">⚠️ متأخرة</span>' : ''}
                 <div style="font-size:10px;color:#888">${inv.subject || ''} · استحقاق ${inv.dueDate || '-'}</div>
             </div>
@@ -18106,7 +18106,7 @@ window.updateVoucherWords = function () {
 function populateVoucherCurrency(selected) {
     const sel = $('mVoucherCurrency'); if (!sel) return;
     const list = currencyList();
-    sel.innerHTML = Object.entries(list).map(([code, c]) => `<option value="${code}" ${selected === code ? 'selected' : ''}>${c.nameAr} (${code})${c.isBase ? ' — دفترية' : ''}</option>`).join('');
+    sel.innerHTML = Object.entries(list).map(([code, c]) => `<option value="${code}" ${selected === code ? 'selected' : ''}>${esc(c.nameAr)} (${code})${c.isBase ? ' — دفترية' : ''}</option>`).join('');
     if (selected) sel.value = selected;
     onVoucherCurrencyChange();
 }
@@ -18226,7 +18226,7 @@ window.saveVoucher = async function (status) {
                         status: 'cancelled',
                         cancelledAt: now,
                         cancelledBy: userId,
-                        cancelReason: `تعديل السند ${data.number} — استُبدل بقيد جديد`
+                        cancelReason: `تعديل السند ${esc(data.number)} — استُبدل بقيد جديد`
                     });
                 } catch (e) { console.error('Cancel old journal error:', e); }
             }
@@ -18395,7 +18395,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
         lines.push({
             accountCode: cashAcc.code,
             accountName: cashAcc.nameAr,
-            description: `قبض من ${party?.nameAr || ''} - سند ${voucher.number}${curNote}`,
+            description: `قبض من ${esc(party?.nameAr || '')} - سند ${esc(voucher.number)}${curNote}`,
             costCenter: voucher.projectId || '',
             debit: amtBase,
             credit: 0
@@ -18403,7 +18403,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
         lines.push({
             accountCode: partyAcc.code,
             accountName: partyAcc.nameAr,
-            description: `سداد فواتير ${party?.nameAr || ''}`,
+            description: `سداد فواتير ${esc(party?.nameAr || '')}`,
             costCenter: voucher.projectId || '',
             debit: 0,
             credit: amtBase
@@ -18415,7 +18415,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
         lines.push({
             accountCode: partyAcc.code,
             accountName: partyAcc.nameAr,
-            description: `صرف لـ ${party?.nameAr || ''} - سند ${voucher.number}${curNote}`,
+            description: `صرف لـ ${esc(party?.nameAr || '')} - سند ${esc(voucher.number)}${curNote}`,
             costCenter: voucher.projectId || '',
             debit: amtBase,
             credit: 0
@@ -18423,7 +18423,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
         lines.push({
             accountCode: cashAcc.code,
             accountName: cashAcc.nameAr,
-            description: `سداد فواتير ${party?.nameAr || ''}`,
+            description: `سداد فواتير ${esc(party?.nameAr || '')}`,
             costCenter: voucher.projectId || '',
             debit: 0,
             credit: amtBase
@@ -18435,7 +18435,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
         number: jrnNumber,
         date: voucher.date,
         reference: voucher.number,
-        description: `${type === 'receipt' ? 'سند قبض' : 'سند صرف'} ${voucher.number} - ${esc(voucher.description)}`,
+        description: `${type === 'receipt' ? 'سند قبض' : 'سند صرف'} ${esc(voucher.number)} - ${esc(voucher.description)}`,
         lines,
         totalDebit: amtBase,
         totalCredit: amtBase,
@@ -18530,13 +18530,13 @@ window.editPostedVoucher = async function (key, type) {
     const partyLabel = type === 'receipt' ? 'العميل' : 'المورد';
     const docLabel = type === 'receipt' ? 'سند قبض' : 'سند صرف';
 
-    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل ${docLabel} مرحّل.\n\nرقم السند: ${data.number}\n${partyLabel}: ${party?.nameAr || ''}\nالمبلغ: ${fmt(data.amount)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• تُلغى تخصيصات الفواتير القديمة\n• تُلغى القيد القديم ويُنشأ قيد جديد\n• تؤثر على رصيد ${partyLabel} والفواتير\n\nهل تريد المتابعة؟`;
+    const warningMsg = `⚠️ تنبيه هام\n\nأنت على وشك تعديل ${docLabel} مرحّل.\n\nرقم السند: ${esc(data.number)}\n${partyLabel}: ${esc(party?.nameAr || '')}\nالمبلغ: ${fmt(data.amount)} ر\n\nهذه العملية:\n• تُسجَّل بسجل تدقيق دائم\n• تُلغى تخصيصات الفواتير القديمة\n• تُلغى القيد القديم ويُنشأ قيد جديد\n• تؤثر على رصيد ${partyLabel} والفواتير\n\nهل تريد المتابعة؟`;
     if (!await cf2(warningMsg)) return;
 
     _populateVoucherEditor(key, type, data);
 
     setTimeout(() => {
-        $('mVoucherTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل ${docLabel} مرحّل</span> — ${data.number}`;
+        $('mVoucherTitle').innerHTML = `🔓✏️ <span style="color:#8e44ad">تعديل ${docLabel} مرحّل</span> — ${esc(data.number)}`;
         voucherEditorState.editingPosted = true;
         voucherEditorState.originalVoucher = JSON.parse(JSON.stringify(data));
 
@@ -18557,7 +18557,7 @@ window.postVoucher = async function (key, type) {
     if (!data) return;
     if (data.status !== 'draft') return;
     const docLabel = type === 'receipt' ? 'سند القبض' : 'سند الصرف';
-    if (!await cf2(`هل تريد ترحيل ${docLabel} ${data.number}؟\nسيُنشأ قيد محاسبي تلقائي بمبلغ ${fmt(data.amount)} ر`)) return;
+    if (!await cf2(`هل تريد ترحيل ${docLabel} ${esc(data.number)}؟\nسيُنشأ قيد محاسبي تلقائي بمبلغ ${fmt(data.amount)} ر`)) return;
 
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -18576,7 +18576,7 @@ window.deleteVoucher = async function (key, type) {
     const data = type === 'receipt' ? window.receipts?.[key] : window.payments?.[key];
     if (!data) return;
     if (data.status === 'draft') {
-        if (!await cf2(`هل تريد حذف السند ${data.number} نهائياً؟`)) return;
+        if (!await cf2(`هل تريد حذف السند ${esc(data.number)} نهائياً؟`)) return;
         try {
             const path = type === 'receipt' ? 'ledger/receipts/' : 'ledger/payments/';
             await remove(ref(db, path + key));
@@ -18599,7 +18599,7 @@ window.deleteVoucher = async function (key, type) {
     const docLabel = type === 'receipt' ? 'سند القبض' : 'سند الصرف';
     const partyLabel = type === 'receipt' ? 'العميل' : 'المورد';
     const party = type === 'receipt' ? window.customers?.[data.partyId] : window.vendors?.[data.partyId];
-    const warningMsg = `⚠️ تحذير — حذف ${docLabel} مرحّل\n\nرقم السند: ${data.number}\n${partyLabel}: ${party?.nameAr || ''}\nالمبلغ: ${fmt(data.amount)} ر\n\nهذه العملية ستقوم بـ:\n• إلغاء القيد المحاسبي المرتبط\n• إلغاء تخصيصات الفواتير\n• حذف السند نهائياً لا يمكن التراجع عنه\n\nهل أنت متأكد؟`;
+    const warningMsg = `⚠️ تحذير — حذف ${docLabel} مرحّل\n\nرقم السند: ${esc(data.number)}\n${partyLabel}: ${esc(party?.nameAr || '')}\nالمبلغ: ${fmt(data.amount)} ر\n\nهذه العملية ستقوم بـ:\n• إلغاء القيد المحاسبي المرتبط\n• إلغاء تخصيصات الفواتير\n• حذف السند نهائياً لا يمكن التراجع عنه\n\nهل أنت متأكد؟`;
     if (!await cf2(warningMsg)) return;
 
     try {
@@ -18614,7 +18614,7 @@ window.deleteVoucher = async function (key, type) {
                     status: 'cancelled',
                     cancelledAt: now,
                     cancelledBy: userId,
-                    cancelReason: `حذف ${docLabel} ${data.number}`
+                    cancelReason: `حذف ${docLabel} ${esc(data.number)}`
                 });
             } catch (e) { console.error('Cancel journal error:', e); }
         }
@@ -18665,7 +18665,7 @@ window.viewVoucher = function (key, type) {
         const invSource = isReceipt ? (window.salesInvoices || {}) : (window.purchaseInvoices || {});
         const rows = Object.entries(data.allocations).map(([invK, amt]) => {
             const inv = invSource[invK];
-            return inv ? `<tr><td style="font-family:monospace;font-weight:700">${inv.number}</td><td>${inv.subject || ''}</td><td style="text-align:left">${fmt(parseFloat(inv.grandTotal) || 0)}</td><td style="text-align:left;color:${color};font-weight:700">${fmt(amt)}</td></tr>` : '';
+            return inv ? `<tr><td style="font-family:monospace;font-weight:700">${esc(inv.number)}</td><td>${inv.subject || ''}</td><td style="text-align:left">${fmt(parseFloat(inv.grandTotal) || 0)}</td><td style="text-align:left;color:${color};font-weight:700">${fmt(amt)}</td></tr>` : '';
         }).join('');
         allocationsHtml = `
         <div style="margin-top:14px">
@@ -18677,7 +18677,7 @@ window.viewVoucher = function (key, type) {
         </div>`;
     }
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${docTitle} ${data.number}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${docTitle} ${esc(data.number)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 0; color: #1a3a5c; direction: rtl; background: white; margin: 0; }
@@ -18705,7 +18705,7 @@ window.viewVoucher = function (key, type) {
                 </div>
                 <div style="text-align:left">
                     <div style="font-size:11px;color:#666">رقم السند</div>
-                    <div class="number">${data.number}</div>
+                    <div class="number">${esc(data.number)}</div>
                     <div style="font-size:12px;color:#666;margin-top:6px">📅 التاريخ: <strong>${data.date}</strong></div>
                 </div>
             </div>
@@ -18713,7 +18713,7 @@ window.viewVoucher = function (key, type) {
             <div style="font-size:14px;line-height:2;color:#1a3a5c">
                 <div class="row">
                     <span>${partyLabel}:</span>
-                    <strong style="font-size:16px">${party?.nameAr || '—'}</strong>
+                    <strong style="font-size:16px">${esc(party?.nameAr || '—')}</strong>
                 </div>
                 ${party?.vatNumber ? `<div class="row"><span>الرقم الضريبي:</span><strong style="font-family:monospace">${party.vatNumber}</strong></div>` : ''}
                 <div class="row">
@@ -19129,11 +19129,11 @@ function renderInvItemRow(key, it, idx, canManage) {
     const searchTxt = `${(it.code || '').toLowerCase()} ${(it.nameAr || '').toLowerCase()} ${(it.nameEn || '').toLowerCase()} ${(it.barcode || '').toLowerCase()}`;
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${searchTxt}" data-type="${it.type || 'material'}" data-belowmin="${belowMin ? '1' : '0'}">
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${it.code || '—'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(it.code || '—')}</td>
         <td style="padding:8px"><span style="background:${isService ? '#8e44ad22' : '#27ae6022'};color:${isService ? '#5b2c6f' : '#0e6655'};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${isService ? '🔧 خدمة' : '🏗️ مادة'}</span></td>
         <td style="padding:8px;font-weight:700">
-            ${it.nameAr || '—'}
-            ${it.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${it.nameEn}</div>` : ''}
+            ${esc(it.nameAr || '—')}
+            ${it.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(it.nameEn)}</div>` : ''}
         </td>
         <td style="padding:8px"><span style="background:${cat.color}22;color:${cat.color};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${esc(cat.label)}</span></td>
         <td style="padding:8px;text-align:center;font-size:11px">${isService ? '—' : (INV_UNITS[it.unit] || it.unit || '—')}</td>
@@ -19267,7 +19267,7 @@ function fillInvItemAccounts() {
     // حسابات الإيراد = إيرادات
     const revAccs = accounts.filter(a => a.type === 'revenue');
 
-    const buildOpts = arr => arr.map(a => `<option value="${a.code}">${a.code} — ${a.nameAr}</option>`).join('');
+    const buildOpts = arr => arr.map(a => `<option value="${esc(a.code)}">${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('');
 
     if ($('mInvItemPurchaseAccount')) {
         $('mInvItemPurchaseAccount').innerHTML = '<option value="">-- استخدم الافتراضي --</option>' + buildOpts(purchAccs);
@@ -19340,7 +19340,7 @@ window.deleteInvItem = async function (key) {
         toast('⚠️ لا يمكن حذف صنف له حركات. يمكنك تعطيله بدلاً من ذلك.', 'er');
         return;
     }
-    if (!await cf2(`هل تريد حذف "${it.nameAr}" نهائياً؟`)) return;
+    if (!await cf2(`هل تريد حذف "${esc(it.nameAr)}" نهائياً؟`)) return;
     try {
         await remove(ref(db, 'ledger/inventoryItems/' + key));
         toast('✅ تم الحذف', 'ok');
@@ -19503,12 +19503,12 @@ function renderInvMovRow(key, m, idx, runningBalance) {
     const whLabel = wh ? `${wh.type === 'main' ? '🏢' : '📦'} ${esc(wh.name || '—')}` : '—';
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${searchTxt}" data-type="${m.type}" data-warehouse="${whId}">
-        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${m.number || '-'}</td>
+        <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(m.number || '-')}</td>
         <td style="padding:8px">${m.date || '-'}</td>
         <td style="padding:8px"><span style="background:${isIn ? '#27ae60' : '#c0392b'};color:white;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700">${isIn ? '📥 دخول' : '📤 خروج'}</span></td>
         <td style="padding:8px">
-            <div style="font-weight:700">${item?.nameAr || '—'}</div>
-            ${item?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${item.code}</div>` : ''}
+            <div style="font-weight:700">${esc(item?.nameAr || '—')}</div>
+            ${item?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${esc(item.code)}</div>` : ''}
         </td>
         <td style="padding:8px;text-align:center;font-weight:800;color:${isIn ? '#27ae60' : '#c0392b'}">${fmt(qty)} <span style="font-size:9px;color:#888">${INV_UNITS[item?.unit] || ''}</span></td>
         <td style="padding:8px;text-align:center">${fmt(m.unitPrice || 0)}</td>
@@ -19602,7 +19602,7 @@ window.fillInvMovementItems = function () {
         .filter(([, it]) => it.active !== false && it.type !== 'service') // فقط المواد
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || ''));
     items.forEach(([k, it]) => {
-        sel.innerHTML += `<option value="${k}">${it.nameAr} (${it.code || ''})</option>`;
+        sel.innerHTML += `<option value="${k}">${esc(it.nameAr)} (${esc(it.code || '')})</option>`;
     });
     if (current) sel.value = current;
 };
@@ -19716,7 +19716,7 @@ window.saveInvMovement = async function () {
 window.deleteInvMovement = async function (key) {
     const m = window.inventoryMovements?.[key]; if (!m) return;
     if (m.transferGroupId) {
-        if (!await cf2(`هذه الحركة جزء من تحويل مخزني (${m.number})\nسيتم حذف الحركتين المرتبطتين (الصادر والوارد) معاً. هل تريد المتابعة؟`)) return;
+        if (!await cf2(`هذه الحركة جزء من تحويل مخزني (${esc(m.number)})\nسيتم حذف الحركتين المرتبطتين (الصادر والوارد) معاً. هل تريد المتابعة؟`)) return;
         try {
             const pair = Object.entries(window.inventoryMovements || {}).filter(([, mm]) => mm.transferGroupId === m.transferGroupId);
             for (const [k] of pair) await remove(ref(db, 'ledger/inventoryMovements/' + k));
@@ -19726,7 +19726,7 @@ window.deleteInvMovement = async function (key) {
         }
         return;
     }
-    if (!await cf2(`هل تريد حذف الحركة ${m.number} نهائياً؟\nسيُعاد حساب رصيد الصنف.`)) return;
+    if (!await cf2(`هل تريد حذف الحركة ${esc(m.number)} نهائياً؟\nسيُعاد حساب رصيد الصنف.`)) return;
     try {
         await remove(ref(db, 'ledger/inventoryMovements/' + key));
         toast('✅ تم الحذف', 'ok');
@@ -19746,7 +19746,7 @@ window.openStockTransferEditor = function () {
     Object.entries(window.inventoryItems || {})
         .filter(([, it]) => it.active !== false && it.type !== 'service')
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || ''))
-        .forEach(([k, it]) => { sel.innerHTML += `<option value="${k}">${it.nameAr} (${it.code || ''})</option>`; });
+        .forEach(([k, it]) => { sel.innerHTML += `<option value="${k}">${esc(it.nameAr)} (${esc(it.code || '')})</option>`; });
     $('mStTransferQty').value = '';
     $('mStTransferDate').value = new Date().toISOString().slice(0, 10);
     $('mStTransferNotes').value = '';
@@ -19993,7 +19993,7 @@ window.viewInvItemMovements = function (itemKey) {
     const bal = calcInvItemBalance(itemKey);
     let running = parseFloat(item.openingQty) || 0;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>حركات ${item.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>حركات ${esc(item.nameAr)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 20px; color: #1a3a5c; direction: rtl; }
@@ -20007,8 +20007,8 @@ window.viewInvItemMovements = function (itemKey) {
     </style></head><body>
     <h1>📋 سجل حركات الصنف</h1>
     <div class="info">
-        <div><strong>🔢 الرمز:</strong> ${item.code}</div>
-        <div><strong>📦 الاسم:</strong> ${item.nameAr}</div>
+        <div><strong>🔢 الرمز:</strong> ${esc(item.code)}</div>
+        <div><strong>📦 الاسم:</strong> ${esc(item.nameAr)}</div>
         <div><strong>⚖️ الوحدة:</strong> ${INV_UNITS[item.unit] || ''}</div>
     </div>
     <div class="balance">
@@ -20030,7 +20030,7 @@ window.viewInvItemMovements = function (itemKey) {
                 const reasons = { ...INV_MOV_REASONS_IN, ...INV_MOV_REASONS_OUT };
                 return `<tr>
                     <td>${m.date || '-'}</td>
-                    <td style="font-family:monospace;font-weight:700">${m.number}</td>
+                    <td style="font-family:monospace;font-weight:700">${esc(m.number)}</td>
                     <td style="text-align:center;color:${m.type === 'in' ? '#27ae60' : '#c0392b'};font-weight:700">${m.type === 'in' ? '📥' : '📤'}</td>
                     <td style="text-align:left;color:${m.type === 'in' ? '#27ae60' : '#c0392b'};font-weight:700">${fmt(qty)}</td>
                     <td style="text-align:left">${fmt(price)}</td>
@@ -20167,8 +20167,8 @@ async function createInventoryMovementsForPInv(invKey, inv) {
                 unitPrice: parseFloat(line.unitPrice) || 0,
                 projectId: inv.projectId || '',
                 reason: 'purchase',
-                description: `شراء من فاتورة ${inv.number}${line.description ? ' - ' + line.description : ''}`,
-                notes: `مرتبط تلقائياً بفاتورة مشتريات ${inv.number}`,
+                description: `شراء من فاتورة ${esc(inv.number)}${line.description ? ' - ' + line.description : ''}`,
+                notes: `مرتبط تلقائياً بفاتورة مشتريات ${esc(inv.number)}`,
                 sourceType: 'purchase_invoice',
                 sourceKey: invKey,
                 createdAt: now,
@@ -20202,7 +20202,7 @@ async function createInventoryMovementsForSInv(invKey, inv) {
         const bal = calcInvItemBalance(line.itemId);
         const qty = parseFloat(line.qty) || 0;
         if (qty > bal.balance + 0.001) {
-            warnings.push(`${item.nameAr}: مطلوب ${fmt(qty)} والرصيد ${fmt(bal.balance)}`);
+            warnings.push(`${esc(item.nameAr)}: مطلوب ${fmt(qty)} والرصيد ${fmt(bal.balance)}`);
         }
 
         try {
@@ -20219,8 +20219,8 @@ async function createInventoryMovementsForSInv(invKey, inv) {
                 salePrice: parseFloat(line.unitPrice) || 0, // سعر البيع للمرجعية
                 projectId: inv.projectId || '',
                 reason: 'sale',
-                description: `بيع - فاتورة ${inv.number}${line.description ? ' - ' + line.description : ''}`,
-                notes: `مرتبط تلقائياً بفاتورة مبيعات ${inv.number}`,
+                description: `بيع - فاتورة ${esc(inv.number)}${line.description ? ' - ' + line.description : ''}`,
+                notes: `مرتبط تلقائياً بفاتورة مبيعات ${esc(inv.number)}`,
                 sourceType: 'sales_invoice',
                 sourceKey: invKey,
                 createdAt: now,
@@ -20448,9 +20448,9 @@ function renderStockBalanceReport(container) {
                                 const unitLabel = INV_UNITS[r.it.unit] || r.it.unit || '';
                                 const value = isService ? 0 : (r.bal.balance * (parseFloat(r.it.costPrice) || 0));
                                 return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                    <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${r.it.code}</td>
+                                    <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(r.it.code)}</td>
                                     <td style="padding:8px"><span style="background:${isService ? '#8e44ad22' : '#27ae6022'};color:${isService ? '#5b2c6f' : '#0e6655'};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">${isService ? '🔧' : '🏗️'}</span></td>
-                                    <td style="padding:8px;font-weight:600">${r.it.nameAr}</td>
+                                    <td style="padding:8px;font-weight:600">${esc(r.it.nameAr)}</td>
                                     <td style="padding:8px;font-size:11px;color:${cat.color}">${esc(cat.label)}</td>
                                     <td style="padding:8px;text-align:center;font-size:11px">${isService ? '—' : unitLabel}</td>
                                     <td style="padding:8px;text-align:center">${isService ? '—' : fmt(r.it.openingQty || 0)}</td>
@@ -20523,7 +20523,7 @@ function renderStockMovementsReport(container) {
                     <label style="font-size:11px;color:#666;font-weight:700">📦 الصنف</label>
                     <select onchange="invReportState.itemFilter=this.value;renderActiveInvReport()" style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;font-size:12px;margin-top:3px">
                         <option value="">الكل</option>
-                        ${Object.entries(window.inventoryItems || {}).filter(([, it]) => it.type !== 'service').map(([k, it]) => `<option value="${k}" ${invReportState.itemFilter === k ? 'selected' : ''}>${it.nameAr}</option>`).join('')}
+                        ${Object.entries(window.inventoryItems || {}).filter(([, it]) => it.type !== 'service').map(([k, it]) => `<option value="${k}" ${invReportState.itemFilter === k ? 'selected' : ''}>${esc(it.nameAr)}</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -20595,9 +20595,9 @@ function renderStockMovementsReport(container) {
                                 const proj = m.projectId && window.projects?.[m.projectId] ? window.projects[m.projectId].name : '';
                                 return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                                     <td style="padding:7px">${m.date || '-'}</td>
-                                    <td style="padding:7px;font-family:monospace;font-weight:700;color:${isIn ? '#27ae60' : '#c0392b'}">${m.number || '-'}</td>
+                                    <td style="padding:7px;font-family:monospace;font-weight:700;color:${isIn ? '#27ae60' : '#c0392b'}">${esc(m.number || '-')}</td>
                                     <td style="padding:7px"><span style="background:${isIn ? '#27ae60' : '#c0392b'};color:white;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">${isIn ? '📥' : '📤'}</span></td>
-                                    <td style="padding:7px;font-weight:600">${item?.nameAr || '—'}</td>
+                                    <td style="padding:7px;font-weight:600">${esc(item?.nameAr || '—')}</td>
                                     <td style="padding:7px;text-align:center;font-weight:800;color:${isIn ? '#27ae60' : '#c0392b'}">${fmt(qty)}</td>
                                     <td style="padding:7px;text-align:center">${fmt(m.unitPrice || 0)}</td>
                                     <td style="padding:7px;text-align:center;font-weight:700;color:#e67e22">${fmt(total)}</td>
@@ -20697,8 +20697,8 @@ function renderLowStockReport(container) {
                             const isCritical = r.bal.balance > 0 && r.bal.balance < min * 0.5;
                             const statusInfo = isOutOfStock ? { label: '🚨 نفاد كامل', color: '#c0392b' } : isCritical ? { label: '⚠️ حرج', color: '#e67e22' } : { label: '📉 تحت الحد', color: '#f39c12' };
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${r.it.code}</td>
-                                <td style="padding:8px;font-weight:600">${r.it.nameAr}</td>
+                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(r.it.code)}</td>
+                                <td style="padding:8px;font-weight:600">${esc(r.it.nameAr)}</td>
                                 <td style="padding:8px;font-size:11px;color:${cat.color}">${esc(cat.label)}</td>
                                 <td style="padding:8px;text-align:center;font-size:11px">${INV_UNITS[r.it.unit] || r.it.unit || ''}</td>
                                 <td style="padding:8px;text-align:center;color:#c0392b;font-weight:800">${fmt(r.bal.balance)}</td>
@@ -20830,8 +20830,8 @@ function renderValuationReport(container) {
                         ${rows.map((r, i) => {
                             const margin = r.valueAtAvg > 0 ? ((r.potentialProfit / r.valueAtAvg) * 100) : 0;
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${r.it.code}</td>
-                                <td style="padding:8px;font-weight:600">${r.it.nameAr}</td>
+                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(r.it.code)}</td>
+                                <td style="padding:8px;font-weight:600">${esc(r.it.nameAr)}</td>
                                 <td style="padding:8px;text-align:center;font-weight:800">${fmt(r.bal.balance)}</td>
                                 <td style="padding:8px;text-align:center">${fmt(r.costPrice)}</td>
                                 <td style="padding:8px;text-align:center;color:#e67e22;font-weight:700">${fmt(r.avgCost)}</td>
@@ -20879,7 +20879,7 @@ function renderItemCardReport(container) {
                     <label style="font-size:11px;color:#666;font-weight:700">📦 اختر الصنف *</label>
                     <select onchange="invReportState.itemFilter=this.value;renderActiveInvReport()" style="width:100%;padding:9px;border:1.5px solid #8e44ad;border-radius:6px;font-size:13px;margin-top:3px;font-weight:600">
                         <option value="">-- اختر الصنف --</option>
-                        ${Object.entries(items).filter(([, it]) => it.type !== 'service').sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '')).map(([k, it]) => `<option value="${k}" ${itemKey === k ? 'selected' : ''}>${it.nameAr} (${it.code})</option>`).join('')}
+                        ${Object.entries(items).filter(([, it]) => it.type !== 'service').sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '')).map(([k, it]) => `<option value="${k}" ${itemKey === k ? 'selected' : ''}>${esc(it.nameAr)} (${esc(it.code)})</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -20942,7 +20942,7 @@ function renderItemCardContent(itemKey, item) {
         return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
             <td style="padding:7px;text-align:center;color:#888">${i + 1}</td>
             <td style="padding:7px">${m.date || '-'}</td>
-            <td style="padding:7px;font-family:monospace;font-weight:700;color:${m.type === 'in' ? '#27ae60' : '#c0392b'}">${m.number || '-'}</td>
+            <td style="padding:7px;font-family:monospace;font-weight:700;color:${m.type === 'in' ? '#27ae60' : '#c0392b'}">${esc(m.number || '-')}</td>
             <td style="padding:7px"><span style="background:${m.type === 'in' ? '#27ae60' : '#c0392b'};color:white;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">${m.type === 'in' ? '📥 دخول' : '📤 خروج'}</span></td>
             <td style="padding:7px;font-size:11px">${reasons[m.reason] || '-'}</td>
             <td style="padding:7px;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.description || '')}">${esc(m.description || '—')}</td>
@@ -20957,8 +20957,8 @@ function renderItemCardContent(itemKey, item) {
     return `
         <div class="card" style="margin-bottom:14px;padding:16px;background:linear-gradient(135deg,#f4ecf7,#fff)">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;font-size:13px">
-                <div><div style="font-size:11px;color:#666">🔢 الرمز</div><div style="font-family:monospace;font-weight:800;color:#1a3a5c;font-size:14px;margin-top:2px">${item.code}</div></div>
-                <div><div style="font-size:11px;color:#666">📦 الصنف</div><div style="font-weight:700;margin-top:2px">${item.nameAr}</div></div>
+                <div><div style="font-size:11px;color:#666">🔢 الرمز</div><div style="font-family:monospace;font-weight:800;color:#1a3a5c;font-size:14px;margin-top:2px">${esc(item.code)}</div></div>
+                <div><div style="font-size:11px;color:#666">📦 الصنف</div><div style="font-weight:700;margin-top:2px">${esc(item.nameAr)}</div></div>
                 <div><div style="font-size:11px;color:#666">🏷️ الفئة</div><div style="margin-top:2px"><span style="background:${cat.color}22;color:${cat.color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${esc(cat.label)}</span></div></div>
                 <div><div style="font-size:11px;color:#666">⚖️ الوحدة</div><div style="font-weight:700;margin-top:2px">${unitLabel}</div></div>
             </div>
@@ -21184,8 +21184,8 @@ window.printStockBalanceReport = function () {
         const isService = r.it.type === 'service';
         const value = isService ? 0 : (r.bal.balance * (parseFloat(r.it.costPrice) || 0));
         return `<tr>
-            <td style="font-family:monospace;font-weight:700">${r.it.code}</td>
-            <td>${r.it.nameAr}</td>
+            <td style="font-family:monospace;font-weight:700">${esc(r.it.code)}</td>
+            <td>${esc(r.it.nameAr)}</td>
             <td>${isService ? '—' : (INV_UNITS[r.it.unit] || r.it.unit || '')}</td>
             <td style="text-align:left;font-weight:700">${isService ? '—' : fmt(r.bal.balance)}</td>
             <td style="text-align:left">${isService ? '—' : fmt(r.it.minQty || 0)}</td>
@@ -21249,9 +21249,9 @@ window.printStockMovementsReport = function () {
         const item = window.inventoryItems?.[m.itemId];
         const qty = parseFloat(m.qty) || 0, price = parseFloat(m.unitPrice) || 0;
         return `<tr>
-            <td>${m.date}</td><td style="font-family:monospace;font-weight:700">${m.number}</td>
+            <td>${m.date}</td><td style="font-family:monospace;font-weight:700">${esc(m.number)}</td>
             <td>${m.type === 'in' ? '📥 دخول' : '📤 خروج'}</td>
-            <td>${item?.nameAr || '-'}</td>
+            <td>${esc(item?.nameAr || '-')}</td>
             <td style="text-align:left;font-weight:700">${fmt(qty)}</td>
             <td style="text-align:left">${fmt(price)}</td>
             <td style="text-align:left;font-weight:700">${fmt(qty * price)}</td>
@@ -21321,8 +21321,8 @@ window.printLowStockReport = function () {
         const needed = Math.max(0, min - r.bal.balance);
         const value = needed * (parseFloat(r.it.costPrice) || 0);
         return `<tr>
-            <td style="font-family:monospace;font-weight:700">${r.it.code}</td>
-            <td>${r.it.nameAr}</td>
+            <td style="font-family:monospace;font-weight:700">${esc(r.it.code)}</td>
+            <td>${esc(r.it.nameAr)}</td>
             <td>${INV_UNITS[r.it.unit] || ''}</td>
             <td style="text-align:left;color:#c0392b;font-weight:700">${fmt(r.bal.balance)}</td>
             <td style="text-align:left">${fmt(min)}</td>
@@ -21391,8 +21391,8 @@ window.printValuationReport = function () {
     <div style="text-align:center;font-size:12px;margin:10px 0">📅 ${new Date().toLocaleDateString('ar-SA')} · ${rows.length} صنف</div>
     <table><thead><tr><th>الرمز</th><th>الصنف</th><th>الرصيد</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة بالمتوسط</th><th>القيمة بالبيع</th><th>الربح المحتمل</th></tr></thead>
     <tbody>${rows.map(r => `<tr>
-        <td style="font-family:monospace;font-weight:700">${r.it.code}</td>
-        <td>${r.it.nameAr}</td>
+        <td style="font-family:monospace;font-weight:700">${esc(r.it.code)}</td>
+        <td>${esc(r.it.nameAr)}</td>
         <td style="text-align:left;font-weight:700">${fmt(r.bal.balance)}</td>
         <td style="text-align:left">${fmt(r.avgCost)}</td>
         <td style="text-align:left">${fmt(r.it.salePrice || 0)}</td>
@@ -21557,8 +21557,8 @@ function fsPercentCell(value, base) {
 // ── خلية اسم/كود الحساب القابلة للنقر لفتح الربط التنقيبي بقيود الحساب ─────────────────
 function fsAccountCell(account) {
     return `<td style="padding:7px 10px;cursor:pointer" onclick="showFSDrilldown('${account.code}')" title="🔍 اعرض القيود التفصيلية لهذا الحساب">
-        <span style="font-family:monospace;color:#888;margin-left:6px">${account.code}</span>
-        <span style="text-decoration:underline dotted;color:#1a3a5c">${account.nameAr}</span>
+        <span style="font-family:monospace;color:#888;margin-left:6px">${esc(account.code)}</span>
+        <span style="text-decoration:underline dotted;color:#1a3a5c">${esc(account.nameAr)}</span>
     </td>`;
 }
 
@@ -21626,7 +21626,7 @@ window.showFSDrilldown = function (accountCode, opts) {
             </tr></thead>
             <tbody>${rows.map(r => `<tr style="cursor:pointer" onclick="cov('mFsDrill');jrnRowMenu('${r.ekey}',event)" title="عرض القيد والمستند المصدر">
                 <td style="padding:7px 8px">${r.date || '—'}</td>
-                <td style="padding:7px 8px;font-family:monospace;color:#2980b9">${r.number}</td>
+                <td style="padding:7px 8px;font-family:monospace;color:#2980b9">${esc(r.number)}</td>
                 <td style="padding:7px 8px">${esc(r.desc || '—')}</td>
                 <td style="padding:7px 8px;text-align:center"><span style="background:${r.status === 'posted' ? '#27ae60' : '#f39c12'};color:white;font-size:10px;padding:2px 8px;border-radius:6px">${r.status === 'posted' ? 'مرحّل' : (r.status === 'cancelled' ? 'ملغي' : 'مسودة')}</span></td>
                 <td style="padding:7px 8px;text-align:left;color:#2d6a9f;font-weight:700">${r.debit ? fmt(r.debit) : '—'}</td>
@@ -22619,7 +22619,7 @@ window.generateFSClosingEntry = async function () {
         return;
     }
 
-    const msg = `سيتم إنشاء قيد إقفال يرحّل صافي ${netIncome >= 0 ? 'ربح' : 'خسارة'} الفترة (${fmt(Math.abs(netIncome))}) إلى حساب "${retainedAcc.nameAr}"، ويُصفّر حسابات الإيرادات والمصروفات لهذه الفترة (${lines.length - 1} حساب).\n\nهذا القيد سيُرحَّل مباشرة ولا يمكن التراجع عنه إلا بعكسه يدوياً. هل تريد المتابعة؟`;
+    const msg = `سيتم إنشاء قيد إقفال يرحّل صافي ${netIncome >= 0 ? 'ربح' : 'خسارة'} الفترة (${fmt(Math.abs(netIncome))}) إلى حساب "${esc(retainedAcc.nameAr)}"، ويُصفّر حسابات الإيرادات والمصروفات لهذه الفترة (${lines.length - 1} حساب).\n\nهذا القيد سيُرحَّل مباشرة ولا يمكن التراجع عنه إلا بعكسه يدوياً. هل تريد المتابعة؟`;
     if (!confirm(msg)) return;
 
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -22848,7 +22848,7 @@ function fsIncomeTreeRows(sectionRows, base, prevMap, colspan, color) {
         if (n.children.length) {
             const collapsed = fsBalCollapsed.has(code);
             out.push(`<tr style="cursor:pointer;background:${depth === 0 ? '#f4f9fd' : '#fafcfe'}" onclick="toggleFSBalNode('${code}')" title="${collapsed ? 'انقر للفتح' : 'انقر للطي'}">
-                <td style="padding:7px 10px;padding-right:${indent}px;font-weight:800;color:#1a3a5c"><span style="display:inline-block;width:14px;color:${color};font-weight:900">${collapsed ? '▸' : '▾'}</span><span style="font-family:monospace;color:#999;font-size:11px;margin-left:5px">${code}</span>${n.account.nameAr || ''}</td>
+                <td style="padding:7px 10px;padding-right:${indent}px;font-weight:800;color:#1a3a5c"><span style="display:inline-block;width:14px;color:${color};font-weight:900">${collapsed ? '▸' : '▾'}</span><span style="font-family:monospace;color:#999;font-size:11px;margin-left:5px">${code}</span>${esc(n.account.nameAr || '')}</td>
                 <td style="padding:7px 10px;text-align:left;font-weight:800;color:${color}">${fmt(v)}</td>
                 ${fsState.showPercent ? fsPercentCell(v, base) : ''}
                 ${fsState.compareMode ? fsChangeCells(v, prevVal(n)) : ''}
@@ -22856,7 +22856,7 @@ function fsIncomeTreeRows(sectionRows, base, prevMap, colspan, color) {
             if (!collapsed) n.children.forEach(c => walk(c, depth + 1));
         } else if (n.row) {
             out.push(`<tr>
-                <td style="padding:8px 10px;padding-right:${indent}px;cursor:pointer" onclick="showFSDrilldown('${code}')" title="🔍 اعرض القيود التفصيلية لهذا الحساب"><span style="display:inline-block;width:14px"></span><span style="font-family:monospace;color:#888;font-size:11px;margin-left:6px">${code}</span><span style="text-decoration:underline dotted;color:#1a3a5c">${n.account.nameAr || ''}</span></td>
+                <td style="padding:8px 10px;padding-right:${indent}px;cursor:pointer" onclick="showFSDrilldown('${code}')" title="🔍 اعرض القيود التفصيلية لهذا الحساب"><span style="display:inline-block;width:14px"></span><span style="font-family:monospace;color:#888;font-size:11px;margin-left:6px">${code}</span><span style="text-decoration:underline dotted;color:#1a3a5c">${esc(n.account.nameAr || '')}</span></td>
                 <td style="padding:8px 10px;text-align:left;font-weight:700;color:${color}">${fmt(v)}</td>
                 ${fsState.showPercent ? fsPercentCell(v, base) : ''}
                 ${fsState.compareMode ? fsChangeCells(v, prevMap[n.account.code]) : ''}
@@ -23281,7 +23281,7 @@ function fsTreeRows(sectionRows, base, prevMap, colspan, adjust) {
             out.push(`<tr style="cursor:pointer;background:${depth === 0 ? '#eef3f8' : '#f7fafc'}" onclick="toggleFSBalNode('${code}')" title="${collapsed ? 'انقر للفتح' : 'انقر للطي'}">
                 <td style="padding:7px 10px;padding-right:${indent}px;font-weight:800;color:#1a3a5c">
                     <span style="display:inline-block;width:14px;color:#2d6a9f;font-weight:900">${collapsed ? '▸' : '▾'}</span>
-                    <span style="font-family:monospace;color:#999;font-size:11px;margin-left:5px">${code}</span>${n.account.nameAr || ''}
+                    <span style="font-family:monospace;color:#999;font-size:11px;margin-left:5px">${code}</span>${esc(n.account.nameAr || '')}
                 </td>
                 <td style="padding:7px 10px;text-align:left;font-weight:800">${fmt(v)}</td>
                 ${fsState.showPercent ? fsPercentCell(v, base) : ''}
@@ -23295,7 +23295,7 @@ function fsTreeRows(sectionRows, base, prevMap, colspan, adjust) {
                 <td style="padding:7px 10px;padding-right:${indent}px;cursor:pointer" onclick="showFSDrilldown('${code}')" title="🔍 اعرض القيود التفصيلية لهذا الحساب">
                     <span style="display:inline-block;width:14px"></span>
                     <span style="font-family:monospace;color:#888;font-size:11px;margin-left:6px">${code}</span>
-                    <span style="text-decoration:underline dotted;color:#1a3a5c">${n.account.nameAr || ''}</span>
+                    <span style="text-decoration:underline dotted;color:#1a3a5c">${esc(n.account.nameAr || '')}</span>
                     ${adj(code) ? '<span style="font-size:9.5px;color:#8e44ad;margin-right:5px">(شامل احتياطي السنة)</span>' : ''}
                 </td>
                 <td style="padding:7px 10px;text-align:left;font-weight:700">${fmt(lv)}</td>
@@ -23461,7 +23461,7 @@ function renderFSCashFlowTab(cf) {
             <td style="padding:6px 10px;text-align:left">${cfAmt(l.amount)}</td>
         </tr>` + l.accounts.map(x => `<tr class="cfdet ${rid}" style="display:none;background:#fdfefe">
             <td style="padding:5px 10px;padding-right:48px;cursor:pointer" onclick="showFSDrilldown('${x.code}',{excludeOpening:1})" title="🔍 اعرض القيود التفصيلية لهذا الحساب (حركة الفترة فقط)">
-                <span style="font-family:monospace;color:#aaa;margin-left:6px;font-size:11px">${x.code}</span>
+                <span style="font-family:monospace;color:#aaa;margin-left:6px;font-size:11px">${esc(x.code)}</span>
                 <span style="text-decoration:underline dotted;color:#2d6a9f;font-size:12px">${esc(x.name)}</span>
                 <span style="font-size:10px;color:#bbb;margin-right:4px">· ${x.count} حركة</span>
             </td>
@@ -23562,12 +23562,12 @@ function renderFSEquityTab(eq) {
     const legend = cols.filter(c => (m.accountsByComp[c] || []).length).map(c => `
         <div style="margin-bottom:6px">
             <span style="font-weight:800;color:#5b2c6f;font-size:12px">${compLabels[c]}:</span>
-            ${m.accountsByComp[c].map(a => `<span onclick="showFSDrilldown('${a.code}')" style="cursor:pointer;font-size:11.5px;color:#2d6a9f;text-decoration:underline dotted;margin-right:8px" title="🔍 اعرض القيود التفصيلية"><span style="font-family:monospace;color:#999">${a.code}</span> ${a.nameAr || ''}</span>`).join(' · ')}
+            ${m.accountsByComp[c].map(a => `<span onclick="showFSDrilldown('${a.code}')" style="cursor:pointer;font-size:11.5px;color:#2d6a9f;text-decoration:underline dotted;margin-right:8px" title="🔍 اعرض القيود التفصيلية"><span style="font-family:monospace;color:#999">${esc(a.code)}</span> ${esc(a.nameAr || '')}</span>`).join(' · ')}
         </div>`).join('');
     const unmapped = eqUnmappedAccounts();
     const unmappedBanner = unmapped.length ? `<div style="background:#fff8e1;border:1.5px solid #f0c419;border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:#7d6608">
         ⚠️ <strong>${unmapped.length} حساب حقوق ملكية غير مربوط صراحةً بدور في القوائم</strong> — يُصنّف حالياً تلقائياً ضمن «الأرباح المبقاة». راجعه واربطه بالدور الصحيح (رأس المال / احتياطي / أرباح مبقاة / جاري الشركاء المستبعَد) من نموذج الحساب:
-        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${unmapped.map(x => `<button onclick="editCoaAccount('${x.key}')" style="background:#fef3c7;border:1px solid #f0c419;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:11.5px;font-weight:700;color:#7d4e00"><span style="font-family:monospace">${x.a.code}</span> ${x.a.nameAr || ''} ✏️</button>`).join('')}</div>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${unmapped.map(x => `<button onclick="editCoaAccount('${x.key}')" style="background:#fef3c7;border:1px solid #f0c419;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:11.5px;font-weight:700;color:#7d4e00"><span style="font-family:monospace">${esc(x.a.code)}</span> ${esc(x.a.nameAr || '')} ✏️</button>`).join('')}</div>
     </div>` : '';
     return `
         <div class="card">
@@ -24107,8 +24107,8 @@ window.openFSCustomEditor = function () {
                     <div style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
                         ${(groups[type] || []).map(a => `
                             <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:3px 4px;border-radius:4px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" data-fs-custom-type="${type}" data-fs-custom-code="${a.code}" ${fsCustomState.selected[a.code] ? 'checked' : ''} onchange="toggleFSCustomAccount('${a.code}', this.checked)">
-                                <span style="font-family:monospace;color:#888">${a.code}</span> ${a.nameAr}
+                                <input type="checkbox" data-fs-custom-type="${type}" data-fs-custom-code="${esc(a.code)}" ${fsCustomState.selected[a.code] ? 'checked' : ''} onchange="toggleFSCustomAccount('${a.code}', this.checked)">
+                                <span style="font-family:monospace;color:#888">${esc(a.code)}</span> ${esc(a.nameAr)}
                             </label>
                         `).join('') || '<div style="font-size:11px;color:#999">لا توجد حسابات</div>'}
                     </div>
@@ -24228,8 +24228,8 @@ window.openFSBudgetEditor = function (id) {
                         ${(groups[type] || []).map(a => `
                             <div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:4px">
                                 <label style="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer">
-                                    <input type="checkbox" data-fs-budget-type="${type}" data-fs-budget-code="${a.code}" ${fsBudgetState.selected[a.code] !== undefined ? 'checked' : ''} onchange="toggleFSBudgetAccount('${a.code}', this.checked)">
-                                    <span style="font-family:monospace;color:#888">${a.code}</span> ${a.nameAr}
+                                    <input type="checkbox" data-fs-budget-type="${type}" data-fs-budget-code="${esc(a.code)}" ${fsBudgetState.selected[a.code] !== undefined ? 'checked' : ''} onchange="toggleFSBudgetAccount('${a.code}', this.checked)">
+                                    <span style="font-family:monospace;color:#888">${esc(a.code)}</span> ${esc(a.nameAr)}
                                 </label>
                                 <input type="number" step="0.01" placeholder="المبلغ المستهدف" value="${fsBudgetState.selected[a.code] ?? ''}" oninput="setFSBudgetAmount('${a.code}', this.value)" style="width:130px;padding:5px 6px;border:1.5px solid #d0d7e0;border-radius:5px;font-family:inherit;font-size:11px;text-align:left">
                             </div>
@@ -24541,7 +24541,7 @@ window.exportFSExcel = function () {
     if (prevIncome) [...prevIncome.revenues, ...prevIncome.expenses].forEach(b => { prevMapInc[b.account.code] = b.naturalMovement; });
     const incHead = ['الحساب', 'القيمة', ...(cmp ? ['الفترة السابقة', 'التغير'] : []), ...(pctOn ? ['% من الإيرادات'] : [])];
     const incRow = b => {
-        const v = b.naturalMovement, row = [`${b.account.code} — ${b.account.nameAr}`, r1(v)];
+        const v = b.naturalMovement, row = [`${esc(b.account.code)} — ${esc(b.account.nameAr)}`, r1(v)];
         if (cmp) { const p = prevMapInc[b.account.code] || 0; row.push(r1(p), r1(v - p)); }
         if (pctOn) row.push(pctV(v, income.totalRevenue));
         return row;
@@ -24655,7 +24655,7 @@ window.exportFSExcel = function () {
     // «الرصيد الافتتاحي» = naturalOpening (نفس منطق العرض) · «التغير» = القيمة − الافتتاحي
     const bsHead = ['الحساب', 'القيمة', ...(cmp ? ['الرصيد الافتتاحي', 'التغير'] : []), ...(pctOn ? ['% من الإجمالي'] : [])];
     const bsRow = (a, valFn, base, suffix) => {
-        const v = valFn(a), row = [`${a.account.code} — ${a.account.nameAr}${suffix || ''}`, r1(v)];
+        const v = valFn(a), row = [`${esc(a.account.code)} — ${esc(a.account.nameAr)}${suffix || ''}`, r1(v)];
         if (cmp) { const op = r1(a.naturalOpening || 0); row.push(op, r1(v - op)); }
         if (pctOn) row.push(pctV(v, base));
         return row;
@@ -24791,7 +24791,7 @@ window.exportFSExcel = function () {
             [`الموازنة: ${esc(budget.name)} — الفترة: ${budget.fromDate} → ${budget.toDate}`],
             [],
             ['الحساب', 'المستهدف', 'الفعلي', 'الانحراف', 'الانحراف %', 'التقييم'],
-            ...v.rows.map(r => [`${r.account.code} — ${r.account.nameAr}`, r.budgeted, r.actual, r.variance, r.variancePct, r.favorable ? '✅ إيجابي' : '⚠️ سلبي']),
+            ...v.rows.map(r => [`${esc(r.account.code)} — ${esc(r.account.nameAr)}`, r.budgeted, r.actual, r.variance, r.variancePct, r.favorable ? '✅ إيجابي' : '⚠️ سلبي']),
             [],
             ['الإجمالي', '', '', '', '', ''],
             ['إجمالي الإيرادات', v.totals.revenue.budgeted, v.totals.revenue.actual, v.totals.revenue.variance],
@@ -24911,7 +24911,7 @@ window.renderBankRec = function () {
     const detail = Object.values(window.chartOfAccounts || {}).filter(a => a.nature === 'detail' && a.active !== false && a.code);
     const bankAccs = detail.filter(underBanks).sort((a, b) => a.code.localeCompare(b.code));
     const otherAccs = detail.filter(a => !underBanks(a) && a.type === 'asset').sort((a, b) => a.code.localeCompare(b.code));
-    const accOpt = a => `<option value="${a.code}" ${st.account === a.code ? 'selected' : ''}>${a.code} — ${a.nameAr || ''}</option>`;
+    const accOpt = a => `<option value="${esc(a.code)}" ${st.account === a.code ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr || '')}</option>`;
 
     const sessions = st.account ? brSessionsOf(st.account) : [];
     const session = st.session ? (window.bankRecSessions || {})[st.session] : null;
@@ -25102,7 +25102,7 @@ function brRenderMovTab(st, session, movs, rec, locked) {
                     return `<tr style="${isMine ? 'background:#f4fbf6' : ''}">
                         <td style="text-align:center"><input type="checkbox" ${isMine ? 'checked' : ''} ${locked ? 'disabled' : ''} onchange="brToggle('${m.id}', this.checked)" style="accent-color:#1e8449;width:15px;height:15px;cursor:pointer"></td>
                         <td style="white-space:nowrap">${m.date || '—'}</td>
-                        <td style="font-family:monospace;font-size:11px">${m.number}</td>
+                        <td style="font-family:monospace;font-size:11px">${esc(m.number)}</td>
                         <td style="text-align:right;font-size:11.5px">${esc(m.description)}</td>
                         <td style="text-align:left;font-weight:700;color:#2d6a9f">${m.debit ? fmt(m.debit) : '—'}</td>
                         <td style="text-align:left;font-weight:700;color:#c0392b">${m.credit ? fmt(m.credit) : '—'}</td>
@@ -25246,9 +25246,9 @@ window.brDeleteSession = async function (key) {
     const s = (window.bankRecSessions || {})[key]; if (!s || s.status !== 'open') return;
     if (!await cf2(`حذف الجلسة المفتوحة ${s.fromDate} ← ${s.toDate}؟\n\nسيُلغى تعليم كل الحركات المسوّاة فيها وتُحذف سطور الكشف المستوردة.`)) return;
     try {
-        const updates = { ['ledger/bankRecSessions/' + key]: null, [`ledger/bankStatements/${s.account}/${key}`]: null };
+        const updates = { ['ledger/bankRecSessions/' + key]: null, [`ledger/bankStatements/${esc(s.account)}/${key}`]: null };
         Object.entries((window.bankRecs || {})[s.account] || {}).forEach(([movId, r]) => {
-            if (r.sessionKey === key) updates[`ledger/bankRec/${s.account}/${movId}`] = null;
+            if (r.sessionKey === key) updates[`ledger/bankRec/${esc(s.account)}/${movId}`] = null;
         });
         await update(ref(db), updates);
         if (st.session === key) st.session = '';
@@ -25264,14 +25264,14 @@ window.brToggle = async function (movId, checked) {
     const existing = ((window.bankRecs || {})[st.account] || {})[movId];
     if (!checked && existing && existing.sessionKey && existing.sessionKey !== st.session) { toast('🔒 هذه الحركة مسوّاة في جلسة أخرى', 'er'); renderBankRec(); return; }
     try {
-        const r = ref(db, `ledger/bankRec/${st.account}/${movId}`);
+        const r = ref(db, `ledger/bankRec/${esc(st.account)}/${movId}`);
         if (checked) await set(r, { at: new Date().toISOString(), by: brUser(), src: 'manual', sessionKey: st.session });
         else {
             // فك ارتباط سطر الكشف إن كانت الحركة مطابقة له
-            const updates = { [`ledger/bankRec/${st.account}/${movId}`]: null };
+            const updates = { [`ledger/bankRec/${esc(st.account)}/${movId}`]: null };
             if (existing?.stmtLineKey) {
-                updates[`ledger/bankStatements/${st.account}/${st.session}/${existing.stmtLineKey}/status`] = 'unmatched';
-                updates[`ledger/bankStatements/${st.account}/${st.session}/${existing.stmtLineKey}/matchedMovIds`] = null;
+                updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${existing.stmtLineKey}/status`] = 'unmatched';
+                updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${existing.stmtLineKey}/matchedMovIds`] = null;
             }
             await update(ref(db), updates);
         }
@@ -25296,12 +25296,12 @@ window.brMarkShown = async function (markRec) {
         const updates = {};
         const meta = { at: new Date().toISOString(), by: brUser(), src: 'manual', sessionKey: st.session };
         movs.forEach(m => {
-            updates[`ledger/bankRec/${st.account}/${m.id}`] = markRec ? meta : null;
+            updates[`ledger/bankRec/${esc(st.account)}/${m.id}`] = markRec ? meta : null;
             if (!markRec) {
                 const ex = rec[m.id];
                 if (ex?.stmtLineKey) {
-                    updates[`ledger/bankStatements/${st.account}/${st.session}/${ex.stmtLineKey}/status`] = 'unmatched';
-                    updates[`ledger/bankStatements/${st.account}/${st.session}/${ex.stmtLineKey}/matchedMovIds`] = null;
+                    updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${ex.stmtLineKey}/status`] = 'unmatched';
+                    updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${ex.stmtLineKey}/matchedMovIds`] = null;
                 }
             }
         });
@@ -25533,9 +25533,9 @@ function brHandleImportFile(ev) {
             const updates = {};
             const keys = [];
             bankLines.forEach(b => {
-                const k = push(ref(db, `ledger/bankStatements/${st.account}/${st.session}`)).key;
+                const k = push(ref(db, `ledger/bankStatements/${esc(st.account)}/${st.session}`)).key;
                 keys.push(k);
-                updates[`ledger/bankStatements/${st.account}/${st.session}/${k}`] = b;
+                updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${k}`] = b;
             });
             await update(ref(db), updates);
 
@@ -25624,7 +25624,7 @@ function brShowImportResults(matches, unmatchedCount) {
                 <td style="text-align:right">${x.bank.date || '—'} · ${esc(x.bank.description || '—')}${x.bank.reference ? ` <span style="color:#888;font-size:10px">(${x.bank.reference})</span>` : ''}</td>
                 <td style="text-align:left;font-weight:700;color:${x.bank.deposit ? '#2d6a9f' : '#c0392b'}">${fmt(x.bank.deposit || x.bank.withdrawal)}</td>
                 <td style="text-align:center;color:#1e8449;font-weight:900">↔</td>
-                <td style="text-align:right">${x.movs.map(v => `${v.number} · ${v.date} · ${fmt(v.debit || v.credit)}`).join('<br>')}</td>
+                <td style="text-align:right">${x.movs.map(v => `${esc(v.number)} · ${v.date} · ${fmt(v.debit || v.credit)}`).join('<br>')}</td>
                 <td style="text-align:center">${confChip(x.conf)}${x.gap ? `<div style="font-size:9.5px;color:#888">فرق ${Math.round(x.gap)} يوم</div>` : ''}</td>
             </tr>`).join('')}</tbody>
         </table></div>
@@ -25651,14 +25651,14 @@ window.brConfirmMatches = async function () {
             const movIds = {};
             x.movs.forEach(v => {
                 movIds[v.id] = true;
-                updates[`ledger/bankRec/${st.account}/${v.id}`] = {
+                updates[`ledger/bankRec/${esc(st.account)}/${v.id}`] = {
                     at: new Date().toISOString(), by, src: 'import', sessionKey: st.session,
                     stmtRef: x.bank.reference || '', stmtLineKey: x.lineKey || ''
                 };
             });
             if (x.lineKey) {
-                updates[`ledger/bankStatements/${st.account}/${st.session}/${x.lineKey}/status`] = 'matched';
-                updates[`ledger/bankStatements/${st.account}/${st.session}/${x.lineKey}/matchedMovIds`] = movIds;
+                updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${x.lineKey}/status`] = 'matched';
+                updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${x.lineKey}/matchedMovIds`] = movIds;
             }
         });
         if (!n) { toast('ℹ️ لم تحدد أي مطابقة', 'wn'); return; }
@@ -25695,7 +25695,7 @@ window.brManualMatch = function (lineKey) {
             <tbody>${cands.map(c => `<tr>
                 <td style="text-align:center"><input type="checkbox" class="brManCb" data-id="${c.id}" data-amt="${c[side]}" onchange="brManualSum()" style="accent-color:#2d6a9f;width:14px;height:14px"></td>
                 <td style="white-space:nowrap">${c.date || '—'}</td>
-                <td style="font-family:monospace;font-size:10px">${c.number}</td>
+                <td style="font-family:monospace;font-size:10px">${esc(c.number)}</td>
                 <td style="text-align:right">${esc(c.description)}</td>
                 <td style="text-align:left;font-weight:700">${fmt(c[side])}</td>
             </tr>`).join('')}</tbody>
@@ -25732,13 +25732,13 @@ window.brManualConfirm = async function () {
         const line = (((window.bankStatements || {})[st.account] || {})[st.session] || {})[ctx.lineKey] || {};
         ids.forEach(id => {
             movIds[id] = true;
-            updates[`ledger/bankRec/${st.account}/${id}`] = {
+            updates[`ledger/bankRec/${esc(st.account)}/${id}`] = {
                 at: new Date().toISOString(), by: brUser(), src: 'manual', sessionKey: st.session,
                 stmtRef: line.reference || '', stmtLineKey: ctx.lineKey
             };
         });
-        updates[`ledger/bankStatements/${st.account}/${st.session}/${ctx.lineKey}/status`] = 'matched';
-        updates[`ledger/bankStatements/${st.account}/${st.session}/${ctx.lineKey}/matchedMovIds`] = movIds;
+        updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${ctx.lineKey}/status`] = 'matched';
+        updates[`ledger/bankStatements/${esc(st.account)}/${st.session}/${ctx.lineKey}/matchedMovIds`] = movIds;
         await update(ref(db), updates);
         window._brManualCtx = null;
         document.getElementById('brManModal')?.remove();
@@ -25778,15 +25778,15 @@ window.brAfterEntrySaved = async function (entryKey, data) {
     if (lineIdx < 0) { toast('⚠️ لم يُعثر على سطر الحساب البنكي في القيد — طابق السطر يدوياً من شاشة التسوية', 'wn', 7000); return; }
     try {
         const updates = {
-            [`ledger/bankStatements/${link.account}/${link.session}/${link.lineKey}/jrnKey`]: entryKey
+            [`ledger/bankStatements/${esc(link.account)}/${link.session}/${link.lineKey}/jrnKey`]: entryKey
         };
         if (data.status === 'posted') {
             const movId = entryKey + '_' + lineIdx;
-            updates[`ledger/bankRec/${link.account}/${movId}`] = {
+            updates[`ledger/bankRec/${esc(link.account)}/${movId}`] = {
                 at: new Date().toISOString(), by: brUser(), src: 'entry', sessionKey: link.session, stmtLineKey: link.lineKey
             };
-            updates[`ledger/bankStatements/${link.account}/${link.session}/${link.lineKey}/status`] = 'matched';
-            updates[`ledger/bankStatements/${link.account}/${link.session}/${link.lineKey}/matchedMovIds`] = { [movId]: true };
+            updates[`ledger/bankStatements/${esc(link.account)}/${link.session}/${link.lineKey}/status`] = 'matched';
+            updates[`ledger/bankStatements/${esc(link.account)}/${link.session}/${link.lineKey}/matchedMovIds`] = { [movId]: true };
             await update(ref(db), updates);
             toast('🏦 أُنشئ القيد وسُوّي سطر الكشف تلقائياً', 'ok');
         } else {
@@ -25814,7 +25814,7 @@ window.brPrint = function () {
     const clearedBal = (parseFloat(session.openingBal) || 0) + clearedNet;
     const diff = (parseFloat(session.closingBal) || 0) - clearedBal;
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تسوية بنكية — ${acc.nameAr}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>تسوية بنكية — ${esc(acc.nameAr)}</title>
     <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { font-family: 'Tajawal', Tahoma, Arial; padding: 24px; color: #1a3a5c; direction: rtl; }
@@ -25828,7 +25828,7 @@ window.brPrint = function () {
     <h1>🏦 تقرير التسوية البنكية</h1>
     <div style="text-align:center;font-size:12px;font-weight:700">${custCoName()}</div>
     <div style="text-align:center;font-size:11px;color:#666;margin-bottom:14px">
-        الحساب: ${acc.code} — ${acc.nameAr} · فترة الكشف: ${session.fromDate} ← ${session.toDate}
+        الحساب: ${esc(acc.code)} — ${esc(acc.nameAr)} · فترة الكشف: ${session.fromDate} ← ${session.toDate}
         · الحالة: ${session.status === 'completed' ? '🔒 معتمدة' : '✏️ مفتوحة'} · أُصدر في ${new Date().toLocaleString('ar-SA')}</div>
     <table>
         <tr class="sum"><td>🏁 رصيد بداية الكشف</td><td style="text-align:left">${fmt(session.openingBal)}</td></tr>
@@ -25841,7 +25841,7 @@ window.brPrint = function () {
     <table>
         <thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>مدين (إيداع)</th><th>دائن (سحب)</th></tr></thead>
         <tbody>${pending.length ? pending.map(m => `<tr>
-            <td>${m.date || '—'}</td><td>${m.number}</td><td>${esc(m.description)}</td>
+            <td>${m.date || '—'}</td><td>${esc(m.number)}</td><td>${esc(m.description)}</td>
             <td style="text-align:left">${m.debit ? fmt(m.debit) : '—'}</td>
             <td style="text-align:left">${m.credit ? fmt(m.credit) : '—'}</td>
         </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:#888">لا توجد حركات معلّقة 🎉</td></tr>'}</tbody>
@@ -27110,8 +27110,8 @@ window.renderIncomeTax = function () {
     const itxDrillOpts = `{fromDate:'${st.year}-01-01',toDate:'${st.year}-12-31',statuses:['posted']}`;
     const itxAccRow = (b, color) => `<tr class="cfdet itxDet_ni" style="display:none;background:#fdfefe">
         <td style="text-align:right;padding:5px 10px;padding-right:44px;cursor:pointer" onclick="showFSDrilldown('${b.account.code}',${itxDrillOpts})" title="🔍 اعرض القيود التفصيلية لهذا الحساب">
-            <span style="font-family:monospace;color:#aaa;font-size:11px;margin-left:6px">${b.account.code}</span>
-            <span style="text-decoration:underline dotted;color:#2d6a9f;font-size:12px">${b.account.nameAr || ''}</span>
+            <span style="font-family:monospace;color:#aaa;font-size:11px;margin-left:6px">${esc(b.account.code)}</span>
+            <span style="text-decoration:underline dotted;color:#2d6a9f;font-size:12px">${esc(b.account.nameAr || '')}</span>
         </td>
         <td style="font-size:12px;font-weight:700;color:${color}">${fmt(b.naturalMovement)}</td>
     </tr>`;
@@ -28020,7 +28020,7 @@ window.glbOpenMonthly = function (code) {
     const ov = document.createElement('div'); ov.id = 'taskEditorOverlay';
     ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10003;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px';
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="background:linear-gradient(135deg,#16527a,#2980b9);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:14px;font-weight:900">📅 التوزيع الشهري — ${acc.code} ${acc.nameAr}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
+        <div style="background:linear-gradient(135deg,#16527a,#2980b9);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:14px;font-weight:900">📅 التوزيع الشهري — ${esc(acc.code)} ${esc(acc.nameAr)}</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
         <div style="padding:16px;max-height:72vh;overflow:auto">
             <input type="hidden" id="glbMCode" value="${code}">
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
@@ -28056,8 +28056,8 @@ window.renderGLBudget = function () {
         const rows = accounts.filter(a => a.type === st.typeFilter).map(a => {
             const b = data[a.code] || {}; const isMonthly = Array.isArray(b.months) && b.months.length === 12;
             return `<tr style="border-bottom:1px solid #f2f2f2">
-                <td style="padding:8px;font-family:monospace;color:#888">${a.code}</td>
-                <td style="padding:8px">${a.nameAr || ''}</td>
+                <td style="padding:8px;font-family:monospace;color:#888">${esc(a.code)}</td>
+                <td style="padding:8px">${esc(a.nameAr || '')}</td>
                 <td style="padding:8px;text-align:left"><input type="number" step="any" value="${b.annual != null ? b.annual : ''}" ${isMonthly ? 'disabled title="مُوزّعة شهرياً — عدّلها من زر 📅"' : ''} onchange="glbSetAnnual('${a.code}',this.value)" style="width:150px;padding:6px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;font-size:12px;text-align:left;${isMonthly ? 'background:#f4f4f4' : ''}" placeholder="0"></td>
                 <td style="padding:8px;text-align:center"><button onclick="glbOpenMonthly('${a.code}')" style="background:${isMonthly ? '#16527a' : '#eef2f6'};color:${isMonthly ? '#fff' : '#16527a'};border:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:700" title="توزيع شهري مخصّص">📅 ${isMonthly ? 'شهري' : 'سنوي÷12'}</button></td>
             </tr>`;
@@ -28093,8 +28093,8 @@ window.renderGLBudget = function () {
                 const pct = r.bAnnual !== 0 ? Math.round(r.aAnnual / r.bAnnual * 100) : (r.aAnnual ? 999 : 0);
                 const good = fav(type, variance);
                 return `<tr style="border-bottom:1px solid #f2f2f2">
-                    <td style="padding:7px;font-family:monospace;color:#888">${r.a.code}</td>
-                    <td style="padding:7px">${r.a.nameAr || ''}</td>
+                    <td style="padding:7px;font-family:monospace;color:#888">${esc(r.a.code)}</td>
+                    <td style="padding:7px">${esc(r.a.nameAr || '')}</td>
                     <td style="padding:7px;text-align:left">${fmt(r.bAnnual)}</td>
                     <td style="padding:7px;text-align:left">${fmt(r.aYTD)}</td>
                     <td style="padding:7px;text-align:left;font-weight:700">${fmt(r.aAnnual)}</td>
@@ -28311,7 +28311,7 @@ window.renderAccountAnalysis = function () {
             const items = g.items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => {
                 run += naturallyDebit ? (r.debit - r.credit) : (r.credit - r.debit); sd += r.debit; sc += r.credit;
                 return `<tr style="border-bottom:1px solid #f4f4f4;cursor:pointer" onclick="jrnRowMenu('${r.ekey}',event)" title="انقر لعرض القيد والمستند المصدر">
-                    <td style="padding:6px 8px">${r.date}</td><td style="padding:6px 8px;font-family:monospace;color:#2980b9">${r.number}</td>
+                    <td style="padding:6px 8px">${r.date}</td><td style="padding:6px 8px;font-family:monospace;color:#2980b9">${esc(r.number)}</td>
                     <td style="padding:6px 8px">${(r.desc || '').replace(/</g, '&lt;')}</td><td style="padding:6px 8px;font-size:11px;color:#777">${r.cc}</td>
                     <td style="padding:6px 8px;text-align:left;color:#2d6a9f">${r.debit ? fmt(r.debit) : '—'}</td><td style="padding:6px 8px;text-align:left;color:#c0392b">${r.credit ? fmt(r.credit) : '—'}</td>
                     <td style="padding:6px 8px;text-align:left;font-weight:700">${fmt(run)}</td></tr>`;
@@ -28325,8 +28325,8 @@ window.renderAccountAnalysis = function () {
             <tbody>${sections}</tbody></table></div></div>`;
     } else {
         const flat = rows.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.code || '').localeCompare(b.code || '')).map(r => `<tr style="border-bottom:1px solid #f4f4f4;cursor:pointer" onclick="jrnRowMenu('${r.ekey}',event)" title="انقر لعرض القيد والمستند المصدر">
-            <td style="padding:6px 8px">${r.date}</td><td style="padding:6px 8px;font-family:monospace;color:#888">${r.code}</td><td style="padding:6px 8px">${esc(r.name)}</td>
-            <td style="padding:6px 8px;font-family:monospace;color:#2980b9">${r.number}</td><td style="padding:6px 8px;font-size:11px">${(r.desc || '').replace(/</g, '&lt;')}</td>
+            <td style="padding:6px 8px">${r.date}</td><td style="padding:6px 8px;font-family:monospace;color:#888">${esc(r.code)}</td><td style="padding:6px 8px">${esc(r.name)}</td>
+            <td style="padding:6px 8px;font-family:monospace;color:#2980b9">${esc(r.number)}</td><td style="padding:6px 8px;font-size:11px">${(r.desc || '').replace(/</g, '&lt;')}</td>
             <td style="padding:6px 8px;text-align:left;color:#2d6a9f">${r.debit ? fmt(r.debit) : '—'}</td><td style="padding:6px 8px;text-align:left;color:#c0392b">${r.credit ? fmt(r.credit) : '—'}</td></tr>`).join('');
         resultHtml = `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px">
             <thead><tr style="background:#1a3a5c;color:#fff"><th style="padding:8px;text-align:right">التاريخ</th><th style="text-align:right">الكود</th><th style="text-align:right">الحساب</th><th style="text-align:right">القيد</th><th style="text-align:right">البيان</th><th style="text-align:left">مدين</th><th style="text-align:left">دائن</th></tr></thead>
@@ -28367,7 +28367,7 @@ console.log('✅ Account Analysis [ACC-AA] loaded');
 window._prState = window._prState || { dueBy: '', vendorId: '', cashAccountCode: '', date: new Date().toISOString().slice(0, 10), method: 'transfer', selected: {} };
 function prInvRemaining(inv) { return Math.round(((parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0) - (parseFloat(inv.debitedAmount) || 0)) * 100) / 100; }
 function prCashAccounts() { return Object.values(window.chartOfAccounts || {}).filter(a => a.code && a.nature === 'detail' && (String(a.code).startsWith('111') || String(a.code).startsWith('112'))).sort((a, b) => (a.code || '').localeCompare(b.code || '')); }
-function prCashName(code) { const a = prCashAccounts().find(x => x.code === code); return a ? `${a.code} — ${a.nameAr}` : '—'; }
+function prCashName(code) { const a = prCashAccounts().find(x => x.code === code); return a ? `${esc(a.code)} — ${esc(a.nameAr)}` : '—'; }
 function prPayables() {
     const st = window._prState;
     return Object.entries(window.purchaseInvoices || {}).map(([k, inv]) => ({ k, inv, rem: prInvRemaining(inv) }))
@@ -28396,8 +28396,8 @@ window.renderPaymentRun = function () {
         const v = vendors[x.inv.vendorId]; const overdue = x.inv.dueDate && x.inv.dueDate < today;
         return `<tr style="border-bottom:1px solid #f2f2f2;background:${st.selected[x.k] ? '#eefaf1' : (overdue ? '#fff7f5' : '#fff')}">
             <td style="padding:7px;text-align:center"><input type="checkbox" ${st.selected[x.k] ? 'checked' : ''} onchange="prToggle('${x.k}',this.checked)" style="width:17px;height:17px;cursor:pointer;accent-color:#16a085"></td>
-            <td style="padding:7px;font-family:monospace;font-weight:700;color:#1a3a5c">${x.inv.number || '—'}</td>
-            <td style="padding:7px">${v?.nameAr || '—'}</td>
+            <td style="padding:7px;font-family:monospace;font-weight:700;color:#1a3a5c">${esc(x.inv.number || '—')}</td>
+            <td style="padding:7px">${esc(v?.nameAr || '—')}</td>
             <td style="padding:7px">${x.inv.date || '—'}</td>
             <td style="padding:7px;color:${overdue ? '#c0392b' : '#666'};font-weight:${overdue ? '700' : '400'}">${x.inv.dueDate || '—'}${overdue ? ' ⚠️' : ''}</td>
             <td style="padding:7px;text-align:left">${fmt(x.inv.grandTotal)}</td>
@@ -28412,7 +28412,7 @@ window.renderPaymentRun = function () {
     </div>
     <div class="card" style="padding:14px 16px;margin-bottom:14px">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end">
-            <div><label style="font-size:11px;color:#666;font-weight:700">💰 حساب الصرف (صندوق/بنك)</label><select onchange="prSet('cashAccountCode',this.value)" style="${inS};width:100%;display:block;margin-top:3px"><option value="">— اختر —</option>${cashAccts.map(a => `<option value="${a.code}" ${st.cashAccountCode === a.code ? 'selected' : ''}>${a.code} — ${a.nameAr}</option>`).join('')}</select></div>
+            <div><label style="font-size:11px;color:#666;font-weight:700">💰 حساب الصرف (صندوق/بنك)</label><select onchange="prSet('cashAccountCode',this.value)" style="${inS};width:100%;display:block;margin-top:3px"><option value="">— اختر —</option>${cashAccts.map(a => `<option value="${esc(a.code)}" ${st.cashAccountCode === a.code ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('')}</select></div>
             <div><label style="font-size:11px;color:#666;font-weight:700">📅 تاريخ الدفع</label><input type="date" value="${st.date}" onchange="prSet('date',this.value)" style="${inS};width:100%;display:block;margin-top:3px"></div>
             <div><label style="font-size:11px;color:#666;font-weight:700">طريقة الدفع</label><select onchange="prSet('method',this.value)" style="${inS};width:100%;display:block;margin-top:3px"><option value="transfer" ${st.method === 'transfer' ? 'selected' : ''}>تحويل بنكي</option><option value="cash" ${st.method === 'cash' ? 'selected' : ''}>نقدي</option><option value="cheque" ${st.method === 'cheque' ? 'selected' : ''}>شيك</option></select></div>
             <div><label style="font-size:11px;color:#666;font-weight:700">🏭 المورد</label><select onchange="prSet('vendorId',this.value)" style="${inS};width:100%;display:block;margin-top:3px"><option value="">كل الموردين</option>${Object.entries(vendors).sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '')).map(([k, v]) => `<option value="${k}" ${st.vendorId === k ? 'selected' : ''}>${v.nameAr || k}</option>`).join('')}</select></div>
@@ -28860,7 +28860,7 @@ window.renderYearClosing = function () {
                 <tbody>`;
         revExpToClose.forEach(b => {
             const isRevenue = b.account.type === 'revenue';
-            html += `<tr><td style="text-align:right">${b.account.code} - ${b.account.nameAr}</td>
+            html += `<tr><td style="text-align:right">${esc(b.account.code)} - ${esc(b.account.nameAr)}</td>
                 <td>${isRevenue ? fmt(b.naturalMovement) : ''}</td>
                 <td>${!isRevenue ? fmt(b.naturalMovement) : ''}</td></tr>`;
         });
@@ -28882,7 +28882,7 @@ window.renderYearClosing = function () {
             let amt = b.naturalClosing;
             if (b.account.code === YEC_RETAINED_EARNINGS_ACC) amt += income.netIncome;
             const debitSide = amt >= 0 ? isDebitNature : !isDebitNature;
-            html += `<tr><td style="text-align:right">${b.account.code} - ${b.account.nameAr}</td>
+            html += `<tr><td style="text-align:right">${esc(b.account.code)} - ${esc(b.account.nameAr)}</td>
                 <td>${debitSide ? fmt(Math.abs(amt)) : ''}</td>
                 <td>${!debitSide ? fmt(Math.abs(amt)) : ''}</td></tr>`;
         });
@@ -28948,7 +28948,7 @@ window.yecRunClosing = async function (year) {
         const closingLines = revExpToClose.map(b => ({
             accountCode: b.account.code,
             accountName: b.account.nameAr,
-            description: `إقفال حساب ${b.account.nameAr} لسنة ${year}`,
+            description: `إقفال حساب ${esc(b.account.nameAr)} لسنة ${year}`,
             date: '', costCenter: '', projectId: '',
             debit: b.account.type === 'revenue' ? b.naturalMovement : 0,
             credit: b.account.type === 'expense' ? b.naturalMovement : 0
@@ -29627,8 +29627,8 @@ function renderStockCountReport(container) {
                             const counted = stockCountState.counts[r.key];
                             const diff = counted === undefined || counted === '' ? null : (parseFloat(counted) - r.bal.balance);
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${r.it.code || '—'}</td>
-                                <td style="padding:8px;font-weight:600">${r.it.nameAr || '—'}</td>
+                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(r.it.code || '—')}</td>
+                                <td style="padding:8px;font-weight:600">${esc(r.it.nameAr || '—')}</td>
                                 <td style="padding:8px;text-align:center;font-size:11px">${INV_UNITS[r.it.unit] || r.it.unit || ''}</td>
                                 <td style="padding:8px;text-align:center;font-weight:700">${fmt(r.bal.balance)}</td>
                                 <td style="padding:8px;text-align:center">
@@ -29793,8 +29793,8 @@ function renderInvAgingReport(container) {
                             const b = bucket(r.days);
                             const val = r.bal.balance * (parseFloat(r.it.costPrice) || 0);
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${r.it.code || '—'}</td>
-                                <td style="padding:8px;font-weight:600">${r.it.nameAr || '—'}</td>
+                                <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(r.it.code || '—')}</td>
+                                <td style="padding:8px;font-weight:600">${esc(r.it.nameAr || '—')}</td>
                                 <td style="padding:8px;text-align:center;font-weight:700">${fmt(r.bal.balance)}</td>
                                 <td style="padding:8px;text-align:center;color:#e67e22;font-weight:700">${fmt(val)}</td>
                                 <td style="padding:8px;text-align:center;font-size:11px">${r.lastMove ? r.lastMove.toISOString().slice(0, 10) : '—'}</td>
@@ -29852,9 +29852,9 @@ window.printInvMovementVoucher = function (key) {
     <h1>${title}</h1>
     <div style="text-align:center;font-size:12px;margin:10px 0">📅 ${new Date().toLocaleDateString('ar-SA')}</div>
     <table>
-        <tr><td>رقم السند</td><td>${m.number || '—'}</td></tr>
+        <tr><td>رقم السند</td><td>${esc(m.number || '—')}</td></tr>
         <tr><td>التاريخ</td><td>${m.date || '—'}</td></tr>
-        <tr><td>الصنف</td><td>${item.nameAr || '—'} (${item.code || ''})</td></tr>
+        <tr><td>الصنف</td><td>${esc(item.nameAr || '—')} (${esc(item.code || '')})</td></tr>
         <tr><td>الكمية</td><td>${fmt(m.qty || 0)} ${INV_UNITS[item.unit] || ''}</td></tr>
         ${otherWhRow || `<tr><td>المخزن</td><td>${whLabel}</td></tr>`}
         <tr><td>السبب</td><td>${reasonLabel}</td></tr>
@@ -29964,7 +29964,7 @@ function renderInvDashboardReport(container) {
                 <table style="width:100%;border-collapse:collapse;font-size:12px">
                     <thead style="background:#34495e;color:white"><tr><th style="padding:8px;text-align:right">الصنف</th><th style="padding:8px;text-align:center">الكمية المستهلكة</th></tr></thead>
                     <tbody>${topConsumed.map((r, i) => `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                        <td style="padding:8px">${r.it.nameAr || '—'}</td>
+                        <td style="padding:8px">${esc(r.it.nameAr || '—')}</td>
                         <td style="padding:8px;text-align:center;font-weight:700;color:#c0392b">${fmt(r.qty)} ${INV_UNITS[r.it.unit] || ''}</td>
                     </tr>`).join('')}</tbody>
                 </table>`}
@@ -29978,7 +29978,7 @@ function renderInvDashboardReport(container) {
                 <tbody>${expiryAlerts.map((r, i) => {
                     const expired = new Date(r.m.expiryDate) < new Date();
                     return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                        <td style="padding:8px">${r.it.nameAr || '—'}</td>
+                        <td style="padding:8px">${esc(r.it.nameAr || '—')}</td>
                         <td style="padding:8px;text-align:center;font-family:monospace">${r.m.batchNo || '—'}</td>
                         <td style="padding:8px;text-align:center;font-weight:700;color:${expired ? '#c0392b' : '#e67e22'}">${expired ? '🔴' : '🟠'} ${r.m.expiryDate}</td>
                     </tr>`;
@@ -30952,7 +30952,7 @@ function renderFSTbRecognition(tbAccounts) {
 
     const rows = tbAccounts.map(a => `
         <tr style="${a.summable ? '' : 'opacity:.5'}">
-            <td style="padding:6px 8px;font-family:monospace;font-size:11px">${a.code}</td>
+            <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(a.code)}</td>
             <td style="padding:6px 8px;font-size:12px">${esc(a.name || '—')}</td>
             <td style="padding:6px 8px"><span style="background:${typeColor[a.type]};color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px">${FS_TB_TYPE_AR[a.type]}</span></td>
             <td style="padding:6px 8px;font-size:11px;color:#555">${a.bucketLabel}</td>
@@ -31534,8 +31534,8 @@ window.renderTreasuryWidget = function () {
     const canView = (window.myP && (window.myP.role === 'admin' || window.myP.role === 'finance_manager')) || (typeof can === 'function' && can('view_accounting'));
     const tre = window._tre || {};
     const alerts = [];
-    Object.values(tre.guarantees || {}).forEach(i => { const d = treDaysTo(i.expiryDate); if (i.status === 'ساري' && d != null && d <= 30) alerts.push({ icon: '🛡️', label: `خطاب ضمان ${i.number || ''} ${i.type ? '(' + i.type + ')' : ''}`, days: d, date: i.expiryDate, amount: i.amount }); });
-    Object.values(tre.cheques || {}).forEach(i => { const d = treDaysTo(i.dueDate); if (['تحت التحصيل', 'مودع'].includes(i.status) && d != null && d <= 7) alerts.push({ icon: '🧾', label: `شيك ${i.number || ''}`, days: d, date: i.dueDate, amount: i.amount }); });
+    Object.values(tre.guarantees || {}).forEach(i => { const d = treDaysTo(i.expiryDate); if (i.status === 'ساري' && d != null && d <= 30) alerts.push({ icon: '🛡️', label: `خطاب ضمان ${esc(i.number || '')} ${i.type ? '(' + i.type + ')' : ''}`, days: d, date: i.expiryDate, amount: i.amount }); });
+    Object.values(tre.cheques || {}).forEach(i => { const d = treDaysTo(i.dueDate); if (['تحت التحصيل', 'مودع'].includes(i.status) && d != null && d <= 7) alerts.push({ icon: '🧾', label: `شيك ${esc(i.number || '')}`, days: d, date: i.dueDate, amount: i.amount }); });
     Object.values(tre.retentions || {}).forEach(i => { const d = treDaysTo(i.releaseDate); if (i.status !== 'مُفرج عنه' && d != null && d <= 30) alerts.push({ icon: '🔒', label: `محتجز ${i.party || ''}`, days: d, date: i.releaseDate, amount: i.amount }); });
     if (!canView || !alerts.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
     el.style.display = '';
@@ -31952,7 +31952,7 @@ function pinvOcrShowResult() {
                 <table style="width:100%;border-collapse:collapse;font-size:11px">
                     <thead><tr style="background:#ecf3fb;color:#1a3a5c"><th style="padding:5px">الصنف</th><th style="padding:5px">الوصف</th><th style="padding:5px">الوحدة</th><th style="padding:5px">الكمية</th><th style="padding:5px">سعر الوحدة</th><th style="padding:5px">الخاضع للضريبة</th><th style="padding:5px">الضريبة</th><th style="padding:5px">المجموع</th></tr></thead>
                     <tbody>${items.map(l => `<tr style="border-bottom:1px solid #f3f3f3">
-                        <td style="padding:5px;font-family:monospace">${l.code || ''}</td>
+                        <td style="padding:5px;font-family:monospace">${esc(l.code || '')}</td>
                         <td style="padding:5px">${esc(l.description || '')}</td>
                         <td style="padding:5px;text-align:center">${l.unit || ''}</td>
                         <td style="padding:5px;text-align:center">${l.qty != null ? fmt(l.qty) : ''}</td>

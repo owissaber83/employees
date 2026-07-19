@@ -1965,7 +1965,7 @@ window.globalSearch = function (q) {
 
     Object.entries(window.chartOfAccounts || {}).forEach(([id, a]) => {
         if ((a.code || '').toLowerCase().includes(q) || (a.nameAr || '').toLowerCase().includes(q) || (a.nameEn || '').toLowerCase().includes(q))
-            push('📒', `${a.code} — ${a.nameAr || ''}`, 'حساب', `window._coaView='balances';window._coaBalState=window._coaBalState||{};window._coaBalState.tab='stmt';window._coaBalState.opAccount='${a.code}';nav('chartofaccounts')`);
+            push('📒', `${esc(a.code)} — ${esc(a.nameAr || '')}`, 'حساب', `window._coaView='balances';window._coaBalState=window._coaBalState||{};window._coaBalState.tab='stmt';window._coaBalState.opAccount='${esc(a.code)}';nav('chartofaccounts')`);
     });
 
     Object.entries(window.journalEntries || {}).forEach(([key, e]) => {
@@ -2181,7 +2181,7 @@ window.renderApprovalsInbox = function () {
         Object.entries(window.matRequests || {}).filter(([, r]) => r.status === 'submitted').forEach(([rk, r]) => {
             const isFinal = (r.estTotal || 0) <= (r.approvalLimits?.projectManager || 5000);
             cards.push({
-                icon: '📨', color: '#e67e22', title: `طلب مواد ${r.reqNumber || ''} — ${r.projectName || ''}`,
+                icon: '📨', color: '#e67e22', title: `طلب مواد ${r.reqNumber || ''} — ${esc(r.projectName || '')}`,
                 sub: `${(r.items ? Object.keys(r.items).length : 1)} مادة بقيمة ${fmt(r.estTotal || 0)} ر — بانتظار ${isFinal ? 'الاعتماد النهائي' : 'تحويل للمشتريات'}`,
                 actions: isFinal
                     ? [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="openMatReqAction('${rk}','approve_pm')">✅ اعتماد نهائي</button>`,
@@ -2204,7 +2204,7 @@ window.renderApprovalsInbox = function () {
         }).forEach(([pk, po]) => {
             cards.push({
                 icon: '📄', color: '#2d6a9f', title: `أمر شراء ${po.poNumber || ''} — ${esc(po.supplierName || '')}`,
-                sub: `${po.materialName || ''} — بقيمة ${fmt(po.grandTotal || 0)} ر — للمشروع: ${po.projectName || '-'}`,
+                sub: `${esc(po.materialName || '')} — بقيمة ${fmt(po.grandTotal || 0)} ر — للمشروع: ${esc(po.projectName || '-')}`,
                 actions: [`<button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="nav('purchaseorders', document.getElementById('n-po'));openPODetail('${pk}')">📄 مراجعة واعتماد</button>`],
                 view: () => nav('purchaseorders', document.getElementById('n-po'))
             });
@@ -2253,7 +2253,7 @@ window.renderApprovalsInbox = function () {
     if (isAdmin || isFinanceMgr || can('post_journal_entry')) {
         Object.entries(window.journalEntries || {}).filter(([, e]) => (e.status || 'draft') === 'draft').forEach(([jk, e]) => {
             cards.push({
-                icon: '📒', color: '#1a3a5c', title: `قيد ${e.number || ''} — ${esc(e.description || '')}`,
+                icon: '📒', color: '#1a3a5c', title: `قيد ${esc(e.number || '')} — ${esc(e.description || '')}`,
                 sub: `بتاريخ ${e.date || '-'} — بانتظار الترحيل`,
                 actions: [`<button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="nav('journalentries', document.getElementById('n-jrn'))">📒 مراجعة وترحيل</button>`],
                 view: () => nav('journalentries', document.getElementById('n-jrn'))
@@ -3909,7 +3909,7 @@ window.renderCustStatement = function () {
                 date: inv.date,
                 type: inv.billingKey ? 'billing-invoice' : 'invoice',
                 ref: inv.number,
-                desc: inv.subject || `فاتورة ${inv.number}`,
+                desc: inv.subject || `فاتورة ${esc(inv.number)}`,
                 debit: parseFloat(inv.grandTotal) || 0, credit: 0, key: k,
                 billingKey: inv.billingKey || null
             })),
@@ -3961,8 +3961,8 @@ window.renderCustStatement = function () {
             <!-- رأس العميل -->
             <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <div>
-                    <div style="font-size:14px;font-weight:800">🤝 ${c.nameAr || '—'}</div>
-                    <div style="font-size:11px;opacity:.8;margin-top:2px">${c.code || ''} ${c.phone ? '· ' + c.phone : ''} ${c.vatNumber ? '· ضريبي: ' + c.vatNumber : ''}</div>
+                    <div style="font-size:14px;font-weight:800">🤝 ${esc(c.nameAr || '—')}</div>
+                    <div style="font-size:11px;opacity:.8;margin-top:2px">${esc(c.code || '')} ${c.phone ? '· ' + c.phone : ''} ${c.vatNumber ? '· ضريبي: ' + c.vatNumber : ''}</div>
                 </div>
                 <div style="display:flex;gap:12px;text-align:center">
                     <div><div style="font-size:10px;opacity:.75">رصيد افتتاحي</div><div style="font-weight:800">${fmt(openingBalance)}</div></div>
@@ -4043,7 +4043,7 @@ window.renderCustStatement = function () {
             <div><label style="font-size:11px;font-weight:700;color:#555;display:block;margin-bottom:4px">🤝 العميل</label>
                 <select id="cst-cust" onchange="window._cstState.custId=this.value;renderCustStatement()" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;font-family:inherit">
                     <option value="">-- كل العملاء --</option>
-                    ${custList.map(([k, c]) => `<option value="${k}" ${k === custId ? 'selected' : ''}>${c.nameAr}</option>`).join('')}
+                    ${custList.map(([k, c]) => `<option value="${k}" ${k === custId ? 'selected' : ''}>${esc(c.nameAr)}</option>`).join('')}
                 </select>
             </div>
             <div><label style="font-size:11px;font-weight:700;color:#555;display:block;margin-bottom:4px">📅 من تاريخ</label>
@@ -4116,7 +4116,7 @@ window.printCustStatement = function () {
         if (!invEntries.length && !rcptEntries.length && !carriedForward) return;
 
         const allEntries = [
-            ...invEntries.map(([k, inv]) => ({ date:inv.date, ref:inv.number, desc:inv.subject||`فاتورة ${inv.number}`, debit:parseFloat(inv.grandTotal)||0, credit:0 })),
+            ...invEntries.map(([k, inv]) => ({ date:inv.date, ref:inv.number, desc:inv.subject||`فاتورة ${esc(inv.number)}`, debit:parseFloat(inv.grandTotal)||0, credit:0 })),
             ...rcptEntries.map(([k, r]) => ({ date:r.date, ref:r.number||r.receiptNumber||'', desc:r.description||'سند قبض', debit:0, credit:parseFloat(r.amount)||0 }))
         ].sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
@@ -5154,7 +5154,7 @@ window.genPDF = async function () {
 
             // معلومات المورد
             const supDetails = [];
-            if (s.account) supDetails.push(`رقم الحساب: ${s.account}`);
+            if (s.account) supDetails.push(`رقم الحساب: ${esc(s.account)}`);
             if (s.supId) supDetails.push(`رقم التعريف: ${s.supId}`);
             supDetails.push(`الفترة: ${fF} → ${fT}`);
             supDetails.push(`المرجع: ${rf}`);
@@ -7357,7 +7357,7 @@ function getPRExistingStatus(empKey, month) {
         if (inItems) {
             result.hasPayroll = true;
             result.payrollKey = pKey;
-            const scopeLabel = p.scope === 'project' ? `📁 ${p.projectName || ''}` :
+            const scopeLabel = p.scope === 'project' ? `📁 ${esc(p.projectName || '')}` :
                                p.scope === 'dept' ? `🏢 ${p.dept || ''}` :
                                '👥 شامل';
             result.payrollLabel = `${scopeLabel}${p.scopeLabel || ''}`;
@@ -8302,7 +8302,7 @@ window.advancePayroll = async function (key, newStatus) {
                     const updatedPayroll = { ...p, ...upd };
                     const result = await createJournalForPayroll(key, updatedPayroll);
                     if (result) {
-                        let msg = `✅ تم اعتماد المسير + إنشاء قيد محاسبي (${result.number})`;
+                        let msg = `✅ تم اعتماد المسير + إنشاء قيد محاسبي (${esc(result.number)})`;
                         if (loanResult.updated > 0) {
                             msg += ` + سداد ${loanResult.updated} قسط سلفة`;
                             const settledLoans = loanResult.details.filter(d => d.allPaid).length;
@@ -13223,7 +13223,7 @@ window.renderMatRequests = function () {
         } else if (r.materialName) {
             // البنية القديمة
             itemsHtml = `<div style="background:#f8fafc;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#444">
-                📦 <strong>${r.materialName}</strong> — <strong>${r.qty}</strong> ${r.unit||''} × ${fmt(r.estPrice||0)} = <strong style="color:#27ae60">${fmt(r.estTotal||0)} ر</strong>
+                📦 <strong>${esc(r.materialName)}</strong> — <strong>${r.qty}</strong> ${r.unit||''} × ${fmt(r.estPrice||0)} = <strong style="color:#27ae60">${fmt(r.estTotal||0)} ر</strong>
             </div>`;
         }
 
@@ -13348,10 +13348,10 @@ window.openMatReqAction = function (rk, action) {
             </table>
         </div>`;
     } else if (r.materialName) {
-        itemsHtml = `<div style="font-size:11px;color:#444;margin-top:5px">📦 ${r.materialName} — ${r.qty} ${r.unit||''}</div>`;
+        itemsHtml = `<div style="font-size:11px;color:#444;margin-top:5px">📦 ${esc(r.materialName)} — ${r.qty} ${r.unit||''}</div>`;
     }
 
-    $('mraInfo').innerHTML = `<strong>${r.reqNumber}</strong> — قيمة تقديرية: <strong style="color:#27ae60">${fmt(r.estTotal)} ر</strong><br>📁 ${r.projectName} · 👤 ${r.requestedByName}${itemsHtml}`;
+    $('mraInfo').innerHTML = `<strong>${r.reqNumber}</strong> — قيمة تقديرية: <strong style="color:#27ae60">${fmt(r.estTotal)} ر</strong><br>📁 ${esc(r.projectName)} · 👤 ${r.requestedByName}${itemsHtml}`;
     $('mraApproveFields').style.display = 'none';
     $('mraRejectFields').style.display = 'none';
     $('mraForwardFields').style.display = 'none';
@@ -13546,7 +13546,7 @@ window.openPurchaseOrderPrint = function (rk) {
             <div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:10px;border-bottom:2px solid #e0e8f0;padding-bottom:6px">📁 معلومات المشروع</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;font-size:12px;color:#444">
                 <div><strong style="color:#666">المشروع:</strong> ${project.name || r.projectName || '-'}</div>
-                ${project.code ? `<div><strong style="color:#666">كود المشروع:</strong> ${project.code}</div>` : ''}
+                ${project.code ? `<div><strong style="color:#666">كود المشروع:</strong> ${esc(project.code)}</div>` : ''}
                 ${project.ownerName ? `<div><strong style="color:#666">المالك:</strong> ${project.ownerName}</div>` : ''}
                 ${project.city ? `<div><strong style="color:#666">الموقع:</strong> ${project.city}${project.area?' / '+project.area:''}</div>` : ''}
                 ${project.contractNo ? `<div><strong style="color:#666">رقم العقد:</strong> ${project.contractNo}</div>` : ''}
@@ -13876,8 +13876,8 @@ window.renderQuotations = function () {
             return `<div style="background:#f8fafc;border:1.5px solid #d5f5e3;border-radius:8px;padding:10px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                     <div style="flex:1">
-                        <div style="font-size:12px;font-weight:700;color:#1a3a5c">${r.reqNumber} — ${r.materialName}</div>
-                        <div style="font-size:11px;color:#666">📁 ${r.projectName} · ${reqQts.length} عرض${selected?` · 🏆 ${esc(selected[1].supplierName)} (${fmt(selected[1].grandTotal)})`:''}</div>
+                        <div style="font-size:12px;font-weight:700;color:#1a3a5c">${r.reqNumber} — ${esc(r.materialName)}</div>
+                        <div style="font-size:11px;color:#666">📁 ${esc(r.projectName)} · ${reqQts.length} عرض${selected?` · 🏆 ${esc(selected[1].supplierName)} (${fmt(selected[1].grandTotal)})`:''}</div>
                     </div>
                     <button class="btn b-b" style="padding:4px 10px;font-size:10px" onclick="openQuotationM('${rk}')">👁️ عرض</button>
                 </div>
@@ -14276,7 +14276,7 @@ window.createPOFromRequest = async function (reqKey) {
             await set(ref(db, `ledger/materialRequests/${reqKey}/history`), reqHistory);
 
             toast(`✅ تم إنشاء ${poNumber} — بانتظار الاعتماد`, 'ok', 5000);
-            if (typeof logAudit === 'function') logAudit('إنشاء', 'أوامر الشراء', `${poNumber} — ${esc(q.supplierName || '-')} — ${r.projectName || ''} — بقيمة ${fmt(q.grandTotal)} ر`);
+            if (typeof logAudit === 'function') logAudit('إنشاء', 'أوامر الشراء', `${poNumber} — ${esc(q.supplierName || '-')} — ${esc(r.projectName || '')} — بقيمة ${fmt(q.grandTotal)} ر`);
             nav('purchaseorders');
         } catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
@@ -14335,10 +14335,10 @@ window.renderPurchaseOrders = function () {
                         ${po.status === 'pending_approval' ? `<span style="background:#fef9e7;color:#7d4e00;padding:2px 8px;border-radius:8px;font-size:10px">⏳ اعتماد: ${approverLabels[po.requiredApprover]||'-'}</span>` : ''}
                     </div>
                     <div style="font-size:12px;color:#555;margin-bottom:4px">
-                        <strong>${po.materialName}</strong>${po.qty?` · ${po.qty} ${po.unit||''}`:''}
+                        <strong>${esc(po.materialName)}</strong>${po.qty?` · ${po.qty} ${po.unit||''}`:''}
                     </div>
                     <div style="font-size:11px;color:#666">
-                        🏭 ${esc(po.supplierName)} · 📁 ${po.projectName} · 👤 ${po.createdByName}
+                        🏭 ${esc(po.supplierName)} · 📁 ${esc(po.projectName)} · 👤 ${po.createdByName}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
                         📅 ${new Date(po.createdAt).toLocaleDateString('ar-SA')}${po.deliveryDays?` · 🚚 تسليم ${po.deliveryDays} يوم`:''}
@@ -14398,7 +14398,7 @@ window.openPODetail = function (pk) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
             <div style="background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:10px;padding:12px">
                 <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:700">📁 المشروع</div>
-                <div style="font-size:14px;font-weight:700;color:#1a3a5c;margin-bottom:4px">${po.projectName}</div>
+                <div style="font-size:14px;font-weight:700;color:#1a3a5c;margin-bottom:4px">${esc(po.projectName)}</div>
                 ${p?.ownerName ? `<div style="font-size:11px;color:#666">المالك: ${p.ownerName}</div>` : ''}
                 ${p?.city ? `<div style="font-size:11px;color:#666">📍 ${p.city}${p.area?' — '+p.area:''}</div>` : ''}
             </div>
@@ -14422,7 +14422,7 @@ window.openPODetail = function (pk) {
             </thead>
             <tbody>
                 <tr>
-                    <td style="padding:10px;font-weight:700">${po.materialName}</td>
+                    <td style="padding:10px;font-weight:700">${esc(po.materialName)}</td>
                     <td style="padding:10px;text-align:center">${po.qty} ${po.unit||''}</td>
                     <td style="padding:10px;text-align:center">${fmt(po.unitPrice)}</td>
                     <td style="padding:10px;text-align:center;font-weight:700">${fmt(po.subtotal)}</td>
@@ -14507,7 +14507,7 @@ window.printPO = function (pk) {
     <div class="grid section">
         <div class="box">
             <div class="section-tl">📁 المشروع</div>
-            <div class="value">${po.projectName}</div>
+            <div class="value">${esc(po.projectName)}</div>
             ${p.ownerName?`<div style="font-size:11px;color:#666;margin-top:4px">المالك: ${p.ownerName}</div>`:''}
             ${p.city?`<div style="font-size:11px;color:#666">${p.city}${p.area?' — '+p.area:''}</div>`:''}
         </div>
@@ -14524,7 +14524,7 @@ window.printPO = function (pk) {
         <div class="section-tl">🛒 تفاصيل الطلب</div>
         <table>
             <thead><tr><th>المادة</th><th style="text-align:center">الكمية</th><th style="text-align:center">السعر/وحدة</th><th style="text-align:center">الإجمالي</th></tr></thead>
-            <tbody><tr><td>${po.materialName}</td><td style="text-align:center">${po.qty} ${po.unit||''}</td><td style="text-align:center">${fmt(po.unitPrice)}</td><td style="text-align:center">${fmt(po.subtotal)}</td></tr></tbody>
+            <tbody><tr><td>${esc(po.materialName)}</td><td style="text-align:center">${po.qty} ${po.unit||''}</td><td style="text-align:center">${fmt(po.unitPrice)}</td><td style="text-align:center">${fmt(po.subtotal)}</td></tr></tbody>
             <tfoot>
                 <tr><td colspan="3" style="text-align:left">المجموع الفرعي</td><td style="text-align:center">${fmt(po.subtotal)}</td></tr>
                 ${po.discountAmount>0?`<tr><td colspan="3" style="text-align:left">الخصم (${po.discountPct}%)</td><td style="text-align:center">-${fmt(po.discountAmount)}</td></tr>`:''}
@@ -14558,7 +14558,7 @@ window.openPOAction = function (pk, action) {
     $('poaK').value = pk;
     $('poaAction').value = action;
     const status = PO_STATUS[po.status];
-    $('poaInfo').innerHTML = `<strong>${po.poNumber}</strong> — ${po.materialName}<br>🏭 ${esc(po.supplierName)} · 📁 ${po.projectName}<br><span style="color:#27ae60;font-weight:800;font-size:16px">${fmt(po.grandTotal)} ر</span>`;
+    $('poaInfo').innerHTML = `<strong>${po.poNumber}</strong> — ${esc(po.materialName)}<br>🏭 ${esc(po.supplierName)} · 📁 ${esc(po.projectName)}<br><span style="color:#27ae60;font-weight:800;font-size:16px">${fmt(po.grandTotal)} ر</span>`;
     $('poaNote').value = '';
     if (action === 'approve') {
         $('mPOActionT').textContent = '✅ اعتماد أمر الشراء';
@@ -14730,7 +14730,7 @@ window.renderPendingPOsForGRN = function () {
                         ${isPartial ? '<span style="background:#fef9e7;color:#7d4e00;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">استلام جزئي سابق</span>' : ''}
                     </div>
                     <div style="font-size:12px;color:#555;margin-bottom:4px">
-                        <strong>${po.materialName || '-'}</strong> · 🏭 ${esc(po.supplierName || '-')} · 📁 ${po.projectName || '-'}
+                        <strong>${esc(po.materialName || '-')}</strong> · 🏭 ${esc(po.supplierName || '-')} · 📁 ${esc(po.projectName || '-')}
                     </div>
                     <div style="font-size:11px;color:#666">
                         📅 صادر: ${po.sentAt ? new Date(po.sentAt).toLocaleDateString('ar-SA') : '-'} · 🚚 تسليم: ${po.deliveryDays || 0} يوم
@@ -14770,8 +14770,8 @@ window.openGRNFromPO = function (poKey) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
                 <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:4px">📄 أمر شراء ${po.poNumber}</div>
-                <div style="font-size:12px;color:#555">🏭 ${esc(po.supplierName)} · 📁 ${po.projectName}</div>
-                <div style="font-size:12px;color:#555;margin-top:2px"><strong>${po.materialName}</strong></div>
+                <div style="font-size:12px;color:#555">🏭 ${esc(po.supplierName)} · 📁 ${esc(po.projectName)}</div>
+                <div style="font-size:12px;color:#555;margin-top:2px"><strong>${esc(po.materialName)}</strong></div>
             </div>
             <div style="display:flex;gap:10px">
                 <div style="text-align:center;background:white;border-radius:8px;padding:6px 12px;border:1.5px solid #d6bcfa">
@@ -14804,7 +14804,7 @@ window.openGRNFromPO = function (poKey) {
     // Items table - حالياً مادة واحدة لكل PO
     $('grnItemsTable').innerHTML = `
         <tr style="background:white">
-            <td style="padding:10px;font-weight:700">${po.materialName || '-'}</td>
+            <td style="padding:10px;font-weight:700">${esc(po.materialName || '-')}</td>
             <td style="padding:10px;text-align:center">${po.qty || 0} ${po.unit || ''}</td>
             <td style="padding:10px;text-align:center">
                 <input type="number" id="grnItem_received" min="0" max="${remainingQty}" step="0.01" value="${remainingQty}" style="width:100px;padding:6px;border:1.5px solid #27ae60;border-radius:6px;font-size:13px;font-weight:700;text-align:center;background:#e8f5e9" oninput="updateGRNSummary()">
@@ -14987,10 +14987,10 @@ window.renderGRNs = function () {
                         <span style="font-size:14px" title="جودة">${qualityIcons[g.quality] || ''}</span>
                     </div>
                     <div style="font-size:12px;color:#555;margin-bottom:2px">
-                        <strong>${g.materialName}</strong>${g.totalReceivedQty ? ` · ${g.totalReceivedQty} ${g.unit || ''}` : ''}
+                        <strong>${esc(g.materialName)}</strong>${g.totalReceivedQty ? ` · ${g.totalReceivedQty} ${g.unit || ''}` : ''}
                     </div>
                     <div style="font-size:11px;color:#666">
-                        🏭 ${esc(g.supplierName)} · 📁 ${g.projectName} · 👤 ${g.receivedBy || g.createdByName}
+                        🏭 ${esc(g.supplierName)} · 📁 ${esc(g.projectName)} · 👤 ${g.receivedBy || g.createdByName}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
                         📅 ${new Date(g.grnDate).toLocaleDateString('ar-SA')} · 📄 من أمر: ${g.poNumber || '-'}
@@ -15035,7 +15035,7 @@ window.openGRNView = function (gk) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
             <div style="background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:10px;padding:12px">
                 <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:700">📁 المشروع والمورد</div>
-                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${g.projectName}</div>
+                <div style="font-size:13px;font-weight:700;color:#1a3a5c">${esc(g.projectName)}</div>
                 <div style="font-size:12px;color:#666;margin-top:2px">🏭 ${esc(g.supplierName)}</div>
                 <div style="font-size:11px;color:#666;margin-top:2px">📄 من أمر: <strong>${g.poNumber || '-'}</strong></div>
             </div>
@@ -15061,7 +15061,7 @@ window.openGRNView = function (gk) {
             </thead>
             <tbody>
                 <tr>
-                    <td style="padding:10px;font-weight:700">${g.materialName}</td>
+                    <td style="padding:10px;font-weight:700">${esc(g.materialName)}</td>
                     <td style="padding:10px;text-align:center">${g.orderedQty} ${g.unit || ''}</td>
                     <td style="padding:10px;text-align:center;color:#27ae60;font-weight:700">${g.receivedQty} ${g.unit || ''}</td>
                     <td style="padding:10px;text-align:center;color:#c0392b">${g.rejectedQty || 0}</td>
@@ -15136,7 +15136,7 @@ window.printGRN = function (gk) {
     <div class="grid">
         <div class="box">
             <div class="label">📁 المشروع</div>
-            <div class="value">${g.projectName}</div>
+            <div class="value">${esc(g.projectName)}</div>
             ${p.city ? `<div style="font-size:11px;color:#666;margin-top:4px">📍 ${p.city}</div>` : ''}
         </div>
         <div class="box">
@@ -15156,7 +15156,7 @@ window.printGRN = function (gk) {
         <thead><tr><th>المادة</th><th style="text-align:center">المطلوب</th><th style="text-align:center">المستلم</th><th style="text-align:center">المرفوض</th><th style="text-align:center">الصافي</th><th style="text-align:center">القيمة</th></tr></thead>
         <tbody>
             <tr>
-                <td>${g.materialName}</td>
+                <td>${esc(g.materialName)}</td>
                 <td style="text-align:center">${g.orderedQty} ${g.unit || ''}</td>
                 <td style="text-align:center">${g.receivedQty} ${g.unit || ''}</td>
                 <td style="text-align:center">${g.rejectedQty || 0}</td>
@@ -15234,10 +15234,10 @@ window.renderPendingGRNsForInvoice = function () {
                         <span style="background:${status.bg};color:${status.color};padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">${esc(status.label)}</span>
                     </div>
                     <div style="font-size:12px;color:#555">
-                        <strong>${g.materialName}</strong> · 🏭 ${esc(g.supplierName)}
+                        <strong>${esc(g.materialName)}</strong> · 🏭 ${esc(g.supplierName)}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
-                        📅 ${new Date(g.grnDate).toLocaleDateString('ar-SA')} · 📁 ${g.projectName}
+                        📅 ${new Date(g.grnDate).toLocaleDateString('ar-SA')} · 📁 ${esc(g.projectName)}
                     </div>
                 </div>
                 <div style="text-align:center;background:#f8fafc;border-radius:8px;padding:6px 12px;min-width:120px">
@@ -15266,8 +15266,8 @@ window.openInvoiceFromGRN = function (grnKey) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
                 <div style="font-size:14px;font-weight:800;color:#1a3a5c;margin-bottom:4px">📥 ${g.grnNumber} ← 📄 ${g.poNumber || ''}</div>
-                <div style="font-size:12px;color:#555">${g.materialName} · ${g.totalReceivedQty} ${g.unit || ''}</div>
-                <div style="font-size:11px;color:#666">🏭 ${esc(g.supplierName)} · 📁 ${g.projectName}</div>
+                <div style="font-size:12px;color:#555">${esc(g.materialName)} · ${g.totalReceivedQty} ${g.unit || ''}</div>
+                <div style="font-size:11px;color:#666">🏭 ${esc(g.supplierName)} · 📁 ${esc(g.projectName)}</div>
             </div>
             <div style="text-align:center;background:white;border-radius:8px;padding:8px 14px;border:1.5px solid #abebc6">
                 <div style="font-size:10px;color:#888">القيمة المتوقعة</div>
@@ -15498,10 +15498,10 @@ window.renderInvoices = function () {
                     </div>
                     <div style="font-size:11px;color:#666;margin-bottom:2px">داخلي: ${inv.internalNumber}</div>
                     <div style="font-size:12px;color:#555">
-                        <strong>${inv.materialName}</strong> · 🏭 ${esc(inv.supplierName)}
+                        <strong>${esc(inv.materialName)}</strong> · 🏭 ${esc(inv.supplierName)}
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:2px">
-                        📅 ${new Date(inv.invoiceDate).toLocaleDateString('ar-SA')} · 📁 ${inv.projectName}${dueDate ? ' · ⏰ يستحق: ' + dueDate.toLocaleDateString('ar-SA') : ''}
+                        📅 ${new Date(inv.invoiceDate).toLocaleDateString('ar-SA')} · 📁 ${esc(inv.projectName)}${dueDate ? ' · ⏰ يستحق: ' + dueDate.toLocaleDateString('ar-SA') : ''}
                     </div>
                 </div>
                 <div style="text-align:center;background:#f8fafc;border-radius:8px;padding:6px 12px;min-width:130px">
@@ -15554,7 +15554,7 @@ window.openInvoiceView = function (ik) {
                 <div style="font-size:11px;color:#7d4e00;margin-bottom:6px;font-weight:700">📋 المراجع</div>
                 <div style="font-size:11px;color:#444">📥 من استلام: <strong>${inv.grnNumber}</strong></div>
                 <div style="font-size:11px;color:#444">📄 لأمر شراء: <strong>${inv.poNumber || '-'}</strong></div>
-                <div style="font-size:11px;color:#444">📁 ${inv.projectName}</div>
+                <div style="font-size:11px;color:#444">📁 ${esc(inv.projectName)}</div>
                 ${inv.dueDate ? `<div style="font-size:11px;color:#444;margin-top:2px">⏰ استحقاق: ${new Date(inv.dueDate).toLocaleDateString('ar-SA')}</div>` : ''}
             </div>
         </div>
@@ -15571,7 +15571,7 @@ window.openInvoiceView = function (ik) {
             </thead>
             <tbody>
                 <tr>
-                    <td style="padding:10px;font-weight:700">${inv.materialName}</td>
+                    <td style="padding:10px;font-weight:700">${esc(inv.materialName)}</td>
                     <td style="padding:10px;text-align:center">${inv.qty} ${inv.unit || ''}</td>
                     <td style="padding:10px;text-align:center">${fmt(inv.subtotal)}</td>
                     <td style="padding:10px;text-align:center">${fmt(inv.vatAmount)}</td>
@@ -15653,7 +15653,7 @@ window.printInvoice = function (ik) {
             <div class="label">📋 المراجع</div>
             <div style="font-size:12px">📥 سند استلام: ${inv.grnNumber}</div>
             <div style="font-size:12px">📄 أمر شراء: ${inv.poNumber || '-'}</div>
-            <div style="font-size:12px">📁 ${inv.projectName}</div>
+            <div style="font-size:12px">📁 ${esc(inv.projectName)}</div>
         </div>
     </div>
 
@@ -15661,7 +15661,7 @@ window.printInvoice = function (ik) {
         <thead><tr><th>المادة</th><th style="text-align:center">الكمية</th><th style="text-align:center">المجموع الفرعي</th></tr></thead>
         <tbody>
             <tr>
-                <td>${inv.materialName}</td>
+                <td>${esc(inv.materialName)}</td>
                 <td style="text-align:center">${inv.qty} ${inv.unit || ''}</td>
                 <td style="text-align:center">${fmt(inv.subtotal)}</td>
             </tr>
@@ -23002,7 +23002,7 @@ window.renderDeferredReport = function () {
                                 : d.dept ? `<span style="background:#e8f4fd;color:#1a5276;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600">🏢 ${d.dept}</span>`
                                 : '<span style="color:#888">—</span>';
                             const sourceP = d.sourcePayroll;
-                            const sourceLabel = sourceP.scope === 'project' && sourceP.projectName ? `📁 ${sourceP.projectName}` :
+                            const sourceLabel = sourceP.scope === 'project' && sourceP.projectName ? `📁 ${esc(sourceP.projectName)}` :
                                                 sourceP.scope === 'dept' && sourceP.dept ? `🏢 ${sourceP.dept}` :
                                                 '👥 شامل';
                             const inactive = d.empStatus !== 'active';
@@ -23234,11 +23234,11 @@ window.renderProjectsAccountingTab = function () {
 
     const buildOpts = (arr, selected) => {
         return '<option value="">-- استخدم الافتراضي --</option>' +
-            arr.map(a => `<option value="${a.code}" ${a.code === selected ? 'selected' : ''}>${a.code} — ${a.nameAr}</option>`).join('');
+            arr.map(a => `<option value="${esc(a.code)}" ${a.code === selected ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('');
     };
     const buildOptsAll = selected => {
         return '<option value="">-- استخدم الافتراضي --</option>' +
-            accounts.map(a => `<option value="${a.code}" ${a.code === selected ? 'selected' : ''}>${a.code} — ${a.nameAr} <span style="font-size:9px">(${a.type})</span></option>`).join('');
+            accounts.map(a => `<option value="${esc(a.code)}" ${a.code === selected ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr)} <span style="font-size:9px">(${a.type})</span></option>`).join('');
     };
 
     container.innerHTML = `
@@ -23392,7 +23392,7 @@ function buildInvoiceLinesFromBilling(b) {
         }));
     }
     return [{
-        description: `أعمال مستخلص ${b.billingNo || ''} — ${b.projectName || ''}`,
+        description: `أعمال مستخلص ${esc(b.billingNo || '')} — ${esc(b.projectName || '')}`,
         qty: 1, unit: 'مستخلص',
         unitPrice: parseFloat(b.currentAmount) || 0,
         vatRate: parseFloat(b.vatPct) || 0,
@@ -23447,7 +23447,7 @@ window.convertBillingToInvoice = async function (billingKey) {
         clientVATNumber: customerData.vatNumber || proj.clientVATNumber || '',
         projectId: b.projectId,
         reference: b.billingNo || '',
-        subject: `مستخلص ${b.billingNo || ''} — ${b.projectName || proj.name || ''}`,
+        subject: `مستخلص ${esc(b.billingNo || '')} — ${b.projectName || proj.name || ''}`,
         lines,
         subTotal: cur, discount: 0,
         netBeforeTax: cur,
@@ -23491,7 +23491,7 @@ window.deleteBillingInvoice = async function (billingKey, invKey) {
     const inv = (window.salesInvoices || {})[invKey];
     if (!inv) { toast('الفاتورة غير موجودة', 'er'); return; }
     const confirmed = await cf2(
-        `حذف فاتورة ${inv.number}؟\n\nسيتم:\n• إلغاء القيد المحاسبي ${inv.journalEntryNumber || ''}\n• حذف الفاتورة نهائياً\n• إلغاء الربط بالمستخلص`
+        `حذف فاتورة ${esc(inv.number)}؟\n\nسيتم:\n• إلغاء القيد المحاسبي ${inv.journalEntryNumber || ''}\n• حذف الفاتورة نهائياً\n• إلغاء الربط بالمستخلص`
     );
     if (!confirmed) return;
     try {
@@ -23502,7 +23502,7 @@ window.deleteBillingInvoice = async function (billingKey, invKey) {
                 status: 'cancelled',
                 cancelledAt: now,
                 cancelledBy: curU?.uid || '',
-                cancelReason: `حذف فاتورة مستخلص ${inv.billingNo || ''}`
+                cancelReason: `حذف فاتورة مستخلص ${esc(inv.billingNo || '')}`
             });
         }
         // حذف الفاتورة
@@ -23599,7 +23599,7 @@ window.openPayrollPaymentModal = function (payrollKey) {
 
     // الملخص
     const mLabel = formatMonthLabel(p.month);
-    const scopeText = p.scope === 'project' ? `📁 ${p.projectName || ''}` :
+    const scopeText = p.scope === 'project' ? `📁 ${esc(p.projectName || '')}` :
                       p.scope === 'dept' ? `🏢 ${p.dept || ''}` :
                       '👥 جميع الموظفين';
     $('mPPSummary').innerHTML = `
@@ -23635,16 +23635,16 @@ window.openPayrollPaymentModal = function (payrollKey) {
     if (p.scope === 'project' && p.projectId && settings[p.projectId]?.paymentAcc) {
         suggestedAcc = settings[p.projectId].paymentAcc;
         const acc = accounts.find(a => a.code === suggestedAcc);
-        suggestionReason = `💡 الحساب المقترح حسب إعدادات مشروع "${p.projectName}": ${acc?.nameAr || ''}`;
+        suggestionReason = `💡 الحساب المقترح حسب إعدادات مشروع "${esc(p.projectName)}": ${esc(acc?.nameAr || '')}`;
     } else if (settings._default?.paymentAcc) {
         suggestedAcc = settings._default.paymentAcc;
         const acc = accounts.find(a => a.code === suggestedAcc);
-        suggestionReason = `💡 الحساب الافتراضي للصرف: ${acc?.nameAr || ''}`;
+        suggestionReason = `💡 الحساب الافتراضي للصرف: ${esc(acc?.nameAr || '')}`;
     }
 
     const sel = $('mPPPaymentAccount');
     sel.innerHTML = '<option value="">-- اختر حساب الصرف --</option>' +
-        paymentAccs.map(a => `<option value="${a.code}" ${a.code === suggestedAcc ? 'selected' : ''}>${a.code} — ${a.nameAr}</option>`).join('');
+        paymentAccs.map(a => `<option value="${esc(a.code)}" ${a.code === suggestedAcc ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('');
     sel.onchange = updatePPJournalPreview;
 
     if (suggestionReason) {
@@ -23729,7 +23729,7 @@ function updatePPJournalPreview() {
         const grouped = Object.values(payableInfo.accountsMap);
         preview += `<div style="background:#e8f4fd;padding:6px 10px;border-radius:4px;margin-bottom:6px;font-size:10px;color:#0d4f7c">✅ تم قراءة الحسابات من القيد المرحَّل (${p.journalEntryNumber})</div>`;
         grouped.forEach(g => {
-            preview += `<div style="color:#2d6a9f">🔵 مدين: ${g.code} — ${esc(g.name)}: <strong>${fmt(g.total)}</strong></div>`;
+            preview += `<div style="color:#2d6a9f">🔵 مدين: ${esc(g.code)} — ${esc(g.name)}: <strong>${fmt(g.total)}</strong></div>`;
         });
     } else {
         // Fallback: من الإعدادات
@@ -23741,13 +23741,13 @@ function updatePPJournalPreview() {
         const projName = p.scope === 'project' ? p.projectName : '';
         if (payableAcc) {
             preview += `<div style="background:#fef5e7;padding:6px 10px;border-radius:4px;margin-bottom:6px;font-size:10px;color:#7d4e00">⚠️ القيد غير متاح — استخدام الإعدادات الافتراضية</div>`;
-            preview += `<div style="color:#2d6a9f">🔵 مدين: ${payableAcc.code} — ${payableAcc.nameAr} ${projName ? `(${projName})` : ''}: <strong>${fmt(totalNet)}</strong></div>`;
+            preview += `<div style="color:#2d6a9f">🔵 مدين: ${esc(payableAcc.code)} — ${esc(payableAcc.nameAr)} ${projName ? `(${projName})` : ''}: <strong>${fmt(totalNet)}</strong></div>`;
         } else {
             preview += `<div style="color:#c0392b">⚠️ حساب الرواتب المستحقة غير محدد</div>`;
         }
     }
     if (paymentAcc) {
-        preview += `<div style="color:#8e44ad">🟣 دائن: ${paymentAcc.code} — ${paymentAcc.nameAr}: <strong>${fmt(payableTotal)}</strong></div>`;
+        preview += `<div style="color:#8e44ad">🟣 دائن: ${esc(paymentAcc.code)} — ${esc(paymentAcc.nameAr)}: <strong>${fmt(payableTotal)}</strong></div>`;
     } else {
         preview += `<div style="color:#888">⏸️ اختر حساب الصرف لإكمال المعاينة</div>`;
     }
@@ -23826,14 +23826,14 @@ window.confirmPayrollPayment = async function () {
     const userName = (typeof myP !== 'undefined' && myP?.name) || userId;
     const now = new Date().toISOString();
     const mLabel = formatMonthLabel(p.month);
-    const scopeLabel = p.scope === 'project' ? `(📁 ${p.projectName || ''})` :
+    const scopeLabel = p.scope === 'project' ? `(📁 ${esc(p.projectName || '')})` :
                        p.scope === 'dept' ? `(🏢 ${p.dept || ''})` : '';
 
     const sourceText = payableInfo.fromJournal
-        ? `\n📋 الحسابات من القيد المرحَّل (${p.journalEntryNumber}):\n   ${Object.values(payableInfo.accountsMap).map(g => `• ${g.code} ${esc(g.name)}: ${fmt(g.total)}`).join('\n   ')}`
+        ? `\n📋 الحسابات من القيد المرحَّل (${p.journalEntryNumber}):\n   ${Object.values(payableInfo.accountsMap).map(g => `• ${esc(g.code)} ${esc(g.name)}: ${fmt(g.total)}`).join('\n   ')}`
         : `\n📋 الحسابات من الإعدادات الافتراضية`;
 
-    cf2(`تأكيد دفع ${fmt(totalToPay)} ر من حساب "${paymentAcc.nameAr}"؟${sourceText}\n\nسيتم:\n✅ إنشاء سند صرف ${voucherNumber}\n✅ إنشاء قيد محاسبي (مرحَّل تلقائياً)\n✅ تحديث حالة المسير إلى "مدفوع"`, async () => {
+    cf2(`تأكيد دفع ${fmt(totalToPay)} ر من حساب "${esc(paymentAcc.nameAr)}"؟${sourceText}\n\nسيتم:\n✅ إنشاء سند صرف ${voucherNumber}\n✅ إنشاء قيد محاسبي (مرحَّل تلقائياً)\n✅ تحديث حالة المسير إلى "مدفوع"`, async () => {
         try {
             // 🆕 1. إنشاء سند الصرف
             const voucherData = {
@@ -23869,7 +23869,7 @@ window.confirmPayrollPayment = async function () {
                 jrnLines.push({
                     accountCode: pl.accountCode,
                     accountName: pl.accountName,
-                    description: `سداد رواتب ${mLabel} - ${pl.accountName}`,
+                    description: `سداد رواتب ${mLabel} - ${esc(pl.accountName)}`,
                     costCenter: pl.costCenter,
                     projectId: pl.projectId || ((window.projects || {})[pl.costCenter] ? pl.costCenter : ''),
                     debit: pl.amount,
@@ -23881,7 +23881,7 @@ window.confirmPayrollPayment = async function () {
             jrnLines.push({
                 accountCode: paymentAcc.code,
                 accountName: paymentAcc.nameAr,
-                description: `صرف من ${paymentAcc.nameAr} - مسير ${mLabel}`,
+                description: `صرف من ${esc(paymentAcc.nameAr)} - مسير ${mLabel}`,
                 costCenter: mainCC,
                 projectId: (window.projects || {})[mainCC] ? mainCC : '',
                 debit: 0,
@@ -23900,7 +23900,7 @@ window.confirmPayrollPayment = async function () {
                 sourceVoucherKey: voucherRef.key,
                 sourceLabel: `سند صرف ${voucherNumber} - رواتب ${mLabel}`,
                 reference: voucherNumber,
-                description: `سداد رواتب ${mLabel}${scopeLabel ? ' ' + scopeLabel : ''} من ${paymentAcc.nameAr}`,
+                description: `سداد رواتب ${mLabel}${scopeLabel ? ' ' + scopeLabel : ''} من ${esc(paymentAcc.nameAr)}`,
                 createdAt: now,
                 createdBy: userId,
                 createdByName: userName,
@@ -24901,7 +24901,7 @@ window.renderPayrollDashboard = function () {
                         ${payableArr.map((p, i) => {
                             const sharePct = totalPayableLedger > 0 ? (p.balance / totalPayableLedger) * 100 : 0;
                             return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
-                                <td style="padding:10px;font-weight:800;color:#1a3a5c">${p.code} — ${esc(p.name)}</td>
+                                <td style="padding:10px;font-weight:800;color:#1a3a5c">${esc(p.code)} — ${esc(p.name)}</td>
                                 <td style="padding:10px;text-align:left;color:#666">${fmt(p.credit)}</td>
                                 <td style="padding:10px;text-align:left;color:#666">${fmt(p.debit)}</td>
                                 <td style="padding:10px;text-align:left;font-weight:800;color:#16a085">${fmt(p.balance)}</td>
@@ -24957,7 +24957,7 @@ window.renderPayrollDashboard = function () {
                     recentPayments.map(([k, v]) => `<div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;border-right:3px solid #196f3d">
                         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
                             <div>
-                                <div style="font-size:12px;font-weight:800;color:#1a3a5c;font-family:monospace">${v.number}</div>
+                                <div style="font-size:12px;font-weight:800;color:#1a3a5c;font-family:monospace">${esc(v.number)}</div>
                                 <div style="font-size:10px;color:#888;margin-top:2px">🏦 ${v.paymentAccountName || ''} · ${v.date}</div>
                             </div>
                             <div style="font-size:14px;font-weight:900;color:#196f3d">${fmt(v.amount)}</div>
@@ -25682,7 +25682,7 @@ function renderBillingCard(billingKey, b) {
     return `<div style="background:white;border:1.5px solid #e0e8f0;border-radius:12px;padding:16px;border-right:5px solid ${sm.color}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
             <div>
-                <div style="font-size:16px;font-weight:800;color:#1a3a5c">📑 مستخلص رقم ${b.billingNo || '?'} — ${projName}</div>
+                <div style="font-size:16px;font-weight:800;color:#1a3a5c">📑 مستخلص رقم ${esc(b.billingNo || '?')} — ${projName}</div>
                 <div style="font-size:12px;color:#888;margin-top:4px">📅 ${b.billingDate || '-'} · 🏷️ ${b.contractRef || ''}</div>
                 ${b.fromDate && b.toDate ? `<div style="font-size:11px;color:#666;margin-top:3px">📆 الفترة: ${b.fromDate} → ${b.toDate}</div>` : ''}
             </div>
@@ -26020,7 +26020,7 @@ window.openBillingDetail = function (billingKey) {
         <div style="background:linear-gradient(135deg,#0e4d3a,#196f3d);color:white;padding:14px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <div>
                 <div style="font-size:11px;opacity:.85">INTERIM PAYMENT CERTIFICATE</div>
-                <div style="font-size:18px;font-weight:900;margin-top:2px">📑 مستخلص رقم ${b.billingNo} — ${esc(proj?.name || '')}</div>
+                <div style="font-size:18px;font-weight:900;margin-top:2px">📑 مستخلص رقم ${esc(b.billingNo)} — ${esc(proj?.name || '')}</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 ${isEditable ? `<button id="billSaveBtn" class="btn b-g" onclick="saveBillingDetail('${billingKey}')" style="padding:9px 20px;font-weight:800">💾 حفظ التغييرات</button>
@@ -26560,7 +26560,7 @@ window.openBillingApprovalDecision = function (billingKey, decision) {
     }
     dov.innerHTML = `
     <div style="background:white;border-radius:14px;padding:22px;max-width:460px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25);font-family:inherit">
-        <div style="font-size:16px;font-weight:800;color:${isApprove ? '#27ae60' : '#c0392b'};margin-bottom:6px">${isApprove ? '✅ اعتماد المستخلص' : '❌ رفض المستخلص'} رقم ${b.billingNo || ''}</div>
+        <div style="font-size:16px;font-weight:800;color:${isApprove ? '#27ae60' : '#c0392b'};margin-bottom:6px">${isApprove ? '✅ اعتماد المستخلص' : '❌ رفض المستخلص'} رقم ${esc(b.billingNo || '')}</div>
         <div style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.6">يُسجَّل هذا القرار كنسخة داخل المستخلص نفسه، ويظهر لمدير المشروع ولكل من يفتح رابط الاعتماد.</div>
         <label style="font-size:12px;font-weight:700;color:#1a3a5c">${isApprove ? 'ملاحظة الاعتماد (اختياري)' : 'سبب الرفض (مطلوب)'}</label>
         <textarea id="billDecisionNote" rows="3" placeholder="${isApprove ? 'مثال: تم اعتماد المستخلص بعد مراجعة الكميات ونسب الإنجاز…' : 'مثال: يرجى تعديل كميات البند رقم 3 وإعادة الإرسال…'}" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:5px;resize:vertical;box-sizing:border-box"></textarea>
@@ -26590,7 +26590,7 @@ window.confirmBillingDecision = async function (billingKey, decision) {
                 approvalDecisionAt: new Date().toISOString(),
                 approvalStatus: 'rejected'
             });
-            if (typeof pdLogActivity === 'function') pdLogActivity(b.projectId, '❌', `رفض المستخلص رقم ${b.billingNo}${note ? ' — ' + note : ''}`);
+            if (typeof pdLogActivity === 'function') pdLogActivity(b.projectId, '❌', `رفض المستخلص رقم ${esc(b.billingNo)}${note ? ' — ' + note : ''}`);
             toast('❌ تم رفض المستخلص وإعادته كمسودة لتعديله وإعادة إرساله', 'wn', 6000);
             renderProgressBillings();
             if (typeof pdRenderTab === 'function' && window._pd?.tab === 'billings') pdRenderTab('billings');
@@ -26639,7 +26639,7 @@ window.advanceBilling = async function (billingKey, newStatus, decisionNote) {
             await update(ref(db, `ledger/progressBillings/${billingKey}`), upd);
             if (typeof pdLogActivity === 'function') {
                 const stLabel = { submitted: '📤 إرسال للاعتماد', approved: '✅ اعتماد' }[newStatus] || newStatus;
-                pdLogActivity(b.projectId, '📑', `${stLabel}: مستخلص رقم ${b.billingNo} (${fmt(b.netAmount)})`);
+                pdLogActivity(b.projectId, '📑', `${stLabel}: مستخلص رقم ${esc(b.billingNo)} (${fmt(b.netAmount)})`);
             }
             if (newStatus === 'submitted') {
                 try { await navigator.clipboard.writeText(approvalLink); } catch (e) {}
@@ -26661,7 +26661,7 @@ window.advanceBilling = async function (billingKey, newStatus, decisionNote) {
     if (newStatus === 'approved') {
         await proceed();
     } else {
-        cf2(`تأكيد ${labels[newStatus]} للمستخلص رقم ${b.billingNo}؟`, proceed);
+        cf2(`تأكيد ${labels[newStatus]} للمستخلص رقم ${esc(b.billingNo)}؟`, proceed);
     }
 };
 
@@ -26670,12 +26670,12 @@ window.deleteBilling = function (billingKey) {
     if (!b) return;
     const isApproved = b.status === 'approved' || b.status === 'paid';
     const warnMsg = isApproved
-        ? `⚠️ تحذير: ستحذف مستخلص معتمد رقم ${b.billingNo} (${fmt(b.netAmount)} ر)!\n\nسيؤثر على المستخلصات اللاحقة لأنه يحوي أرصدة تراكمية.\n\nهل أنت متأكد؟`
-        : `حذف المستخلص رقم ${b.billingNo}؟`;
+        ? `⚠️ تحذير: ستحذف مستخلص معتمد رقم ${esc(b.billingNo)} (${fmt(b.netAmount)} ر)!\n\nسيؤثر على المستخلصات اللاحقة لأنه يحوي أرصدة تراكمية.\n\nهل أنت متأكد؟`
+        : `حذف المستخلص رقم ${esc(b.billingNo)}؟`;
     cf2(warnMsg, async () => {
         try {
             await remove(ref(db, `ledger/progressBillings/${billingKey}`));
-            if (typeof pdLogActivity === 'function') pdLogActivity(b.projectId, '🗑️', `حذف مستخلص رقم ${b.billingNo} (${fmt(b.netAmount)})`);
+            if (typeof pdLogActivity === 'function') pdLogActivity(b.projectId, '🗑️', `حذف مستخلص رقم ${esc(b.billingNo)} (${fmt(b.netAmount)})`);
             toast('🗑️ تم الحذف', 'ok');
         } catch (e) { toast('❌ ' + e.message, 'er'); }
     });
@@ -26745,7 +26745,7 @@ window.cancelBillingWithLinked = async function (billingKey) {
             if (inv?.journalEntryKey) {
                 await update(ref(db, `ledger/journalEntries/${inv.journalEntryKey}`), {
                     status: 'cancelled', cancelledAt: now, cancelledBy: userId,
-                    cancelReason: `إلغاء فاتورة مستخلص ${b.billingNo}`
+                    cancelReason: `إلغاء فاتورة مستخلص ${esc(b.billingNo)}`
                 });
             }
         }
@@ -26929,13 +26929,13 @@ window.createBillingCollectionJournal = async function (billingKey) {
 
     // أظهر سلة اختيار
     const html = `<div style="background:white;border-radius:14px;max-width:420px;width:100%;padding:20px">
-        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px">💵 قيد تحصيل مستخلص ${b.billingNo}</div>
+        <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:14px">💵 قيد تحصيل مستخلص ${esc(b.billingNo)}</div>
         <p style="font-size:12px;color:#666;margin-bottom:12px">اختر حساب القبض:</p>
         <select id="collAccSel" style="width:100%;padding:10px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:14px">
-            ${cashAccs.map(a => `<option value="${a.code}">${a.code} — ${a.nameAr}</option>`).join('')}
+            ${cashAccs.map(a => `<option value="${esc(a.code)}">${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('')}
         </select>
         <div style="font-size:12px;background:#e8f5e9;border-radius:8px;padding:10px;margin-bottom:14px">
-            <div>المستخلص: <strong>${b.billingNo}</strong></div>
+            <div>المستخلص: <strong>${esc(b.billingNo)}</strong></div>
             <div>صافي المستحق: <strong style="color:#27ae60">${fmt(b.netAmount)} ريال</strong></div>
         </div>
         <div style="display:flex;gap:8px">
@@ -26962,15 +26962,15 @@ window.confirmBillingCollection = async function (billingKey) {
 
     const lines = [
         { accountCode: cashAcc.code, accountName: cashAcc.nameAr,
-          description: `تحصيل مستخلص ${b.billingNo} — ${projName}`,
+          description: `تحصيل مستخلص ${esc(b.billingNo)} — ${projName}`,
           costCenter: b.projectId, debit: +net.toFixed(2), credit: 0 },
         { accountCode: acc.receivable.code, accountName: acc.receivable.name,
-          description: `إقفال ذمة مستخلص ${b.billingNo}`,
+          description: `إقفال ذمة مستخلص ${esc(b.billingNo)}`,
           costCenter: b.projectId, debit: 0, credit: +net.toFixed(2) }
     ];
     const jrnData = {
         number: jrnNum, date: now.substring(0,10), reference: b.billingNo,
-        description: `تحصيل مستخلص ${b.billingNo} — ${projName}`,
+        description: `تحصيل مستخلص ${esc(b.billingNo)} — ${projName}`,
         lines, totalDebit: +net.toFixed(2), totalCredit: +net.toFixed(2),
         status: 'posted', sourceType: 'billing_collection', sourceKey: billingKey,
         createdAt: now, createdBy: curU?.uid||'', createdByName: myP?.name||'',
@@ -27013,7 +27013,7 @@ window.renderBillingAccSettings = function (projectId, containerId) {
     const coaOpts = (selected) => {
         const detail = Object.values(coa).filter(a => a.nature === 'detail').sort((a,b2) => a.code.localeCompare(b2.code));
         return `<option value="">-- اختر من شجرة الحسابات --</option>` +
-            detail.map(a => `<option value="${a.code}" ${a.code === selected ? 'selected' : ''}>${a.code} — ${a.nameAr}</option>`).join('');
+            detail.map(a => `<option value="${esc(a.code)}" ${a.code === selected ? 'selected' : ''}>${esc(a.code)} — ${esc(a.nameAr)}</option>`).join('');
     };
 
     const row = (label, field, icon) => `
@@ -27168,8 +27168,8 @@ window.exportBillingExcel = function (billingKey) {
         { wpx: 120 }, { wpx: 120 }, { wpx: 220 }, { wpx: 80 }, { wpx: 110 }, { wpx: 110 }, { wpx: 110 }, { wpx: 120 }, { wpx: 110 }, { wpx: 110 }, { wpx: 110 }, { wpx: 120 }
     ];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `مستخلص_${b.billingNo || 'IPC'}`);
-    XLSX.writeFile(wb, `مستخلص_${b.billingNo || 'IPC'}_${today()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, `مستخلص_${esc(b.billingNo || 'IPC')}`);
+    XLSX.writeFile(wb, `مستخلص_${esc(b.billingNo || 'IPC')}_${today()}.xlsx`);
     toast('📤 تم تصدير المستخلص إلى Excel', 'ok');
 };
 
@@ -27346,7 +27346,7 @@ window.printBilling = function (billingKey) {
     // أعمدة مجموعة "مبلغ التقدم"
     const amtColSpan = 1 + (s.showPrevAmt ? 1 : 0) + (s.showCumAmt ? 1 : 0);
 
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>مستخلص رقم ${b.billingNo}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>مستخلص رقم ${esc(b.billingNo)}</title>
     <style>
         * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact; box-sizing:border-box }
         body { font-family:'Tajawal','Tahoma',Arial,sans-serif; padding:15px; color:#000; direction:rtl; font-size:9px; line-height:1.4 }
@@ -27374,7 +27374,7 @@ window.printBilling = function (billingKey) {
         .sigs .box { text-align:center; border-top:2px solid #000; padding-top:8px; font-weight:700 }
         @page { size:A4 ${s.pageSize}; margin:1cm }
     </style></head><body>
-    <div class="title">📑 شهادة الدفع المرحلية / INTERIM PAYMENT CERTIFICATE #${b.billingNo}</div>
+    <div class="title">📑 شهادة الدفع المرحلية / INTERIM PAYMENT CERTIFICATE #${esc(b.billingNo)}</div>
     <div class="hdr">
         <div class="col">
             <div class="lbl">إسم المقاول / Contractor</div>
@@ -27386,7 +27386,7 @@ window.printBilling = function (billingKey) {
         </div>
         <div class="col" style="text-align:center;border-right:1px dashed #000;border-left:1px dashed #000">
             <div class="lbl">الحالي / النهائي</div>
-            <div class="val" style="font-size:14px;color:${th.tot}">شهادة الدفع #مستخلص رقم ${b.billingNo}</div>
+            <div class="val" style="font-size:14px;color:${th.tot}">شهادة الدفع #مستخلص رقم ${esc(b.billingNo)}</div>
             <div class="lbl" style="margin-top:8px">إسم العقد / Contract Name</div>
             <div class="val">${b.projectName || proj?.name || b.clientName || '—'}</div>
             <div class="lbl" style="margin-top:6px">مرجع العقد / Contract Ref</div>
@@ -28560,7 +28560,7 @@ window.openAssetEdit = function(id) {
     fillAssetEmployeeSelect($('assetEditEmployee'), a?.employeeId);
     // 🔗 حسابات الربط المحاسبي لهذا الأصل (مع توضيح الافتراضي حسب الفئة)
     const def = assetGLAccounts({ category: a?.category || 'معدات ثقيلة' });
-    const defName = code => { const acc = assetFindAcc(code); return acc ? `${acc.code} — ${acc.nameAr}` : code; };
+    const defName = code => { const acc = assetFindAcc(code); return acc ? `${esc(acc.code)} — ${esc(acc.nameAr)}` : code; };
     fillAssetAccountSelect($('assetEditGlAsset'), a?.glAssetAcc, defName(def.assetCode));
     fillAssetAccountSelect($('assetEditGlAccum'), a?.glAccumDepAcc, defName(def.accumCode));
     fillAssetAccountSelect($('assetEditGlExpense'), a?.glExpenseAcc, defName(def.expenseCode));
@@ -29249,7 +29249,7 @@ window.renderAssetDepRunsLog = function() {
             <span style="font-weight:800;color:#7d5a00">${esc(r.period)}</span>
             <span style="color:#555">${fmt(r.total || 0)} ريال</span>
             <span style="color:#999;font-size:10px">${esc(r.journalNumber || '')}</span>
-            <button onclick="reverseAssetDepRun('${esc(r.period)}')" title="إلغاء" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px">✕</button>
+            <button onclick="reverseAssetDepRun('${r.period}')" title="إلغاء" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px">✕</button>
         </div>`).join('')}
     </div>`;
 };
@@ -29413,7 +29413,7 @@ window.printAssetReport = function() {
 // 🏷️ ملصق الأصل مع QR/باركود
 window.openAssetLabel = function(id) {
     const a = (window.assets || {})[id]; if (!a) return;
-    const payload = `ASSET|${id}|${a.code || ''}|${esc(a.name || '')}`;
+    const payload = `ASSET|${id}|${esc(a.code || '')}|${esc(a.name || '')}`;
     const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(payload)}`;
     $('astLabelBody').innerHTML = `
         <div id="astLabelPrintable" style="border:2px solid #2c3e50;border-radius:10px;padding:16px;display:inline-block;min-width:260px">

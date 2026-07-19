@@ -720,7 +720,7 @@ function pdRenderContract(pid) {
                 const signedAmount = (co.type === 'deduction' ? -1 : 1) * (parseFloat(co.amount) || 0);
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
-                    <td style="font-weight:700;color:#2d6a9f">${co.number || '-'}</td>
+                    <td style="font-weight:700;color:#2d6a9f">${esc(co.number || '-')}</td>
                     <td style="font-weight:600">${esc(co.title || '-')}${co.reason ? `<div style="font-size:11px;color:#888;margin-top:2px">${esc(co.reason)}</div>` : ''}</td>
                     <td style="text-align:center">
                         <span style="background:${co.type === 'deduction' ? '#fdecea' : '#e8f8f5'};color:${co.type === 'deduction' ? '#7b1c1c' : '#0e6655'};padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700">${co.type === 'deduction' ? '➖ خصم' : '➕ إضافة'}</span>
@@ -784,7 +784,7 @@ function pdRenderContract(pid) {
                 const contractPct = isManualPct ? parseFloat(it.manualPct) || 0 : (adjustedContractValue > 0 ? (total / adjustedContractValue) * 100 : 0);
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
-                    <td style="font-weight:700;color:#2d6a9f">${it.number || '-'}</td>
+                    <td style="font-weight:700;color:#2d6a9f">${esc(it.number || '-')}</td>
                     <td style="font-weight:600">${esc(it.description || '-')}</td>
                     <td style="text-align:center">
                         <div style="font-weight:800;color:#8e44ad">${contractPct.toFixed(2)}%</div>
@@ -1380,12 +1380,12 @@ function pdBillingSummaryTable(filtered) {
                 const inv = b.salesInvoiceKey ? (window.salesInvoices || {})[b.salesInvoiceKey] : null;
                 const collected = pdIsBillingCollected(b);
                 const invCell = inv
-                    ? `<span onclick="viewSInv && viewSInv('${b.salesInvoiceKey}')" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-size:11px">🧾 ${inv.number || 'فاتورة'}</span>
+                    ? `<span onclick="viewSInv && viewSInv('${b.salesInvoiceKey}')" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-size:11px">🧾 ${esc(inv.number || 'فاتورة')}</span>
                        <span style="background:${collected ? '#eafaf1' : '#f4ecf7'};color:${collected ? '#1e8449' : '#5b2c6f'};font-size:9px;padding:1px 6px;border-radius:4px;margin-right:3px">${collected ? 'محصَّل' : 'مسودة'}</span>`
                     : `<span style="background:#fef5e7;color:#b9770e;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">⏳ لم تُفوتر</span>`;
                 return `<tr style="${b.status === 'cancelled' ? 'opacity:.55' : ''}">
                     <td style="color:#888">${i + 1}</td>
-                    <td><span onclick="openBillingDetail && openBillingDetail('${bk}')" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline">📑 ${b.billingNo || '?'}</span></td>
+                    <td><span onclick="openBillingDetail && openBillingDetail('${bk}')" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline">📑 ${esc(b.billingNo || '?')}</span></td>
                     <td style="white-space:nowrap">${b.billingDate || b.date || '—'}</td>
                     <td style="white-space:nowrap;font-size:11px;color:#666">${b.fromDate && b.toDate ? `${b.fromDate} ← ${b.toDate}` : '—'}</td>
                     <td style="font-weight:700;color:#1a3a5c;text-align:left">${fmt(b.currentAmount || 0)}</td>
@@ -1441,7 +1441,7 @@ window.pdPrintProjectBillings = function (pid) {
         const collected = pdIsBillingCollected(b);
         return `<tr class="${i % 2 ? 'even' : ''}" ${b.status === 'cancelled' ? 'style="opacity:.55"' : ''}>
             <td>${i + 1}</td>
-            <td>مستخلص ${b.billingNo || '?'}</td>
+            <td>مستخلص ${esc(b.billingNo || '?')}</td>
             <td>${b.billingDate || b.date || '—'}</td>
             <td>${b.fromDate && b.toDate ? `${b.fromDate} ← ${b.toDate}` : '—'}</td>
             <td>${f(b.currentAmount)}</td>
@@ -1449,7 +1449,7 @@ window.pdPrintProjectBillings = function (pid) {
             <td style="color:#e67e22">${f(b.retentionAmount)}</td>
             <td style="color:#27ae60">${f(b.netAmount)}</td>
             <td><span class="st-${b.status || 'draft'}">${PD_BILL_STATUS_LABELS[b.status] || b.status || ''}</span></td>
-            <td>${inv ? `${inv.number || 'فاتورة'} (${collected ? 'محصَّل' : 'مسودة'})` : 'لم تُفوتر'}</td>
+            <td>${inv ? `${esc(inv.number || 'فاتورة')} (${collected ? 'محصَّل' : 'مسودة'})` : 'لم تُفوتر'}</td>
         </tr>`;
     }).join('');
 
@@ -1774,8 +1774,8 @@ function pdRenderProjectInvoices(pid) {
     <div style="background:linear-gradient(135deg,#0e6251,#16a085);color:white;border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div>
             <div style="font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.8px">العميل المرتبط بالمشروع</div>
-            <div style="font-size:16px;font-weight:800;margin-top:3px">🤝 ${customer.nameAr || ''}</div>
-            <div style="font-size:11px;opacity:.85;margin-top:2px">${customer.code || ''} ${customer.phone ? '· ' + customer.phone : ''} ${customer.vatNumber ? '· ضريبي: ' + customer.vatNumber : ''}</div>
+            <div style="font-size:16px;font-weight:800;margin-top:3px">🤝 ${esc(customer.nameAr || '')}</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px">${esc(customer.code || '')} ${customer.phone ? '· ' + customer.phone : ''} ${customer.vatNumber ? '· ضريبي: ' + customer.vatNumber : ''}</div>
         </div>
         <button onclick="bcNav('customers')" style="background:rgba(255,255,255,.2);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:700">🤝 ملف العميل ↗</button>
     </div>` : `
@@ -1828,7 +1828,7 @@ function pdRenderProjectInvoices(pid) {
                 return `<tr>
                     <td style="color:#888">${i+1}</td>
                     <td>
-                        <span onclick="viewSInv && viewSInv('${k}')" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline">🧾 ${inv.number}</span>
+                        <span onclick="viewSInv && viewSInv('${k}')" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline">🧾 ${esc(inv.number)}</span>
                         ${isBilling ? `<span style="background:#8e44ad;color:white;font-size:9px;padding:1px 5px;border-radius:4px;margin-right:4px">مستخلص</span>` : ''}
                     </td>
                     <td style="white-space:nowrap">${inv.date || '—'}</td>
@@ -2186,7 +2186,7 @@ function pdRenderExpenses(pid) {
                 <td>${e.date || '-'}</td>
                 <td style="font-weight:600">${esc(e.description || '-')}</td>
                 <td><span style="background:#f0f5fa;padding:2px 8px;border-radius:8px;font-size:11px">${catMap[e.category] || e.category || '-'}</span></td>
-                <td>${e.vendor || '-'}</td>
+                <td>${esc(e.vendor || '-')}</td>
                 <td style="color:#888;font-size:11px">${e.receiptNo || '-'}</td>
                 <td style="font-weight:800;color:#e74c3c">${fmt(e.amount)}</td>
                 <td><div style="display:flex;gap:4px">
@@ -2358,7 +2358,7 @@ function pdRenderSuppliers(pid) {
                                 <td style="font-weight:600">${esc(inv.supplierName || '-')}</td>
                                 <td>${inv.invoiceNumber || '-'}</td>
                                 <td>${inv.invoiceDate || '-'}</td>
-                                <td>${inv.materialName || '-'}</td>
+                                <td>${esc(inv.materialName || '-')}</td>
                                 <td>${inv.qty ? parseFloat(inv.qty).toLocaleString() : ''} ${inv.unit || ''}</td>
                                 <td style="font-weight:700;color:#16a085">${fmt(inv.grandTotal || 0)}</td>
                             </tr>`).join('')}
@@ -2730,7 +2730,7 @@ function pdRenderRFIs(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.subject || '—'}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
@@ -2892,7 +2892,7 @@ function pdRenderMeetings(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         ${r.meetingType ? `<span style="background:#eef3f8;color:#2d6a9f;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_MTG_TYPES[r.meetingType] || r.meetingType}</span>` : ''}
@@ -3092,7 +3092,7 @@ function pdRenderTenders(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         ${r.category ? `<span style="background:#eef3f8;color:#2d6a9f;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_BID_CATS[r.category] || r.category}</span>` : ''}
@@ -3268,7 +3268,7 @@ function pdRenderPunch(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
                         <span style="background:${pc}22;color:${pc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${pl}</span>
@@ -3448,7 +3448,7 @@ function pdRenderInspections(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${rc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${rbg};color:${rc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${rl}</span>
                         ${chk.length ? `<span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">☑️ ${okN}/${chk.length}</span>` : ''}
@@ -3563,7 +3563,7 @@ function pdRenderObservations(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         <span style="background:${cat[1]}18;color:${cat[1]};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${cat[0]}</span>
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
@@ -3684,7 +3684,7 @@ function pdRenderIncidents(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         ${tp ? `<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${tp}</span>` : ''}
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
@@ -3843,7 +3843,7 @@ function pdRenderSubmittals(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}${r.revision ? ` · ${r.revision}` : ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}${r.revision ? ` · ${r.revision}` : ''}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${esc(r.title || '—')}</span>
                         ${r.subType ? `<span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_SUB_TYPE[r.subType] || r.subType}</span>` : ''}
                         <span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span>
@@ -4396,7 +4396,7 @@ function pdRenderCorrespondence(pid) {
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:10px;padding:14px;border-right:4px solid ${ov ? '#c0392b' : dir[1]}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${r.number || ''}</span>
+                        <span style="font-family:monospace;font-weight:800;color:#1a3a5c;background:#eef3f8;padding:2px 8px;border-radius:6px">${esc(r.number || '')}</span>
                         <span style="background:${dir[1]}18;color:${dir[1]};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${dir[0]}</span>
                         <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.subject || '—'}</span>
                         <span style="background:#eef3f8;color:#555;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${PD_CORR_KIND[r.kind] || r.kind || ''}</span>
