@@ -158,7 +158,7 @@ window.renderProjectDetail = function () {
     <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:white;border-radius:14px;padding:20px 24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div style="flex:1;min-width:200px">
             <div style="font-size:22px;font-weight:800;margin-bottom:6px">📁 ${p.name || '-'}</div>
-            <div style="font-size:13px;opacity:.85;margin-bottom:8px">${p.description || ''}</div>
+            <div style="font-size:13px;opacity:.85;margin-bottom:8px">${esc(p.description || '')}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <span style="background:${sbg};color:${scl};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700">${statusMap[p.status] || p.status}</span>
                 ${p.contractNo ? `<span style="background:rgba(255,255,255,.15);padding:4px 10px;border-radius:8px;font-size:12px">📄 ${p.contractNo}</span>` : ''}
@@ -721,7 +721,7 @@ function pdRenderContract(pid) {
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
                     <td style="font-weight:700;color:#2d6a9f">${co.number || '-'}</td>
-                    <td style="font-weight:600">${co.title || '-'}${co.reason ? `<div style="font-size:11px;color:#888;margin-top:2px">${co.reason}</div>` : ''}</td>
+                    <td style="font-weight:600">${co.title || '-'}${co.reason ? `<div style="font-size:11px;color:#888;margin-top:2px">${esc(co.reason)}</div>` : ''}</td>
                     <td style="text-align:center">
                         <span style="background:${co.type === 'deduction' ? '#fdecea' : '#e8f8f5'};color:${co.type === 'deduction' ? '#7b1c1c' : '#0e6655'};padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700">${co.type === 'deduction' ? '➖ خصم' : '➕ إضافة'}</span>
                     </td>
@@ -785,7 +785,7 @@ function pdRenderContract(pid) {
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
                     <td style="font-weight:700;color:#2d6a9f">${it.number || '-'}</td>
-                    <td style="font-weight:600">${it.description || '-'}</td>
+                    <td style="font-weight:600">${esc(it.description || '-')}</td>
                     <td style="text-align:center">
                         <div style="font-weight:800;color:#8e44ad">${contractPct.toFixed(2)}%</div>
                         <div style="font-size:9px;color:${isManualPct ? '#e67e22' : '#888'}">${isManualPct ? '✏️ يدوي' : '🤖 تلقائي'}</div>
@@ -847,7 +847,7 @@ function pdRenderContract(pid) {
                 const amount = adjustedContractValue * (pct / 100);
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
-                    <td style="font-weight:600">${pay.description || '-'}</td>
+                    <td style="font-weight:600">${esc(pay.description || '-')}</td>
                     <td style="text-align:center;font-weight:700;color:#7d4e00">${pct}%</td>
                     <td style="font-weight:700;color:#2d6a9f">${fmt(amount)}</td>
                     <td><div style="display:flex;gap:4px">
@@ -2184,7 +2184,7 @@ function pdRenderExpenses(pid) {
             ${directExp.map(([ek, e], i) => `<tr>
                 <td style="color:#888">${i + 1}</td>
                 <td>${e.date || '-'}</td>
-                <td style="font-weight:600">${e.description || '-'}</td>
+                <td style="font-weight:600">${esc(e.description || '-')}</td>
                 <td><span style="background:#f0f5fa;padding:2px 8px;border-radius:8px;font-size:11px">${catMap[e.category] || e.category || '-'}</span></td>
                 <td>${e.vendor || '-'}</td>
                 <td style="color:#888;font-size:11px">${e.receiptNo || '-'}</td>
@@ -4673,7 +4673,7 @@ function pdRenderTasks(pid) {
                     <button onclick="pdDeleteTask('${pid}','${tk}')" style="border:none;background:none;cursor:pointer;font-size:12px" title="حذف">🗑️</button>
                 </div>
             </div>
-            ${t.desc ? `<div style="font-size:11px;color:#777;margin-top:4px;line-height:1.5">${t.desc}</div>` : ''}
+            ${t.desc ? `<div style="font-size:11px;color:#777;margin-top:4px;line-height:1.5">${esc(t.desc)}</div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:4px">
                 <span style="background:${plColor}1a;color:${plColor};padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">${plLabel}</span>
                 ${chkChip}
@@ -5544,7 +5544,7 @@ function pdRenderDocCenter(pid) {
                     ${vers.slice().reverse().map((v, ri) => `<div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#666;padding:4px 8px;background:${ri === 0 ? '#f4faf8' : '#fafbfc'};border-radius:6px">
                         <span style="font-weight:800;color:#1a3a5c;min-width:52px">${v.rev || 'Rev'}</span>
                         <span style="min-width:80px">${v.date || ''}</span>
-                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.note || ''}${v.by ? ' · ' + v.by : ''}</span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.note || '')}${v.by ? ' · ' + v.by : ''}</span>
                         <a href="${v.url}" target="_blank" rel="noopener" style="color:#2980b9;font-weight:700;flex:0 0 auto">🔗 فتح</a>
                     </div>`).join('')}
                     </div></details>` : ''}
@@ -6180,7 +6180,7 @@ function pdRenderTimeline(pid) {
                             مخطط: ${m.plannedStart || '-'} ← ${m.plannedEnd || '-'}
                             ${m.actualStart ? ` &nbsp;|&nbsp; فعلي: ${m.actualStart} ← ${m.actualEnd || 'مستمر'}` : ''}
                         </div>
-                        ${m.notes ? `<div style="font-size:12px;color:#555;margin-top:5px">📝 ${m.notes}</div>` : ''}
+                        ${m.notes ? `<div style="font-size:12px;color:#555;margin-top:5px">📝 ${esc(m.notes)}</div>` : ''}
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                         <div style="text-align:center;margin-left:6px">

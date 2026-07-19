@@ -893,7 +893,7 @@ window.renderOnboarding = function () {
             <div style="font-size:26px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:${s.done ? '#eafaf1' : '#f4f7fb'};border-radius:10px;flex-shrink:0">${s.done ? '✅' : s.icon}</div>
             <div style="flex:1">
                 <div style="font-weight:900;color:#1a3a5c;font-size:15px">${i + 1}. ${s.title} ${s.done ? '<span style="font-size:11px;background:#eafaf1;color:#1e8449;padding:2px 9px;border-radius:10px">مكتمل</span>' : (s.req ? '<span style="font-size:11px;background:#fef5e7;color:#b9770e;padding:2px 9px;border-radius:10px">مطلوب</span>' : '<span style="font-size:11px;background:#eef2f6;color:#888;padding:2px 9px;border-radius:10px">اختياري</span>')}</div>
-                <div style="font-size:12.5px;color:#666;margin-top:5px;line-height:1.8">${s.desc}</div>
+                <div style="font-size:12.5px;color:#666;margin-top:5px;line-height:1.8">${esc(s.desc)}</div>
                 <button class="btn ${s.done ? '' : 'b-g'}" onclick="${s.act}" style="margin-top:10px;${s.done ? 'background:#f4f7fb;color:#555' : ''}">${s.done ? '↻ ' + s.btn : s.btn}</button>
             </div>
         </div>`).join('');
@@ -2171,7 +2171,7 @@ window.renderApprovalsInbox = function () {
         Object.entries(window.leaves || {}).filter(([, l]) => l.status === 'pending').forEach(([lk, l]) => {
             cards.push({
                 icon: '🌴', color: '#16a085', title: `إجازة ${l.empName || ''} — ${(LEAVE_TYPE_LABELS[l.type] || {}).lb || l.type}`,
-                sub: `${l.days} يوم — من ${l.from} إلى ${l.to}${l.reason ? ` — «${l.reason}»` : ''}`,
+                sub: `${l.days} يوم — من ${l.from} إلى ${l.to}${l.reason ? ` — «${esc(l.reason)}»` : ''}`,
                 actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="approveLeave('${lk}')">✅ اعتماد</button>`,
                           `<button class="btn b-r" style="padding:5px 12px;font-size:11px" onclick="rejectLeave('${lk}')">❌ رفض</button>`],
                 view: () => nav('leaves', document.getElementById('n-lv'))
@@ -2184,7 +2184,7 @@ window.renderApprovalsInbox = function () {
         Object.entries(window.permissions || {}).filter(([, p]) => (p.status || 'pending') === 'pending').forEach(([pk, p]) => {
             cards.push({
                 icon: '🕘', color: '#e67e22', title: `إذن ${p.empName || ''} — ${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]}`,
-                sub: `${p.date || ''}${p.fromTime ? ` · ${p.fromTime}${p.toTime ? ' ← ' + p.toTime : ''}` : ''} · ${p.hours || 0} ساعة${p.deductible ? ' · قابل للخصم' : ''}${p.reason ? ` — «${p.reason}»` : ''}`,
+                sub: `${p.date || ''}${p.fromTime ? ` · ${p.fromTime}${p.toTime ? ' ← ' + p.toTime : ''}` : ''} · ${p.hours || 0} ساعة${p.deductible ? ' · قابل للخصم' : ''}${p.reason ? ` — «${esc(p.reason)}»` : ''}`,
                 actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="approvePerm('${pk}')">✅ اعتماد</button>`,
                           `<button class="btn b-r" style="padding:5px 12px;font-size:11px" onclick="rejectPerm('${pk}')">❌ رفض</button>`],
                 view: () => nav('permissions', document.getElementById('n-perm'))
@@ -2196,7 +2196,7 @@ window.renderApprovalsInbox = function () {
     if (isAdmin || isFinanceMgr || can('post_journal_entry')) {
         Object.entries(window.journalEntries || {}).filter(([, e]) => (e.status || 'draft') === 'draft').forEach(([jk, e]) => {
             cards.push({
-                icon: '📒', color: '#1a3a5c', title: `قيد ${e.number || ''} — ${e.description || ''}`,
+                icon: '📒', color: '#1a3a5c', title: `قيد ${e.number || ''} — ${esc(e.description || '')}`,
                 sub: `بتاريخ ${e.date || '-'} — بانتظار الترحيل`,
                 actions: [`<button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="nav('journalentries', document.getElementById('n-jrn'))">📒 مراجعة وترحيل</button>`],
                 view: () => nav('journalentries', document.getElementById('n-jrn'))
@@ -3450,7 +3450,7 @@ function buildTS() {
 function buildRA() {
     const ar = Object.entries(tr).sort((a, b) => (b[1].createdAt || b[1].date || '').localeCompare(a[1].createdAt || a[1].date || '')).slice(0, 8);
     if (!ar.length) { $('recA').innerHTML = '<div class="empty"><div class="ei">📋</div><p>لا توجد حركات</p></div>'; return }
-    $('recA').innerHTML = ar.map(([, t]) => { const d = (t.debit || 0) > 0; return `<div class="ac-it"><div class="ac-d ${d ? 'db' : 'cr'}"></div><div class="ac-i"><div class="ac-dc">${t.desc || '-'}</div><div class="ac-mt">${sup[t.supplierId]?.name || '-'} | ${t.date || ''}</div></div><div class="ac-am ${d ? 'db' : 'cr'}">${d ? '+' + fmt(t.debit) : '-' + fmt(t.credit)}</div></div>` }).join('');
+    $('recA').innerHTML = ar.map(([, t]) => { const d = (t.debit || 0) > 0; return `<div class="ac-it"><div class="ac-d ${d ? 'db' : 'cr'}"></div><div class="ac-i"><div class="ac-dc">${esc(t.desc || '-')}</div><div class="ac-mt">${sup[t.supplierId]?.name || '-'} | ${t.date || ''}</div></div><div class="ac-am ${d ? 'db' : 'cr'}">${d ? '+' + fmt(t.debit) : '-' + fmt(t.credit)}</div></div>` }).join('');
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
@@ -3888,7 +3888,7 @@ window.renderCustStatement = function () {
                 <td style="color:#888;padding:8px">${i + 1}</td>
                 <td style="white-space:nowrap;padding:8px">${e.date || '—'}</td>
                 <td style="padding:8px">${refLink}</td>
-                <td style="padding:8px;max-width:200px;color:#444">${e.desc}</td>
+                <td style="padding:8px;max-width:200px;color:#444">${esc(e.desc)}</td>
                 <td style="padding:8px;color:#c0392b;font-weight:700;text-align:left">${e.debit > 0 ? fmt(e.debit) : ''}</td>
                 <td style="padding:8px;color:#27ae60;font-weight:700;text-align:left">${e.credit > 0 ? fmt(e.credit) : ''}</td>
                 <td style="padding:8px;font-weight:700;color:${balColor};text-align:left">${fmt(Math.abs(balance))} <small style="font-size:10px">${balance > 0 ? 'مدين' : balance < 0 ? 'دائن' : ''}</small></td>
@@ -4071,7 +4071,7 @@ window.printCustStatement = function () {
             const balLabel = balance > 0 ? 'مدين' : balance < 0 ? 'دائن' : '';
             return `<tr class="${i%2?'even':''}">
                 <td>${i+1}</td><td>${e.date||'—'}</td><td>${e.ref||'—'}</td>
-                <td style="text-align:right">${e.desc}</td>
+                <td style="text-align:right">${esc(e.desc)}</td>
                 <td style="color:#c0392b">${e.debit>0?e.debit.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td>
                 <td style="color:#27ae60">${e.credit>0?e.credit.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td>
                 <td>${bal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})} <small>${balLabel}</small></td>
@@ -4841,7 +4841,7 @@ function renderPdfDT() {
     if (!pdfState.filtered.length) { w.innerHTML = '<div class="empty"><div class="ei">📂</div><p>اضبط الفلاتر لعرض البيانات</p></div>'; return }
     let h = `<table class="st"><thead><tr class="h1"><th>#</th><th>التاريخ</th><th>المورد</th><th>الوصف</th><th>مدين</th><th>دائن</th></tr></thead><tbody>`;
     pdfState.filtered.slice(0, 25).forEach(([, t], i) => {
-        h += `<tr><td>${i + 1}</td><td>${t.date}</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sup[t.supplierId]?.name || '-'}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.desc}</td><td class="td-db">${(t.debit || 0) > 0 ? fmt(t.debit) : ''}</td><td class="td-cr">${(t.credit || 0) > 0 ? fmt(t.credit) : ''}</td></tr>`;
+        h += `<tr><td>${i + 1}</td><td>${t.date}</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sup[t.supplierId]?.name || '-'}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.desc)}</td><td class="td-db">${(t.debit || 0) > 0 ? fmt(t.debit) : ''}</td><td class="td-cr">${(t.credit || 0) > 0 ? fmt(t.credit) : ''}</td></tr>`;
     });
     if (pdfState.filtered.length > 25) h += `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:10px">... و ${pdfState.filtered.length - 25} حركة أخرى ستظهر في PDF</td></tr>`;
     h += '</tbody></table>'; w.innerHTML = h;
@@ -5074,7 +5074,7 @@ window.genPDF = async function () {
                     else if (c.k === 'date') rowsHTML += `<td>${t.date || ''}</td>`;
                     else if (c.k === 'entry') rowsHTML += `<td>${t.entry || '-'}</td>`;
                     else if (c.k === 'ref') rowsHTML += `<td>${t.ref || '-'}</td>`;
-                    else if (c.k === 'desc') rowsHTML += `<td style="text-align:right">${t.desc || ''}</td>`;
+                    else if (c.k === 'desc') rowsHTML += `<td style="text-align:right">${esc(t.desc || '')}</td>`;
                     else if (c.k === 'emp') rowsHTML += `<td>${t.employee || '-'}</td>`;
                     else if (c.k === 'debit') rowsHTML += `<td style="color:${dc};font-weight:700">${(t.debit || 0) > 0 ? fmt(t.debit) : ''}</td>`;
                     else if (c.k === 'credit') rowsHTML += `<td style="color:${cc};font-weight:700">${(t.credit || 0) > 0 ? fmt(t.credit) : ''}</td>`;
@@ -5942,7 +5942,7 @@ table{width:100%;border-collapse:collapse}
     ${f.training > 0 ? row('تدريب وتأهيل', fmt(f.training) + ' ريال/شهر') : ''}
     ${f.otherCost > 0 ? row('تكاليف أخرى', fmt(f.otherCost) + ' ريال/شهر') : ''}
     <tr style="background:#e67e22"><td colspan="2" style="padding:10px 14px;font-weight:800;color:white;font-size:15px">🏢 إجمالي تكلفة الموظف على الشركة: ${fmt(f.totalCost)} ريال/شهر</td></tr>
-    ${e.notes ? `<tr><td colspan="2" style="padding:10px;background:#fff8e1;color:#7d6400;font-size:12px">📝 ${e.notes}</td></tr>` : ''}
+    ${e.notes ? `<tr><td colspan="2" style="padding:10px;background:#fff8e1;color:#7d6400;font-size:12px">📝 ${esc(e.notes)}</td></tr>` : ''}
   </table>
   <div class="footer">تاريخ التعيين: ${e.hireDate || '-'} &nbsp;|&nbsp; آخر تحديث: ${e.updatedAt ? new Date(e.updatedAt).toLocaleDateString('ar-SA') : '-'}
   <br><button onclick="window.print()" style="margin-top:8px;padding:7px 20px;background:#1a3a5c;color:white;border:none;border-radius:7px;cursor:pointer;font-size:12px">🖨️ طباعة</button></div>
@@ -6180,7 +6180,7 @@ window.renderProjectEmps = function (projectKey) {
                     <div><span style="color:#666">الدور:</span> <span style="font-weight:600">${a.role || '-'}</span></div>
                     <div><span style="color:#666">الساعات:</span> <span style="font-weight:600">${a.hoursAllocated || 0} س</span></div>
                 </div>
-                ${a.notes ? `<div style="font-size:11px;background:#f8fafc;padding:6px;border-radius:6px;color:#555;margin-bottom:8px">📝 ${a.notes}</div>` : ''}
+                ${a.notes ? `<div style="font-size:11px;background:#f8fafc;padding:6px;border-radius:6px;color:#555;margin-bottom:8px">📝 ${esc(a.notes)}</div>` : ''}
                 <button class="btn b-r" style="width:100%;padding:6px;font-size:11px" onclick="delEmpFromPrj('${projectKey}', '${aKey}')">🗑️ إزالة</button>
             </div>`;
     }).join('')}
@@ -6380,7 +6380,7 @@ window.viewPrj = function (key) {
 <div class="hd">
   <div class="hd-l">
     <div class="nm">📁 ${p.name || '-'}</div>
-    <div class="desc">${p.description || ''}</div>
+    <div class="desc">${esc(p.description || '')}</div>
   </div>
   <div style="text-align:left">
     <span style="display:inline-block;background:#1a3a5c;color:white;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700">${{
@@ -6422,7 +6422,7 @@ window.viewPrj = function (key) {
     <div class="emp-detail"><strong>القسم:</strong> ${empData?.dept || '-'}</div>
     <div class="emp-detail"><strong>الدور:</strong> ${a.role || '-'}</div>
     <div class="emp-detail"><strong>الساعات:</strong> ${a.hoursAllocated || 0} ساعة</div>
-    ${a.notes ? `<div class="emp-detail"><strong>ملاحظات:</strong> ${a.notes}</div>` : ''}
+    ${a.notes ? `<div class="emp-detail"><strong>ملاحظات:</strong> ${esc(a.notes)}</div>` : ''}
 </div>`;
         }).join('')}
   </div>` : '<div style="padding:20px;text-align:center;color:#999">لا يوجد موظفون معينون</div>'}
@@ -6825,7 +6825,7 @@ window.loadEmpMonthlyDeductions = async function (key) {
             <tbody>${deductions.map(([dk, d], i) => `<tr style="${i%2?'background:#fafcff':''}">
                 <td style="padding:8px;font-weight:700">${formatMonthLabel(d.month)}</td>
                 <td style="padding:8px">${typeLabels[d.type] || d.type}</td>
-                <td style="padding:8px;color:#555">${d.reason}</td>
+                <td style="padding:8px;color:#555">${esc(d.reason)}</td>
                 <td style="padding:8px;color:#c62828;font-weight:700">${fmt(d.amount)}</td>
                 <td style="padding:8px;color:#888;font-size:11px">${d.createdBy || '-'}</td>
                 <td style="padding:8px"><button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="deleteMonthlyDeduction('${key}','${dk}')">🗑️</button></td>
@@ -6922,7 +6922,7 @@ window.loadEmpLoans = function (key) {
         return `<div style="border:1.5px solid #e0e8f0;border-radius:10px;padding:14px;margin-bottom:12px;border-right:4px solid ${l.status==='settled'?'#27ae60':'#f39c12'}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:10px">
                 <div>
-                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">💳 ${fmt(l.amount)} ريال — ${l.note || 'سلفة'}</div>
+                    <div style="font-size:14px;font-weight:800;color:#1a3a5c">💳 ${fmt(l.amount)} ريال — ${esc(l.note || 'سلفة')}</div>
                     <div style="font-size:11px;color:#888;margin-top:2px">تاريخ الاستلام: ${l.date} | ${l.installments} قسط شهري ${fmt(l.monthly)} ريال</div>
                 </div>
                 <div style="display:flex;gap:6px;align-items:center">${statusBadge}
@@ -7017,7 +7017,7 @@ td{padding:9px 8px;text-align:center;border-bottom:1px solid #f0f4f8}
 <body><div class="wrap">
 <div class="hd">
     <div style="font-size:18px;font-weight:800">💳 كشف حساب السلفة</div>
-    <div style="margin-top:4px;opacity:.85;font-size:13px">الموظف: ${l.empName} | ${l.note || 'سلفة'}</div>
+    <div style="margin-top:4px;opacity:.85;font-size:13px">الموظف: ${l.empName} | ${esc(l.note || 'سلفة')}</div>
 </div>
 <div class="bd">
     <div class="stats">
@@ -7068,7 +7068,7 @@ window.renderLoansPage = function () {
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <div>
                     <div style="font-size:14px;font-weight:800;color:#1a3a5c">👤 ${l.empName || '-'} — ${fmt(l.amount)} ريال</div>
-                    <div style="font-size:11px;color:#888;margin-top:2px">${l.note || 'سلفة'} | تاريخ الاستلام: ${l.date} | ${l.installments} قسط</div>
+                    <div style="font-size:11px;color:#888;margin-top:2px">${esc(l.note || 'سلفة')} | تاريخ الاستلام: ${l.date} | ${l.installments} قسط</div>
                 </div>
                 <div style="display:flex;gap:6px;align-items:center">
                     ${statusBadge}
@@ -7213,7 +7213,7 @@ function calcEmpPayForMonth(empKey, eData, month, calcMode, fromDate, toDate, de
     // الخصومات الشهرية المؤقتة
     const monthDeductions = Object.values(eData.monthlyDeductions || {}).filter(d => d.month === month);
     const monthDeductTotal = monthDeductions.reduce((s, d) => s + (d.amount || 0), 0);
-    const monthDeductNote = monthDeductions.map(d => `${d.reason}: ${fmt(d.amount)}`).join(' | ');
+    const monthDeductNote = monthDeductions.map(d => `${esc(d.reason)}: ${fmt(d.amount)}`).join(' | ');
 
     const unpaidLeaveDeduct = unpaidLeaveDays > 0 ? parseFloat((dailyRateMonth * unpaidLeaveDays).toFixed(2)) : 0;
 
@@ -8925,7 +8925,7 @@ window.loadEmpDocuments = function (key) {
                         ${d.issue ? '📅 الإصدار: ' + d.issue + ' | ' : ''}
                         ⏰ الانتهاء: <strong>${d.expiry}</strong>
                     </div>
-                    ${d.note ? `<div style="font-size:11px;color:#888;margin-top:3px;font-style:italic">📝 ${d.note}</div>` : ''}
+                    ${d.note ? `<div style="font-size:11px;color:#888;margin-top:3px;font-style:italic">📝 ${esc(d.note)}</div>` : ''}
                 </div>
                 <span style="background:white;color:${st.color};padding:4px 12px;border-radius:10px;font-size:11px;font-weight:700;border:1.5px solid ${st.color}">${st.label}</span>
             </div>
@@ -9798,9 +9798,9 @@ window.renderEmpStatement = function (key) {
     };
     window._esTbl['esTbl-custody'] = {
         rows: custodyRows, pageSize: 8, dateKey: 'dateGiven', emptyMsg: 'لا توجد عُهد مطابقة', q: '', from: '', to: '', page: 1,
-        searchText: r => `${r.name} ${r.serial} ${r.notes} ${r.status === 'returned' ? 'مستلمة' : 'بحوزته'}`,
+        searchText: r => `${r.name} ${r.serial} ${esc(r.notes)} ${r.status === 'returned' ? 'مستلمة' : 'بحوزته'}`,
         cols: [
-            { h: 'العُهدة', cell: r => `${custodyTypeIcons[r.type] || '📦'} ${r.name || '-'}${r.notes ? `<div style="font-size:10px;color:#999">${r.notes}</div>` : ''}` },
+            { h: 'العُهدة', cell: r => `${custodyTypeIcons[r.type] || '📦'} ${r.name || '-'}${r.notes ? `<div style="font-size:10px;color:#999">${esc(r.notes)}</div>` : ''}` },
             { h: 'الرقم التسلسلي', cell: r => r.serial || '-' },
             { h: 'القيمة', align: 'center', cell: r => r.value ? fmt(r.value) : '-' },
             { h: 'تاريخ التسليم', align: 'center', cell: r => r.dateGiven || '-' },
@@ -10048,7 +10048,7 @@ function renderLeaveCard(lk, l, showEmp) {
                 ${showEmp ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin-bottom:3px">👤 ${l.empName || '-'}${l.empDept ? ` <span style="font-size:11px;color:#888;font-weight:400">— ${l.empDept}</span>` : ''}</div>` : ''}
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c">${typeInfo.lb} — ${l.days} يوم</div>
                 <div style="font-size:11px;color:#666;margin-top:3px">📅 من <strong>${l.from}</strong> إلى <strong>${l.to}</strong></div>
-                ${l.reason ? `<div style="font-size:11px;color:#555;margin-top:4px;font-style:italic">💬 ${l.reason}</div>` : ''}
+                ${l.reason ? `<div style="font-size:11px;color:#555;margin-top:4px;font-style:italic">💬 ${esc(l.reason)}</div>` : ''}
                 <div style="font-size:10px;color:#aaa;margin-top:4px">طلب من ${l.requestedBy || '-'} | ${l.requestedAt ? new Date(l.requestedAt).toLocaleDateString('ar-SA') : ''}
                     ${l.approvedBy ? ` | <span style="color:#1e8449">معتمد من: ${l.approvedBy}</span>` : ''}
                     ${l.rejectedBy ? ` | <span style="color:#c0392b">مرفوض من: ${l.rejectedBy}</span>` : ''}
@@ -10182,7 +10182,7 @@ window.renderPermissions = function () {
                 <td style="padding:8px 9px;text-align:center">${p.fromTime || ''}</td>
                 <td style="padding:8px 9px;text-align:center">${p.toTime || ''}</td>
                 <td style="padding:8px 9px;text-align:center;font-weight:800;color:#8e44ad">${(parseFloat(p.hours) || 0).toFixed(1)}</td>
-                <td style="padding:8px 9px;color:#555;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(p.reason || '').replace(/"/g, '&quot;')}">${p.reason || '—'}</td>
+                <td style="padding:8px 9px;color:#555;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(p.reason || '').replace(/"/g, '&quot;')}">${esc(p.reason || '—')}</td>
                 <td style="padding:8px 9px;text-align:center"><span style="background:${sbg};color:${sc};padding:2px 9px;border-radius:7px;font-size:11px;font-weight:700">${sl}</span></td>
                 <td style="padding:8px 9px;text-align:center;white-space:nowrap">
                     ${p.status === 'pending' && canApprove ? `<button onclick="approvePerm('${k}')" title="اعتماد" style="border:0;background:#eafaf1;color:#1e8449;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px">✅</button> <button onclick="rejectPerm('${k}')" title="رفض" style="border:0;background:#fdecea;color:#c0392b;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px">❌</button> ` : ''}
@@ -10509,7 +10509,7 @@ function renderPerfCard(pk, p, showEmp) {
         </div>
         ${p.strengths ? `<div style="background:#f0fff4;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:12px;color:#1e8449"><strong>💪 نقاط القوة:</strong> ${p.strengths}</div>` : ''}
         ${p.improvements ? `<div style="background:#fff8e1;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:12px;color:#7d4e00"><strong>📝 للتحسين:</strong> ${p.improvements}</div>` : ''}
-        ${p.notes ? `<div style="background:#f0f8ff;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:12px;color:#1a3a5c"><strong>🎯 ملاحظات:</strong> ${p.notes}</div>` : ''}
+        ${p.notes ? `<div style="background:#f0f8ff;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:12px;color:#1a3a5c"><strong>🎯 ملاحظات:</strong> ${esc(p.notes)}</div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
             ${canDelete ? `<button class="btn b-r" style="padding:3px 10px;font-size:11px" onclick="deletePerfEval('${pk}')">🗑️ حذف</button>` : ''}
         </div>
@@ -11961,7 +11961,7 @@ window.renderBOQList = function (prjKey) {
                 <tr style="${i%2?'background:#fafbfc':''}">
                     <td style="padding:7px;color:#888">${i+1}</td>
                     <td style="padding:7px;font-weight:600">${b.no || '-'}</td>
-                    <td style="padding:7px;text-align:right">${b.desc}</td>
+                    <td style="padding:7px;text-align:right">${esc(b.desc)}</td>
                     <td style="padding:7px;text-align:center">${b.unit || '-'}</td>
                     <td style="padding:7px;text-align:center">${b.qty}</td>
                     <td style="padding:7px;text-align:center">${fmt(b.unitPrice)}</td>
@@ -13192,7 +13192,7 @@ window.renderMatRequests = function () {
 
             ${itemsHtml}
 
-            ${r.reason?`<div style="background:#fff8e1;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#7d4e00"><strong>📝</strong> ${r.reason}</div>`:''}
+            ${r.reason?`<div style="background:#fff8e1;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#7d4e00"><strong>📝</strong> ${esc(r.reason)}</div>`:''}
 
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;font-size:11px;color:#555;margin-bottom:8px">
                 <div>📅 الحاجة: <strong>${r.neededDate?new Date(r.neededDate).toLocaleDateString('ar-SA'):'-'}</strong></div>
@@ -13208,7 +13208,7 @@ window.renderMatRequests = function () {
                     ${r.history.map(h => `<div style="border-bottom:1px solid #eef2f7;padding:4px 0">
                         <span style="color:#666">${new Date(h.at).toLocaleString('ar-SA')}</span> · 
                         <strong style="color:#1a3a5c">${h.actor}</strong> · 
-                        <span style="color:#444">${h.note}</span>
+                        <span style="color:#444">${esc(h.note)}</span>
                     </div>`).join('')}
                 </div>
             </details>` : ''}
@@ -13544,7 +13544,7 @@ window.openPurchaseOrderPrint = function (rk) {
                             <td style="padding:9px 8px;text-align:center;font-weight:700;color:#888">${i+1}</td>
                             <td style="padding:9px 8px;text-align:right">
                                 <strong style="color:#1a3a5c">${it.matName || '-'}</strong>
-                                ${it.note ? `<div style="font-size:10px;color:#888;margin-top:2px">📝 ${it.note}</div>` : ''}
+                                ${it.note ? `<div style="font-size:10px;color:#888;margin-top:2px">📝 ${esc(it.note)}</div>` : ''}
                             </td>
                             <td style="padding:9px 8px;text-align:center;font-weight:800;color:#27ae60;font-size:14px">${it.qty || 0}</td>
                             <td style="padding:9px 8px;text-align:center">${it.unit || '-'}</td>
@@ -13563,7 +13563,7 @@ window.openPurchaseOrderPrint = function (rk) {
         </div>
 
         ${r.approvalNote ? `<div style="background:#e8f8f5;border:1.5px solid #abebc6;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#1b5e20"><strong>📝 ملاحظة الاعتماد:</strong> ${r.approvalNote}</div>` : ''}
-        ${r.reason ? `<div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#7d4e00"><strong>💡 سبب الطلب:</strong> ${r.reason}</div>` : ''}
+        ${r.reason ? `<div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#7d4e00"><strong>💡 سبب الطلب:</strong> ${esc(r.reason)}</div>` : ''}
 
         <!-- Signatures Section -->
         <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
@@ -13864,7 +13864,7 @@ window.openQuotationM = function (reqKey) {
             <div style="flex:1;min-width:200px">
                 <div style="font-size:15px;font-weight:800;color:#1a3a5c;margin-bottom:6px">📨 ${r.reqNumber||'-'} — ${displayName}</div>
                 <div style="font-size:12px;color:#555">📁 ${r.projectName||'-'} · 👤 ${r.requestedByName||'-'} · ${urgency.label}</div>
-                ${r.reason?`<div style="font-size:11px;color:#666;margin-top:4px"><strong>📝</strong> ${r.reason}</div>`:''}
+                ${r.reason?`<div style="font-size:11px;color:#666;margin-top:4px"><strong>📝</strong> ${esc(r.reason)}</div>`:''}
                 ${itemsList}
             </div>
             <div style="text-align:center;background:white;border-radius:8px;padding:8px 14px">
@@ -14386,7 +14386,7 @@ window.openPODetail = function (pk) {
             <div><div style="font-size:10px;color:#888">طلب مرجعي</div><div style="font-size:12px;font-weight:700;color:#1a3a5c">${po.requestNumber||'-'}</div></div>
         </div>
 
-        ${po.notes?`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px"><strong>📝 ملاحظات:</strong> ${po.notes}</div>`:''}
+        ${po.notes?`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px"><strong>📝 ملاحظات:</strong> ${esc(po.notes)}</div>`:''}
 
         ${po.history?.length ? `<details style="margin-bottom:14px">
             <summary style="cursor:pointer;font-size:12px;color:#666;font-weight:600">📜 سجل الإجراءات (${po.history.length})</summary>
@@ -14394,7 +14394,7 @@ window.openPODetail = function (pk) {
                 ${po.history.map(h => `<div style="border-bottom:1px solid #eef2f7;padding:5px 0">
                     <span style="color:#666">${new Date(h.at).toLocaleString('ar-SA')}</span> · 
                     <strong style="color:#1a3a5c">${h.actor}</strong> · 
-                    <span style="color:#444">${h.note}</span>
+                    <span style="color:#444">${esc(h.note)}</span>
                 </div>`).join('')}
             </div>
         </details>` : ''}
@@ -14482,7 +14482,7 @@ window.printPO = function (pk) {
         <div class="box"><div class="label">مدة التسليم</div><div class="value">${po.deliveryDays||0} يوم</div></div>
     </div>
 
-    ${po.notes?`<div class="section"><div class="section-tl">📝 ملاحظات</div><div style="background:#fff8e1;padding:10px;border-radius:4px;font-size:12px">${po.notes}</div></div>`:''}
+    ${po.notes?`<div class="section"><div class="section-tl">📝 ملاحظات</div><div style="background:#fff8e1;padding:10px;border-radius:4px;font-size:12px">${esc(po.notes)}</div></div>`:''}
 
     <div class="signatures">
         <div class="sig">👨‍💼 أنشأ بواسطة<br><strong>${po.createdByName||'-'}</strong></div>
@@ -15020,7 +15020,7 @@ window.openGRNView = function (gk) {
                 <div>التقييم: <strong>${qualityLabels[g.quality] || '-'}</strong></div>
                 <div>مطابقة المواصفات: <strong>${matchLabels[g.matchSpecs] || '-'}</strong></div>
             </div>
-            ${g.notes ? `<div style="margin-top:8px;padding:8px;background:white;border-radius:6px;font-size:11px"><strong>📝 ملاحظات:</strong> ${g.notes}</div>` : ''}
+            ${g.notes ? `<div style="margin-top:8px;padding:8px;background:white;border-radius:6px;font-size:11px"><strong>📝 ملاحظات:</strong> ${esc(g.notes)}</div>` : ''}
         </div>
 
         ${g.history?.length ? `<details style="margin-bottom:14px">
@@ -15029,7 +15029,7 @@ window.openGRNView = function (gk) {
                 ${g.history.map(h => `<div style="border-bottom:1px solid #eef2f7;padding:5px 0">
                     <span style="color:#666">${new Date(h.at).toLocaleString('ar-SA')}</span> · 
                     <strong style="color:#1a3a5c">${h.actor}</strong> · 
-                    <span style="color:#444">${h.note}</span>
+                    <span style="color:#444">${esc(h.note)}</span>
                 </div>`).join('')}
             </div>
         </details>` : ''}
@@ -15112,7 +15112,7 @@ window.printGRN = function (gk) {
     <div class="box" style="margin-bottom:14px">
         <div class="label">🔍 فحص الجودة</div>
         <div style="font-size:12px">التقييم: <strong>${qualityLabels[g.quality]}</strong></div>
-        ${g.notes ? `<div style="font-size:11px;margin-top:6px;background:#fff8e1;padding:8px;border-radius:4px">📝 ${g.notes}</div>` : ''}
+        ${g.notes ? `<div style="font-size:11px;margin-top:6px;background:#fff8e1;padding:8px;border-radius:4px">📝 ${esc(g.notes)}</div>` : ''}
     </div>
 
     <div class="signatures">
@@ -15533,7 +15533,7 @@ window.openInvoiceView = function (ik) {
             <div style="font-size:12px;color:#444">المتوقع: <strong>${fmt(inv.expectedGrandTotal)}</strong> · الفعلي: <strong>${fmt(inv.grandTotal)}</strong> · الفرق: <strong style="color:${inv.discrepancyAmount > 0 ? '#c0392b' : '#27ae60'}">${inv.discrepancyAmount > 0 ? '+' : ''}${fmt(inv.discrepancyAmount)} ر</strong></div>
         </div>` : ''}
 
-        ${inv.notes ? `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px"><strong>📝 ملاحظات:</strong> ${inv.notes}</div>` : ''}
+        ${inv.notes ? `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px"><strong>📝 ملاحظات:</strong> ${esc(inv.notes)}</div>` : ''}
 
         ${inv.history?.length ? `<details style="margin-bottom:14px">
             <summary style="cursor:pointer;font-size:12px;color:#666;font-weight:600">📜 سجل الإجراءات (${inv.history.length})</summary>
@@ -15541,7 +15541,7 @@ window.openInvoiceView = function (ik) {
                 ${inv.history.map(h => `<div style="border-bottom:1px solid #eef2f7;padding:5px 0">
                     <span style="color:#666">${new Date(h.at).toLocaleString('ar-SA')}</span> · 
                     <strong style="color:#1a3a5c">${h.actor}</strong> · 
-                    <span style="color:#444">${h.note}</span>
+                    <span style="color:#444">${esc(h.note)}</span>
                 </div>`).join('')}
             </div>
         </details>` : ''}
@@ -15617,7 +15617,7 @@ window.printInvoice = function (ik) {
         </tfoot>
     </table>
 
-    ${inv.notes ? `<div class="box" style="margin-top:14px"><div class="label">📝 ملاحظات</div><div style="font-size:12px">${inv.notes}</div></div>` : ''}
+    ${inv.notes ? `<div class="box" style="margin-top:14px"><div class="label">📝 ملاحظات</div><div style="font-size:12px">${esc(inv.notes)}</div></div>` : ''}
 
     </body></html>`);
     w.document.close();
@@ -18007,7 +18007,7 @@ function renderBOQPerformanceReport(projectFilter) {
                     ${items.map((it, i) => `
                         <tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                             <td style="padding:7px;text-align:right;font-weight:700;color:#888">${it.no}</td>
-                            <td style="padding:7px;font-size:11px">${it.desc}</td>
+                            <td style="padding:7px;font-size:11px">${esc(it.desc)}</td>
                             <td style="padding:7px;text-align:center">${it.unit}</td>
                             <td style="padding:7px;text-align:center">${fmt(it.qty)}</td>
                             <td style="padding:7px;text-align:center;color:#2d6a9f;font-weight:700">${fmt(it.completedQty.toFixed(2))}</td>
@@ -20087,7 +20087,7 @@ function renderRiskAnalysisReport() {
                                     <span style="font-size:22px">${r.icon}</span>
                                     <span style="font-size:14px;font-weight:800;color:#1a3a5c">${r.title}</span>
                                 </div>
-                                <div style="font-size:12px;color:#444;margin-bottom:6px">${r.description}</div>
+                                <div style="font-size:12px;color:#444;margin-bottom:6px">${esc(r.description)}</div>
                                 <div style="background:#f8fafc;border-radius:6px;padding:8px;font-size:11px;color:#444">
                                     <strong style="color:${sevColor}">💡 الإجراء المقترح:</strong> ${r.action}
                                 </div>
@@ -20340,7 +20340,7 @@ function renderCashConversionCycleReport() {
             <div style="font-size:64px;font-weight:900;margin-top:8px">${CCC.toFixed(0)}</div>
             <div style="font-size:18px;opacity:.95">يوم</div>
             <div style="margin-top:10px;background:rgba(255,255,255,.2);padding:6px 16px;border-radius:8px;display:inline-block;font-weight:700">${rating.label}</div>
-            <div style="font-size:13px;opacity:.95;margin-top:8px">${rating.desc}</div>
+            <div style="font-size:13px;opacity:.95;margin-top:8px">${esc(rating.desc)}</div>
         </div>
 
         <!-- 3 Components -->
@@ -21865,7 +21865,7 @@ window.renderAttFixRequests = function () {
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center">${r.date || '-'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;color:#27ae60;font-weight:700">${r.checkIn || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;color:#e74c3c;font-weight:700">${r.checkOut || '—'}</td>
-                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;font-size:11px;color:#666">${r.reason || ''}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;font-size:11px;color:#666">${esc(r.reason || '')}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center">${typeof essStatusBadge === 'function' ? essStatusBadge(r.status || 'pending') : (r.status || '')}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #f2f5f8;text-align:center;white-space:nowrap">${(r.status || 'pending') === 'pending' ? `<button class="btn b-g" style="padding:3px 9px;font-size:10px" onclick="approveAttFix('${r.id}')">✅ اعتماد</button> <button class="btn b-r" style="padding:3px 9px;font-size:10px" onclick="rejectAttFix('${r.id}')">❌</button>` : `<button class="btn" style="padding:3px 9px;font-size:10px;background:#ecf0f1;color:#555" onclick="deleteAttFix('${r.id}')">🗑️</button>`}</td>
             </tr>`).join('')}</tbody>
@@ -22957,7 +22957,7 @@ window.renderDeferredReport = function () {
                                 <td style="padding:8px">${affLabel}</td>
                                 <td style="padding:8px;font-size:11px;color:#666">${d.job || '—'}</td>
                                 <td style="padding:8px;text-align:center;font-weight:800;color:#2d6a9f">${fmt(d.netSalary)}</td>
-                                <td style="padding:8px;font-size:11px;color:#c0392b">${d.reason}</td>
+                                <td style="padding:8px;font-size:11px;color:#c0392b">${esc(d.reason)}</td>
                                 <td style="padding:8px;font-size:11px;color:#666">${sourceLabel}<div style="font-size:9px;color:#999;margin-top:1px">${sourceP.createdAt ? new Date(sourceP.createdAt).toLocaleDateString('ar-SA') : ''}</div></td>
                                 <td style="padding:8px;text-align:center">
                                     <button class="btn" onclick="createPayrollForDeferred('${d.empKey}','${d.month}','${d.sourcePayrollKey}')" style="background:#27ae60;color:white;padding:5px 10px;font-size:10px;font-weight:700" title="إنشاء مسير لهذا الموظف">➕ إنشاء مسير</button>
@@ -23069,7 +23069,7 @@ window.printDeferredReport = function () {
                 <td>${affLabel}</td>
                 <td>${d.job || '-'}</td>
                 <td style="text-align:left;font-weight:700;color:#2d6a9f">${fmt(d.netSalary)}</td>
-                <td style="color:#c0392b">${d.reason}</td>
+                <td style="color:#c0392b">${esc(d.reason)}</td>
             </tr>`;
         }).join('')
     }</tbody>
@@ -24763,7 +24763,7 @@ window.renderPayrollDashboard = function () {
                         <div style="font-size:28px">${a.icon}</div>
                         <div style="flex:1">
                             <div style="font-size:13px;font-weight:800;color:${a.color}">${a.title}</div>
-                            <div style="font-size:11px;color:#666;margin-top:4px;line-height:1.5">${a.desc}</div>
+                            <div style="font-size:11px;color:#666;margin-top:4px;line-height:1.5">${esc(a.desc)}</div>
                             <button class="btn" onclick="${a.actionCall}" style="margin-top:8px;background:${a.color};color:white;padding:5px 12px;font-size:11px;font-weight:700">${a.actionLabel} →</button>
                         </div>
                     </div>
@@ -25114,7 +25114,7 @@ window.renderBOQ = function () {
                                                 ${it.discipline ? `<span style="background:${dc};color:white;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700">${it.discipline}</span>` : '<span style="color:#bbb">—</span>'}
                                             </td>
                                             <td style="padding:7px">
-                                                <div style="color:#1a3a5c;line-height:1.4">${it.description || '—'}</div>
+                                                <div style="color:#1a3a5c;line-height:1.4">${esc(it.description || '—')}</div>
                                                 ${it.category ? `<div style="font-size:9px;color:#888;margin-top:2px">📂 ${it.category}</div>` : ''}
                                             </td>
                                             <td style="padding:7px;text-align:center;color:#666">${it.unit || '—'}</td>
@@ -25306,7 +25306,7 @@ window.deleteBOQItem = function (projectId, itemKey) {
         return;
     }
 
-    cf2(`حذف البند "${it.description}"؟ لا يمكن التراجع.`, async () => {
+    cf2(`حذف البند "${esc(it.description)}"؟ لا يمكن التراجع.`, async () => {
         try {
             await remove(ref(db, `ledger/projectBOQ/${projectId}/${itemKey}`));
             toast('🗑️ تم الحذف', 'ok');
@@ -26052,7 +26052,7 @@ window.openBillingDetail = function (billingKey) {
                                     const globalIdx = (b.items || []).findIndex(x => x.boqItemKey === it.boqItemKey);
                                     return `<tr data-bill-idx="${globalIdx}">
                                         <td style="padding:6px;border:1px solid #e0e8f0;font-family:monospace;font-size:10px;font-weight:700">${it.itemNo || (globalIdx >= 0 ? (globalIdx + 1) : '—')}</td>
-                                        <td style="padding:6px;border:1px solid #e0e8f0;line-height:1.4">${it.description || ''}</td>
+                                        <td style="padding:6px;border:1px solid #e0e8f0;line-height:1.4">${esc(it.description || '')}</td>
                                         <td style="padding:6px;border:1px solid #e0e8f0;text-align:center;font-size:9px;font-weight:700">${it.discipline || '—'}</td>
                                         <td style="padding:6px;border:1px solid #e0e8f0;text-align:center">${it.unit || '—'}</td>
                                         <td style="padding:6px;border:1px solid #e0e8f0;text-align:center;font-weight:700">${fmt(it.contractQty)}</td>
@@ -26702,7 +26702,7 @@ window.cancelBillingWithLinked = async function (billingKey) {
                     ...l,
                     debit: parseFloat(l.credit) || 0,
                     credit: parseFloat(l.debit) || 0,
-                    description: `عكس: ${l.description || ''}`
+                    description: `عكس: ${esc(l.description || '')}`
                 }));
                 await push(R.jrn, {
                     number: jrnNum,
@@ -27383,7 +27383,7 @@ window.printBilling = function (billingKey) {
                     </tr>
                     ${sect.items.map(it => `<tr>
                         ${s.showItemNo ? `<td class="no">${it.itemNo || ''}</td>` : ''}
-                        <td>${it.description || ''}</td>
+                        <td>${esc(it.description || '')}</td>
                         ${s.showDiscipline ? `<td style="text-align:center;font-weight:700">${it.discipline || '—'}</td>` : ''}
                         ${s.showUnit ? `<td style="text-align:center">${it.unit || '—'}</td>` : ''}
                         ${s.showContractCols ? `<td class="num">${fmt(it.contractQty)}</td><td class="num">${fmt(it.unitPrice)}</td><td class="num">${fmt(it.contractAmount)}</td>` : ''}
@@ -27531,7 +27531,7 @@ window.renderAllProjectTasks = function () {
                 const assignee = (window.emp || {})[t.assigneeId];
                 const [plLabel, plColor] = PT_PRIORITY_LABELS[t.priority] || PT_PRIORITY_LABELS.normal;
                 return `<tr style="border-bottom:1px solid #f5f5f5">
-                    <td style="padding:8px 10px;font-weight:700;color:#1a3a5c">${t.title || ''}${t.desc ? `<div style="font-size:10.5px;color:#999;font-weight:400;margin-top:2px">${t.desc}</div>` : ''}</td>
+                    <td style="padding:8px 10px;font-weight:700;color:#1a3a5c">${t.title || ''}${t.desc ? `<div style="font-size:10.5px;color:#999;font-weight:400;margin-top:2px">${esc(t.desc)}</div>` : ''}</td>
                     <td style="padding:8px 10px;color:#2d6a9f;cursor:pointer" onclick="openProjectDetail('${pid}')">${proj?.name || '-'}</td>
                     <td style="padding:8px 10px;text-align:center">${PT_COL_LABELS[t.status] || t.status || '-'}</td>
                     <td style="padding:8px 10px;text-align:center"><span style="background:${plColor}1a;color:${plColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${plLabel}</span></td>

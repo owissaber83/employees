@@ -23,6 +23,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/adminA'), { role: 'admin', active: true });
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
+  await set(ref(db, 'tenants/A/ledger/users/deadAdminA'), { role: 'admin', active: false });   // مدير مُوقَف (لاختبار علم active)
+  await set(ref(db, 'tenants/A/ledger/announcements/a1'), { title: 'إعلان' });                  // تحت $other (يقرؤه الموظف)
   await set(ref(db, 'tenants/A/ledger/journalEntries/j1'), { number: 'JV-1' });
   // قيد مُرحَّل (لاختبار الحصانة) + قفل فترة (لاختبار قفل الفترة)
   await set(ref(db, 'tenants/A/ledger/journalEntries/jp'), { number: 'JV-P', status: 'posted', date: '2026-05-10', period: '2026-05', totalDebit: 100, totalCredit: 100 });
@@ -48,6 +50,7 @@ const db = {
   adminA: testEnv.authenticatedContext('adminA').database(),
   acctA: testEnv.authenticatedContext('acctA').database(),
   viewerA: testEnv.authenticatedContext('viewerA').database(),
+  deadAdminA: testEnv.authenticatedContext('deadAdminA').database(),   // مدير مُوقَف (active:false)
   adminE: testEnv.authenticatedContext('adminE').database(),
   stranger: testEnv.authenticatedContext('stranger').database(),  // مصادَق لكن غير عضو في أي مستأجر
   op: testEnv.authenticatedContext('op1').database(),
@@ -158,6 +161,36 @@ console.log('\n🎯 النطاق الجغرافي (geofence):');
 await test('موظف A يقرأ إعداد النطاق (للتحقق من موقعه)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/geofence'))));
 await test('موظف A لا يعبث بإعداد النطاق (للإدارة فقط)', assertFails(set(ref(db.empU, 'tenants/A/ledger/geofence'), { enabled: false })));
 await test('مدير A يضبط النطاق الجغرافي', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/geofence'), { enabled: true, mode: 'block' })));
+
+console.log('\n🚫 علم الإيقاف (active:false) — الحساب المُوقَف لا يكتب [H1]:');
+await test('مدير مُوقَف لا يكتب قيدًا', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/journalEntries/jdead'), { number: 'JV-D', status: 'draft', date: '2026-06-01', period: '2026-06' })));
+await test('مدير مُوقَف لا يكتب موظفًا', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/employees/edead'), { name: 'x' })));
+await test('مدير مُوقَف لا يكتب في $other (مشاريع)', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/projects/pdead'), { name: 'x' })));
+await test('مدير مُوقَف لا يعدّل مستخدمًا (تصعيد)', assertFails(update(ref(db.deadAdminA, 'tenants/A/ledger/users/acctA'), { role: 'admin' })));
+await test('مدير مُوقَف لا يزال يقرأ (القراءة غير مقيّدة بـ active)', assertSucceeds(get(ref(db.deadAdminA, 'tenants/A/ledger/journalEntries'))));
+
+console.log('\n🙋 أقل صلاحية داخل الشركة — الموظف يكتب خدمته الذاتية فقط [H3]:');
+// مسموح: مجموعات الخدمة الذاتية السبع
+await test('موظف يقدّم طلب إجازة (leaves)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/leaves/lv1'), { empKey: 'E1', type: 'annual', status: 'pending' })));
+await test('موظف يسجّل حضورًا (attendance)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/attendance/at1'), { employeeId: 'E1', date: '2026-07-19' })));
+await test('موظف يطلب تصحيح حضور (attendanceRequests)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/attendanceRequests/ar1'), { empKey: 'E1', status: 'pending' })));
+await test('موظف يقدّم طلب إذن (permissions)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/permissions/pm1'), { empKey: 'E1', status: 'pending' })));
+await test('موظف يقدّم مطالبة مصروفات (employeeExpenses)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/employeeExpenses/ex1'), { empId: 'E1', amount: 100, status: 'draft' })));
+await test('موظف يطلب خطابًا (hrLetters)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/hrLetters/hl1'), { empKey: 'E1', status: 'pending' })));
+await test('موظف يجيب استبيانًا (surveyResponses)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/surveyResponses/sr1'), { empKey: 'E1', answers: {} })));
+// ممنوع: الكتابة في المجموعات الحسّاسة تحت $other
+await test('موظف لا يكتب في الموردين (suppliers → $other)', assertFails(set(ref(db.empU, 'tenants/A/ledger/suppliers/sup1'), { name: 'مورد وهمي' })));
+await test('موظف لا يكتب في العملاء (customers → $other)', assertFails(set(ref(db.empU, 'tenants/A/ledger/customers/c1'), { name: 'x' })));
+await test('موظف لا يكتب في فواتير الشراء (purchaseInvoices → $other)', assertFails(set(ref(db.empU, 'tenants/A/ledger/purchaseInvoices/pi1'), { total: 9999 })));
+await test('موظف لا يكتب في المدفوعات (payments → $other)', assertFails(set(ref(db.empU, 'tenants/A/ledger/payments/pay1'), { amount: 9999 })));
+await test('موظف لا يكتب قيدًا (journalEntries)', assertFails(set(ref(db.empU, 'tenants/A/ledger/journalEntries/jemp'), { number: 'X', status: 'draft', date: '2026-06-01', period: '2026-06' })));
+// القراءة العامة لم تُكسَر: الموظف يقرأ الإعلانات ($other read)
+await test('موظف يقرأ الإعلانات (لم تُكسَر القراءة)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/announcements'))));
+// المشاهد (viewer) لا يكتب حتى في الخدمة الذاتية
+await test('مشاهد لا يكتب طلب إجازة (viewer محجوب حتى من الذاتية)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/leaves/lv2'), { type: 'annual' })));
+await test('مشاهد لا يكتب في الموردين ($other)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/suppliers/sup2'), { name: 'x' })));
+// عزل المستأجر يبقى ساريًا حتى على الخدمة الذاتية
+await test('موظف A لا يكتب إجازة في شركة B (عزل)', assertFails(set(ref(db.empU, 'tenants/B/ledger/leaves/hack'), { type: 'annual' })));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
