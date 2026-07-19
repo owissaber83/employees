@@ -35,6 +35,25 @@ exports.syncTenantClaim = onCall({ region: 'us-central1' }, async (req) => {
 
 // 🔒 ضبط كلمة مرور مستخدم مباشرةً — للمدير فقط، وضمن نفس الشركة (المستأجر)
 //    مفيد للمستخدمين بلا بريد إلكتروني يمكنهم استقباله (يخبرهم المدير بكلمة المرور الجديدة مباشرةً).
+// 🔐 تفويض العملية: يسمح لمدير الشركة (على المستهدف في شركته) أو لمشغّل المنصّة (الدعم الفني).
+// يُرجع tenantId للمستهدف عند السماح، ويرمي خطأ عند المنع.
+async function assertAdminOrOperator(callerUid, targetUid) {
+  const db = admin.database();
+  const targetTid = (await db.ref('userIndex/' + targetUid + '/tenantId').get()).val();
+  if (!targetTid) throw new HttpsError('not-found', 'المستخدم غير موجود');
+  const targetExists = (await db.ref('tenants/' + targetTid + '/ledger/users/' + targetUid).get()).exists();
+  if (!targetExists) throw new HttpsError('not-found', 'المستخدم غير موجود في الشركة');
+  // 👑 الدعم الفني (مشغّل المنصّة) مسموح على أي شركة
+  const isOperator = (await db.ref('operators/' + callerUid).get()).val() === true;
+  if (isOperator) return targetTid;
+  // وإلا: يجب أن يكون المتصل مديراً في نفس شركة المستهدف
+  const callerTid = (await db.ref('userIndex/' + callerUid + '/tenantId').get()).val();
+  if (!callerTid || callerTid !== targetTid) throw new HttpsError('permission-denied', 'المستخدم ليس ضمن شركتك');
+  const callerRole = (await db.ref('tenants/' + callerTid + '/ledger/users/' + callerUid + '/role').get()).val();
+  if (callerRole !== 'admin') throw new HttpsError('permission-denied', 'هذه العملية للمدير فقط');
+  return targetTid;
+}
+
 exports.adminSetUserPassword = onCall({ region: 'us-central1' }, async (req) => {
   const callerUid = req.auth && req.auth.uid;
   if (!callerUid) throw new HttpsError('unauthenticated', 'يجب تسجيل الدخول');
@@ -45,19 +64,38 @@ exports.adminSetUserPassword = onCall({ region: 'us-central1' }, async (req) => 
     throw new HttpsError('invalid-argument', 'بيانات غير صحيحة — كلمة المرور 6 أحرف على الأقل');
   }
 
-  const db = admin.database();
-  // تحقّق أن المتصل والمستهدف في نفس الشركة (المستأجر)
-  const callerTid = (await db.ref('userIndex/' + callerUid + '/tenantId').get()).val();
-  const targetTid = (await db.ref('userIndex/' + uid + '/tenantId').get()).val();
-  if (!callerTid || callerTid !== targetTid) {
-    throw new HttpsError('permission-denied', 'المستخدم ليس ضمن شركتك');
-  }
-  // تحقّق أن المتصل مدير في هذه الشركة، وأن المستهدف عضو فيها
-  const callerRole = (await db.ref('tenants/' + callerTid + '/ledger/users/' + callerUid + '/role').get()).val();
-  if (callerRole !== 'admin') throw new HttpsError('permission-denied', 'هذه العملية للمدير فقط');
-  const targetExists = (await db.ref('tenants/' + targetTid + '/ledger/users/' + uid).get()).exists();
-  if (!targetExists) throw new HttpsError('not-found', 'المستخدم غير موجود في شركتك');
-
+  await assertAdminOrOperator(callerUid, uid);
   await admin.auth().updateUser(uid, { password: String(newPassword) });
+  return { ok: true };
+});
+
+// ✉️ تحديث بريد دخول مستخدم (للمدير أو الدعم الفني) — يُحدّث Auth + سجل المستخدم + userIndex
+exports.adminUpdateUserEmail = onCall({ region: 'us-central1' }, async (req) => {
+  const callerUid = req.auth && req.auth.uid;
+  if (!callerUid) throw new HttpsError('unauthenticated', 'يجب تسجيل الدخول');
+
+  const uid = req.data && req.data.uid;
+  const newEmail = String((req.data && req.data.newEmail) || '').trim().toLowerCase();
+  if (!uid || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    throw new HttpsError('invalid-argument', 'بريد إلكتروني غير صحيح');
+  }
+
+  const targetTid = await assertAdminOrOperator(callerUid, uid);
+
+  // منع التعارض مع بريد مستخدم آخر
+  try {
+    const existing = await admin.auth().getUserByEmail(newEmail);
+    if (existing && existing.uid !== uid) throw new HttpsError('already-exists', 'البريد مستخدم لحساب آخر');
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    // auth/user-not-found = البريد متاح، نكمل
+  }
+
+  await admin.auth().updateUser(uid, { email: newEmail, emailVerified: false });
+  const db = admin.database();
+  const updates = {};
+  updates['tenants/' + targetTid + '/ledger/users/' + uid + '/email'] = newEmail;
+  updates['userIndex/' + uid + '/email'] = newEmail;
+  await db.ref('/').update(updates);
   return { ok: true };
 });

@@ -4456,6 +4456,29 @@ window.adminSetPassword = async function (uid) {
     }
 };
 
+// ✉️ تحديث بريد دخول مستخدم (للمدير أو الدعم الفني) — عبر دالة خادمية (Admin SDK)
+window.adminUpdateEmail = async function (uid) {
+    if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return; }
+    const u = us[uid]; if (!u) { toast('المستخدم غير موجود', 'er'); return; }
+    const newEmail = ($('euEm')?.value || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) { toast('⚠️ بريد إلكتروني غير صحيح', 'er'); return; }
+    if (newEmail === (u.email || '').toLowerCase()) { toast('البريد لم يتغيّر', 'wn'); return; }
+    if (!(await cf2(`تحديث بريد دخول المستخدم "${u.name || u.email}" إلى:\n${newEmail}؟\n\nسيسجّل الدخول بالبريد الجديد فوراً — أبلغه به.`))) return;
+    try {
+        await httpsCallable(fns, 'adminUpdateUserEmail')({ uid, newEmail });
+        toast('✅ تم تحديث بريد الدخول إلى ' + newEmail, 'ok', 5000);
+        if (typeof logAudit === 'function') logAudit('تحديث بريد دخول', 'المستخدمون', `${u.email || uid} ← ${newEmail}`);
+    } catch (e) {
+        const code = (e && e.code) || '', msg = (e && e.message) || '';
+        if (/already-exists/i.test(code) || /مستخدم لحساب آخر/.test(msg)) { toast('🚫 البريد مستخدم لحساب آخر', 'er', 6000); if ($('euEm')) $('euEm').value = u.email || ''; }
+        else if (/not-found|unavailable|internal|functions\//i.test(code) || /not[\s-]?found|CORS|Failed to fetch|does not exist/i.test(msg)) {
+            toast('⚙️ تحديث البريد يتطلب تفعيل الخادم: ترقية الخطة إلى Blaze ثم «firebase deploy --only functions».', 'er', 9000); if ($('euEm')) $('euEm').value = u.email || '';
+        }
+        else if (/permission-denied/i.test(code)) { toast('🚫 ' + (msg || 'غير مصرّح'), 'er'); }
+        else { toast('❌ ' + (msg || e), 'er'); if ($('euEm')) $('euEm').value = u.email || ''; }
+    }
+};
+
 window.togUAc = async function (uid) {
     const u = us[uid]; if (!u) return; if (uid === curU?.uid) { toast('لا يمكنك إيقاف نفسك', 'er'); return }
     const nA = !(u.active !== false);
