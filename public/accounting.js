@@ -4401,8 +4401,114 @@ function cffMonthLabel(ym) {
     return `${months[(+m) - 1] || m} ${y}`;
 }
 
+// ── 💵 التدفق النقدي الفعلي + خط الأنابيب — على مستوى الشركة ────────────────
+// الفعلي: سندات القبض والصرف المُرحّلة خلال الفترة (حركة النقد الحقيقية).
+// خط الأنابيب: ما لم يتحوّل نقداً بعد، مفصولاً بمراحله كي لا يُحسب مرتين:
+//   ① مفوتر وغير مسدد   ② مستخلص معتمد لم يُحوَّل لفاتورة   ③ مشتريات غير مسددة
+window.cffState = { from: '', to: '' };
+function cffActuals() {
+    const st = window.cffState;
+    const from = st.from || '0000-01-01', to = st.to || '9999-12-31';
+    const inRange = d => d && d >= from && d <= to;
+    let inActual = 0, outActual = 0, inCount = 0, outCount = 0;
+    Object.values(window.receipts || {}).forEach(r => {
+        if (!r || r.status !== 'posted' || !inRange(r.date)) return;
+        inActual += parseFloat(r.amount) || 0; inCount++;
+    });
+    Object.values(window.payments || {}).forEach(p => {
+        if (!p || p.status !== 'posted' || !inRange(p.date)) return;
+        outActual += parseFloat(p.amount) || 0; outCount++;
+    });
+    // ① فواتير مبيعات مرحّلة عليها رصيد مفتوح
+    let invOpen = 0, invOpenN = 0, invOverdue = 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    Object.values(window.salesInvoices || {}).forEach(inv => {
+        if (inv.status !== 'posted' || inv.fullyCredited) return;
+        const open = Math.round(((+inv.grandTotal || 0) - (+inv.paidAmount || 0) - (+inv.creditedAmount || 0)) * 100) / 100;
+        if (open <= 0.5) return;
+        invOpen += open; invOpenN++;
+        if (inv.dueDate && inv.dueDate < todayStr) invOverdue += open;
+    });
+    // ② مستخلصات معتمدة لم تُحوَّل إلى فواتير بعد (مرحلة سابقة للفوترة)
+    let billOpen = 0, billOpenN = 0;
+    Object.values(window.progressBillings || {}).forEach(b => {
+        if (b.status !== 'approved') return;
+        if (b.salesInvoiceKey && (window.salesInvoices || {})[b.salesInvoiceKey]) return;
+        const amt = Math.round(((+b.netAmount || +b.currentAmount || 0)) * 100) / 100;
+        if (amt > 0.5) { billOpen += amt; billOpenN++; }
+    });
+    // ③ مشتريات مرحّلة غير مسددة
+    let purOpen = 0, purOpenN = 0;
+    Object.values(window.purchaseInvoices || {}).forEach(inv => {
+        if (inv.status !== 'posted') return;
+        const open = Math.round(((+inv.grandTotal || 0) - (+inv.paidAmount || 0) - (+inv.debitedAmount || 0)) * 100) / 100;
+        if (open > 0.5) { purOpen += open; purOpenN++; }
+    });
+    const r2 = n => Math.round(n * 100) / 100;
+    return {
+        from, to,
+        inActual: r2(inActual), outActual: r2(outActual), netActual: r2(inActual - outActual), inCount, outCount,
+        invOpen: r2(invOpen), invOpenN, invOverdue: r2(invOverdue),
+        billOpen: r2(billOpen), billOpenN,
+        purOpen: r2(purOpen), purOpenN,
+        pipelineIn: r2(invOpen + billOpen), pipelineNet: r2(invOpen + billOpen - purOpen)
+    };
+}
+window.cffSetPeriod = function (which) {
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+    const iso = d => d.toISOString().slice(0, 10);
+    if (which === 'month') { window.cffState.from = iso(new Date(y, m, 1)); window.cffState.to = iso(new Date(y, m + 1, 0)); }
+    else if (which === 'quarter') { const q = Math.floor(m / 3); window.cffState.from = iso(new Date(y, q * 3, 1)); window.cffState.to = iso(new Date(y, q * 3 + 3, 0)); }
+    else if (which === 'year') { window.cffState.from = `${y}-01-01`; window.cffState.to = `${y}-12-31`; }
+    else { window.cffState.from = $('cffFrom')?.value || ''; window.cffState.to = $('cffTo')?.value || ''; }
+    renderCashFlowForecast();
+};
+
+// كتلة «الفعلي + خط الأنابيب» أعلى صفحة التدفق النقدي
+function cffActualBlock() {
+    const a = cffActuals();
+    const st = window.cffState;
+    const pBtn = (id, label) => `<button onclick="cffSetPeriod('${id}')" style="background:#eef2f7;color:#1a3a5c;border:none;border-radius:7px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer">${label}</button>`;
+    const box = (icon, label, val, color, sub) => `<div style="background:#fff;border:1px solid #e8edf2;border-radius:11px;padding:12px;border-bottom:3px solid ${color}">
+        <div style="font-size:11px;color:#7a8896">${icon} ${label}</div>
+        <div class="kpi-v" style="font-size:17px;font-weight:900;color:${color};margin-top:3px">${fmt(val)}</div>
+        ${sub ? `<div style="font-size:10.5px;color:#95a5a6;margin-top:2px">${sub}</div>` : ''}</div>`;
+    return `
+    <div class="card" style="padding:14px;margin-bottom:14px;border-right:4px solid #16a085">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:11px">
+            <div style="font-weight:800;color:#0e6655;font-size:14px">💵 الفعلي خلال الفترة <span style="font-size:11px;color:#7a8896;font-weight:600">(سندات القبض والصرف المُرحّلة)</span></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input type="date" id="cffFrom" value="${esc(st.from)}" onchange="cffSetPeriod('custom')" style="padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:7px;font-size:12px">
+                <span style="color:#95a5a6">→</span>
+                <input type="date" id="cffTo" value="${esc(st.to)}" onchange="cffSetPeriod('custom')" style="padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:7px;font-size:12px">
+                ${pBtn('month', 'الشهر')} ${pBtn('quarter', 'الربع')} ${pBtn('year', 'السنة')}
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:9px">
+            ${box('⬇️', 'متحصلات فعلية', a.inActual, '#27ae60', `${a.inCount} سند قبض`)}
+            ${box('⬆️', 'مدفوعات فعلية', a.outActual, '#c0392b', `${a.outCount} سند صرف`)}
+            ${box(a.netActual >= 0 ? '✅' : '⚠️', 'صافي التدفق الفعلي', a.netActual, a.netActual >= 0 ? '#16a085' : '#c0392b', 'متحصلات − مدفوعات')}
+        </div>
+        <div style="font-weight:800;color:#1a3a5c;font-size:14px;margin:15px 0 10px;border-top:1px dashed #d0d7e0;padding-top:12px">
+            🔮 خط الأنابيب <span style="font-size:11px;color:#7a8896;font-weight:600">(لم يتحوّل نقداً بعد — بلا ازدواج احتساب)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:9px">
+            ${box('🧾', 'مفوتر وغير مسدد', a.invOpen, '#2d6a9f', `${a.invOpenN} فاتورة${a.invOverdue > 0.5 ? ` · منها متأخر ${fmt(a.invOverdue)}` : ''}`)}
+            ${box('📑', 'مستخلص معتمد بلا فاتورة', a.billOpen, '#8e44ad', `${a.billOpenN} مستخلص — يحتاج فوترة`)}
+            ${box('💰', 'إجمالي المتوقع تحصيله', a.pipelineIn, '#16a085', 'فواتير + مستخلصات')}
+            ${box('🏭', 'مشتريات غير مسددة', a.purOpen, '#e67e22', `${a.purOpenN} فاتورة مورد`)}
+            ${box(a.pipelineNet >= 0 ? '📈' : '📉', 'صافي خط الأنابيب', a.pipelineNet, a.pipelineNet >= 0 ? '#27ae60' : '#c0392b', 'داخل − خارج')}
+        </div>
+        ${a.billOpen > 0.5 ? `<div style="background:#f5eef8;border-right:4px solid #8e44ad;border-radius:8px;padding:9px 12px;margin-top:11px;font-size:12px;color:#6c3483;line-height:1.8">
+            📌 لديك <b>${fmt(a.billOpen)}</b> في <b>${a.billOpenN}</b> مستخلص معتمد لم يُحوَّل إلى فاتورة — لا يظهر في ذمم العملاء ولا في الإقرار الضريبي حتى تُصدر فاتورته.</div>` : ''}
+    </div>`;
+}
+
 window.renderCashFlowForecast = function () {
     const container = $('pg-cashforecast'); if (!container) return;
+    if (!window.cffState.from && !window.cffState.to) {   // افتراضي: السنة الحالية حتى تاريخه
+        const y = new Date().getFullYear();
+        window.cffState.from = `${y}-01-01`; window.cffState.to = new Date().toISOString().slice(0, 10);
+    }
     const horizon = parseInt($('cffHorizon')?.value) || 6; // أشهر
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().slice(0, 10);
@@ -4431,6 +4537,8 @@ window.renderCashFlowForecast = function () {
     });
     Object.values(window.progressBillings || {}).forEach(b => {
         if (b.status !== 'approved') return; // المعتمدة وغير المدفوعة (المدفوعة status='paid')
+        // ⚠️ تفادي الازدواج: المستخلص المُحوَّل إلى فاتورة محسوب أصلاً ضمن الفواتير أعلاه
+        if (b.salesInvoiceKey && (window.salesInvoices || {})[b.salesInvoiceKey]) return;
         const amt = parseFloat(b.netAmount) || parseFloat(b.currentAmount) || 0;
         if (amt > 0.5) buckets[bucketFor(b.dueDate || b.date)].in += amt;
     });
@@ -4464,8 +4572,8 @@ window.renderCashFlowForecast = function () {
     container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
             <div>
-                <div style="font-size:20px;font-weight:800;color:#2c3e50">💧 التدفق النقدي المتوقع (Cash Flow Forecast)</div>
-                <div style="font-size:12px;color:#888;margin-top:2px">توقع السيولة المستقبلية من الفواتير والمستخلصات المستحقة والالتزامات الدورية القادمة</div>
+                <div style="font-size:20px;font-weight:800;color:#2c3e50">💧 التدفق النقدي — الفعلي والمتوقع</div>
+                <div style="font-size:12px;color:#888;margin-top:2px">حركة النقد الفعلية خلال الفترة + خط أنابيب التحصيل والسداد على مستوى الشركة</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <select id="cffHorizon" onchange="renderCashFlowForecast()" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px">
@@ -4476,6 +4584,7 @@ window.renderCashFlowForecast = function () {
                 <button onclick="printCashForecast()" style="background:#2980b9;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px">🖨️ طباعة</button>
             </div>
         </div>
+        ${cffActualBlock()}
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
             <div class="kpi k1"><div class="kpi-ic">💰</div><div class="kpi-lb">الرصيد النقدي الحالي</div><div class="kpi-vl" style="font-size:14px">${fmt(opening)}</div></div>
             <div class="kpi k2" style="--kc:#27ae60"><div class="kpi-ic">⬇️</div><div class="kpi-lb">متحصلات متوقعة</div><div class="kpi-vl" style="font-size:14px">${fmt(totalIn)}</div></div>
