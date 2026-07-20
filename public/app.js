@@ -4278,9 +4278,23 @@ window.saveNU = async function () {
         const cr = await createUserWithEmailAndPassword(sAuth, em, ps);
         await fbUpP(cr.user, { displayName: nm });
         const uid = cr.user.uid; await signOut(sAuth);
-        await set(ref(db, `ledger/users/${uid}`), { name: nm, email: em, role, permissions: perms, active: true, createdAt: new Date().toISOString() });
+        // 👑 في وضع دعم المالك نكتب عبر _rawSet لتجاوز حاجز «القراءة فقط» — الخادم يسمح للمشغّل
+        //    بكتابة ledger/users و userIndex عبر قواعد قاعدة البيانات (نفس نمط permsSave).
+        const sup = !!window.__impersonating;
+        const putUser = (r, v) => sup ? _rawSet(r, v) : set(r, v);
+        await putUser(ref(db, `ledger/users/${uid}`), { name: nm, email: em, role, permissions: perms, active: true, createdAt: new Date().toISOString(), ...(sup ? { createdBySupport: true } : {}) });
         // 🏢 اربط المستخدم بشركة المدير الحالي في الفهرس العام (يتطلبه تسجيل الدخول)
-        await set(_rawRef(db, `userIndex/${uid}`), { tenantId: currentTenantId });
+        await putUser(_rawRef(db, `userIndex/${uid}`), { tenantId: currentTenantId });
+        // 🕵️ شفافية: أي إنشاء مستخدم من الدعم يُسجَّل في سجل تدقيق الشركة نفسها ليراه مديرها
+        if (sup) {
+            try {
+                await _rawSet(_rawRef(db, `tenants/${currentTenantId}/ledger/auditLog/${Date.now()}_sup`), {
+                    action: 'إضافة مستخدم (بواسطة الدعم الفني)', section: 'المستخدمون',
+                    details: `أنشأ الدعم الفني المستخدم «${nm}» (${em}) بدور ${role}`,
+                    user: (curU && curU.email) || 'support', bySupport: true, at: new Date().toISOString()
+                });
+            } catch (e2) { /* السجل لا يُعطّل العملية */ }
+        } else if (typeof logAudit === 'function') logAudit('إضافة مستخدم', 'المستخدمون', `إضافة «${nm}» بدور ${role}`);
         toast(`تم إضافة "${nm}" بنجاح ✓`, 'ok'); cov('mAU');
     } catch (e) { toast('خطأ: ' + authEr(e.code), 'er') }
 };

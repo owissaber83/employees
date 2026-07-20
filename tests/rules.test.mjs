@@ -192,6 +192,18 @@ await test('مشاهد لا يكتب في الموردين ($other)', assertFail
 // عزل المستأجر يبقى ساريًا حتى على الخدمة الذاتية
 await test('موظف A لا يكتب إجازة في شركة B (عزل)', assertFails(set(ref(db.empU, 'tenants/B/ledger/leaves/hack'), { type: 'annual' })));
 
+console.log('\n👑 الدعم الفني (operator) — إنشاء مستخدم داخل شركة عميل:');
+await test('المشغّل يكتب سجل مستخدم في شركة A', assertSucceeds(set(ref(db.op, 'tenants/A/ledger/users/newSup'), { name: 'مستخدم دعم', role: 'admin', permissions: [], active: true })));
+await test('المشغّل ينشئ userIndex للمستخدم الجديد (يلزم لتسجيل دخوله)', assertSucceeds(set(ref(db.op, 'userIndex/newSup'), { tenantId: 'A' })));
+await test('المشغّل يُلحق في سجل تدقيق الشركة (شفافية)', assertSucceeds(set(ref(db.op, 'tenants/A/ledger/auditLog/sup1'), { action: 'إضافة مستخدم (بواسطة الدعم)', bySupport: true })));
+await test('المشغّل لا يعدّل سجل تدقيق موجود (إلحاق فقط حتى للدعم)', assertFails(set(ref(db.op, 'tenants/A/ledger/auditLog/e1'), { action: 'tampered' })));
+// الحدود لم تُفتح لغير المشغّل
+await test('مدير A لا ينشئ userIndex لشركة B (عزل)', assertFails(set(ref(db.adminA, 'userIndex/foreign'), { tenantId: 'B' })));
+await test('محاسب A لا ينشئ userIndex لمستخدم آخر (المدير/المشغّل فقط)', assertFails(set(ref(db.acctA, 'userIndex/someoneElse'), { tenantId: 'A' })));
+await test('غريب لا ينشئ userIndex لمستخدم آخر', assertFails(set(ref(db.stranger, 'userIndex/victim'), { tenantId: 'A' })));
+await test('المشغّل ما زال لا يكتب قيود اليومية (لم نمنحه بيانات محاسبية)', assertFails(set(ref(db.op, 'tenants/A/ledger/journalEntries/opjv'), { number: 'OP-1', status: 'draft', date: '2026-06-01', period: '2026-06' })));
+await test('المشغّل ما زال لا يكتب في الموردين ($other)', assertFails(set(ref(db.op, 'tenants/A/ledger/suppliers/opsup'), { name: 'x' })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
