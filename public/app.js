@@ -1497,6 +1497,51 @@ window.doLogin = async function () {
 
 window.doLogout = () => cf2('هل تريد تسجيل الخروج؟', () => { stopIdleGuard(); signOut(auth) });
 
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  💬 تلميحات فورية — ترقّي كل عنصر يحمل title في البرنامج كله               ║
+// ║  تلميح المتصفح الافتراضي يتأخر ثانية أو أكثر وبخط باهت، فلا يلاحظه         ║
+// ║  المستخدم أمام صفوف الأيقونات. هذا بديل فوري وواضح ويعمل تلقائياً على       ║
+// ║  أي زر جديد يحمل title — بلا تعديل أي صفحة.                                ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+(function initTips() {
+    if (window.__tipInit) return; window.__tipInit = true;
+    let tip = null;
+    const ensure = () => {
+        if (tip) return tip;
+        tip = document.createElement('div');
+        tip.id = 'gbrTip';
+        tip.style.cssText = 'position:fixed;z-index:99999;background:#1a3a5c;color:#fff;padding:6px 11px;border-radius:7px;' +
+            'font-size:11.5px;font-weight:600;font-family:inherit;pointer-events:none;opacity:0;transition:opacity .12s;' +
+            'box-shadow:0 6px 20px rgba(0,0,0,.28);max-width:min(280px,88vw);line-height:1.55;text-align:center;white-space:normal';
+        document.body.appendChild(tip);
+        return tip;
+    };
+    const hide = () => { if (tip) tip.style.opacity = '0'; };
+    document.addEventListener('mouseover', e => {
+        const t = e.target && e.target.closest && e.target.closest('[title],[data-tip]');
+        if (!t) { hide(); return; }
+        // ننقل title إلى data-tip لكتم تلميح المتصفح، ونحفظ النص في aria-label حفاظاً على قارئ الشاشة
+        if (t.hasAttribute('title')) {
+            const v = t.getAttribute('title');
+            if (v) {
+                t.setAttribute('data-tip', v);
+                if (!t.getAttribute('aria-label')) t.setAttribute('aria-label', v);
+                t.removeAttribute('title');
+            }
+        }
+        const msg = t.getAttribute('data-tip');
+        if (!msg) { hide(); return; }
+        const el = ensure();
+        el.textContent = msg;
+        el.style.opacity = '1';
+        const r = t.getBoundingClientRect(), tr = el.getBoundingClientRect();
+        el.style.left = Math.max(6, Math.min(r.left + r.width / 2 - tr.width / 2, window.innerWidth - tr.width - 6)) + 'px';
+        const above = r.top - tr.height - 8;
+        el.style.top = (above < 6 ? r.bottom + 8 : above) + 'px';   // اقلبه لأسفل إن ضاق الأعلى
+    }, true);
+    ['mouseout', 'click', 'scroll', 'keydown'].forEach(ev => document.addEventListener(ev, hide, true));
+})();
+
 // 👁️ إظهار/إخفاء كلمة المرور
 window.togglePwd = function (id, btn) {
     const i = $(id); if (!i) return;

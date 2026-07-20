@@ -16009,6 +16009,8 @@ window.viewSInv = function (key, proforma) {
         .totals { width: 350px; margin-right: auto; margin-top: 14px; }
         .totals tr td { border: 1px solid #ddd; padding: 6px 10px; }
         .totals tr.grand td { background: #27ae60; color: white; font-weight: 900; font-size: 14px; padding: 10px; }
+        /* صافي المستحق بعد الاحتجاز واسترداد الدفعة — يُميَّز عن إجمالي الفاتورة كي لا يختلطا */
+        .totals tr.netdue td { background: #1a3a5c; color: white; font-weight: 900; font-size: 14px; padding: 10px; }
         .words { background: #e8f8f5; border-right: 3px solid #27ae60; padding: 10px; margin-top: 14px; font-size: 11px; line-height: 1.6; }
         .footer { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; text-align: center; margin-top: 40px; font-size: 11px; }
         .footer div { border-top: 2px dashed #888; padding-top: 8px; }
@@ -16090,12 +16092,20 @@ window.viewSInv = function (key, proforma) {
             <tr><td>ضريبة القيمة المضافة:</td><td style="text-align:left;font-weight:700;color:#8e44ad">${fmt(inv.vatTotal)}</td></tr>
             ${taxBreakdownHtml}
             <tr class="grand"><td>💰 الإجمالي:</td><td style="text-align:left">${fmt(inv.grandTotal)} ${inv.currency && inv.currency !== baseCurrencyCode() ? inv.currency : ''}</td></tr>
+            ${((+inv.retentionAmount || 0) > 0 || (+inv.advanceRecoveryAmount || 0) > 0) ? `
+                ${(+inv.retentionAmount || 0) > 0 ? `<tr><td>🏗️ ضمان الأعمال (احتجاز ${(+inv.retentionPct || 0)}%):</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.retentionAmount)}</td></tr>` : ''}
+                ${(+inv.advanceRecoveryAmount || 0) > 0 ? `<tr><td>💵 استرداد الدفعة المقدمة (${(+inv.advanceRecoveryPct || 0)}%):</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.advanceRecoveryAmount)}</td></tr>` : ''}
+                <tr class="netdue"><td>🧾 صافي المستحق للدفع:</td><td style="text-align:left">${fmt(inv.netDue)} ${inv.currency && inv.currency !== baseCurrencyCode() ? inv.currency : ''}</td></tr>` : ''}
             ${inv.currency && inv.currency !== baseCurrencyCode() ? `<tr><td style="font-size:10px;color:#666">سعر الصرف ${inv.exchangeRate} — المعادل الدفتري:</td><td style="text-align:left;font-size:10px;color:#666">${fmt((inv.grandTotal || 0) * (inv.exchangeRate || 1))} ${baseCurrencyName()}</td></tr>` : ''}
         </table>
 
         <div class="words">
             <strong>📝 التفقيط:</strong> ${typeof numberToArabicWords === 'function' ? numberToArabicWords(inv.grandTotal) : ''}
         </div>
+        ${((+inv.retentionAmount || 0) > 0 || (+inv.advanceRecoveryAmount || 0) > 0) ? `
+        <div class="words" style="background:#eef3f9;border-right-color:#1a3a5c">
+            <strong>🧾 صافي المستحق للدفع:</strong> ${typeof numberToArabicWords === 'function' ? numberToArabicWords(inv.netDue) : fmt(inv.netDue)}
+        </div>` : ''}
 
         ${inv.notes ? `<div style="background:#fff8e1;border-radius:6px;padding:10px;margin-top:14px;font-size:11px"><strong>📋 ملاحظات:</strong> ${esc(inv.notes)}</div>` : ''}
 
