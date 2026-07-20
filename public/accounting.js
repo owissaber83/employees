@@ -12729,10 +12729,16 @@ window.openCustomer360 = function (key) {
     window._cust360 = { key, tab: 'overview', stmtFrom: '', stmtTo: '' };
     let ov = document.getElementById('cust360Overlay');
     if (!ov) { ov = document.createElement('div'); ov.id = 'cust360Overlay'; document.body.appendChild(ov); }
-    ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9990;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px';
+    // 🖥️ صفحة كاملة (لا نافذة): ملف العميل يحوي تبويبات وجداول تحتاج مساحة الشاشة كلها
+    ov.style = 'position:fixed;inset:0;background:#f4f7f6;z-index:9990;overflow:auto';
+    document.body.style.overflow = 'hidden';        // امنع تمرير الصفحة خلفها
+    if (!window.__cust360Esc) {                      // Esc للإغلاق (متوقَّع في العرض الكامل)
+        window.__cust360Esc = e => { if (e.key === 'Escape' && document.getElementById('cust360Overlay')) closeCust360(); };
+        document.addEventListener('keydown', window.__cust360Esc);
+    }
     cust360Render();
 };
-window.closeCust360 = function () { const ov = document.getElementById('cust360Overlay'); if (ov) ov.remove(); };
+window.closeCust360 = function () { const ov = document.getElementById('cust360Overlay'); if (ov) ov.remove(); document.body.style.overflow = ''; };
 window.cust360Tab = function (tab) { window._cust360.tab = tab; cust360Render(); };
 function cust360Refresh() { if (document.getElementById('cust360Overlay')) cust360Render(); }
 function cust360Render() {
@@ -12743,9 +12749,9 @@ function cust360Render() {
     const canManage = (typeof myP !== 'undefined' && myP?.role === 'admin') || canFn('manage_customers');
     const tabBtn = (id, label) => `<button class="btn" onclick="cust360Tab('${id}')" style="${tab === id ? 'background:#0e6251;color:#fff' : 'background:#eef2f0;color:#0e6251'};padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px">${label}</button>`;
     const kpi = (lbl, val, color) => `<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px;text-align:center;border-bottom:3px solid ${color}"><div style="font-size:10px;color:#666">${lbl}</div><div style="font-size:16px;font-weight:900;color:${color}">${val}</div></div>`;
-    ov.innerHTML = `<div style="background:#f4f7f6;border-radius:16px;max-width:900px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
-        <div style="background:linear-gradient(135deg,#0e6251,#16a085);color:#fff;padding:16px 20px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    ov.innerHTML = `<div style="background:#f4f7f6;min-height:100vh;width:100%">
+        <div style="background:linear-gradient(135deg,#0e6251,#16a085);color:#fff;padding:16px 20px;position:sticky;top:0;z-index:5;box-shadow:0 2px 12px rgba(0,0,0,.18)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;max-width:1280px;margin:0 auto">
                 <div>
                     <div style="font-size:11px;opacity:.85;font-family:monospace">${esc(c.code || '')} · <span style="background:rgba(255,255,255,.2);padding:1px 7px;border-radius:5px">${esc(t.label)}</span> ${c.active === false ? '· ⏸️ معطّل' : '· ✅ نشط'} · <span style="background:${risk.color};padding:1px 7px;border-radius:5px;font-weight:800" title="درجة المخاطر ${risk.score}/100">مخاطر ${risk.rating}</span>${c.creditHold ? ' · <span style="background:#c0392b;padding:1px 7px;border-radius:5px;font-weight:800">🔒 موقوف ائتمانياً</span>' : ''}</div>
                     <h2 style="margin:5px 0 0;font-size:20px;font-weight:900">${(c.nameAr || '').replace(/</g, '&lt;')}</h2>
@@ -12763,7 +12769,7 @@ function cust360Render() {
                 ${canManage ? `<button class="btn" onclick="toggleCreditHold('${key}')" style="background:${c.creditHold ? '#27ae60' : 'rgba(255,255,255,.2)'};color:#fff;padding:7px 13px;font-size:12px;font-weight:700">${c.creditHold ? '🔓 رفع الإيقاف' : '🔒 إيقاف ائتماني'}</button>` : ''}
             </div>
         </div>
-        <div style="padding:16px 20px;max-height:74vh;overflow:auto">
+        <div style="padding:18px 20px 40px;max-width:1280px;margin:0 auto">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">
                 ${kpi('الرصيد', fmt(bal.balance), bal.balance > 0 ? '#2d6a9f' : '#27ae60')}
                 ${kpi('المتأخرات', fmt(bal.overdue), bal.overdue > 0 ? '#c0392b' : '#27ae60')}
