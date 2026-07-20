@@ -22,10 +22,29 @@ A standalone React learning platform ("CFO Master Academy") lives at `public/aca
 ```bash
 firebase serve                    # run locally (serves public/) — hard-refresh the browser to see edits
 firebase deploy --only hosting    # deploy public/ to live (project: emplyeeapp-1dc64) — same as: npm run deploy
+firebase deploy --only database   # deploy database.rules.json
+npm run test:rules                # security-rules test suite (emulator) — run before editing database.rules.json
 ./verify-features.sh              # grep-based sanity check of attendance features
 ```
 
-Pushing to `main` also auto-deploys via GitHub Actions (`.github/workflows/firebase-hosting-merge.yml`) — it just checks out and deploys `public/` (no build).
+Pushing to `main` also auto-deploys via GitHub Actions (`.github/workflows/firebase-hosting-merge.yml`) — it just checks out and deploys `public/` (no build). Note the workflow deploys **hosting only** — database rules are never deployed by CI, so deploy them manually after editing.
+
+### Cloud Functions are NOT deployable (Spark plan) — deliberately unconfigured
+
+`functions/index.js` exists (`dailyBackup`, `syncTenantClaim`, `adminSetUserPassword`, `adminUpdateUserEmail`) but the project is on the **free Spark plan**, and deploying functions requires Artifact Registry → billing (Blaze). The `functions` key was therefore **removed from `firebase.json`** so that a plain `firebase deploy` succeeds instead of failing with:
+
+> `Billing account for project '812714832536' is not open. Billing must be enabled for activation of service(s) 'artifactregistry.googleapis.com'`
+
+**Do not re-add the `functions` key** unless the project is upgraded to Blaze — it only reintroduces that failure. To restore it after upgrading, put back:
+
+```json
+"functions": { "source": "functions" },
+```
+
+Consequences while on Spark (all handled, no silent breakage):
+- **Admin password/email change** in the users page calls the undeployed callables and fails. Use `functions/admin-user.js` instead — a **local** Admin-SDK CLI that works on Spark (`find` / `set-password` / `set-email` / `list`; needs a service-account key at `~/.gbr/serviceAccountKey.json`, kept outside the repo). It syncs email across Auth + `ledger/users` + `userIndex`, so prefer it over editing email in the Firebase Console (which updates Auth only and desyncs the app).
+- **`dailyBackup` never runs.** The in-app fallback (`downloadLocalBackup`) covers it, but only downloads a file when an **admin opens the app** on a given day — it is not a server-side scheduled backup.
+- **Storage is disabled** (also Blaze), so document features store external URLs.
 
 ## Architecture
 
