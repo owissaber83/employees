@@ -78,3 +78,9 @@ dist/
 *-debug.log
 *.jar
 functions/node_modules/
+
+# 🔑 مفاتيح حسابات الخدمة (Admin SDK) — سرّية ولا تُرفع أبداً
+serviceAccountKey.json
+**/serviceAccountKey.json
+*-service-account*.json
+*firebase-adminsdk*.json
