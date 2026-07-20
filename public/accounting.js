@@ -15670,6 +15670,22 @@ function drawSalesAnalyticsCharts() {
 }
 
 // ── إنشاء قيد محاسبي تلقائي للفاتورة ─────────────────
+// 🩹 يضمن وجود حساب قياسي من DEFAULT_ACCOUNTS، ويُنشئه إن كانت الشركة أُنشئت قبل إضافته.
+//    يعيد كائن الحساب أو null. (الحسابات القياسية معرَّفة في التطبيق نفسه، فإنشاؤها ليس اجتهاداً.)
+async function ensureStdAccount(code) {
+    const existing = Object.values(window.chartOfAccounts || {}).find(a => a.code === code);
+    if (existing) return existing;
+    const def = (typeof DEFAULT_ACCOUNTS !== 'undefined' ? DEFAULT_ACCOUNTS : []).find(a => a.code === code);
+    if (!def) return null;
+    try {
+        const rec = { ...def, createdAt: new Date().toISOString(), autoCreated: true };
+        await push(R.coa, rec);
+        toast(`🧾 أُنشئ الحساب القياسي ${code} — ${def.nameAr} (لم يكن في شجرة حساباتك)`, 'ok', 7000);
+        if (typeof logAudit === 'function') logAudit('إنشاء حساب قياسي تلقائي', 'شجرة الحسابات', `${code} — ${def.nameAr}`);
+        return rec;
+    } catch (e) { console.error('ensureStdAccount', code, e); return null; }
+}
+
 async function createJournalForSInv(invKey, inv) {
     const customer = window.customers?.[inv.customerId];
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -15702,9 +15718,13 @@ async function createJournalForSInv(invKey, inv) {
     // 🏗️ ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة
     let retBase = cvt(inv.retentionAmount || 0);
     let advBase = cvt(inv.advanceRecoveryAmount || 0);
-    // إن كان الحساب مفقوداً، لا نحتجز محاسبياً (نُبقي المبلغ على ذمة العميل) مع تنبيه
-    if (retBase > 0.005 && !retentionAcc) { toast('⚠️ حساب 1131 (محتجزات ضمان لدى العملاء) غير موجود — لم يُفصل الاحتجاز في القيد', 'wn', 7000); retBase = 0; }
-    if (advBase > 0.005 && !advanceAcc) { toast('⚠️ حساب 2150 (دفعات مقدمة من العملاء) غير موجود — لم يُسترد المقدّم في القيد', 'wn', 7000); advBase = 0; }
+    // 🩹 الشركات المُنشأة قبل إضافة هذه الحسابات القياسية لا تملكها، وكان القيد يُرحَّل ناقصاً
+    //    بتنبيه عابر يسهل تفويته — فيبقى المبلغ على ذمة العميل خطأً. نُنشئ الحساب القياسي
+    //    تلقائياً من DEFAULT_ACCOUNTS بدل تشويه القيد.
+    const ensuredRet = retBase > 0.005 && !retentionAcc ? await ensureStdAccount('1131') : retentionAcc;
+    const ensuredAdv = advBase > 0.005 && !advanceAcc ? await ensureStdAccount('2150') : advanceAcc;
+    if (retBase > 0.005 && !ensuredRet) { toast('⚠️ تعذّر إنشاء حساب 1131 (محتجزات ضمان لدى العملاء) — لم يُفصل الاحتجاز في القيد', 'er', 8000); retBase = 0; }
+    if (advBase > 0.005 && !ensuredAdv) { toast('⚠️ تعذّر إنشاء حساب 2150 (دفعات مقدمة من العملاء) — لم يُسترد المقدّم في القيد', 'er', 8000); advBase = 0; }
     const custDueBase = Math.round((grandBase - retBase - advBase) * 100) / 100; // صافي المستحق على العميل
 
     const lines = [];
@@ -15742,17 +15762,22 @@ async function createJournalForSInv(invKey, inv) {
         toast('⚠️ حساب 2140 (VAT مستحقة) غير موجود — تم إضافة الضريبة للإيرادات', 'wn', 6000);
     }
     // مدين: محتجزات ضمان لدى العملاء (1131)
-    if (retBase > 0.005 && retentionAcc) {
-        lines.push({ accountCode: retentionAcc.code, accountName: retentionAcc.nameAr, description: `ضمان أعمال محتجز - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: retBase, credit: 0 });
+    if (retBase > 0.005 && ensuredRet) {
+        lines.push({ accountCode: ensuredRet.code, accountName: ensuredRet.nameAr, description: `ضمان أعمال محتجز - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: retBase, credit: 0 });
     }
     // مدين: دفعات مقدمة من العملاء (2150) — استرداد جزء من الدفعة المقبوضة سابقاً
-    if (advBase > 0.005 && advanceAcc) {
-        lines.push({ accountCode: advanceAcc.code, accountName: advanceAcc.nameAr, description: `استرداد دفعة مقدمة - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: advBase, credit: 0 });
+    if (advBase > 0.005 && ensuredAdv) {
+        lines.push({ accountCode: ensuredAdv.code, accountName: ensuredAdv.nameAr, description: `استرداد دفعة مقدمة - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: advBase, credit: 0 });
     }
     // ضمان توازن القيد بعد التقريب: عدّل سطر الإيراد بفرق التقريب إن وُجد
     const totCredit = lines.slice(1).reduce((s, l) => s + l.credit, 0);
     const roundDiff = Math.round((grandBase - totCredit) * 100) / 100;
     if (Math.abs(roundDiff) >= 0.01) lines[1].credit = Math.round((lines[1].credit + roundDiff) * 100) / 100;
+
+    // 📑 العرض المحاسبي المتعارف عليه: كل المدين أولاً ثم كل الدائن.
+    //    ⚠️ يجب أن يبقى هذا الترتيب **بعد** تسوية التقريب أعلاه، لأنها تعتمد على مواضع
+    //    رقمية (lines[1] = سطر الإيراد) تنكسر لو رُتِّبت القائمة قبلها.
+    lines.sort((a, b) => ((+b.debit || 0) > 0 ? 1 : 0) - ((+a.debit || 0) > 0 ? 1 : 0));
 
     // إنشاء القيد
     const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AUTO-' + Date.now());
