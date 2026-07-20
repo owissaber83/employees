@@ -92,7 +92,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
@@ -1095,6 +1095,8 @@ function showScr(n) {
     window.__appLoaded = true; // 🛡️ النظام وصل لمرحلة عرض شاشة (دخول/إعداد/تطبيق)
     $('LS').style.opacity = '0'; setTimeout(() => $('LS').style.display = 'none', 500);
     $('AS').style.display = n === 'auth' ? 'flex' : 'none';
+    // استعِد اختيار «تذكّرني» السابق على هذا الجهاز
+    if (n === 'auth' && $('lRemember') && typeof isRemembered === 'function') $('lRemember').checked = isRemembered();
     $('SS').style.display = n === 'setup' ? 'flex' : 'none';
     $('APP').style.display = n === 'app' ? 'block' : 'none';
     if ($('OPS')) $('OPS').style.display = n === 'ops' ? 'flex' : 'none';
@@ -1492,9 +1494,19 @@ window.doLogin = async function () {
     const em = $('lE').value.trim(), ps = $('lP').value;
     const er = $('aErr'); er.classList.remove('show');
     if (!em || !ps) { er.textContent = 'أدخل البريد وكلمة المرور'; er.classList.add('show'); return }
-    try { await signInWithEmailAndPassword(auth, em, ps) }
+    try {
+        // 🧠 «تذكّرني»: حفظ محلي دائم يبقى بعد إغلاق المتصفح.
+        //    وبدونه: حفظ للجلسة فقط ⇒ إغلاق المتصفح يُنهي الدخول (مناسب للأجهزة المشتركة).
+        //    يجب ضبطه **قبل** تسجيل الدخول كي يُطبَّق على الجلسة الجديدة.
+        const remember = $('lRemember') ? !!$('lRemember').checked : true;
+        try { localStorage.setItem('gbrRemember', remember ? '1' : '0'); } catch (e2) { }
+        await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+        await signInWithEmailAndPassword(auth, em, ps);
+    }
     catch (e) { er.textContent = authEr(e.code); er.classList.add('show') }
 };
+// هل اختار المستخدم تذكّره على هذا الجهاز؟ (يتحكم أيضاً بالخروج القسري بعد القفل)
+window.isRemembered = function () { try { return localStorage.getItem('gbrRemember') !== '0'; } catch (e) { return true; } };
 
 window.doLogout = () => cf2('هل تريد تسجيل الخروج؟', () => { stopIdleGuard(); signOut(auth) });
 
@@ -1642,8 +1654,11 @@ function lockScreen() {
     el.querySelector('#lkGo').onclick = tryUnlock;
     el.querySelector('#lkOut').onclick = () => { stopIdleGuard(); unlockCleanup(); signOut(auth); };
     pwd.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
-    // خروج كامل إن بقيت مقفلة طويلاً (الجهاز متروك فعلاً)
-    _lockTimer = setTimeout(() => { if (isLocked()) { unlockCleanup(); stopIdleGuard(); signOut(auth); } }, LOCK_LOGOUT_MIN * 60000);
+    // خروج كامل إن بقيت مقفلة طويلاً (الجهاز متروك فعلاً) — إلا على جهاز اختار المستخدم تذكّره،
+    // فتبقى مقفلة بلا خروج كي لا يُطالَب بكلمة المرور من جديد عند العودة أو إعادة فتح المتصفح.
+    if (!(typeof isRemembered === 'function' && isRemembered())) {
+        _lockTimer = setTimeout(() => { if (isLocked()) { unlockCleanup(); stopIdleGuard(); signOut(auth); } }, LOCK_LOGOUT_MIN * 60000);
+    }
 }
 function unlockCleanup() { document.getElementById('lockScreen')?.remove(); document.body.style.overflow = ''; }
 
