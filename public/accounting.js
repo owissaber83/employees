@@ -13769,6 +13769,11 @@ window.openCustomerAdvance = function () {
             ${fg('المبلغ *', `<input id="mCAdvAmount" type="number" min="0" step="0.01" oninput="custAdvBalHint()" placeholder="0.00" style="${inp}">`)}
             ${fg('التاريخ *', `<input id="mCAdvDate" type="date" value="${new Date().toISOString().slice(0, 10)}" style="${inp}">`)}
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${fg('نسبة الضريبة %', `<input id="mCAdvVatRate" type="number" min="0" max="100" step="0.1" value="15" oninput="custAdvBalHint()" style="${inp}">`)}
+            ${fg('المبلغ المُدخل', `<select id="mCAdvIncl" onchange="custAdvBalHint()" style="${inp}"><option value="0">قبل الضريبة (تُضاف)</option><option value="1">شامل الضريبة (تُستخرج)</option></select>`)}
+        </div>
+        <div id="mCAdvVatBox" style="font-size:12px;background:#f4f7fa;border-radius:8px;padding:9px 11px;margin-bottom:10px;line-height:1.9"></div>
         ${fg('استُلمت في حساب (بنك/صندوق) *', `<select id="mCAdvBank" style="${inp}">${cashBankAccountOptions()}</select>`)}
         ${fg('ملاحظة', `<input id="mCAdvNote" placeholder="مثال: دفعة مقدمة 10% من قيمة العقد" style="${inp}">`)}
         <div id="mCAdvBalHint" style="font-size:11.5px;color:#0e6655;background:#eafaf1;border-radius:8px;padding:7px 10px;margin-bottom:10px;display:none"></div>
@@ -13776,7 +13781,30 @@ window.openCustomerAdvance = function () {
     </div>`;
     m.style.display = 'flex';
 };
+// 🧮 تفكيك مبلغ الدفعة إلى صافٍ وضريبة وإجمالي — مصدر واحد يستخدمه العرض والحفظ معاً
+function custAdvSplit(rawAmount, vatRate, inclusive) {
+    const amt = Math.round((parseFloat(rawAmount) || 0) * 100) / 100;
+    const rate = Math.max(0, parseFloat(vatRate) || 0);
+    let net, vat;
+    if (inclusive) { net = Math.round((amt / (1 + rate / 100)) * 100) / 100; vat = Math.round((amt - net) * 100) / 100; }
+    else { net = amt; vat = Math.round((amt * rate / 100) * 100) / 100; }
+    return { net, vat, gross: Math.round((net + vat) * 100) / 100, rate };
+}
+window.custAdvSplit = custAdvSplit;
+
 window.custAdvBalHint = function () {
+    const s = custAdvSplit(document.getElementById('mCAdvAmount')?.value,
+        document.getElementById('mCAdvVatRate')?.value,
+        document.getElementById('mCAdvIncl')?.value === '1');
+    const vb = document.getElementById('mCAdvVatBox');
+    if (vb) {
+        vb.innerHTML = s.gross > 0
+            ? `<div style="display:flex;justify-content:space-between"><span>صافي الدفعة (الخاضع للضريبة):</span><b>${fmt(s.net)}</b></div>
+               <div style="display:flex;justify-content:space-between"><span>ضريبة القيمة المضافة ${s.rate}%:</span><b style="color:#8e44ad">${fmt(s.vat)}</b></div>
+               <div style="display:flex;justify-content:space-between;border-top:1px solid #d9e2ea;margin-top:4px;padding-top:4px"><b>المبلغ المستلم فعلياً:</b><b style="color:#16a085">${fmt(s.gross)}</b></div>
+               <div style="font-size:10.5px;color:#7a8896;margin-top:5px">🧾 ستُصدر فاتورة ضريبية بالدفعة، وتُورَّد ضريبتها الآن. ويُخصم <b>الصافي</b> لاحقاً من المستخلصات.</div>`
+            : '';
+    }
     const el = document.getElementById('mCAdvBalHint'); if (!el) return;
     const cid = document.getElementById('mCAdvCustomer')?.value, pid = document.getElementById('mCAdvProject')?.value;
     if (!cid) { el.style.display = 'none'; return; }
@@ -13784,10 +13812,21 @@ window.custAdvBalHint = function () {
     el.style.display = 'block';
     el.textContent = `رصيد الدفعة المقدمة الحالي${pid ? ' لهذا المشروع' : ' لهذا العميل'}: ${fmt(bal.remaining)} (إجمالي ${fmt(bal.total)} − مُسترد ${fmt(bal.recovered)})`;
 };
+
+// رقم متسلسل لفواتير الدفعات المقدمة (سلسلة مستقلة عن فواتير المبيعات)
+function generateAdvInvNumber() {
+    const year = new Date().getFullYear(), pre = 'ADV-' + year + '-';
+    const nums = Object.values(window.customerAdvances || {})
+        .filter(a => (a.advInvNumber || '').startsWith(pre))
+        .map(a => parseInt((a.advInvNumber || '').split('-')[2]) || 0);
+    return pre + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(5, '0');
+}
 window.saveCustomerAdvance = async function () {
     const customerId = document.getElementById('mCAdvCustomer')?.value;
     const projectId = document.getElementById('mCAdvProject')?.value || '';
     const amount = Math.round((parseFloat(document.getElementById('mCAdvAmount')?.value) || 0) * 100) / 100;
+    const split = custAdvSplit(amount, document.getElementById('mCAdvVatRate')?.value,
+        document.getElementById('mCAdvIncl')?.value === '1');
     const date = document.getElementById('mCAdvDate')?.value;
     const bankCode = document.getElementById('mCAdvBank')?.value;
     const note = document.getElementById('mCAdvNote')?.value.trim() || '';
@@ -13805,15 +13844,128 @@ window.saveCustomerAdvance = async function () {
         const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-ADV-' + Date.now());
         const desc = `دفعة مقدمة من العميل ${esc(customer?.nameAr || '')}${note ? ' — ' + esc(note) : ''}`;
         const lines = [
-            { accountCode: bankAcc.code, accountName: bankAcc.nameAr, description: desc, costCenter: projectId, debit: amount, credit: 0 },
-            { accountCode: advAcc.code, accountName: advAcc.nameAr, description: desc, costCenter: projectId, debit: 0, credit: amount }
+            { accountCode: bankAcc.code, accountName: bankAcc.nameAr, description: desc, costCenter: projectId, debit: split.gross, credit: 0 },
+            { accountCode: advAcc.code, accountName: advAcc.nameAr, description: desc, costCenter: projectId, debit: 0, credit: split.net }
         ];
-        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'دفعة مقدمة', description: desc, lines, totalDebit: amount, totalCredit: amount, status: 'posted', sourceType: 'customer_advance', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
-        await push(R.custAdvances, { customerId, projectId, amount, date, bankAccountCode: bankCode, journalEntryKey: jrnRef.key, journalEntryNumber: jrnNumber, note, createdBy: userId, createdAt: now });
-        if (typeof logAudit === 'function') logAudit('دفعة مقدمة', 'فواتير المبيعات', `تسجيل دفعة مقدمة ${fmt(amount)} من ${esc(customer?.nameAr || '')}`);
-        toast('✅ سُجّلت الدفعة المقدمة وأُنشئ القيد المحاسبي', 'ok');
+        // 🧾 ضريبة الدفعة المقدمة تُستحق وتُورَّد فور القبض (نقطة الاستحقاق الضريبي)،
+        //    ولهذا يُخصم صافي المسترد لاحقاً من وعاء المستخلص منعاً للازدواج.
+        if (split.vat > 0.005) {
+            const vatAcc = accounts.find(a => a.code === '2140') || await ensureStdAccount('2140');
+            if (!vatAcc) { toast('🚫 حساب 2140 (ضريبة المخرجات) غير موجود وتعذّر إنشاؤه — لم تُسجَّل الدفعة', 'er', 10000); return; }
+            lines.push({ accountCode: vatAcc.code, accountName: vatAcc.nameAr, description: `ضريبة دفعة مقدمة — ${esc(customer?.nameAr || '')}`, costCenter: projectId, debit: 0, credit: split.vat });
+        }
+        const advInvNumber = generateAdvInvNumber();
+        const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'فاتورة دفعة مقدمة ' + advInvNumber, description: desc, lines, totalDebit: split.gross, totalCredit: split.gross, status: 'posted', sourceType: 'customer_advance', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
+        // amount = الصافي (وعاء الاسترداد) — لأن المستخلصات تسترد قيمة الأعمال قبل الضريبة
+        await push(R.custAdvances, {
+            customerId, projectId, amount: split.net, date, bankAccountCode: bankCode,
+            vatRate: split.rate, vatAmount: split.vat, grossAmount: split.gross,
+            advInvNumber, uuid: (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now())),
+            journalEntryKey: jrnRef.key, journalEntryNumber: jrnNumber, note, createdBy: userId, createdAt: now
+        });
+        if (typeof logAudit === 'function') logAudit('فاتورة دفعة مقدمة', 'فواتير المبيعات', `${advInvNumber} — صافي ${fmt(split.net)} + ضريبة ${fmt(split.vat)} من ${esc(customer?.nameAr || '')}`);
+        toast(`✅ صدرت فاتورة الدفعة المقدمة ${advInvNumber} — صافي ${fmt(split.net)} + ضريبة ${fmt(split.vat)}`, 'ok', 7000);
         document.getElementById('mCustAdvance').style.display = 'none';
     } catch (e) { toast('❌ خطأ: ' + (e.message || e), 'er'); }
+};
+
+// 📋 سجل الدفعات المقدمة — يعرض المسترد والمتبقي لكل دفعة وفاتورتها الضريبية
+window.openAdvancesList = function () {
+    const advs = Object.entries(window.customerAdvances || {}).sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
+    const rows = advs.map(([k, a]) => {
+        const c = (window.customers || {})[a.customerId] || {};
+        const bal = custAdvanceBalance(a.customerId, a.projectId || '');
+        const legacy = !a.advInvNumber;
+        return `<tr style="${legacy ? 'background:#fff8e1' : ''}">
+            <td style="padding:8px">${a.advInvNumber ? `<b>${esc(a.advInvNumber)}</b>` : '<span style="color:#b9770e;font-size:11px">قديمة — بلا فاتورة</span>'}
+                <div style="font-size:10.5px;color:#888">${esc(a.date || '')}</div></td>
+            <td style="padding:8px">${esc(c.nameAr || '')}${a.projectId && window.projects?.[a.projectId] ? `<div style="font-size:10.5px;color:#888">🏗️ ${esc(window.projects[a.projectId].name || '')}</div>` : ''}</td>
+            <td style="padding:8px;font-weight:700">${fmt(a.amount)}</td>
+            <td style="padding:8px;color:#8e44ad">${a.vatAmount != null ? fmt(a.vatAmount) : '—'}</td>
+            <td style="padding:8px;font-weight:700;color:#16a085">${fmt(a.grossAmount != null ? a.grossAmount : a.amount)}</td>
+            <td style="padding:8px;text-align:center">${fmt(bal.remaining)}</td>
+            <td style="padding:8px;white-space:nowrap">
+                ${a.advInvNumber ? `<button class="btn" onclick="viewAdvanceInvoice('${k}')" style="background:#16a085;color:#fff;padding:3px 9px;font-size:11px" title="عرض/طباعة الفاتورة الضريبية">🧾</button>` : ''}
+                ${a.journalEntryKey ? `<button class="btn" onclick="viewJrnEntry('${a.journalEntryKey}')" style="background:#5d6d7e;color:#fff;padding:3px 9px;font-size:11px" title="عرض القيد ${esc(a.journalEntryNumber || '')}">📒</button>` : ''}
+            </td></tr>`;
+    }).join('');
+    const legacyN = advs.filter(([, a]) => !a.advInvNumber).length;
+    document.getElementById('mAdvList')?.remove();
+    const m = document.createElement('div');
+    m.id = 'mAdvList';
+    m.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
+    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    m.innerHTML = `<div class="card" style="max-width:940px;width:100%;padding:20px;margin:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:17px;font-weight:900;color:#0e6655">🧾 سجل الدفعات المقدمة</div>
+            <button class="btn" onclick="document.getElementById('mAdvList').remove()" style="background:#eef2f7;padding:5px 11px">✕</button>
+        </div>
+        ${legacyN ? `<div style="background:#fff8e1;border:1.5px solid #f0c419;border-radius:9px;padding:10px 13px;font-size:12px;color:#7d4e00;margin-bottom:12px;line-height:1.9">
+            ⚠️ <b>${legacyN} دفعة</b> سُجّلت قبل تفعيل فاتورة الدفعة المقدمة — بلا ضريبة مورَّدة وبلا فاتورة ضريبية.
+            راجعها مع محاسبك: إن كان العقد يستوجب ضريبة على الدفعة فقد تحتاج تسوية لدى الهيئة.</div>` : ''}
+        <div style="overflow-x:auto">${advs.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#f4f7fa;color:#5a6b7d;font-size:11.5px">
+                <th style="padding:9px;text-align:right">الفاتورة / التاريخ</th><th style="padding:9px;text-align:right">العميل</th>
+                <th style="padding:9px;text-align:right">الصافي</th><th style="padding:9px;text-align:right">الضريبة</th>
+                <th style="padding:9px;text-align:right">المستلم</th><th style="padding:9px;text-align:center">المتبقي للاسترداد</th>
+                <th style="padding:9px;text-align:right">إجراءات</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<div style="padding:30px;text-align:center;color:#95a5a6">لا توجد دفعات مقدمة مسجّلة</div>'}</div>
+    </div>`;
+    document.body.appendChild(m);
+};
+
+// 🧾 فاتورة ضريبية لدفعة مقدمة — مستند نظامي مستقل برمز ZATCA
+window.viewAdvanceInvoice = function (key) {
+    const a = (window.customerAdvances || {})[key];
+    if (!a) { toast('الدفعة غير موجودة', 'er'); return; }
+    if (!a.advInvNumber) { toast('⚠️ هذه دفعة قديمة سُجّلت قبل تفعيل فاتورة الدفعة المقدمة — لا تحمل رقم فاتورة ولا ضريبة', 'wn', 9000); return; }
+    const c = (window.customers || {})[a.customerId] || {};
+    const cfg = window.gbrCfg || {};
+    const seller = cfg.companyName || window.currentTenantName || 'الشركة';
+    const sellerVat = cfg.vatNumber || '';
+    const net = +a.amount || 0, vat = +a.vatAmount || 0, gross = +a.grossAmount || (net + vat);
+    const ts = (a.date || new Date().toISOString().slice(0, 10)) + 'T00:00:00Z';
+    const b64 = (typeof zatcaQRBase64 === 'function') ? zatcaQRBase64(seller, sellerVat, ts, gross.toFixed(2), vat.toFixed(2)) : '';
+    const qr = (typeof zatcaQRDataURL === 'function') ? zatcaQRDataURL(b64) : '';
+    const row = (l, v, b) => `<tr${b ? ' class="grand"' : ''}><td>${l}</td><td style="text-align:left;font-weight:${b ? 900 : 700}">${fmt(v)}</td></tr>`;
+    const w = window.open('', '_blank');
+    if (!w) { toast('اسمح بالنوافذ المنبثقة للطباعة', 'er'); return; }
+    w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<title>فاتورة دفعة مقدمة ${esc(a.advInvNumber)}</title><style>
+body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:26px;color:#222;max-width:820px;margin:auto}
+h1{font-size:20px;color:#1a3a5c;margin:0 0 4px}
+.badge{display:inline-block;background:#1a3a5c;color:#fff;padding:6px 14px;border-radius:8px;font-weight:800;font-size:13px}
+.box{background:#f4f7fa;border-radius:10px;padding:12px 14px;margin:14px 0;font-size:13px;line-height:2}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+td{border:1px solid #ddd;padding:7px 10px}
+tr.grand td{background:#16a085;color:#fff;font-weight:900;font-size:15px}
+.note{background:#fff8e1;border-right:4px solid #f0c419;padding:10px 12px;margin-top:14px;font-size:12px;line-height:1.9}
+@media print{button{display:none}}
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+  <div><h1>🧾 ${esc(seller)}</h1>${sellerVat ? `<div style="font-size:12px;color:#555">الرقم الضريبي: ${esc(sellerVat)}</div>` : ''}</div>
+  <div style="text-align:left">
+    <div class="badge">فاتورة ضريبية — دفعة مقدمة</div>
+    <div style="font-size:18px;font-weight:900;color:#1a3a5c;margin-top:7px">${esc(a.advInvNumber)}</div>
+    <div style="font-size:12px;color:#555">📅 ${esc(a.date || '')}</div>
+  </div>
+</div>
+${qr ? `<div style="text-align:center;margin:12px 0"><img src="${qr}" style="width:130px;height:130px"><div style="font-size:9px;color:#888">رمز الاستجابة الضريبي (ZATCA)</div></div>` : ''}
+<div class="box"><b>👤 العميل:</b> ${esc(c.nameAr || '')}${c.vatNumber ? ` &nbsp;·&nbsp; <b>الرقم الضريبي:</b> ${esc(c.vatNumber)}` : ''}
+${a.projectId && window.projects?.[a.projectId] ? `<br><b>🏗️ المشروع:</b> ${esc(window.projects[a.projectId].name || '')}` : ''}
+${a.note ? `<br><b>📋 البيان:</b> ${esc(a.note)}` : ''}
+<br><b>📒 القيد:</b> ${esc(a.journalEntryNumber || '—')}</div>
+<table>
+  ${row('صافي الدفعة المقدمة (الخاضع للضريبة)', net)}
+  ${row(`ضريبة القيمة المضافة ${(+a.vatRate || 0)}%`, vat)}
+  ${row('💰 إجمالي المبلغ المستلم', gross, true)}
+</table>
+<div class="note">⚖️ <b>ملاحظة نظامية:</b> هذه فاتورة ضريبية عن دفعة مقدمة مستلمة، ضريبتها مستحقة ومورَّدة بتاريخها.
+ويُخصم <b>صافي الدفعة (${fmt(net)})</b> من الوعاء الخاضع للضريبة في المستخلصات اللاحقة منعاً للازدواج الضريبي.</div>
+<div style="text-align:center;margin-top:22px"><button onclick="window.print()" style="background:#1a3a5c;color:#fff;border:0;padding:10px 26px;border-radius:8px;font-family:inherit;font-weight:800;cursor:pointer">🖨️ طباعة</button></div>
+</body></html>`);
+    w.document.close();
 };
 
 // ── دالة العرض الرئيسية لفواتير المبيعات ─────────────────
@@ -13854,6 +14006,7 @@ window.renderSalesInvoices = function () {
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                     ${canCreate ? '<button class="btn" onclick="openSInvEditor()" style="background:white;color:#1f618d;padding:10px 18px;font-weight:800;font-size:14px">➕ فاتورة جديدة</button>' : ''}
                     ${canCreate ? '<button class="btn" onclick="openCustomerAdvance()" style="background:rgba(255,255,255,.2);color:white;padding:10px 18px;font-weight:700;backdrop-filter:blur(10px)" title="تسجيل دفعة مقدمة من عميل (تُسترد على الفواتير)">💰 دفعة مقدمة</button>' : ''}
+                    <button class="btn" onclick="openAdvancesList()" style="background:rgba(255,255,255,.2);color:white;padding:10px 16px;font-weight:700;backdrop-filter:blur(10px)" title="سجل الدفعات المقدمة وفواتيرها الضريبية">🧾 سجل الدفعات</button>
                     <button class="btn" onclick="openSalesAnalytics()" style="background:rgba(255,255,255,.2);color:white;padding:10px 16px;font-weight:700;backdrop-filter:blur(10px)">📈 تحليلات</button>
                     <button class="btn" onclick="openRecurringManager()" style="background:rgba(255,255,255,.2);color:white;padding:10px 16px;font-weight:700;backdrop-filter:blur(10px)">🔁 دورية</button>
                     ${(typeof myP !== 'undefined' && (myP?.role === 'admin' || myP?.role === 'finance_manager')) ? `<button class="btn" onclick="setSInvApprovalThreshold()" title="حد اعتماد الفواتير" style="background:rgba(255,255,255,.15);color:white;padding:10px 14px;font-weight:700;font-size:12px">🔐 حد الاعتماد</button>` : ''}
