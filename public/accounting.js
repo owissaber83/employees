@@ -14482,9 +14482,12 @@ window.moveSInvLine = function (idx, dir) {
     renderSInvLines();
 };
 
-// ╔════════════ مكوّن قائمة منسدلة قابلة للبحث (SS) — قابل لإعادة الاستخدام ════════════╗
+// ╔════════════ مكوّن قائمة منسدلة قابلة للبحث (SSel) — قابل لإعادة الاستخدام ════════════╗
+// ⚠️ لا تُسمِّه SS: المتصفح ينشئ متغيراً عاماً لكل عنصر له id، و<div id="SS"> هي شاشة
+//    تسجيل الشركة في index.html. فكان window.SS يشير إليها، ويجعل حارس التهيئة أدناه
+//    ينسحب ظانّاً أن المكوّن مُعرَّف — فيموت المكوّن كله ويظهر «SS.open is not a function».
 (function () {
-    if (window.SS) return;
+    if (window.SSel) return;
     try {
     const style = document.createElement('style');
     style.textContent = `
@@ -14531,7 +14534,7 @@ window.moveSInvLine = function (idx, dir) {
     }
     function sync(els) { els.forEach((el, i) => el.classList.toggle('ss-act', i === actIdx)); if (els[actIdx]) els[actIdx].scrollIntoView({ block: 'nearest' }); }
     function close() { if (panel) panel.classList.remove('ss-open'); window._ssTrigger = null; }
-    window.SS = {
+    window.SSel = {
         open(triggerEl, itemList, onPick) {
             if (!panel) build();
             items = itemList || []; pickCb = onPick; window._ssTrigger = triggerEl;
@@ -14564,7 +14567,7 @@ window.ssEnhance = function (selectId, placeholder) {
     function lbl() { const o = sel.options[sel.selectedIndex]; const has = o && o.value !== ''; cap.textContent = has ? o.text : (placeholder || '🔍 اختر...'); cap.style.color = has ? '#1a3a5c' : '#999'; }
     t.onclick = () => {
         const list = [...sel.options].filter(o => o.value !== '').map(o => ({ value: o.value, label: o.text }));
-        SS.open(t, list, (val) => { sel.value = val; lbl(); sel.dispatchEvent(new Event('change', { bubbles: true })); });
+        SSel.open(t, list, (val) => { sel.value = val; lbl(); sel.dispatchEvent(new Event('change', { bubbles: true })); });
     };
     sel.addEventListener('change', lbl);
     sel._ssLbl = lbl; lbl();
@@ -14606,7 +14609,7 @@ window.sinvOpenItemPicker = function (i, btn) {
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '', 'ar'))
         .map(([k, it]) => ({ value: k, label: `${esc(it.nameAr)} (${esc(it.code || '')})`, sub: it.type === 'service' ? '🔧 خدمة' : '🏗️ مادة' + (it.salePrice ? ' · سعر ' + fmt(it.salePrice) : '') }));
     if (!list.length) { toast('⚠️ لا توجد أصناف — أضف صنفاً جديداً بالزر ➕', 'wn'); return; }
-    SS.open(btn, list, (val) => onSInvLineItemChange(i, val));
+    SSel.open(btn, list, (val) => onSInvLineItemChange(i, val));
 };
 // منتقي أصناف فاتورة المشتريات
 window.pinvOpenItemPicker = function (i, btn) {
@@ -14614,7 +14617,7 @@ window.pinvOpenItemPicker = function (i, btn) {
         .sort((a, b) => (a[1].nameAr || '').localeCompare(b[1].nameAr || '', 'ar'))
         .map(([k, it]) => ({ value: k, label: `${esc(it.nameAr)} (${esc(it.code || '')})`, sub: it.type === 'service' ? '🔧 خدمة' : '🏗️ مادة' + (it.costPrice ? ' · تكلفة ' + fmt(it.costPrice) : '') }));
     if (!list.length) { toast('⚠️ لا توجد أصناف — أضف صنفاً جديداً بالزر ➕', 'wn'); return; }
-    SS.open(btn, list, (val) => onPInvLineItemChange(i, val));
+    SSel.open(btn, list, (val) => onPInvLineItemChange(i, val));
 };
 function fillSInvItemsDatalist() { /* لم يعد مستخدماً بعد التحويل لمكوّن SS */ }
 // اختيار/كتابة صنف في صندوق البحث
