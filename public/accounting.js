@@ -15693,19 +15693,28 @@ async function createJournalForSInv(invKey, inv) {
 
     // البحث عن الحسابات المطلوبة في شجرة الحسابات
     const accounts = Object.values(window.chartOfAccounts || {});
-    const receivableAcc = accounts.find(a => a.code === custReceivableAccount(inv.customerId)); // العملاء (حساب مجموعته أو الموحّد)
-    const vatPayableAcc = accounts.find(a => a.code === '2140'); // VAT مستحقة
+    // 🩹 الحساب القياسي المفقود يُنشأ تلقائياً بدل تشويه القيد. قبل ذلك كان:
+    //    • 1130 أو 4100 مفقود ⇒ تُرحَّل الفاتورة **بلا قيد إطلاقاً** (تنبيه عابر فقط)
+    //    • 2140 مفقود ⇒ الضريبة تُضاف للإيرادات ⇒ إيراد منتفخ وإقرار ضريبي خاطئ
+    const custAccCode = custReceivableAccount(inv.customerId);
+    const receivableAcc = accounts.find(a => a.code === custAccCode)     // حساب مجموعة العميل أو الموحّد
+        || await ensureStdAccount(custAccCode) || await ensureStdAccount('1130');
     const retentionAcc = accounts.find(a => a.code === '1131'); // محتجزات (ضمان) لدى العملاء
     const advanceAcc = accounts.find(a => a.code === '2150');   // دفعات مقدمة من العملاء
 
     // حساب الإيرادات: من الفاتورة أو الافتراضي 4100
     const salesAccCode = inv.salesAccountCode || '4100';
     const revenueAcc = accounts.find(a => a.code === salesAccCode)
-                    || accounts.find(a => a.code === '4100');
+                    || accounts.find(a => a.code === '4100')
+                    || await ensureStdAccount(salesAccCode) || await ensureStdAccount('4100');
+    // ضريبة المخرجات: تُنشأ عند الحاجة فقط (فاتورة بلا ضريبة لا تستدعي الحساب)
+    const vatPayableAcc = accounts.find(a => a.code === '2140')
+        || ((+inv.vatTotal || 0) > 0 ? await ensureStdAccount('2140') : null);
 
-    // إذا لم توجد، نُسجّل تنبيه ونتوقف عن إنشاء القيد
+    // إن تعذّر حتى الإنشاء التلقائي (حساب غير قياسي) نتوقف — لكن بتنبيه صريح لا عابر
     if (!receivableAcc || !revenueAcc) {
-        toast(`⚠️ الفاتورة رُحّلت، لكن لم يُنشأ القيد: الحساب 1130 (العملاء) أو ${salesAccCode} (الإيرادات) غير موجود في شجرة الحسابات`, 'wn', 8000);
+        toast(`🚫 لم يُنشأ القيد المحاسبي للفاتورة ${esc(inv.number)}: تعذّر إيجاد أو إنشاء حساب العملاء (${esc(custAccCode)}) أو الإيرادات (${esc(salesAccCode)}). أضِفه في شجرة الحسابات ثم أعد الترحيل.`, 'er', 12000);
+        if (typeof logAudit === 'function') logAudit('فشل إنشاء قيد فاتورة', 'فواتير المبيعات', `${inv.number} — حساب مفقود`);
         return;
     }
 
@@ -15757,9 +15766,11 @@ async function createJournalForSInv(invKey, inv) {
             credit: cvt(inv.vatTotal)
         });
     } else if (inv.vatTotal > 0) {
-        // VAT موجود لكن الحساب 2140 غير موجود → أضف للإيرادات (مؤقت)
+        // آخر ملاذ: تعذّر إيجاد 2140 وإنشاؤه. نُبقي القيد متوازناً بضمّ الضريبة للإيراد،
+        // لكن هذا يُضخّم الإيراد ويُفقد التزام الضريبة — فالتنبيه صريح لا عابر، ويُسجَّل.
         lines[1].credit += cvt(inv.vatTotal);
-        toast('⚠️ حساب 2140 (VAT مستحقة) غير موجود — تم إضافة الضريبة للإيرادات', 'wn', 6000);
+        toast(`🚫 حساب 2140 (ضريبة المخرجات) غير موجود وتعذّر إنشاؤه — ضُمّت ضريبة ${fmt(inv.vatTotal)} إلى الإيرادات مؤقتاً. أنشئ الحساب وأعد ترحيل الفاتورة، وإلا اختلّ إقرارك الضريبي.`, 'er', 14000);
+        if (typeof logAudit === 'function') logAudit('⚠️ ضريبة ضُمّت للإيراد', 'فواتير المبيعات', `${inv.number} — حساب 2140 مفقود`);
     }
     // مدين: محتجزات ضمان لدى العملاء (1131)
     if (retBase > 0.005 && ensuredRet) {
