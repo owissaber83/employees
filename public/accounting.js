@@ -4464,6 +4464,113 @@ window.cffSetPeriod = function (which) {
     renderCashFlowForecast();
 };
 
+// ── 📥 بنود نقدية خارجية (لا مصدر لها في البرنامج) ──────────────────────────
+// أقساط قروض، إيجارات، رواتب مالك، عقود متوقّعة… تُستورد من Excel/CSV وتدخل
+// التوقّع جنباً إلى جنب مع بيانات النظام، وتبقى **مفصولة** ومميّزة كي لا تختلط
+// بالبيانات المحاسبية المُرحّلة ولا تؤثر على الدفاتر إطلاقاً.
+window.cffDownloadTemplate = function () {
+    const rows = [
+        { 'التاريخ': '2026-08-01', 'البيان': 'قسط قرض بنكي', 'النوع': 'صادر', 'المبلغ': 25000, 'ملاحظات': 'قرض التوسعة' },
+        { 'التاريخ': '2026-08-15', 'البيان': 'دفعة عقد جديد متوقّعة', 'النوع': 'وارد', 'المبلغ': 150000, 'ملاحظات': 'لم يُوقّع بعد' },
+        { 'التاريخ': '2026-09-01', 'البيان': 'إيجار المكتب', 'النوع': 'صادر', 'المبلغ': 12000, 'ملاحظات': '' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'بنود خارجية');
+    XLSX.writeFile(wb, 'نموذج-البنود-النقدية-الخارجية.xlsx');
+    toast('📄 نُزّل النموذج — املأه ثم استورده', 'ok', 5000);
+};
+window.cffImportExternal = function (ev) {
+    const file = ev.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async e => {
+        try {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+            if (!data.length) { toast('⚠️ الملف فارغ', 'er'); return; }
+            const updates = {}; let ok = 0, skipped = 0;
+            for (const row of data) {
+                const rawDate = row['التاريخ'] ?? row['Date'] ?? '';
+                // Excel قد يعيد التاريخ رقماً تسلسلياً — نحوّله
+                let date = '';
+                if (typeof rawDate === 'number') {
+                    const d = XLSX.SSF ? XLSX.SSF.parse_date_code(rawDate) : null;
+                    if (d) date = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+                } else date = String(rawDate).trim().slice(0, 10);
+                const label = String(row['البيان'] ?? row['Description'] ?? '').trim();
+                const kindRaw = String(row['النوع'] ?? row['Type'] ?? '').trim();
+                const amount = Math.round((parseFloat(String(row['المبلغ'] ?? row['Amount'] ?? '').replace(/,/g, '')) || 0) * 100) / 100;
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !label || amount <= 0) { skipped++; continue; }
+                const kind = /صادر|out|خارج|مدفوع/i.test(kindRaw) ? 'out' : 'in';
+                const k = push(R.cffExt).key;
+                updates[k] = { date, label, kind, amount, note: String(row['ملاحظات'] ?? '').trim(), importedAt: new Date().toISOString() };
+                ok++;
+            }
+            if (!ok) { toast('⚠️ لم يُقرأ أي بند صالح — تأكد من الأعمدة: التاريخ · البيان · النوع · المبلغ', 'er', 9000); return; }
+            await update(R.cffExt, updates);
+            toast(`✅ استُوردت ${ok} بند${skipped ? ` — تُخطّي ${skipped} صف غير صالح` : ''}`, 'ok', 7000);
+            if (typeof logAudit === 'function') logAudit('استيراد بنود نقدية خارجية', 'التدفق النقدي', `${ok} بند`);
+            renderCashFlowForecast();
+        } catch (err) { toast('❌ تعذّرت قراءة الملف: ' + (err.message || err), 'er', 9000); }
+        finally { ev.target.value = ''; }
+    };
+    reader.readAsArrayBuffer(file);
+};
+window.cffDelExternal = function (key) {
+    cf2('حذف هذا البند الخارجي؟', async () => {
+        try { await remove(ref(db, 'ledger/cffExternal/' + key)); toast('تم الحذف ✓', 'ok'); renderCashFlowForecast(); }
+        catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+    });
+};
+window.cffClearExternal = function () {
+    const n = Object.keys(window.cffExternal || {}).length;
+    if (!n) { toast('لا توجد بنود خارجية', 'wn'); return; }
+    cf2(`حذف كل البنود الخارجية (${n})؟\n\nلا يؤثر على أي بيانات محاسبية.`, async () => {
+        try { await remove(R.cffExt); toast('تم المسح ✓', 'ok'); renderCashFlowForecast(); }
+        catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+    });
+};
+// كتلة البنود الخارجية
+function cffExternalBlock() {
+    const items = Object.entries(window.cffExternal || {}).sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+    const tIn = items.filter(([, x]) => x.kind === 'in').reduce((s, [, x]) => s + (+x.amount || 0), 0);
+    const tOut = items.filter(([, x]) => x.kind === 'out').reduce((s, [, x]) => s + (+x.amount || 0), 0);
+    return `<div class="card" style="padding:14px;margin-bottom:14px;border-right:4px solid #f39c12">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:10px">
+            <div>
+                <div style="font-weight:800;color:#9a6400;font-size:14px">📥 بنود نقدية خارجية</div>
+                <div style="font-size:11.5px;color:#7a8896;margin-top:2px">التزامات وتوقعات لا مصدر لها في البرنامج (أقساط قروض، إيجارات، عقود متوقّعة) — تدخل التوقّع ولا تمسّ الدفاتر</div>
+            </div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
+                <button onclick="cffDownloadTemplate()" style="background:#eef2f7;color:#1a3a5c;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer" title="نموذج Excel جاهز بالأعمدة الصحيحة">📄 نموذج</button>
+                <label style="background:#27ae60;color:#fff;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer" title="استيراد من ملف Excel أو CSV">📥 استيراد
+                    <input type="file" accept=".xlsx,.xls,.csv" onchange="cffImportExternal(event)" style="display:none"></label>
+                ${items.length ? `<button onclick="cffClearExternal()" style="background:#fdecea;color:#c0392b;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ مسح الكل</button>` : ''}
+            </div>
+        </div>
+        ${items.length ? `<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:9px">
+            <span style="background:#eafaf1;color:#1e8449;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:800">⬇️ وارد خارجي: ${fmt(tIn)}</span>
+            <span style="background:#fdecea;color:#c0392b;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:800">⬆️ صادر خارجي: ${fmt(tOut)}</span>
+            <span style="background:#eef2f7;color:#1a3a5c;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:800">الصافي: ${fmt(Math.round((tIn - tOut) * 100) / 100)}</span>
+        </div>
+        <div style="overflow-x:auto;max-height:260px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#f4f7fa;color:#5a6b7d;font-size:11.5px;position:sticky;top:0">
+                <th style="padding:8px;text-align:right">التاريخ</th><th style="padding:8px;text-align:right">البيان</th>
+                <th style="padding:8px;text-align:center">النوع</th><th style="padding:8px;text-align:right">المبلغ</th>
+                <th style="padding:8px;text-align:right">ملاحظات</th><th style="padding:8px"></th></tr></thead><tbody>
+            ${items.map(([k, x]) => `<tr style="border-bottom:1px solid #f0f3f6">
+                <td style="padding:7px">${esc(x.date)}</td>
+                <td style="padding:7px;font-weight:700">${esc(x.label)}</td>
+                <td style="padding:7px;text-align:center">${x.kind === 'in'
+            ? '<span style="background:#eafaf1;color:#1e8449;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:800">وارد</span>'
+            : '<span style="background:#fdecea;color:#c0392b;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:800">صادر</span>'}</td>
+                <td style="padding:7px;font-weight:700;color:${x.kind === 'in' ? '#27ae60' : '#c0392b'}">${fmt(x.amount)}</td>
+                <td style="padding:7px;color:#7a8896;font-size:11.5px">${esc(x.note || '')}</td>
+                <td style="padding:7px"><button onclick="cffDelExternal('${k}')" style="background:#fdecea;color:#c0392b;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;cursor:pointer" title="حذف البند">🗑️</button></td>
+            </tr>`).join('')}</tbody></table></div>`
+            : `<div style="padding:18px;text-align:center;color:#95a5a6;font-size:12.5px">لا توجد بنود خارجية — نزّل النموذج، املأه، ثم استورده</div>`}
+    </div>`;
+}
+
 // كتلة «الفعلي + خط الأنابيب» أعلى صفحة التدفق النقدي
 function cffActualBlock() {
     const a = cffActuals();
@@ -4549,6 +4656,12 @@ window.renderCashFlowForecast = function () {
         const open = (parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0) - (parseFloat(inv.debitedAmount) || 0);
         if (open > 0.5) buckets[bucketFor(inv.dueDate || inv.date)].out += open;
     });
+    // 📥 البنود الخارجية المستوردة — تدخل التوقّع بتاريخها المحدَّد
+    Object.values(window.cffExternal || {}).forEach(x => {
+        const amt = +x.amount || 0; if (amt <= 0.5) return;
+        const b = buckets[bucketFor(x.date)];
+        if (x.kind === 'out') b.out += amt; else b.in += amt;
+    });
     // القيود المتكررة النشطة (التزامات شهرية قادمة) — تقدير
     Object.values(window.recurringJournals || {}).forEach(t => {
         if (t.active === false) return;
@@ -4585,6 +4698,7 @@ window.renderCashFlowForecast = function () {
             </div>
         </div>
         ${cffActualBlock()}
+        ${cffExternalBlock()}
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
             <div class="kpi k1"><div class="kpi-ic">💰</div><div class="kpi-lb">الرصيد النقدي الحالي</div><div class="kpi-vl" style="font-size:14px">${fmt(opening)}</div></div>
             <div class="kpi k2" style="--kc:#27ae60"><div class="kpi-ic">⬇️</div><div class="kpi-lb">متحصلات متوقعة</div><div class="kpi-vl" style="font-size:14px">${fmt(totalIn)}</div></div>

@@ -251,6 +251,7 @@ function buildRefs() {
     fsBudgets: ref(db, 'ledger/fsBudgets'),
     cust: ref(db, 'ledger/customers'),
     sinv: ref(db, 'ledger/salesInvoices'),
+    cffExt: ref(db, 'ledger/cffExternal'),   // 📥 بنود نقدية خارجية مستوردة (توقّع فقط — لا تمسّ الدفاتر)
     recSInv: ref(db, 'ledger/recurringSalesInvoices'), // 🔄 قوالب الفواتير المتكررة: { key:{ name, customerId, freq, startMonth, endMonth, lines, generated:{شهر:مفتاح الفاتورة} } }
     custAdvances: ref(db, 'ledger/customerAdvances'), // 💰 دفعات مقدمة من العملاء { key:{ customerId, projectId, amount, date, bankAccountCode, journalEntryKey, note, createdBy, createdAt } }
     crmOpps: ref(db, 'ledger/crmOpportunities'), // 🤝 CRM: فرص البيع { key:{ title, customerName, value, stage, status, source, expectedClose, notes, activities:{} } }
@@ -2873,6 +2874,10 @@ function startListeners() {
         // 🆕 مزامنة حالة القيد في المسير المرتبط
         if (typeof syncPayrollJournalStatus === 'function') syncPayrollJournalStatus();
         if ($('pg-bankrec')?.classList.contains('act') && typeof renderBankRec === 'function') renderBankRec();
+    });
+    onValue(R.cffExt, sn => {
+        window.cffExternal = sn.exists() ? sn.val() : {};
+        if ($('pg-cashforecast')?.classList.contains('act') && typeof renderCashFlowForecast === 'function') renderCashFlowForecast();
     });
     onValue(R.recSInv, sn => {
         window.recurringSalesInvoices = sn.exists() ? sn.val() : {};
