@@ -18,6 +18,7 @@
 // │   [ACC5]  Trial Balance (ميزان المراجعة)                  قريباً           │
 // │   [ACC6]  Customers (العملاء)                            قريباً           │
 // │   [ACC7]  Sales Invoices (فواتير المبيعات)                قريباً           │
+// │   [ACC-RSI]  Recurring Sales Invoices (الفواتير المتكررة)      ✅            │
 // │   [ACC-FS]  Financial Statements + Analysis (القوائم المالية والتحليل)  ✅   │
 // │   [ACC-FS-EXT]  External File Analysis (تحليل ملف خارجي + نموذج)  ✅          │
 // │   [ACC-BR]  Bank Reconciliation (التسوية البنكية)            ✅            │
@@ -3736,6 +3737,340 @@ window.generateAllDueRecJrn = async function (onlyKey) {
     }
     toast(`✅ تم توليد ${count} قيد متكرر`, 'ok', 6000);
     renderRecurringJournals();
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// [ACC-RSI] الفواتير المتكررة (Recurring Sales Invoices)
+// قوالب دورية (شهري/ربع سنوي/سنوي) تُولّد فواتير مبيعات **مسوّدة** للمراجعة.
+// التوليد يدوي بزر — لا جدولة خادمية (نفس نهج [ACC-REC])، والقالب يحفظ
+// generated:{الفترة: مفتاح الفاتورة} فيستحيل توليد الفترة مرتين.
+// ══════════════════════════════════════════════════════════════════════════
+const RSI_FREQ = {
+    monthly: { label: 'شهري', step: 1 },
+    quarterly: { label: 'ربع سنوي', step: 3 },
+    annual: { label: 'سنوي', step: 12 }
+};
+function rsiFreqOf(t) { return RSI_FREQ[t && t.freq] || RSI_FREQ.monthly; }
+function rsiAddMonths(ym, n) {
+    const [y, m] = String(ym).split('-').map(Number);
+    const t = (y * 12 + (m - 1)) + n;
+    return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
+}
+// الفترات المستحقة حتى الشهر الحالي ولم تُولَّد بعد
+function rsiDuePeriods(tpl) {
+    const out = []; if (!tpl || !tpl.startMonth) return out;
+    const cur = new Date().toISOString().slice(0, 7);
+    const step = rsiFreqOf(tpl).step, gen = tpl.generated || {};
+    let ym = tpl.startMonth, guard = 0;
+    while (ym <= cur && guard++ < 600) {
+        if (tpl.endMonth && ym > tpl.endMonth) break;
+        if (!gen[ym]) out.push(ym);
+        ym = rsiAddMonths(ym, step);
+    }
+    return out;
+}
+// 🧮 إجماليات الفاتورة — تُطابق حرفياً منطق حفظ فاتورة المبيعات (ابحث عن «const gross = validLines»).
+//    أي تعديل على تلك المعادلات يجب أن يُعكس هنا.
+function rsiTotals(lines, opt) {
+    const o = opt || {};
+    const L = (lines || []).filter(l => l && (parseFloat(l.qty) || 0) > 0 && (l.description || '').trim());
+    const gross = L.reduce((s, l) => s + ((parseFloat(l.qty) || 0) * (parseFloat(l.unitPrice) || 0)), 0);
+    const subTotal = L.reduce((s, l) => s + sInvLineNet(l), 0);
+    const lineDiscountTotal = Math.round((gross - subTotal) * 100) / 100;
+    const discount = parseFloat(o.discount) || 0;
+    const netBeforeTax = subTotal - discount;
+    let vatTotal = 0;
+    if (subTotal > 0) {
+        const dr = discount / subTotal;
+        L.forEach(l => { vatTotal += (sInvLineNet(l) * (1 - dr)) * ((parseFloat(l.vatRate) || 0) / 100); });
+    }
+    vatTotal = Math.round(vatTotal * 100) / 100;
+    const grandTotal = Math.round((netBeforeTax + vatTotal) * 100) / 100;
+    const retentionPct = parseFloat(o.retentionPct) || 0;
+    const advanceRecoveryPct = parseFloat(o.advanceRecoveryPct) || 0;
+    const retentionAmount = Math.round(netBeforeTax * retentionPct) / 100;
+    const advanceRecoveryAmount = Math.round(netBeforeTax * advanceRecoveryPct) / 100;
+    const netDue = Math.round((grandTotal - retentionAmount - advanceRecoveryAmount) * 100) / 100;
+    return {
+        lines: L, gross, subTotal, lineDiscountTotal, discount, netBeforeTax, vatTotal, grandTotal,
+        retentionPct, retentionAmount, advanceRecoveryPct, advanceRecoveryAmount, netDue
+    };
+}
+window.rsiTotals = rsiTotals; window.rsiDuePeriods = rsiDuePeriods;
+
+// ── الصفحة الرئيسية ─────────────────────────────────────────
+window.renderRecurringSInv = function () {
+    const box = $('pg-recurringsinv'); if (!box) return;
+    const tpls = Object.entries(window.recurringSalesInvoices || {});
+    const activeN = tpls.filter(([, t]) => t.active !== false).length;
+    let totalDue = 0, dueAmt = 0;
+    tpls.forEach(([, t]) => {
+        if (t.active === false) return;
+        const d = rsiDuePeriods(t).length;
+        totalDue += d;
+        if (d) dueAmt += d * rsiTotals(t.lines, t).grandTotal;
+    });
+    const rows = tpls.sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar')).map(([key, t]) => {
+        const cust = (window.customers || {})[t.customerId] || {};
+        const due = rsiDuePeriods(t);
+        const tot = rsiTotals(t.lines, t);
+        const off = t.active === false;
+        return `<tr style="${off ? 'opacity:.55' : ''}">
+            <td style="padding:9px 10px;font-weight:700">${esc(t.name || '—')}
+                <div style="font-size:10.5px;color:#888;font-weight:500">${esc(cust.name || t.customerName || '—')}</div></td>
+            <td style="padding:9px 10px">${esc(rsiFreqOf(t).label)}</td>
+            <td style="padding:9px 10px;font-size:11.5px">${esc(t.startMonth || '—')} ← ${esc(t.endMonth || 'مفتوح')}</td>
+            <td style="padding:9px 10px;font-weight:700">${fmt(tot.grandTotal)}</td>
+            <td style="padding:9px 10px;text-align:center">${due.length
+                ? `<span style="background:#fdebd0;color:#b9770e;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:800">${due.length} مستحقة</span>`
+                : '<span style="color:#27ae60;font-size:11px;font-weight:700">✓ محدّثة</span>'}</td>
+            <td style="padding:9px 10px;text-align:center">${off ? '<span style="color:#999;font-size:11px">موقوف</span>' : '<span style="color:#27ae60;font-size:11px;font-weight:700">نشط</span>'}</td>
+            <td style="padding:9px 10px;white-space:nowrap">
+                ${due.length ? `<button class="btn" onclick="generateAllDueRecSInv('${key}')" style="background:#27ae60;color:#fff;padding:4px 9px;font-size:11px" title="توليد المستحق">⚡</button>` : ''}
+                <button class="btn" onclick="openRecSInvEditor('${key}')" style="background:#2980b9;color:#fff;padding:4px 9px;font-size:11px" title="تعديل">✏️</button>
+                <button class="btn" onclick="toggleRecSInvActive('${key}')" style="background:#7f8c8d;color:#fff;padding:4px 9px;font-size:11px" title="${off ? 'تفعيل' : 'إيقاف'}">${off ? '▶️' : '⏸️'}</button>
+                <button class="btn" onclick="deleteRecSInvTpl('${key}')" style="background:#c0392b;color:#fff;padding:4px 9px;font-size:11px" title="حذف">🗑️</button>
+            </td></tr>`;
+    }).join('');
+    box.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div>
+                <div style="font-size:20px;font-weight:800;color:#2c3e50">🔄 الفواتير المتكررة</div>
+                <div style="font-size:12px;color:#7a8896;margin-top:3px">قوالب عقود الصيانة والإيجار والاشتراكات — تُولَّد <b>مسوّدة</b> لمراجعتك ثم تُرحّلها</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" onclick="generateAllDueRecSInv()" style="background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;font-weight:800">⚡ توليد كل المستحق</button>
+                <button class="btn" onclick="openRecSInvEditor(null)" style="background:linear-gradient(135deg,#2980b9,#3498db);color:#fff;font-weight:800">➕ قالب جديد</button>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px">
+            <div class="card" style="padding:12px"><div style="font-size:11.5px;color:#7a8896">القوالب النشطة</div><div class="kpi-v" style="font-size:20px;font-weight:800;color:#2980b9">${activeN}</div></div>
+            <div class="card" style="padding:12px"><div style="font-size:11.5px;color:#7a8896">فواتير مستحقة الآن</div><div class="kpi-v" style="font-size:20px;font-weight:800;color:${totalDue ? '#e67e22' : '#27ae60'}">${totalDue}</div></div>
+            <div class="card" style="padding:12px"><div style="font-size:11.5px;color:#7a8896">قيمتها التقديرية</div><div class="kpi-v" style="font-size:20px;font-weight:800;color:#8e44ad">${fmt(Math.round(dueAmt * 100) / 100)}</div></div>
+        </div>
+        <div class="card" style="padding:0;overflow-x:auto">
+            ${tpls.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                <thead><tr style="background:#f4f7fa;color:#5a6b7d;font-size:11.5px">
+                    <th style="padding:10px;text-align:right">القالب / العميل</th><th style="padding:10px;text-align:right">الدورية</th>
+                    <th style="padding:10px;text-align:right">من ← إلى</th><th style="padding:10px;text-align:right">قيمة الفاتورة</th>
+                    <th style="padding:10px;text-align:center">المستحق</th><th style="padding:10px;text-align:center">الحالة</th>
+                    <th style="padding:10px;text-align:right">إجراءات</th></tr></thead>
+                <tbody>${rows}</tbody></table>`
+            : `<div style="padding:34px;text-align:center;color:#95a5a6">
+                    <div style="font-size:34px;margin-bottom:8px">🔄</div>
+                    <div style="font-weight:700;color:#7a8896">لا توجد قوالب بعد</div>
+                    <div style="font-size:12px;margin-top:5px">أنشئ قالباً لعقد صيانة أو إيجار معدّات، وستُولَّد فاتورته تلقائياً كل دورة</div>
+                </div>`}
+        </div>`;
+};
+
+// ── محرّر القالب (نافذة ديناميكية) ─────────────────────────
+let _rsiLines = [];
+window.openRecSInvEditor = function (key) {
+    const t = key ? (window.recurringSalesInvoices || {})[key] : null;
+    _rsiLines = (t && t.lines && t.lines.length) ? t.lines.map(l => ({ ...l })) : [{ description: '', qty: 1, unit: '', unitPrice: 0, discountPct: 0, vatRate: 15 }];
+    const custOpts = Object.entries(window.customers || {})
+        .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
+        .map(([id, c]) => `<option value="${esc(id)}" ${t && t.customerId === id ? 'selected' : ''}>${esc(c.name || id)}</option>`).join('');
+    const projOpts = Object.entries(window.projects || {})
+        .map(([id, p]) => `<option value="${esc(id)}" ${t && t.projectId === id ? 'selected' : ''}>${esc(p.name || id)}</option>`).join('');
+    const freqOpts = Object.entries(RSI_FREQ).map(([k, v]) => `<option value="${k}" ${t && t.freq === k ? 'selected' : ''}>${esc(v.label)}</option>`).join('');
+    const inp = 'width:100%;padding:8px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px';
+    const lbl = 'font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:4px';
+    document.getElementById('rsiModal')?.remove();
+    const m = document.createElement('div');
+    m.id = 'rsiModal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px';
+    m.innerHTML = `<div class="card" style="max-width:900px;width:100%;padding:20px;margin:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:17px;font-weight:900;color:#2c3e50">🔄 ${t ? 'تعديل قالب' : 'قالب فاتورة متكررة جديد'}</div>
+            <button class="btn" onclick="document.getElementById('rsiModal').remove()" style="background:#eef2f7;padding:5px 11px">✕</button>
+        </div>
+        <input type="hidden" id="rsiKey" value="${esc(key || '')}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:12px">
+            <div><label style="${lbl}">اسم القالب *</label><input id="rsiName" style="${inp}" value="${esc(t?.name || '')}" placeholder="مثال: صيانة شهرية — برج الرياض"></div>
+            <div><label style="${lbl}">العميل *</label><select id="rsiCust" style="${inp}"><option value="">— اختر —</option>${custOpts}</select></div>
+            <div><label style="${lbl}">المشروع (اختياري)</label><select id="rsiProj" style="${inp}"><option value="">— بدون —</option>${projOpts}</select></div>
+            <div><label style="${lbl}">الدورية *</label><select id="rsiFreq" style="${inp}">${freqOpts}</select></div>
+            <div><label style="${lbl}">تبدأ من *</label><input type="month" id="rsiStart" style="${inp}" value="${esc(t?.startMonth || new Date().toISOString().slice(0, 7))}"></div>
+            <div><label style="${lbl}">تنتهي في (فارغ = مفتوح)</label><input type="month" id="rsiEnd" style="${inp}" value="${esc(t?.endMonth || '')}"></div>
+            <div><label style="${lbl}">يوم الفاتورة في الشهر</label><input type="number" id="rsiDay" min="1" max="28" style="${inp}" value="${t?.dayOfMonth || 1}"></div>
+            <div><label style="${lbl}">مهلة السداد (أيام)</label><input type="number" id="rsiTerms" min="0" style="${inp}" value="${t?.paymentTermsDays != null ? t.paymentTermsDays : 30}"></div>
+        </div>
+        <div style="font-weight:800;color:#2c3e50;margin:6px 0 8px;font-size:13px">📋 بنود الفاتورة</div>
+        <div id="rsiLinesBox" style="overflow-x:auto"></div>
+        <button class="btn" onclick="rsiAddLine()" style="background:#eef7ff;color:#2980b9;font-weight:800;margin-top:8px;font-size:12px">➕ بند</button>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px">
+            <div><label style="${lbl}">خصم عام على الفاتورة</label><input type="number" id="rsiDiscount" min="0" step="0.01" style="${inp}" value="${t?.discount || 0}" oninput="rsiRecalc()"></div>
+            <div><label style="${lbl}">ضمان أعمال (احتجاز) %</label><input type="number" id="rsiRet" min="0" max="100" step="0.01" style="${inp}" value="${t?.retentionPct || 0}" oninput="rsiRecalc()"></div>
+            <div><label style="${lbl}">استرداد دفعة مقدمة %</label><input type="number" id="rsiAdv" min="0" max="100" step="0.01" style="${inp}" value="${t?.advanceRecoveryPct || 0}" oninput="rsiRecalc()"></div>
+        </div>
+        <div><label style="${lbl};margin-top:10px">ملاحظات تُنسخ لكل فاتورة</label><input id="rsiNotes" style="${inp}" value="${esc(t?.notes || '')}"></div>
+        <div id="rsiTotalsBox" style="background:#f4f7fa;border-radius:10px;padding:12px;margin-top:12px;font-size:12.5px"></div>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12.5px;font-weight:700;color:#5a6b7d;cursor:pointer">
+            <input type="checkbox" id="rsiActive" ${t ? (t.active !== false ? 'checked' : '') : 'checked'}> القالب نشط
+        </label>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+            <button class="btn" onclick="document.getElementById('rsiModal').remove()" style="background:#eef2f7;font-weight:700">إلغاء</button>
+            <button class="btn b-g" onclick="saveRecSInvTpl()" style="font-weight:800">💾 حفظ القالب</button>
+        </div></div>`;
+    document.body.appendChild(m);
+    renderRsiLines();
+};
+function renderRsiLines() {
+    const box = $('rsiLinesBox'); if (!box) return;
+    const cell = 'padding:5px 6px;border:1.5px solid #e3e9ef;border-radius:7px;font-family:inherit;font-size:12px;width:100%';
+    box.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px">
+        <thead><tr style="background:#f4f7fa;color:#7a8896;font-size:11px">
+            <th style="padding:6px;text-align:right">الوصف</th><th style="padding:6px;width:80px">الكمية</th>
+            <th style="padding:6px;width:80px">الوحدة</th><th style="padding:6px;width:100px">سعر الوحدة</th>
+            <th style="padding:6px;width:80px">خصم %</th><th style="padding:6px;width:80px">ضريبة %</th>
+            <th style="padding:6px;width:95px">الصافي</th><th style="padding:6px;width:36px"></th></tr></thead>
+        <tbody>${_rsiLines.map((l, i) => `<tr>
+            <td style="padding:3px"><input style="${cell}" value="${esc(l.description || '')}" oninput="rsiSetLine(${i},'description',this.value)"></td>
+            <td style="padding:3px"><input type="number" step="0.01" style="${cell}" value="${l.qty != null ? l.qty : 1}" oninput="rsiSetLine(${i},'qty',this.value)"></td>
+            <td style="padding:3px"><input style="${cell}" value="${esc(l.unit || '')}" oninput="rsiSetLine(${i},'unit',this.value)"></td>
+            <td style="padding:3px"><input type="number" step="0.01" style="${cell}" value="${l.unitPrice || 0}" oninput="rsiSetLine(${i},'unitPrice',this.value)"></td>
+            <td style="padding:3px"><input type="number" step="0.01" style="${cell}" value="${l.discountPct || 0}" oninput="rsiSetLine(${i},'discountPct',this.value)"></td>
+            <td style="padding:3px"><input type="number" step="0.01" style="${cell}" value="${l.vatRate != null ? l.vatRate : 15}" oninput="rsiSetLine(${i},'vatRate',this.value)"></td>
+            <td style="padding:3px;font-weight:700;text-align:center">${fmt(sInvLineNet(l))}</td>
+            <td style="padding:3px;text-align:center">${_rsiLines.length > 1 ? `<button class="btn" onclick="rsiDelLine(${i})" style="background:#fdecea;color:#c0392b;padding:3px 7px;font-size:11px">✕</button>` : ''}</td>
+        </tr>`).join('')}</tbody></table>`;
+    rsiRecalc();
+}
+window.rsiSetLine = function (i, f, v) { if (!_rsiLines[i]) return; _rsiLines[i][f] = (f === 'description' || f === 'unit') ? v : (parseFloat(v) || 0); if (f !== 'description' && f !== 'unit') renderRsiLines(); else rsiRecalc(); };
+window.rsiAddLine = function () { _rsiLines.push({ description: '', qty: 1, unit: '', unitPrice: 0, discountPct: 0, vatRate: 15 }); renderRsiLines(); };
+window.rsiDelLine = function (i) { _rsiLines.splice(i, 1); renderRsiLines(); };
+window.rsiRecalc = function () {
+    const box = $('rsiTotalsBox'); if (!box) return;
+    const tt = rsiTotals(_rsiLines, {
+        discount: $('rsiDiscount')?.value, retentionPct: $('rsiRet')?.value, advanceRecoveryPct: $('rsiAdv')?.value
+    });
+    const row = (l, v, b) => `<div style="display:flex;justify-content:space-between;padding:2px 0${b ? ';font-weight:800;color:#1a3a5c;border-top:1.5px solid #d9e2ea;margin-top:5px;padding-top:6px' : ''}"><span>${l}</span><span>${fmt(v)}</span></div>`;
+    box.innerHTML = row('الإجمالي قبل الخصم', tt.gross) + (tt.lineDiscountTotal ? row('خصم البنود', -tt.lineDiscountTotal) : '')
+        + (tt.discount ? row('خصم عام', -tt.discount) : '') + row('الصافي قبل الضريبة', tt.netBeforeTax)
+        + row('ضريبة القيمة المضافة', tt.vatTotal) + row('إجمالي الفاتورة', tt.grandTotal, true)
+        + (tt.retentionAmount ? row('− ضمان أعمال', -tt.retentionAmount) : '')
+        + (tt.advanceRecoveryAmount ? row('− استرداد دفعة مقدمة', -tt.advanceRecoveryAmount) : '')
+        + ((tt.retentionAmount || tt.advanceRecoveryAmount) ? row('صافي المستحق', tt.netDue, true) : '');
+};
+window.saveRecSInvTpl = async function () {
+    const name = ($('rsiName')?.value || '').trim();
+    const customerId = $('rsiCust')?.value || '';
+    if (!name) { toast('أدخل اسم القالب', 'er'); return; }
+    if (!customerId) { toast('اختر العميل', 'er'); return; }
+    const lines = _rsiLines.filter(l => (l.description || '').trim() && (parseFloat(l.qty) || 0) > 0);
+    if (!lines.length) { toast('أضف بنداً واحداً على الأقل (وصف وكمية)', 'er'); return; }
+    const start = $('rsiStart')?.value || '', end = $('rsiEnd')?.value || '';
+    if (!start) { toast('حدّد شهر البداية', 'er'); return; }
+    if (end && end < start) { toast('شهر النهاية قبل شهر البداية', 'er'); return; }
+    const key = $('rsiKey')?.value || '';
+    const cust = (window.customers || {})[customerId] || {};
+    const tpl = {
+        name, customerId, customerName: cust.name || '',
+        projectId: $('rsiProj')?.value || '',
+        freq: $('rsiFreq')?.value || 'monthly',
+        startMonth: start, endMonth: end || null,
+        dayOfMonth: Math.min(28, Math.max(1, parseInt($('rsiDay')?.value) || 1)),
+        paymentTermsDays: parseInt($('rsiTerms')?.value) || 0,
+        lines: lines.map(l => ({
+            itemId: l.itemId || '', description: l.description, qty: parseFloat(l.qty) || 0,
+            unit: l.unit || '', unitPrice: parseFloat(l.unitPrice) || 0,
+            discountPct: parseFloat(l.discountPct) || 0, vatRate: parseFloat(l.vatRate) || 0,
+            total: sInvLineNet(l)
+        })),
+        discount: parseFloat($('rsiDiscount')?.value) || 0,
+        retentionPct: parseFloat($('rsiRet')?.value) || 0,
+        advanceRecoveryPct: parseFloat($('rsiAdv')?.value) || 0,
+        notes: ($('rsiNotes')?.value || '').trim(),
+        active: !!$('rsiActive')?.checked,
+        updatedAt: new Date().toISOString()
+    };
+    try {
+        if (key) {
+            tpl.generated = (window.recurringSalesInvoices || {})[key]?.generated || {};
+            await update(ref(db, 'ledger/recurringSalesInvoices/' + key), tpl);
+        } else {
+            tpl.generated = {}; tpl.createdAt = tpl.updatedAt;
+            await push(R.recSInv, tpl);
+        }
+        document.getElementById('rsiModal')?.remove();
+        toast('✅ حُفظ القالب', 'ok');
+        if (typeof logAudit === 'function') logAudit(key ? 'تعديل قالب فاتورة متكررة' : 'إضافة قالب فاتورة متكررة', 'الفواتير المتكررة', name);
+        renderRecurringSInv();
+    } catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+};
+window.toggleRecSInvActive = async function (key) {
+    const t = (window.recurringSalesInvoices || {})[key]; if (!t) return;
+    try { await update(ref(db, 'ledger/recurringSalesInvoices/' + key), { active: t.active === false }); renderRecurringSInv(); }
+    catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+};
+window.deleteRecSInvTpl = function (key) {
+    const t = (window.recurringSalesInvoices || {})[key]; if (!t) return;
+    cf2(`حذف القالب «${t.name || ''}»؟\n\nالفواتير المُولَّدة سابقاً لن تُحذف.`, async () => {
+        try { await remove(ref(db, 'ledger/recurringSalesInvoices/' + key)); toast('تم الحذف ✓', 'ok'); renderRecurringSInv(); }
+        catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+    });
+};
+
+// ── التوليد ────────────────────────────────────────────────
+// يُنشئ فاتورة مبيعات **مسوّدة** لفترة واحدة، ويسجّل الفترة في generated لمنع التكرار.
+async function generateRecSInvForPeriod(key, ym) {
+    const t = (window.recurringSalesInvoices || {})[key]; if (!t) return null;
+    if ((t.generated || {})[ym]) return null;                       // حارس التكرار
+    const tt = rsiTotals(t.lines, t);
+    if (!tt.lines.length) return null;
+    const day = String(Math.min(28, Math.max(1, parseInt(t.dayOfMonth) || 1))).padStart(2, '0');
+    const date = `${ym}-${day}`;
+    const dueDate = new Date(new Date(date + 'T00:00:00').getTime() + (parseInt(t.paymentTermsDays) || 0) * 86400000).toISOString().slice(0, 10);
+    const now = new Date().toISOString();
+    const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
+    const inv = {
+        number: generateSInvNumber(),
+        date, dueDate,
+        customerId: t.customerId,
+        projectId: t.projectId || '',
+        reference: `متكررة: ${t.name || ''}`,
+        subject: `${t.name || 'فاتورة متكررة'} — ${(typeof recMonthLabel === 'function' ? recMonthLabel(ym) : ym)}`,
+        lines: tt.lines.map(l => ({
+            itemId: l.itemId || '', description: l.description, qty: parseFloat(l.qty) || 0,
+            unit: l.unit || '', unitPrice: parseFloat(l.unitPrice) || 0,
+            discountPct: parseFloat(l.discountPct) || 0, vatRate: parseFloat(l.vatRate) || 0,
+            total: sInvLineNet(l)
+        })),
+        gross: tt.gross, lineDiscountTotal: tt.lineDiscountTotal, subTotal: tt.subTotal,
+        discount: tt.discount, netBeforeTax: tt.netBeforeTax, vatTotal: tt.vatTotal, grandTotal: tt.grandTotal,
+        retentionPct: tt.retentionPct, retentionAmount: tt.retentionAmount,
+        advanceRecoveryPct: tt.advanceRecoveryPct, advanceRecoveryAmount: tt.advanceRecoveryAmount,
+        netDue: tt.netDue,
+        currency: (typeof baseCurrencyCode === 'function' ? baseCurrencyCode() : 'SAR'),
+        exchangeRate: 1, grandTotalBase: tt.grandTotal,
+        paidAmount: 0,
+        notes: t.notes || '',
+        salesAccountCode: t.salesAccountCode || '4100',
+        salesAccountName: t.salesAccountName || 'إيرادات المشاريع',
+        status: 'draft',                       // 🛡️ مسوّدة دائماً — تُراجَع ثم تُرحّل يدوياً
+        recurringTplKey: key, recurringPeriod: ym,
+        createdAt: now, createdBy: userId, updatedAt: now, updatedBy: userId
+    };
+    const r = await push(R.sinv, inv);
+    await update(ref(db, 'ledger/recurringSalesInvoices/' + key), { [`generated/${ym}`]: r.key, lastGeneratedAt: now });
+    return r.key;
+}
+window.generateAllDueRecSInv = async function (onlyKey) {
+    const entries = Object.entries(window.recurringSalesInvoices || {})
+        .filter(([k, t]) => t.active !== false && (!onlyKey || k === onlyKey));
+    const jobs = [];
+    entries.forEach(([key, t]) => rsiDuePeriods(t).forEach(ym => jobs.push({ key, ym, name: t.name })));
+    if (!jobs.length) { toast('لا توجد فواتير مستحقة', 'wn'); return; }
+    if (!await cf2(`توليد ${jobs.length} فاتورة متكررة مستحقة؟\n\nستُنشأ كـ«مسودة» لمراجعتك — بلا قيود محاسبية حتى ترحّلها.`)) return;
+    let ok = 0, fail = 0;
+    for (const j of jobs) {
+        try { if (await generateRecSInvForPeriod(j.key, j.ym)) ok++; } catch (e) { fail++; console.error('RSI gen', j, e); }
+    }
+    toast(`✅ وُلّدت ${ok} فاتورة مسودة${fail ? ` — فشل ${fail}` : ''}`, fail ? 'er' : 'ok', 6000);
+    if (typeof logAudit === 'function') logAudit('توليد فواتير متكررة', 'الفواتير المتكررة', `${ok} فاتورة مسودة`);
+    renderRecurringSInv();
 };
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -377,6 +377,7 @@
                             <div class="sb-it sub" id="n-jrn"   onclick="nav('journalentries',this)"><span class="ic">📒</span><span>قيود اليومية</span></div>
                             <div class="sb-it sub" id="n-jrntemplates" onclick="nav('jrntemplates',this)"><span class="ic">📋</span><span>قوالب القيود</span></div>
                             <div class="sb-it sub" id="n-recjrn" onclick="nav('recurringjournals',this)"><span class="ic">🔁</span><span>القيود المتكررة</span></div>
+                            <div class="sb-it sub" id="n-recsinv" onclick="nav('recurringsinv',this)"><span class="ic">🔄</span><span>الفواتير المتكررة</span></div>
                             <div class="sb-it sub" id="n-revrec" onclick="nav('revrecognition',this)"><span class="ic">📐</span><span>إثبات الإيراد (نسبة الإنجاز)</span></div>
                             <div class="sb-it sub" id="n-fxrev" onclick="nav('fxrevaluation',this)"><span class="ic">💱</span><span>إعادة تقييم العملات</span></div>
                             <div class="sb-it sub" id="n-amz" onclick="nav('amortization',this)"><span class="ic">📆</span><span>إطفاء المصروفات المؤجلة</span></div>
@@ -13843,6 +13844,11 @@
                     <!-- المحتوى يُولّد ديناميكياً من renderRecurringJournals() في accounting.js -->
                 </div>
 
+                <!-- 🔄 الفواتير المتكررة [ACC-RSI] -->
+                <div class="pg" id="pg-recurringsinv">
+                    <!-- المحتوى يُولّد ديناميكياً من renderRecurringSInv() في accounting.js -->
+                </div>
+
                 <!-- PAGE: REVENUE RECOGNITION (📐 إثبات الإيراد بنسبة الإنجاز) -->
                 <div class="pg" id="pg-revrecognition">
                     <!-- المحتوى يُولّد ديناميكياً من renderRevenueRecognition() في accounting.js -->
@@ -19849,10 +19855,10 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260720-forgot"></script>
+    <script type="module" src="app.js?v=20260720-recinv"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
-    <script defer src="accounting.js?v=20260719-sinvret"></script>
+    <script defer src="accounting.js?v=20260720-recinv"></script>
     <script defer src="tasks.js?v=20260719-tajawal"></script>
     <script defer src="crm.js?v=20260627-5"></script>
     <script defer src="timesheets.js?v=20260713-attgen1"></script>
