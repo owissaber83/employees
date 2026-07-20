@@ -3779,20 +3779,23 @@ function rsiTotals(lines, opt) {
     const lineDiscountTotal = Math.round((gross - subTotal) * 100) / 100;
     const discount = parseFloat(o.discount) || 0;
     const netBeforeTax = subTotal - discount;
-    let vatTotal = 0;
-    if (subTotal > 0) {
-        const dr = discount / subTotal;
-        L.forEach(l => { vatTotal += (sInvLineNet(l) * (1 - dr)) * ((parseFloat(l.vatRate) || 0) / 100); });
-    }
-    vatTotal = Math.round(vatTotal * 100) / 100;
-    const grandTotal = Math.round((netBeforeTax + vatTotal) * 100) / 100;
+    // المقدمة تُنقص الوعاء الضريبي، والاحتجاز يُطرح بعد الضريبة (انظر updateSInvTotals)
     const retentionPct = parseFloat(o.retentionPct) || 0;
     const advanceRecoveryPct = parseFloat(o.advanceRecoveryPct) || 0;
     const retentionAmount = Math.round(netBeforeTax * retentionPct) / 100;
     const advanceRecoveryAmount = Math.round(netBeforeTax * advanceRecoveryPct) / 100;
-    const netDue = Math.round((grandTotal - retentionAmount - advanceRecoveryAmount) * 100) / 100;
+    const taxableBase = Math.round((netBeforeTax - advanceRecoveryAmount) * 100) / 100;
+    const advFactor = netBeforeTax > 0.0001 ? (taxableBase / netBeforeTax) : 1;
+    let vatTotal = 0;
+    if (subTotal > 0) {
+        const dr = discount / subTotal;
+        L.forEach(l => { vatTotal += (sInvLineNet(l) * (1 - dr) * advFactor) * ((parseFloat(l.vatRate) || 0) / 100); });
+    }
+    vatTotal = Math.round(vatTotal * 100) / 100;
+    const grandTotal = Math.round((taxableBase + vatTotal) * 100) / 100;
+    const netDue = Math.round((grandTotal - retentionAmount) * 100) / 100;
     return {
-        lines: L, gross, subTotal, lineDiscountTotal, discount, netBeforeTax, vatTotal, grandTotal,
+        lines: L, gross, subTotal, lineDiscountTotal, discount, netBeforeTax, taxableBase, vatTotal, grandTotal,
         retentionPct, retentionAmount, advanceRecoveryPct, advanceRecoveryAmount, netDue
     };
 }
@@ -4039,7 +4042,7 @@ async function generateRecSInvForPeriod(key, ym) {
             total: sInvLineNet(l)
         })),
         gross: tt.gross, lineDiscountTotal: tt.lineDiscountTotal, subTotal: tt.subTotal,
-        discount: tt.discount, netBeforeTax: tt.netBeforeTax, vatTotal: tt.vatTotal, grandTotal: tt.grandTotal,
+        discount: tt.discount, netBeforeTax: tt.netBeforeTax, taxableBase: tt.taxableBase, vatTotal: tt.vatTotal, grandTotal: tt.grandTotal,
         retentionPct: tt.retentionPct, retentionAmount: tt.retentionAmount,
         advanceRecoveryPct: tt.advanceRecoveryPct, advanceRecoveryAmount: tt.advanceRecoveryAmount,
         netDue: tt.netDue,
@@ -14812,19 +14815,33 @@ window.updateSInvTotals = function () {
     const gross = sInvEditorState.lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.unitPrice) || 0), 0);
     const lineDiscTotal = Math.round((gross - subTotal) * 100) / 100;
 
-    // ضريبة لكل سطر (بعد الخصم النسبي) + تجميع حسب النسبة
+    // 🏗️ الاحتجاز واسترداد الدفعة المقدمة — كلاهما نسبة من قيمة الأعمال قبل الضريبة،
+    //    لكن أثرهما الضريبي مختلف تماماً:
+    //    • استرداد الدفعة المقدمة يُنقص **الوعاء الضريبي** (الضريبة حُصّلت كاملة عند قبض
+    //      الدفعة بفاتورتها، فخصمها هنا يمنع الازدواج الضريبي).
+    //    • ضمان الأعمال لا يمسّ الوعاء: الضريبة تُستحق على كامل الأعمال المنجزة وتُورَّد
+    //      فوراً، والاحتجاز خصم مالي يُطرح بعد الضريبة.
+    const retPct = parseFloat($('mSInvRetentionPct')?.value) || 0;
+    const advPct = parseFloat($('mSInvAdvRecPct')?.value) || 0;
+    const retentionAmt = Math.round(netBeforeTax * retPct) / 100;
+    const advRecAmt = Math.round(netBeforeTax * advPct) / 100;
+    const taxableBase = Math.round((netBeforeTax - advRecAmt) * 100) / 100;
+    const advFactor = netBeforeTax > 0.0001 ? (taxableBase / netBeforeTax) : 1;
+
+    // ضريبة لكل سطر (بعد الخصم النسبي وخصم المقدمة) + تجميع حسب النسبة
     let vatTotal = 0; const byRate = {};
     if (subTotal > 0) {
         const discountRatio = discount / subTotal;
         sInvEditorState.lines.forEach(l => {
-            const lineNet = (l.total || 0) * (1 - discountRatio);
+            const lineNet = (l.total || 0) * (1 - discountRatio) * advFactor;
             const v = lineNet * ((l.vatRate || 0) / 100);
             vatTotal += v;
             const r = (l.vatRate || 0); byRate[r] = byRate[r] || { base: 0, vat: 0 }; byRate[r].base += lineNet; byRate[r].vat += v;
         });
     }
+    vatTotal = Math.round(vatTotal * 100) / 100;
 
-    const grandTotal = netBeforeTax + vatTotal;
+    const grandTotal = Math.round((taxableBase + vatTotal) * 100) / 100;
 
     if ($('mSInvGross')) $('mSInvGross').textContent = fmt(gross);
     if ($('mSInvLineDisc')) $('mSInvLineDisc').textContent = '-' + fmt(lineDiscTotal);
@@ -14833,16 +14850,14 @@ window.updateSInvTotals = function () {
     $('mSInvNetBeforeTax').textContent = fmt(netBeforeTax);
     $('mSInvVATTotal').textContent = fmt(vatTotal);
     $('mSInvGrandTotal').textContent = fmt(grandTotal);
-    // 🏗️ ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة — على قيمة الأعمال قبل الضريبة
-    const retPct = parseFloat($('mSInvRetentionPct')?.value) || 0;
-    const advPct = parseFloat($('mSInvAdvRecPct')?.value) || 0;
-    const retentionAmt = Math.round(netBeforeTax * retPct) / 100;
-    const advRecAmt = Math.round(netBeforeTax * advPct) / 100;
-    const netDue = Math.round((grandTotal - retentionAmt - advRecAmt) * 100) / 100;
+    // صافي المستحق = الإجمالي − الاحتجاز فقط (المقدمة خُصمت أصلاً من الوعاء قبل الضريبة)
+    const netDue = Math.round((grandTotal - retentionAmt) * 100) / 100;
     if ($('mSInvRetentionAmt')) $('mSInvRetentionAmt').textContent = '-' + fmt(retentionAmt);
     if ($('mSInvAdvRecAmt')) $('mSInvAdvRecAmt').textContent = '-' + fmt(advRecAmt);
+    if ($('mSInvTaxBase')) $('mSInvTaxBase').textContent = fmt(taxableBase);
+    if ($('mSInvTaxBaseRow')) $('mSInvTaxBaseRow').style.display = advRecAmt > 0.01 ? 'flex' : 'none';
     if ($('mSInvNetDue')) $('mSInvNetDue').textContent = fmt(netDue);
-    if ($('mSInvNetDueRow')) $('mSInvNetDueRow').style.display = (retentionAmt > 0.01 || advRecAmt > 0.01) ? 'flex' : 'none';
+    if ($("mSInvNetDueRow")) $("mSInvNetDueRow").style.display = retentionAmt > 0.01 ? "flex" : "none";
     const advHint = $('mSInvAdvBalHint');
     if (advHint) {
         let ht = '';
@@ -14990,22 +15005,26 @@ window.saveSInv = async function (status) {
     const lineDiscountTotal = Math.round((gross - subTotal) * 100) / 100;
     const discount = parseFloat($('mSInvDiscount').value) || 0;
     const netBeforeTax = subTotal - discount;
-    let vatTotal = 0;
-    if (subTotal > 0) {
-        const discountRatio = discount / subTotal;
-        validLines.forEach(l => {
-            const lineNet = sInvLineNet(l) * (1 - discountRatio);
-            vatTotal += lineNet * ((parseFloat(l.vatRate) || 0) / 100);
-        });
-    }
-    vatTotal = Math.round(vatTotal * 100) / 100;
-    const grandTotal = Math.round((netBeforeTax + vatTotal) * 100) / 100;
-    // 🏗️ ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة — على قيمة الأعمال قبل الضريبة
+    // 🏗️ الاحتجاز واسترداد الدفعة المقدمة — كلاهما نسبة من قيمة الأعمال قبل الضريبة،
+    //    وأثرهما الضريبي مختلف (انظر التعليق المفصّل في updateSInvTotals):
+    //    • المقدمة تُنقص الوعاء الضريبي (منعاً للازدواج) • الاحتجاز لا يمسّه.
     const retentionPct = parseFloat($('mSInvRetentionPct')?.value) || 0;
     const advanceRecoveryPct = parseFloat($('mSInvAdvRecPct')?.value) || 0;
     const retentionAmount = Math.round(netBeforeTax * retentionPct) / 100;
     const advanceRecoveryAmount = Math.round(netBeforeTax * advanceRecoveryPct) / 100;
-    const netDue = Math.round((grandTotal - retentionAmount - advanceRecoveryAmount) * 100) / 100;
+    const taxableBase = Math.round((netBeforeTax - advanceRecoveryAmount) * 100) / 100;
+    const advFactor = netBeforeTax > 0.0001 ? (taxableBase / netBeforeTax) : 1;
+    let vatTotal = 0;
+    if (subTotal > 0) {
+        const discountRatio = discount / subTotal;
+        validLines.forEach(l => {
+            const lineNet = sInvLineNet(l) * (1 - discountRatio) * advFactor;
+            vatTotal += lineNet * ((parseFloat(l.vatRate) || 0) / 100);
+        });
+    }
+    vatTotal = Math.round(vatTotal * 100) / 100;
+    const grandTotal = Math.round((taxableBase + vatTotal) * 100) / 100;
+    const netDue = Math.round((grandTotal - retentionAmount) * 100) / 100;
 
     // الإيقاف الائتماني اليدوي يمنع الترحيل
     if (status === 'posted' && window.customers?.[customerId]?.creditHold) {
@@ -15064,6 +15083,7 @@ window.saveSInv = async function (status) {
         subTotal,
         discount,
         netBeforeTax,
+        taxableBase,          // 🧾 الوعاء الخاضع للضريبة = قيمة الأعمال − استرداد الدفعة المقدمة
         vatTotal,
         grandTotal,
         retentionPct,
@@ -15734,7 +15754,10 @@ async function createJournalForSInv(invKey, inv) {
     const ensuredAdv = advBase > 0.005 && !advanceAcc ? await ensureStdAccount('2150') : advanceAcc;
     if (retBase > 0.005 && !ensuredRet) { toast('⚠️ تعذّر إنشاء حساب 1131 (محتجزات ضمان لدى العملاء) — لم يُفصل الاحتجاز في القيد', 'er', 8000); retBase = 0; }
     if (advBase > 0.005 && !ensuredAdv) { toast('⚠️ تعذّر إنشاء حساب 2150 (دفعات مقدمة من العملاء) — لم يُسترد المقدّم في القيد', 'er', 8000); advBase = 0; }
-    const custDueBase = Math.round((grandBase - retBase - advBase) * 100) / 100; // صافي المستحق على العميل
+    // صافي المستحق على العميل = الإجمالي − الاحتجاز فقط.
+    // ⚠️ لا نطرح استرداد الدفعة المقدمة هنا: هو مطروح أصلاً من الوعاء الضريبي قبل احتساب
+    //    الضريبة، فطرحه ثانيةً يُنقص ذمة العميل مرتين ويختلّ القيد.
+    const custDueBase = Math.round((grandBase - retBase) * 100) / 100;
 
     const lines = [];
     // مدين: العملاء (صافي المستحق = الإجمالي − الاحتجاز − استرداد الدفعة)
@@ -15781,8 +15804,11 @@ async function createJournalForSInv(invKey, inv) {
         lines.push({ accountCode: ensuredAdv.code, accountName: ensuredAdv.nameAr, description: `استرداد دفعة مقدمة - فاتورة ${esc(inv.number)}`, costCenter: inv.projectId || '', debit: advBase, credit: 0 });
     }
     // ضمان توازن القيد بعد التقريب: عدّل سطر الإيراد بفرق التقريب إن وُجد
+    // ⚠️ مجموع القيد = الإجمالي + استرداد الدفعة المقدمة (لأن المقدمة سطر مدين إضافي
+    //    خارج إجمالي الفاتورة — فهي مخصومة من الوعاء قبل الضريبة).
+    const jrnTotal = Math.round((grandBase + advBase) * 100) / 100;
     const totCredit = lines.slice(1).reduce((s, l) => s + l.credit, 0);
-    const roundDiff = Math.round((grandBase - totCredit) * 100) / 100;
+    const roundDiff = Math.round((jrnTotal - totCredit) * 100) / 100;
     if (Math.abs(roundDiff) >= 0.01) lines[1].credit = Math.round((lines[1].credit + roundDiff) * 100) / 100;
 
     // 📑 العرض المحاسبي المتعارف عليه: كل المدين أولاً ثم كل الدائن.
@@ -15798,8 +15824,8 @@ async function createJournalForSInv(invKey, inv) {
         reference: 'فاتورة ' + inv.number,
         description: `إثبات فاتورة مبيعات ${esc(inv.number)} - ${esc(customer?.nameAr || '')}`,
         lines,
-        totalDebit: grandBase,
-        totalCredit: grandBase,
+        totalDebit: jrnTotal,
+        totalCredit: jrnTotal,
         currency: curCode,
         exchangeRate: fx,
         foreignTotal: inv.grandTotal,
@@ -16125,12 +16151,14 @@ window.viewSInv = function (key, proforma) {
             <tr><td>المجموع الفرعي:</td><td style="text-align:left;font-weight:700">${fmt(inv.subTotal)}</td></tr>
             ${inv.discount > 0 ? `<tr><td>خصم إضافي:</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.discount)}</td></tr>` : ''}
             <tr><td>الصافي قبل الضريبة:</td><td style="text-align:left;font-weight:700">${fmt(inv.netBeforeTax)}</td></tr>
+            ${(+inv.advanceRecoveryAmount || 0) > 0 ? `
+                <tr><td>💵 استرداد الدفعة المقدمة (${(+inv.advanceRecoveryPct || 0)}%):</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.advanceRecoveryAmount)}</td></tr>
+                <tr><td><strong>الوعاء الخاضع للضريبة:</strong></td><td style="text-align:left;font-weight:800">${fmt(inv.taxableBase != null ? inv.taxableBase : ((+inv.netBeforeTax || 0) - (+inv.advanceRecoveryAmount || 0)))}</td></tr>` : ''}
             <tr><td>ضريبة القيمة المضافة:</td><td style="text-align:left;font-weight:700;color:#8e44ad">${fmt(inv.vatTotal)}</td></tr>
             ${taxBreakdownHtml}
             <tr class="grand"><td>💰 الإجمالي:</td><td style="text-align:left">${fmt(inv.grandTotal)} ${inv.currency && inv.currency !== baseCurrencyCode() ? inv.currency : ''}</td></tr>
-            ${((+inv.retentionAmount || 0) > 0 || (+inv.advanceRecoveryAmount || 0) > 0) ? `
-                ${(+inv.retentionAmount || 0) > 0 ? `<tr><td>🏗️ ضمان الأعمال (احتجاز ${(+inv.retentionPct || 0)}%):</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.retentionAmount)}</td></tr>` : ''}
-                ${(+inv.advanceRecoveryAmount || 0) > 0 ? `<tr><td>💵 استرداد الدفعة المقدمة (${(+inv.advanceRecoveryPct || 0)}%):</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.advanceRecoveryAmount)}</td></tr>` : ''}
+            ${(+inv.retentionAmount || 0) > 0 ? `
+                <tr><td>🏗️ ضمان الأعمال (احتجاز ${(+inv.retentionPct || 0)}%):</td><td style="text-align:left;color:#c0392b;font-weight:700">-${fmt(inv.retentionAmount)}</td></tr>
                 <tr class="netdue"><td>🧾 صافي المستحق للدفع:</td><td style="text-align:left">${fmt(inv.netDue)} ${inv.currency && inv.currency !== baseCurrencyCode() ? inv.currency : ''}</td></tr>` : ''}
             ${inv.currency && inv.currency !== baseCurrencyCode() ? `<tr><td style="font-size:10px;color:#666">سعر الصرف ${inv.exchangeRate} — المعادل الدفتري:</td><td style="text-align:left;font-size:10px;color:#666">${fmt((inv.grandTotal || 0) * (inv.exchangeRate || 1))} ${baseCurrencyName()}</td></tr>` : ''}
         </table>
@@ -16138,7 +16166,7 @@ window.viewSInv = function (key, proforma) {
         <div class="words">
             <strong>📝 التفقيط:</strong> ${typeof numberToArabicWords === 'function' ? numberToArabicWords(inv.grandTotal) : ''}
         </div>
-        ${((+inv.retentionAmount || 0) > 0 || (+inv.advanceRecoveryAmount || 0) > 0) ? `
+        ${(+inv.retentionAmount || 0) > 0 ? `
         <div class="words" style="background:#eef3f9;border-right-color:#1a3a5c">
             <strong>🧾 صافي المستحق للدفع:</strong> ${typeof numberToArabicWords === 'function' ? numberToArabicWords(inv.netDue) : fmt(inv.netDue)}
         </div>` : ''}

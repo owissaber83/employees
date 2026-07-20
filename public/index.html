@@ -18023,6 +18023,18 @@
                             <span style="color:#666">الصافي قبل الضريبة:</span>
                             <span style="font-weight:700;color:#2d6a9f" id="mSInvNetBeforeTax">0.00</span>
                         </div>
+                        <!-- 💵 استرداد الدفعة المقدمة: يُخصم قبل الضريبة لأن ضريبتها حُصّلت
+                             عند قبض الدفعة — فخصمه هنا يمنع الازدواج الضريبي -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;color:#c0392b">
+                            <span style="display:flex;align-items:center;gap:5px">➖ استرداد الدفعة المقدمة
+                                <input type="number" id="mSInvAdvRecPct" value="0" min="0" max="100" step="0.1" onchange="updateSInvTotals()" style="width:50px;padding:3px;border:1px solid #e0b0b0;border-radius:4px;text-align:center;direction:ltr"><span>%</span></span>
+                            <span style="font-weight:700;color:#c0392b" id="mSInvAdvRecAmt">0.00</span>
+                        </div>
+                        <div id="mSInvAdvBalHint" style="font-size:10.5px;color:#8a6d00;text-align:left;min-height:0"></div>
+                        <div id="mSInvTaxBaseRow" style="display:none;justify-content:space-between;padding:6px 0;font-size:13px;background:#f4f7fa;border-radius:6px;padding-inline:8px">
+                            <span style="font-weight:800;color:#1a3a5c">🧾 الوعاء الخاضع للضريبة:</span>
+                            <span style="font-weight:800;color:#1a3a5c" id="mSInvTaxBase">0.00</span>
+                        </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
                             <span style="color:#666">ضريبة القيمة المضافة:</span>
                             <span style="font-weight:700;color:#8e44ad" id="mSInvVATTotal">0.00</span>
@@ -18032,18 +18044,12 @@
                             <span style="font-weight:800;color:#1a3a5c">💰 الإجمالي:</span>
                             <span style="font-weight:900;color:#27ae60" id="mSInvGrandTotal">0.00</span>
                         </div>
-                        <!-- ضمان الأعمال (احتجاز) واسترداد الدفعة المقدمة -->
+                        <!-- 🏗️ ضمان الأعمال: الضريبة تُستحق على كامل الأعمال، والاحتجاز خصم مالي بعدها -->
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;color:#c0392b;border-top:1px dashed #e2c0c0;margin-top:4px">
                             <span style="display:flex;align-items:center;gap:5px">➖ ضمان الأعمال (احتجاز)
                                 <input type="number" id="mSInvRetentionPct" value="0" min="0" max="100" step="0.1" onchange="updateSInvTotals()" style="width:50px;padding:3px;border:1px solid #e0b0b0;border-radius:4px;text-align:center;direction:ltr"><span>%</span></span>
                             <span style="font-weight:700;color:#c0392b" id="mSInvRetentionAmt">0.00</span>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;color:#c0392b">
-                            <span style="display:flex;align-items:center;gap:5px">➖ استرداد الدفعة المقدمة
-                                <input type="number" id="mSInvAdvRecPct" value="0" min="0" max="100" step="0.1" onchange="updateSInvTotals()" style="width:50px;padding:3px;border:1px solid #e0b0b0;border-radius:4px;text-align:center;direction:ltr"><span>%</span></span>
-                            <span style="font-weight:700;color:#c0392b" id="mSInvAdvRecAmt">0.00</span>
-                        </div>
-                        <div id="mSInvAdvBalHint" style="font-size:10.5px;color:#8a6d00;text-align:left;min-height:0"></div>
                         <div id="mSInvNetDueRow" style="display:none;justify-content:space-between;padding:9px 0;font-size:15px;border-top:2px dashed #16a085">
                             <span style="font-weight:800;color:#0e6655">💵 صافي المستحق:</span>
                             <span style="font-weight:900;color:#16a085" id="mSInvNetDue">0.00</span>
@@ -19858,7 +19864,7 @@
     <script type="module" src="app.js?v=20260720-tips"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
-    <script defer src="accounting.js?v=20260720-acctfix"></script>
+    <script defer src="accounting.js?v=20260720-vatbase"></script>
     <script defer src="tasks.js?v=20260719-tajawal"></script>
     <script defer src="crm.js?v=20260627-5"></script>
     <script defer src="timesheets.js?v=20260713-attgen1"></script>
