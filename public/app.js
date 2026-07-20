@@ -116,13 +116,19 @@ const fbApp = initializeApp({
 // لا حاجة لإضافة وسم <script> لـ enterprise.js يدوياً — SDK الخاص بـ App Check يحمّله بنفسه.
 // شرط العمل: تسجيل تطبيق الويب في Firebase Console ← App Check بنفس المفتاح.
 const APP_CHECK_SITE_KEY = '6LcSJlstAAAAAKqdzArCKYlkMYONda8DN6CYXhoq';
-if (APP_CHECK_SITE_KEY) {
+// ⚠️ يُعطَّل على الخادم المحلي عمداً: مفتاح reCAPTCHA مسجَّل للنطاق الحقيقي لا لـlocalhost،
+//    فيرتد App Check بـ403 مراراً ويُفشل طلبات الشبكة معه (منها المصادقة) فيتعذّر الدخول أثناء
+//    التطوير. الإنتاج وحده هو ما يحتاج الحماية، وهناك تعمل بشكل صحيح.
+//    (البديل لتجربته محلياً: FIREBASE_APPCHECK_DEBUG_TOKEN مع تسجيل الرمز في
+//     Console ← App Check ← Manage debug tokens.)
+const APP_CHECK_LOCAL = ['localhost', '127.0.0.1', '', '::1'].includes(location.hostname);
+if (APP_CHECK_SITE_KEY && !APP_CHECK_LOCAL) {
     try {
-        // أثناء التطوير المحلي: يطبع رمز تصحيح في الـconsole سجّله في App Check ← Manage debug tokens
-        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
         initializeAppCheck(fbApp, { provider: new ReCaptchaEnterpriseProvider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
         console.log('🛡️ App Check مُفعّل (reCAPTCHA Enterprise)');
     } catch (e) { console.warn('🛡️ تعذّر تفعيل App Check:', e && e.message); }
+} else if (APP_CHECK_LOCAL) {
+    console.log('🛡️ App Check معطّل على الخادم المحلي (يعمل على النطاق الحقيقي فقط)');
 }
 
 const auth = getAuth(fbApp);
