@@ -4405,7 +4405,27 @@ function cffMonthLabel(ym) {
 // الفعلي: سندات القبض والصرف المُرحّلة خلال الفترة (حركة النقد الحقيقية).
 // خط الأنابيب: ما لم يتحوّل نقداً بعد، مفصولاً بمراحله كي لا يُحسب مرتين:
 //   ① مفوتر وغير مسدد   ② مستخلص معتمد لم يُحوَّل لفاتورة   ③ مشتريات غير مسددة
-window.cffState = { from: '', to: '' };
+window.cffState = { from: '', to: '', tab: 'system', extFrom: '', extTo: '', includeExt: true };
+window.cffTab = function (t) { window.cffState.tab = t; renderCashFlowForecast(); };
+window.cffExtPeriod = function (which) {
+    const st = window.cffState, now = new Date(), y = now.getFullYear(), m = now.getMonth();
+    const iso = d => d.toISOString().slice(0, 10);
+    if (which === 'all') { st.extFrom = ''; st.extTo = ''; }
+    else if (which === 'month') { st.extFrom = iso(new Date(y, m, 1)); st.extTo = iso(new Date(y, m + 1, 0)); }
+    else if (which === 'quarter') { const q = Math.floor(m / 3); st.extFrom = iso(new Date(y, q * 3, 1)); st.extTo = iso(new Date(y, q * 3 + 3, 0)); }
+    else if (which === 'year') { st.extFrom = `${y}-01-01`; st.extTo = `${y}-12-31`; }
+    else { st.extFrom = $('cffExtFrom')?.value || ''; st.extTo = $('cffExtTo')?.value || ''; }
+    renderCashFlowForecast();
+};
+window.cffToggleInclude = function () { window.cffState.includeExt = !window.cffState.includeExt; renderCashFlowForecast(); };
+// البنود الخارجية ضمن نطاق تاريخ التبويب (فارغ = الكل)
+function cffExtInRange() {
+    const st = window.cffState;
+    const from = st.extFrom || '0000-01-01', to = st.extTo || '9999-12-31';
+    return Object.entries(window.cffExternal || {})
+        .filter(([, x]) => x && x.date >= from && x.date <= to)
+        .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+}
 function cffActuals() {
     const st = window.cffState;
     const from = st.from || '0000-01-01', to = st.to || '9999-12-31';
@@ -4529,9 +4549,25 @@ window.cffClearExternal = function () {
         catch (e) { toast('❌ ' + (e.message || e), 'er'); }
     });
 };
-// كتلة البنود الخارجية
+// كتلة البنود الخارجية (تبويب مستقل)
 function cffExternalBlock() {
-    const items = Object.entries(window.cffExternal || {}).sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+    const st = window.cffState;
+    const items = cffExtInRange();
+    const totalAll = Object.keys(window.cffExternal || {}).length;
+    const pBtn = (id, label) => `<button onclick="cffExtPeriod('${id}')" style="background:#eef2f7;color:#1a3a5c;border:none;border-radius:7px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer">${label}</button>`;
+    const filterBar = `<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;background:#f9fbfd;border:1px solid #e3e9ef;border-radius:9px;padding:9px 11px;margin-bottom:11px">
+        <span style="font-size:12px;font-weight:800;color:#1a3a5c">📅 الفترة:</span>
+        <input type="date" id="cffExtFrom" value="${esc(st.extFrom)}" onchange="cffExtPeriod('custom')" style="padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:7px;font-size:12px">
+        <span style="color:#95a5a6">→</span>
+        <input type="date" id="cffExtTo" value="${esc(st.extTo)}" onchange="cffExtPeriod('custom')" style="padding:6px 8px;border:1.5px solid #d0d7e0;border-radius:7px;font-size:12px">
+        ${pBtn('month', 'الشهر')} ${pBtn('quarter', 'الربع')} ${pBtn('year', 'السنة')} ${pBtn('all', 'الكل')}
+        <span style="font-size:11.5px;color:#7a8896;margin-inline-start:auto">${items.length} من ${totalAll} بند</span>
+    </div>`;
+    const incBar = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:${st.includeExt ? '#eafaf1' : '#f4f7fa'};border:1.5px solid ${st.includeExt ? '#27ae60' : '#d0d7e0'};border-radius:9px;padding:9px 12px;margin-bottom:11px;font-size:12.5px;font-weight:700;color:${st.includeExt ? '#1e8449' : '#7a8896'}">
+        <input type="checkbox" ${st.includeExt ? 'checked' : ''} onchange="cffToggleInclude()">
+        تضمين هذه البنود في جدول التوقّع بتبويب «التدفق النقدي»
+        <span style="font-weight:500;color:#7a8896;font-size:11px">— أطفئه لترى توقّع النظام وحده</span>
+    </label>`;
     const tIn = items.filter(([, x]) => x.kind === 'in').reduce((s, [, x]) => s + (+x.amount || 0), 0);
     const tOut = items.filter(([, x]) => x.kind === 'out').reduce((s, [, x]) => s + (+x.amount || 0), 0);
     return `<div class="card" style="padding:14px;margin-bottom:14px;border-right:4px solid #f39c12">
@@ -4547,6 +4583,8 @@ function cffExternalBlock() {
                 ${items.length ? `<button onclick="cffClearExternal()" style="background:#fdecea;color:#c0392b;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ مسح الكل</button>` : ''}
             </div>
         </div>
+        ${filterBar}
+        ${incBar}
         ${items.length ? `<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:9px">
             <span style="background:#eafaf1;color:#1e8449;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:800">⬇️ وارد خارجي: ${fmt(tIn)}</span>
             <span style="background:#fdecea;color:#c0392b;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:800">⬆️ صادر خارجي: ${fmt(tOut)}</span>
@@ -4567,7 +4605,7 @@ function cffExternalBlock() {
                 <td style="padding:7px;color:#7a8896;font-size:11.5px">${esc(x.note || '')}</td>
                 <td style="padding:7px"><button onclick="cffDelExternal('${k}')" style="background:#fdecea;color:#c0392b;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;cursor:pointer" title="حذف البند">🗑️</button></td>
             </tr>`).join('')}</tbody></table></div>`
-            : `<div style="padding:18px;text-align:center;color:#95a5a6;font-size:12.5px">لا توجد بنود خارجية — نزّل النموذج، املأه، ثم استورده</div>`}
+            : `<div style="padding:18px;text-align:center;color:#95a5a6;font-size:12.5px">${totalAll ? 'لا بنود ضمن هذه الفترة — وسّع النطاق أو اضغط «الكل»' : 'لا توجد بنود خارجية — نزّل النموذج، املأه، ثم استورده'}</div>`}
     </div>`;
 }
 
@@ -4610,8 +4648,15 @@ function cffActualBlock() {
     </div>`;
 }
 
+function cffTabBtn(id, label) {
+    const on = window.cffState.tab === id;
+    return `<button onclick="cffTab('${id}')" style="background:${on ? '#1a3a5c' : '#eef2f7'};color:${on ? '#fff' : '#1a3a5c'};border:none;border-radius:9px 9px 0 0;padding:9px 16px;font-size:12.5px;font-weight:800;cursor:pointer">${label}</button>`;
+}
+
 window.renderCashFlowForecast = function () {
     const container = $('pg-cashforecast'); if (!container) return;
+    const isExt = window.cffState.tab === 'external';
+    const extCount = Object.keys(window.cffExternal || {}).length;
     if (!window.cffState.from && !window.cffState.to) {   // افتراضي: السنة الحالية حتى تاريخه
         const y = new Date().getFullYear();
         window.cffState.from = `${y}-01-01`; window.cffState.to = new Date().toISOString().slice(0, 10);
@@ -4656,12 +4701,14 @@ window.renderCashFlowForecast = function () {
         const open = (parseFloat(inv.grandTotal) || 0) - (parseFloat(inv.paidAmount) || 0) - (parseFloat(inv.debitedAmount) || 0);
         if (open > 0.5) buckets[bucketFor(inv.dueDate || inv.date)].out += open;
     });
-    // 📥 البنود الخارجية المستوردة — تدخل التوقّع بتاريخها المحدَّد
-    Object.values(window.cffExternal || {}).forEach(x => {
-        const amt = +x.amount || 0; if (amt <= 0.5) return;
-        const b = buckets[bucketFor(x.date)];
-        if (x.kind === 'out') b.out += amt; else b.in += amt;
-    });
+    // 📥 البنود الخارجية المستوردة — تدخل التوقّع بتاريخها، ما لم يُطفئ المستخدم تضمينها
+    if (window.cffState.includeExt) {
+        Object.values(window.cffExternal || {}).forEach(x => {
+            const amt = +x.amount || 0; if (amt <= 0.5) return;
+            const b = buckets[bucketFor(x.date)];
+            if (x.kind === 'out') b.out += amt; else b.in += amt;
+        });
+    }
     // القيود المتكررة النشطة (التزامات شهرية قادمة) — تقدير
     Object.values(window.recurringJournals || {}).forEach(t => {
         if (t.active === false) return;
@@ -4688,7 +4735,7 @@ window.renderCashFlowForecast = function () {
                 <div style="font-size:20px;font-weight:800;color:#2c3e50">💧 التدفق النقدي — الفعلي والمتوقع</div>
                 <div style="font-size:12px;color:#888;margin-top:2px">حركة النقد الفعلية خلال الفترة + خط أنابيب التحصيل والسداد على مستوى الشركة</div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap${isExt ? ';display:none' : ''}">
                 <select id="cffHorizon" onchange="renderCashFlowForecast()" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px">
                     <option value="3" ${horizon === 3 ? 'selected' : ''}>3 أشهر</option>
                     <option value="6" ${horizon === 6 ? 'selected' : ''}>6 أشهر</option>
@@ -4697,8 +4744,12 @@ window.renderCashFlowForecast = function () {
                 <button onclick="printCashForecast()" style="background:#2980b9;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px">🖨️ طباعة</button>
             </div>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:2px solid #e8edf2;padding-bottom:10px">
+            ${cffTabBtn('system', '📊 التدفق النقدي (بيانات البرنامج)')}
+            ${cffTabBtn('external', `📥 البنود الخارجية${extCount ? ` (${extCount})` : ''}`)}
+        </div>
+        ${isExt ? cffExternalBlock() : `
         ${cffActualBlock()}
-        ${cffExternalBlock()}
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">
             <div class="kpi k1"><div class="kpi-ic">💰</div><div class="kpi-lb">الرصيد النقدي الحالي</div><div class="kpi-vl" style="font-size:14px">${fmt(opening)}</div></div>
             <div class="kpi k2" style="--kc:#27ae60"><div class="kpi-ic">⬇️</div><div class="kpi-lb">متحصلات متوقعة</div><div class="kpi-vl" style="font-size:14px">${fmt(totalIn)}</div></div>
@@ -4734,7 +4785,7 @@ window.renderCashFlowForecast = function () {
                 </tr></tfoot>
             </table>
         </div>
-        <div style="margin-top:10px;font-size:11px;color:#888">💡 يشمل: فواتير المبيعات والمستخلصات المعتمدة غير المحصّلة (متحصلات)، فواتير المشتريات غير المسددة والقيود المتكررة النشطة (مدفوعات). تقدير استرشادي للتخطيط.</div>`;
+        <div style="margin-top:10px;font-size:11px;color:#888">💡 يشمل: فواتير المبيعات والمستخلصات المعتمدة غير المحصّلة (متحصلات)، فواتير المشتريات غير المسددة والقيود المتكررة النشطة (مدفوعات)${window.cffState.includeExt && extCount ? '، والبنود الخارجية المستوردة' : ''}. تقدير استرشادي للتخطيط.</div>`}`;
 };
 
 window.printCashForecast = function () {
