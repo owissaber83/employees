@@ -33,6 +33,7 @@ const os = require('os');
 const admin = require('firebase-admin');
 
 const DB_URL = 'https://emplyeeapp-1dc64-default-rtdb.firebaseio.com';
+const PROJECT_ID = 'emplyeeapp-1dc64';
 const HOME_KEY = path.join(os.homedir(), '.gbr', 'serviceAccountKey.json');
 
 function die(msg) { console.error('\n❌ ' + msg + '\n'); process.exit(1); }
@@ -73,8 +74,9 @@ function initAdmin(cliKey) {
     // اعتماد التطبيق الافتراضي (gcloud ADC) — فقط إن كانت موجودة فعلاً
     const adcPath = path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json');
     if (fs.existsSync(adcPath)) {
-        admin.initializeApp({ credential: admin.credential.applicationDefault(), databaseURL: DB_URL });
-        console.log('🔑 المصادقة: اعتماد التطبيق الافتراضي (gcloud ADC)');
+        // مع ADC يجب تمرير projectId صراحةً (لا يُستنتج من ملف المفتاح)
+        admin.initializeApp({ credential: admin.credential.applicationDefault(), databaseURL: DB_URL, projectId: PROJECT_ID });
+        console.log('🔑 المصادقة: اعتماد التطبيق الافتراضي (gcloud ADC) — بلا ملف مفتاح');
         return admin;
     }
 
