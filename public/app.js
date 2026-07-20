@@ -92,7 +92,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
@@ -1591,25 +1591,86 @@ const pwWeak = p => {
 };
 window.pwWeak = pwWeak; window.PW_MIN = PW_MIN;
 
-// ── ⏲️ قفل الجلسة عند الخمول ────────────────────────────────────────────────
-// تسجيل خروج تلقائي بعد سكون طويل — يحمي الأجهزة المشتركة في المكتب من ترك جلسة مفتوحة.
-const IDLE_LIMIT_MIN = 30;
-let _idleTimer = null, _idleLast = 0;
-function stopIdleGuard() { clearTimeout(_idleTimer); _idleTimer = null; _idleLast = 0; }
+// ── 🔒 إقفال الشاشة عند الخمول ──────────────────────────────────────────────
+// بعد سكون طويل تُغطّى الشاشة وتُطلب كلمة المرور — فلا يفقد المستخدم ما كان يعمل عليه،
+// ولا يبقى النظام مكشوفاً لمن يمرّ بالجهاز.
+// ⚠️ حدّه: القفل واجهي (الجلسة والبيانات لا تزال محمّلة). لذلك:
+//    • 3 محاولات خاطئة ⇒ خروج كامل   • بقاء القفل مدة طويلة ⇒ خروج كامل
+//    فمن يترك جهازه ساعات يُخرَج فعلياً لا يُقفَل فقط.
+const IDLE_LIMIT_MIN = 30;      // خمول حتى القفل
+const LOCK_LOGOUT_MIN = 60;     // بقاء مقفلاً حتى الخروج الكامل
+const LOCK_MAX_TRIES = 3;
+let _idleTimer = null, _idleLast = 0, _lockTimer = null, _lockTries = 0;
+
+function stopIdleGuard() { clearTimeout(_idleTimer); _idleTimer = null; _idleLast = 0; clearTimeout(_lockTimer); _lockTimer = null; }
+function isLocked() { return !!document.getElementById('lockScreen'); }
+
 function resetIdleTimer() {
-    if (!curU) return;                                  // فقط بعد تسجيل الدخول
+    if (!curU || isLocked()) return;                    // لا نُصفّر العدّاد والشاشة مقفلة
     const now = Date.now();
     if (now - _idleLast < 30000) return;                // خنق: إعادة ضبط مرة كل 30 ثانية كحد أقصى
     _idleLast = now;
     clearTimeout(_idleTimer);
-    _idleTimer = setTimeout(async () => {
-        if (!curU) return;
-        stopIdleGuard();
-        try { await signOut(auth) } catch (e) { }
-        try { toast(`🔒 أُقفلت الجلسة تلقائياً بعد ${IDLE_LIMIT_MIN} دقيقة خمول`, 'er') } catch (e) { }
-    }, IDLE_LIMIT_MIN * 60000);
+    _idleTimer = setTimeout(() => { if (curU) lockScreen(); }, IDLE_LIMIT_MIN * 60000);
 }
 function startIdleGuard() { _idleLast = 0; resetIdleTimer() }
+
+function lockScreen() {
+    if (!curU || isLocked()) return;
+    clearTimeout(_idleTimer); _lockTries = 0;
+    const el = document.createElement('div');
+    el.id = 'lockScreen';
+    el.innerHTML = `
+      <div class="lk-card">
+        <div class="lk-ic">🔒</div>
+        <div class="lk-t">الشاشة مقفلة</div>
+        <div class="lk-s">أُقفلت تلقائياً بعد ${IDLE_LIMIT_MIN} دقيقة خمول — عملك محفوظ كما تركته</div>
+        <div class="lk-u">👤 ${esc((myP && myP.name) || '')}<div class="lk-e">${esc((curU && curU.email) || '')}</div></div>
+        <div class="lk-w">
+          <input type="password" id="lkPwd" placeholder="كلمة المرور" autocomplete="current-password">
+          <button type="button" id="lkEye" title="إظهار كلمة المرور">👁️</button>
+        </div>
+        <div id="lkErr" class="lk-err"></div>
+        <button class="lk-btn" id="lkGo">🔓 فتح القفل</button>
+        <button class="lk-out" id="lkOut">تسجيل الخروج والدخول بحساب آخر</button>
+      </div>`;
+    document.body.appendChild(el);
+    document.body.style.overflow = 'hidden';
+    const pwd = el.querySelector('#lkPwd');
+    setTimeout(() => pwd?.focus(), 60);
+    el.querySelector('#lkEye').onclick = () => { const s = pwd.type === 'password'; pwd.type = s ? 'text' : 'password'; el.querySelector('#lkEye').textContent = s ? '🙈' : '👁️'; pwd.focus(); };
+    el.querySelector('#lkGo').onclick = tryUnlock;
+    el.querySelector('#lkOut').onclick = () => { stopIdleGuard(); unlockCleanup(); signOut(auth); };
+    pwd.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+    // خروج كامل إن بقيت مقفلة طويلاً (الجهاز متروك فعلاً)
+    _lockTimer = setTimeout(() => { if (isLocked()) { unlockCleanup(); stopIdleGuard(); signOut(auth); } }, LOCK_LOGOUT_MIN * 60000);
+}
+function unlockCleanup() { document.getElementById('lockScreen')?.remove(); document.body.style.overflow = ''; }
+
+async function tryUnlock() {
+    const el = document.getElementById('lockScreen'); if (!el || !curU) return;
+    const pwd = el.querySelector('#lkPwd'), err = el.querySelector('#lkErr'), go = el.querySelector('#lkGo');
+    const val = pwd.value;
+    if (!val) { err.textContent = 'أدخل كلمة المرور'; pwd.focus(); return; }
+    go.disabled = true; go.textContent = '⏳ جارٍ التحقق…';
+    try {
+        // إعادة توثيق حقيقية عند Firebase — لا مقارنة محلية يمكن العبث بها
+        await reauthenticateWithCredential(curU, EmailAuthProvider.credential(curU.email, val));
+        clearTimeout(_lockTimer); unlockCleanup(); startIdleGuard();
+        try { toast('🔓 أهلاً بعودتك', 'ok', 2500) } catch (e) { }
+    } catch (e) {
+        _lockTries++;
+        if (_lockTries >= LOCK_MAX_TRIES) {
+            unlockCleanup(); stopIdleGuard();
+            try { toast(`🚫 ${LOCK_MAX_TRIES} محاولات خاطئة — سُجّل الخروج`, 'er', 7000) } catch (e2) { }
+            signOut(auth); return;
+        }
+        err.textContent = `كلمة المرور غير صحيحة — بقي ${LOCK_MAX_TRIES - _lockTries} محاولة`;
+        pwd.value = ''; pwd.focus();
+        go.disabled = false; go.textContent = '🔓 فتح القفل';
+    }
+}
+window.lockScreen = lockScreen;   // 🔒 للقفل اليدوي عند ترك المكتب
 ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(ev =>
     document.addEventListener(ev, resetIdleTimer, { passive: true, capture: true }));
 window.startIdleGuard = startIdleGuard; window.stopIdleGuard = stopIdleGuard;

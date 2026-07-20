@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     <!-- 🎨 الستايل في ملف منفصل -->
-    <link rel="stylesheet" href="styles.css?v=20260720-forgot">
+    <link rel="stylesheet" href="styles.css?v=20260720-lock">
     <!-- 📱 PWA: تطبيق قابل للتثبيت يعمل دون اتصال -->
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#1a3a5c">
@@ -154,6 +154,7 @@
             <div style="display:flex;gap:8px;align-items:center">
                 <button class="btn" onclick="opsShowErrorLog()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" title="سجل أخطاء كل الشركات المجمّع">🐞 سجل الأخطاء</button>
                 <button class="btn" onclick="renderOperatorConsole()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)">🔄 تحديث</button>
+                <button class="btn" onclick="lockScreen()" title="إقفال الشاشة الآن (تفتحها بكلمة مرورك دون فقد عملك)" style="background:#eef2f7;color:#1a3a5c;font-weight:700">🔒 إقفال</button>
                 <button class="btn b-r" onclick="doLogout()">🚪 خروج</button>
             </div>
         </div>
@@ -19861,7 +19862,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260720-cffimp"></script>
+    <script type="module" src="app.js?v=20260720-lock"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260720-cfftab"></script>

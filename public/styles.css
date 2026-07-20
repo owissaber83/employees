@@ -25,6 +25,104 @@ padding: 0;
 box-sizing: border-box
 }
 
+/* ── 🔒 شاشة القفل عند الخمول ──────────────────────────────────────────────
+   تغطية كاملة معتمة مع طمس (blur) — لا تُقرأ البيانات خلفها ولو بالنظر. */
+#lockScreen {
+position: fixed;
+inset: 0;
+z-index: 2147483000;
+background: rgba(12, 26, 42, .82);
+backdrop-filter: blur(14px);
+-webkit-backdrop-filter: blur(14px);
+display: flex;
+align-items: center;
+justify-content: center;
+padding: 18px;
+}
+
+#lockScreen .lk-card {
+background: #fff;
+border-radius: 18px;
+padding: 30px 26px;
+width: 100%;
+max-width: 380px;
+text-align: center;
+box-shadow: 0 24px 70px rgba(0, 0, 0, .45);
+animation: su .35s ease;
+}
+
+#lockScreen .lk-ic { font-size: 42px }
+#lockScreen .lk-t { font-size: 19px; font-weight: 900; color: #1a3a5c; margin-top: 6px }
+#lockScreen .lk-s { font-size: 12px; color: #7a8896; margin-top: 5px; line-height: 1.8 }
+
+#lockScreen .lk-u {
+background: #f4f7fa;
+border-radius: 10px;
+padding: 10px;
+margin: 15px 0 12px;
+font-size: 13px;
+font-weight: 800;
+color: #1a3a5c;
+}
+
+#lockScreen .lk-e { font-size: 11.5px; font-weight: 500; color: #7a8896; direction: ltr; margin-top: 2px }
+#lockScreen .lk-w { position: relative }
+
+#lockScreen .lk-w input {
+width: 100%;
+padding: 12px 14px 12px 44px;
+border: 1.5px solid #d0d7e0;
+border-radius: 10px;
+font-family: inherit;
+font-size: 14px;
+text-align: center;
+}
+
+#lockScreen .lk-w input:focus { outline: none; border-color: #2d6a9f; box-shadow: 0 0 0 3px rgba(45, 106, 159, .14) }
+
+#lockScreen .lk-w button {
+position: absolute;
+left: 8px;
+top: 50%;
+transform: translateY(-50%);
+background: none;
+border: 0;
+font-size: 15px;
+cursor: pointer;
+padding: 5px 7px;
+border-radius: 7px;
+}
+
+#lockScreen .lk-err { color: #c0392b; font-size: 12px; font-weight: 700; min-height: 18px; margin-top: 7px }
+
+#lockScreen .lk-btn {
+width: 100%;
+background: linear-gradient(135deg, #1a3a5c, #2d6a9f);
+color: #fff;
+border: 0;
+border-radius: 10px;
+padding: 12px;
+font-family: inherit;
+font-size: 14.5px;
+font-weight: 800;
+cursor: pointer;
+margin-top: 4px;
+}
+
+#lockScreen .lk-btn:disabled { opacity: .6; cursor: default }
+
+#lockScreen .lk-out {
+background: none;
+border: 0;
+color: #7a8896;
+font-family: inherit;
+font-size: 12px;
+font-weight: 700;
+cursor: pointer;
+margin-top: 13px;
+text-decoration: underline;
+}
+
 /* 🛡️ شبكة أمان لحقول الإدخال: لا يتجاوز أي حقل عرض حاويته مهما كان عرضه المحدَّد.
    تُقيّد فقط ولا توسّع — فالحقول ذات العرض الثابت تحتفظ به متى اتّسع المكان،
    وتنكمش تلقائياً على الشاشات الضيقة بدل الخروج عن حدود البطاقة. */
