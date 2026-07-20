@@ -13875,6 +13875,233 @@ window.saveCustomerAdvance = async function () {
     } catch (e) { toast('❌ خطأ: ' + (e.message || e), 'er'); }
 };
 
+// ══════════════════════════════════════════════════════════════════════════
+// [ACC-VEN360] ملف المورد الشامل — نظير ملف العميل (cust360) للمشتريات
+// ══════════════════════════════════════════════════════════════════════════
+window.openVendor360 = function (key) {
+    const v = window.vendors?.[key]; if (!v) { toast('المورد غير موجود', 'er'); return; }
+    window._ven360 = { key, tab: 'overview' };
+    let ov = document.getElementById('ven360Overlay');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'ven360Overlay'; document.body.appendChild(ov); }
+    ov.style = 'position:fixed;inset:0;background:#f4f6f8;z-index:9990;overflow:auto';
+    document.body.style.overflow = 'hidden';
+    if (!window.__ven360Esc) {
+        window.__ven360Esc = e => { if (e.key === 'Escape' && document.getElementById('ven360Overlay')) closeVen360(); };
+        document.addEventListener('keydown', window.__ven360Esc);
+    }
+    ven360Render();
+};
+window.closeVen360 = function () { document.getElementById('ven360Overlay')?.remove(); document.body.style.overflow = ''; };
+window.ven360Tab = function (tab) { window._ven360.tab = tab; ven360Render(); };
+function ven360Refresh() { if (document.getElementById('ven360Overlay')) ven360Render(); }
+
+// مؤشرات المورد: المشتريات، عدد الفواتير، متوسط أيام السداد (DPO)
+function calcVendorKpis(key) {
+    let totalPurchases = 0, invoiceCount = 0, paidSum = 0, daysSum = 0, paidCount = 0;
+    Object.values(window.purchaseInvoices || {}).forEach(inv => {
+        if (inv.vendorId !== key || inv.status !== 'posted') return;
+        const debited = +inv.debitedAmount || 0;
+        totalPurchases += Math.round(((+inv.grandTotal || 0) - debited) * 100) / 100;
+        invoiceCount++;
+        const paid = +inv.paidAmount || 0;
+        paidSum += paid;
+        if (paid > 0.01 && inv.date && inv.lastPaymentDate) {
+            const d = (new Date(inv.lastPaymentDate) - new Date(inv.date)) / 86400000;
+            if (d >= 0 && d < 3650) { daysSum += d; paidCount++; }
+        }
+    });
+    return {
+        totalPurchases: Math.round(totalPurchases * 100) / 100, invoiceCount,
+        paidSum: Math.round(paidSum * 100) / 100,
+        dpo: paidCount ? Math.round(daysSum / paidCount) : null
+    };
+}
+function ven360Payments(key) {
+    return Object.entries(window.payments || {})
+        .filter(([, p]) => p && p.partyId === key && p.type === 'payment')
+        .sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
+}
+function ven360Invoices(key) {
+    return Object.entries(window.purchaseInvoices || {})
+        .filter(([, i]) => i && i.vendorId === key)
+        .sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
+}
+
+function ven360Render() {
+    const { key, tab } = window._ven360;
+    const v = window.vendors?.[key]; const ov = document.getElementById('ven360Overlay');
+    if (!v || !ov) return;
+    const bal = calcVendorBalance(key), kp = calcVendorKpis(key);
+    const canFn = (typeof can === 'function') ? can : () => true;
+    const canManage = (typeof myP !== 'undefined' && myP?.role === 'admin') || canFn('manage_vendors') || canFn('manage_suppliers');
+    const tabBtn = (id, label) => `<button class="btn" onclick="ven360Tab('${id}')" style="${tab === id ? 'background:#1a3a5c;color:#fff' : 'background:#e9eef4;color:#1a3a5c'};padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px">${label}</button>`;
+    const kpi = (lbl, val, color) => `<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px;text-align:center;border-bottom:3px solid ${color}"><div style="font-size:10px;color:#666">${lbl}</div><div class="kpi-v" style="font-size:16px;font-weight:900;color:${color}">${val}</div></div>`;
+    ov.innerHTML = `<div style="background:#f4f6f8;min-height:100vh;width:100%">
+        <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff;padding:16px 20px;position:sticky;top:0;z-index:5;box-shadow:0 2px 12px rgba(0,0,0,.18)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;max-width:1280px;margin:0 auto">
+                <div>
+                    <div style="font-size:11px;opacity:.85;font-family:monospace">🏭 مورد ${v.active === false ? '· ⏸️ معطّل' : '· ✅ نشط'}${v.vatNumber ? ' · ضريبي ' + esc(v.vatNumber) : ''}</div>
+                    <h2 style="margin:5px 0 0;font-size:20px;font-weight:900">${esc(v.nameAr || '')}</h2>
+                    ${v.nameEn ? `<div style="font-size:12px;opacity:.85;direction:ltr">${esc(v.nameEn)}</div>` : ''}
+                </div>
+                <button onclick="closeVen360()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px">✖</button>
+            </div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;max-width:1280px;margin-inline:auto">
+                <button class="btn" onclick="ven360NewInvoice('${key}')" style="background:#fff;color:#1a3a5c;padding:7px 13px;font-size:12px;font-weight:800" title="إنشاء فاتورة مشتريات لهذا المورد">🧾 فاتورة مشتريات</button>
+                <button class="btn" onclick="ven360NewPayment('${key}')" style="background:rgba(255,255,255,.2);color:#fff;padding:7px 13px;font-size:12px;font-weight:700" title="سند صرف لهذا المورد">💸 تسجيل صرف</button>
+                <button class="btn" onclick="viewVendorStatement('${key}')" style="background:rgba(255,255,255,.2);color:#fff;padding:7px 13px;font-size:12px;font-weight:700" title="كشف حساب للطباعة">🖨️ كشف للطباعة</button>
+                ${v.phone ? `<button class="btn" onclick="ven360Share('${key}','wa')" style="background:#25d366;color:#fff;padding:7px 13px;font-size:12px;font-weight:700" title="مراسلة عبر واتساب">📲 واتساب</button>` : ''}
+                ${v.email ? `<button class="btn" onclick="ven360Share('${key}','email')" style="background:rgba(255,255,255,.2);color:#fff;padding:7px 13px;font-size:12px;font-weight:700" title="مراسلة بالبريد">✉️ بريد</button>` : ''}
+                ${canManage ? `<button class="btn" onclick="closeVen360();openVendorEditor('${key}')" style="background:rgba(255,255,255,.2);color:#fff;padding:7px 13px;font-size:12px;font-weight:700">✏️ تعديل</button>` : ''}
+            </div>
+        </div>
+        <div style="padding:18px 20px 40px;max-width:1280px;margin:0 auto">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">
+                ${kpi('الرصيد المستحق', fmt(bal.balance), bal.balance > 0 ? '#c0392b' : '#27ae60')}
+                ${kpi('المتأخرات', fmt(bal.overdue), bal.overdue > 0 ? '#c0392b' : '#27ae60')}
+                ${kpi('إجمالي المشتريات', fmt(kp.totalPurchases), '#8e44ad')}
+                ${kpi('عدد الفواتير', kp.invoiceCount, '#2d6a9f')}
+                ${kpi('المسدَّد', fmt(kp.paidSum), '#27ae60')}
+                ${kpi('متوسط أيام السداد', kp.dpo != null ? kp.dpo : '—', '#f39c12')}
+            </div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+                ${tabBtn('overview', '📇 نظرة عامة')} ${tabBtn('invoices', '🧾 فواتير المشتريات')} ${tabBtn('payments', '💸 سندات الصرف')} ${tabBtn('documents', '📎 المستندات')}
+            </div>
+            <div>${ven360Body(key, tab, v, bal, kp)}</div>
+        </div>
+    </div>`;
+}
+
+function ven360Body(key, tab, v, bal, kp) {
+    const row = (l, val) => val ? `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #eee;font-size:12px"><span style="color:#888">${l}</span><span style="font-weight:700;color:#1a3a5c">${esc(String(val))}</span></div>` : '';
+    const card = (title, inner) => `<div class="card" style="padding:14px"><div style="font-weight:800;color:#1a3a5c;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
+    const empty = m => `<div style="padding:26px;text-align:center;color:#95a5a6;font-size:12.5px">${m}</div>`;
+
+    if (tab === 'overview') {
+        return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+            ${card('📇 بيانات الاتصال', row('👤 المسؤول', v.contact) + row('📞 الهاتف', v.phone) + row('✉️ البريد', v.email) + row('📍 العنوان', v.address) || empty('لا توجد بيانات'))}
+            ${card('🪪 البيانات النظامية', row('🆔 الرقم الضريبي', v.vatNumber) + row('📋 السجل التجاري', v.crNumber) + row('🏦 الآيبان', v.iban) + row('🗂️ حساب المجموعة', v.groupAccount))}
+            ${card('💳 الشروط المالية', row('📅 مهلة السداد (يوم)', v.paymentTerms) + row('💰 حد الائتمان', v.creditLimit ? fmt(v.creditLimit) : '') + row('🏁 رصيد افتتاحي', v.openingBalance ? fmt(v.openingBalance) : '') + row('📝 ملاحظات', v.notes))}
+            ${card('📊 ملخص الحساب',
+            row('إجمالي المفوتر', fmt(bal.invoiced)) + row('المسدَّد', fmt(bal.paid)) +
+            `<div style="display:flex;justify-content:space-between;padding:9px 0;margin-top:5px;border-top:2px solid #1a3a5c;font-size:14px"><b style="color:#1a3a5c">الرصيد المستحق</b><b style="color:${bal.balance > 0 ? '#c0392b' : '#27ae60'}">${fmt(bal.balance)}</b></div>` +
+            (bal.overdue > 0 ? `<div style="background:#fdecea;color:#c0392b;border-radius:7px;padding:7px 10px;font-size:12px;font-weight:700;margin-top:7px">⚠️ متأخرات مستحقة: ${fmt(bal.overdue)}</div>` : ''))}
+        </div>`;
+    }
+
+    if (tab === 'invoices') {
+        const invs = ven360Invoices(key);
+        if (!invs.length) return empty('لا توجد فواتير مشتريات لهذا المورد');
+        return `<div class="card" style="padding:0;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#f4f7fa;color:#5a6b7d;font-size:11.5px">
+                <th style="padding:9px;text-align:right">الرقم</th><th style="padding:9px;text-align:right">التاريخ</th>
+                <th style="padding:9px;text-align:right">الاستحقاق</th><th style="padding:9px;text-align:right">الإجمالي</th>
+                <th style="padding:9px;text-align:right">المسدَّد</th><th style="padding:9px;text-align:center">الحالة</th>
+                <th style="padding:9px;text-align:right"></th></tr></thead><tbody>
+            ${invs.map(([k, i]) => {
+            const grand = Math.round(((+i.grandTotal || 0) - (+i.debitedAmount || 0)) * 100) / 100;
+            const paid = +i.paidAmount || 0;
+            const st = i.status === 'posted' ? (paid >= grand - 0.01 ? ['مسددة', '#27ae60'] : ['غير مسددة', '#c0392b']) : ['مسودة', '#7f8c8d'];
+            return `<tr style="border-bottom:1px solid #f0f3f6">
+                    <td style="padding:8px;font-weight:700">${esc(i.number || '')}</td>
+                    <td style="padding:8px">${esc(i.date || '')}</td>
+                    <td style="padding:8px">${esc(i.dueDate || '—')}</td>
+                    <td style="padding:8px;font-weight:700">${fmt(grand)}</td>
+                    <td style="padding:8px;color:#27ae60">${fmt(paid)}</td>
+                    <td style="padding:8px;text-align:center"><span style="background:${st[1]}22;color:${st[1]};padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:800">${st[0]}</span></td>
+                    <td style="padding:8px">${i.journalEntryKey ? `<button class="btn" onclick="viewJrnEntry('${i.journalEntryKey}')" style="background:#5d6d7e;color:#fff;padding:3px 8px;font-size:10.5px" title="عرض القيد ${esc(i.journalEntryNumber || '')}">📒</button>` : ''}</td>
+                </tr>`;
+        }).join('')}</tbody></table></div>`;
+    }
+
+    if (tab === 'payments') {
+        const pays = ven360Payments(key);
+        if (!pays.length) return empty('لا توجد سندات صرف لهذا المورد');
+        return `<div class="card" style="padding:0;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#f4f7fa;color:#5a6b7d;font-size:11.5px">
+                <th style="padding:9px;text-align:right">السند</th><th style="padding:9px;text-align:right">التاريخ</th>
+                <th style="padding:9px;text-align:right">المبلغ</th><th style="padding:9px;text-align:right">الطريقة</th>
+                <th style="padding:9px;text-align:right">البيان</th><th style="padding:9px;text-align:right"></th></tr></thead><tbody>
+            ${pays.map(([k, p]) => `<tr style="border-bottom:1px solid #f0f3f6">
+                <td style="padding:8px;font-weight:700">${esc(p.number || '')}</td>
+                <td style="padding:8px">${esc(p.date || '')}</td>
+                <td style="padding:8px;font-weight:700;color:#c0392b">${fmt(p.amount)}</td>
+                <td style="padding:8px">${esc(p.method || '—')}</td>
+                <td style="padding:8px;color:#666">${esc(p.description || '')}</td>
+                <td style="padding:8px">${p.journalEntryKey ? `<button class="btn" onclick="viewJrnEntry('${p.journalEntryKey}')" style="background:#5d6d7e;color:#fff;padding:3px 8px;font-size:10.5px" title="عرض القيد">📒</button>` : ''}</td>
+            </tr>`).join('')}</tbody></table></div>`;
+    }
+
+    if (tab === 'documents') {
+        const docs = Object.entries(v.documents || {});
+        return `<div class="card" style="padding:14px">
+            ${docs.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><tbody>
+                ${docs.map(([dk, d]) => {
+            const exp = d.expiry && d.expiry < new Date().toISOString().slice(0, 10);
+            return `<tr style="border-bottom:1px solid #f0f3f6">
+                        <td style="padding:8px;font-weight:700">${esc(d.name || '')}${d.type ? ` <span style="color:#888;font-weight:500">(${esc(d.type)})</span>` : ''}</td>
+                        <td style="padding:8px;color:${exp ? '#c0392b' : '#888'};font-size:11.5px">${d.expiry ? (exp ? '⚠️ منتهٍ ' : '📅 ') + esc(d.expiry) : ''}</td>
+                        <td style="padding:8px"><a href="${esc(d.url || '#')}" target="_blank" rel="noopener" style="color:#2d6a9f;font-weight:700;text-decoration:none">🔗 فتح</a></td>
+                        <td style="padding:8px"><button class="btn" onclick="ven360DelDoc('${key}','${dk}')" style="background:#fdecea;color:#c0392b;padding:3px 8px;font-size:10.5px" title="حذف المستند">🗑️</button></td>
+                    </tr>`;
+        }).join('')}</tbody></table></div>`
+                : '<div style="color:#95a5a6;font-size:12.5px;text-align:center;padding:14px">لا توجد مستندات — أضف رابطاً أدناه (التخزين معطّل، استخدم روابط Drive/خارجية)</div>'}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #d0d7e0">
+                <input id="venDocName" placeholder="اسم المستند * (مثال: السجل التجاري)" style="padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12.5px">
+                <input id="venDocType" placeholder="النوع (CR/VAT/عقد…)" style="padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12.5px">
+                <input id="venDocUrl" placeholder="الرابط * https://…" style="padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12.5px;direction:ltr">
+                <input id="venDocExp" type="date" title="تاريخ الانتهاء (اختياري)" style="padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12.5px">
+            </div>
+            <button class="btn b-g" onclick="ven360AddDoc('${key}')" style="margin-top:9px;font-weight:800;font-size:12.5px">➕ إضافة مستند</button>
+        </div>`;
+    }
+    return '';
+}
+
+window.ven360AddDoc = async function (key) {
+    const name = ($('venDocName')?.value || '').trim(), url = ($('venDocUrl')?.value || '').trim();
+    if (!name || !url) { toast('⚠️ أدخل اسم المستند والرابط', 'er'); return; }
+    if (!/^https?:\/\//i.test(url)) { toast('⚠️ الرابط يجب أن يبدأ بـ http:// أو https://', 'er'); return; }
+    try {
+        await push(ref(db, `ledger/vendors/${key}/documents`), {
+            name, url, type: ($('venDocType')?.value || '').trim(), expiry: $('venDocExp')?.value || '',
+            addedAt: new Date().toISOString()
+        });
+        toast('✅ أُضيف المستند', 'ok'); ven360Refresh();
+    } catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+};
+window.ven360DelDoc = function (key, docKey) {
+    cf2('حذف هذا المستند؟', async () => {
+        try { await remove(ref(db, `ledger/vendors/${key}/documents/${docKey}`)); toast('تم الحذف ✓', 'ok'); ven360Refresh(); }
+        catch (e) { toast('❌ ' + (e.message || e), 'er'); }
+    });
+};
+window.ven360NewInvoice = function (key) {
+    closeVen360();
+    if (typeof openPInvEditor === 'function') { openPInvEditor(); setTimeout(() => { const s = $('mPInvVendor'); if (s) { s.value = key; s.dispatchEvent(new Event('change')); } }, 120); }
+    else toast('افتح فواتير المشتريات لإنشاء فاتورة', 'wn');
+};
+window.ven360NewPayment = function (key) {
+    closeVen360();
+    if (typeof openVoucherEditor === 'function') {
+        openVoucherEditor('payment');
+        setTimeout(() => { const s = $('mVoucherParty'); if (s) { s.value = key; if (typeof onVoucherPartyChange === 'function') onVoucherPartyChange(); } }, 120);
+    } else toast('افتح سندات الصرف لتسجيل الدفعة', 'wn');
+};
+window.ven360Share = function (key, how) {
+    const v = window.vendors?.[key]; if (!v) return;
+    const bal = calcVendorBalance(key);
+    const msg = `مرحباً ${v.nameAr || ''}\nكشف مختصر لحسابكم لدى ${window.currentTenantName || 'الشركة'}:\nإجمالي المفوتر: ${fmt(bal.invoiced)}\nالمسدَّد: ${fmt(bal.paid)}\nالرصيد المستحق: ${fmt(bal.balance)}`;
+    if (how === 'wa') {
+        const ph = String(v.phone || '').replace(/[^0-9]/g, '').replace(/^0+/, '');
+        if (!ph) { toast('لا يوجد رقم هاتف', 'er'); return; }
+        window.open(`https://wa.me/${ph.startsWith('966') ? ph : '966' + ph}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+        if (!v.email) { toast('لا يوجد بريد', 'er'); return; }
+        window.open(`mailto:${v.email}?subject=${encodeURIComponent('كشف حساب')}&body=${encodeURIComponent(msg)}`, '_blank');
+    }
+};
+
 // 📋 سجل الدفعات المقدمة — يعرض المسترد والمتبقي لكل دفعة وفاتورتها الضريبية
 window.openAdvancesList = function () {
     const advs = Object.entries(window.customerAdvances || {}).sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
@@ -16550,7 +16777,7 @@ function renderVendorRow(key, v, idx, canManage) {
         <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(v.code || '—')}</td>
         <td style="padding:8px"><span style="background:${t.color}22;color:${t.color};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${esc(t.label)}</span></td>
         <td style="padding:8px;font-weight:700">
-            ${esc(v.nameAr || '—')}
+            <a href="#" onclick="openVendor360('${key}');return false" style="color:#1a3a5c;text-decoration:none;border-bottom:1.5px dotted #2d6a9f" title="فتح ملف المورد الشامل">${esc(v.nameAr || '—')}</a>
             ${v.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(v.nameEn)}</div>` : ''}
         </td>
         <td style="padding:8px;font-size:11px">
