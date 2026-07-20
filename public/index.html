@@ -14820,6 +14820,7 @@
                     <div class="card" style="border-right:4px solid #16a085">
                         <div class="c-tl">💾 النسخ الاحتياطي المحلي</div>
                         <div style="font-size:12.5px;color:#555;line-height:1.9;margin-bottom:12px">تُحفظ نسخة مضغوطة من كامل بيانات شركتك على <b>جهازك</b> تلقائياً <b>مرة كل يوم</b> عند فتح البرنامج (تعمل بلا خادم). احتفظ بها في مكان آمن — تفيدك عند أي حاجة لاسترجاع البيانات.</div>
+                        <div id="bkpStatusBox" style="margin-bottom:12px"></div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
                             <button class="btn b-g" onclick="downloadLocalBackup(false)" style="font-weight:800">⬇️ تحميل نسخة احتياطية الآن</button>
                             <input type="file" id="bkpRestoreFile" accept=".gz,.json" style="display:none" onchange="restoreLocalBackup(this)">
@@ -19867,7 +19868,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260720-acklocal"></script>
+    <script type="module" src="app.js?v=20260720-bkp"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260720-cfftab"></script>

@@ -842,6 +842,15 @@ window.downloadLocalBackup = async function (silent) {
         const sizeMB = (blob.size / 1048576).toFixed(2);
         _triggerDownload(blob, `نسخة_احتياطية_${stamp}.json${gz ? '.gz' : ''}`);
         localStorage.setItem('_bkpDate_' + currentTenantId, stamp);
+        // 📌 سجّل النسخة في قاعدة البيانات لا في الجهاز فقط: localStorage محلي لكل جهاز،
+        //    فلا يعرف أحد متى أُخذت آخر نسخة للشركة فعلاً. هذا السجل مشترك ومرئي للجميع.
+        try {
+            await update(ref(db, 'ledger/settings/lastBackup'), {
+                at: new Date().toISOString(), date: stamp,
+                by: (curU && curU.email) || '', byName: (myP && myP.name) || '',
+                sizeMB: parseFloat(sizeMB) || 0
+            });
+        } catch (e2) { console.warn('[backup] تعذّر تسجيل النسخة:', e2 && e2.message); }
         toast(`💾 حُفظت نسخة احتياطية على جهازك (${sizeMB} م.ب)`, 'ok', 4500);
     } catch (e) { if (!silent) toast('❌ تعذّر إنشاء النسخة: ' + (e.message || e), 'er'); console.error('[backup]', e); }
 };
@@ -853,9 +862,35 @@ window.maybeDailyLocalBackup = function () {
         if (Object.keys(window.chartOfAccounts || {}).length === 0) return;                // شركة جديدة فارغة — لا حاجة لنسخة
         if (localStorage.getItem('_autoBackup_' + currentTenantId) === 'off') return;     // مُعطَّل يدوياً
         const today = new Date().toISOString().slice(0, 10);
-        if (localStorage.getItem('_bkpDate_' + currentTenantId) === today) return;         // نُسخت اليوم
+        if (localStorage.getItem('_bkpDate_' + currentTenantId) === today) return;         // نُسخت اليوم من هذا الجهاز
+        if (backupLastDate() === today) return;                                            // أو من جهاز/مدير آخر
         setTimeout(() => downloadLocalBackup(true), 3500);                                  // بعد تحميل الواجهة
     } catch (e) { }
+};
+
+// ── 💾 حالة النسخ الاحتياطي (مصدرها قاعدة البيانات فتُرى من كل الأجهزة) ──────
+// ledger/settings هو R.cfg نفسه، ومستمعه يملأ window.gbrCfg
+function backupLastDate() { try { return (window.gbrCfg && window.gbrCfg.lastBackup && window.gbrCfg.lastBackup.date) || ''; } catch (e) { return ''; } }
+// لوحة حالة النسخ في صفحة الإعدادات — تُظهر آخر نسخة ومَن أخذها وحجمها
+window.renderBackupStatus = function () {
+    const box = $('bkpStatusBox'); if (!box) return;
+    const bs = backupStatus();
+    const lb = (window.gbrCfg && window.gbrCfg.lastBackup) || {};
+    const c = bs.level === 'ok' ? ['#eafaf1', '#27ae60', '✅'] : bs.level === 'warn' ? ['#fef9e7', '#f39c12', '⏰'] : ['#fdecea', '#c0392b', '🚨'];
+    box.innerHTML = `<div style="background:${c[0]};border-right:4px solid ${c[1]};border-radius:9px;padding:11px 14px;font-size:12.5px;line-height:1.9;color:#333">
+        <b style="color:${c[1]}">${c[2]} آخر نسخة احتياطية: ${bs.level === 'never' ? 'لا توجد' : esc(bs.label)}</b>
+        ${bs.level === 'never' ? '<div>بيانات شركتك كلها بلا نسخة — خذ نسخة الآن.</div>'
+            : `<div>📅 ${esc(lb.date || '')} · 👤 ${esc(lb.byName || lb.by || '—')}${lb.sizeMB ? ` · 📦 ${lb.sizeMB} م.ب` : ''}</div>`}
+        ${bs.level === 'danger' ? '<div style="font-weight:700;margin-top:3px">مرّت أيام بلا نسخة — لا تؤجّل.</div>' : ''}
+        <div style="font-size:11px;color:#7a8896;margin-top:4px">📌 السجل مشترك بين كل الأجهزة والمدراء — لا يعتمد على متصفحك.</div>
+    </div>`;
+};
+window.backupStatus = function () {
+    const last = backupLastDate();
+    if (!last) return { days: null, level: 'never', label: 'لم تُؤخذ أي نسخة احتياطية بعد' };
+    const d = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(last + 'T00:00:00').getTime()) / 86400000);
+    const level = d <= 1 ? 'ok' : d <= 3 ? 'warn' : 'danger';
+    return { days: d, level, last, label: d === 0 ? 'اليوم' : d === 1 ? 'أمس' : `منذ ${d} يوم` };
 };
 window.setAutoBackup = function (on) {
     if (!currentTenantId) return;
@@ -2539,6 +2574,7 @@ window.nav = function (pg, el) {
     if (pg === 'journalentries') { if (typeof renderJournalEntries === 'function') renderJournalEntries(); }
     if (pg === 'recurringjournals') { if (typeof renderRecurringJournals === 'function') renderRecurringJournals(); }
     if (pg === 'recurringsinv') { if (typeof renderRecurringSInv === 'function') renderRecurringSInv(); }
+    if (pg === 'settings') { if (typeof renderBackupStatus === 'function') renderBackupStatus(); }
     if (pg === 'revrecognition') { if (typeof renderRevenueRecognition === 'function') renderRevenueRecognition(); }
     if (pg === 'fxrevaluation') { if (typeof renderFXRevaluation === 'function') renderFXRevaluation(); }
     if (pg === 'cashforecast') { if (typeof renderCashFlowForecast === 'function') renderCashFlowForecast(); }
@@ -2880,7 +2916,7 @@ function startListeners() {
         } catch (e) { console.warn('Migration skipped:', e.message) }
     })();
 
-    onValue(R.cfg, sn => { if (sn.exists()) { cfg = { ...cfg, ...sn.val() }; window.gbrCfg = cfg; if (cfg.gosi) window.gosiRates = { ...GOSI_DEFAULTS, ...cfg.gosi }; loadCfgUI() } });
+    onValue(R.cfg, sn => { if (sn.exists()) { cfg = { ...cfg, ...sn.val() }; window.gbrCfg = cfg; if (cfg.gosi) window.gosiRates = { ...GOSI_DEFAULTS, ...cfg.gosi }; loadCfgUI(); if (typeof renderBackupStatus === 'function') renderBackupStatus(); if ($('pg-dashboard')?.classList.contains('act') && typeof renderDashboardAlerts === 'function') renderDashboardAlerts(); } });
     onValue(R.sup, sn => {
         sup = sn.exists() ? sn.val() : {};
         window.sup = sup;
@@ -3460,6 +3496,29 @@ function renderDashboardAlerts() {
 // جمع كل التنبيهات من مصادرها (مستندات، إقامة، عقود)
 function collectAllAlerts() {
     const alerts = [];
+
+    // 0) 💾 النسخ الاحتياطي — للمدير فقط. أخطر تنبيه في النظام: بلا نسخة، أي عطل
+    //    أو خطأ بشري يعني فقدان محاسبة الشركة كاملة. يُعرض بحسب عمر آخر نسخة.
+    if (myP && myP.role === 'admin' && Object.keys(window.chartOfAccounts || {}).length) {
+        const bs = backupStatus();
+        if (bs.level !== 'ok') {
+            const isNever = bs.level === 'never';
+            const crit = isNever || bs.days > 7;
+            alerts.push({
+                severity: crit ? 'critical' : bs.level === 'danger' ? 'urgent' : 'warning',
+                icon: '💾',
+                title: isNever ? 'لم تُؤخذ نسخة احتياطية بعد' : `آخر نسخة احتياطية ${bs.label}`,
+                subtitle: isNever
+                    ? '📌 بيانات شركتك كلها بلا نسخة — اضغط لأخذ نسخة الآن'
+                    : `📅 ${bs.last} · بواسطة ${esc((window.gbrCfg && window.gbrCfg.lastBackup && window.gbrCfg.lastBackup.byName) || '—')}`,
+                label: isNever ? '🚨 لا توجد نسخة' : crit ? `🚨 ${bs.days} يوم` : `⏰ ${bs.days} يوم`,
+                color: crit ? '#c0392b' : bs.level === 'danger' ? '#e67e22' : '#f39c12',
+                bg: crit ? '#fdecea' : '#fef9e7',
+                daysLeft: -(bs.days || 999),
+                action: `downloadLocalBackup()`
+            });
+        }
+    }
 
     // 1) تنبيهات المستندات المرفوعة في تبويب المستندات
     Object.entries(emp).forEach(([empKey, eData]) => {
