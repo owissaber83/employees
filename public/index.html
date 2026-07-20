@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     <!-- 🎨 الستايل في ملف منفصل -->
-    <link rel="stylesheet" href="styles.css?v=20260719-boxfix">
+    <link rel="stylesheet" href="styles.css?v=20260720-forgot">
     <!-- 📱 PWA: تطبيق قابل للتثبيت يعمل دون اتصال -->
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#1a3a5c">
@@ -76,8 +76,13 @@
                         placeholder="example@company.com"></div>
             </div>
             <div class="af-g"><label>كلمة المرور</label>
-                <div class="af-w"><span class="af-ic">🔒</span><input type="password" id="lP" placeholder="••••••••"
-                        onkeydown="if(event.key==='Enter')doLogin()"></div>
+                <div class="af-w has-eye"><span class="af-ic">🔒</span><input type="password" id="lP" placeholder="••••••••"
+                        onkeydown="if(event.key==='Enter')doLogin()"><button type="button" class="af-eye"
+                        title="إظهار كلمة المرور" aria-label="إظهار كلمة المرور"
+                        onclick="togglePwd('lP',this)">👁️</button></div>
+            </div>
+            <div style="text-align:left;margin:-6px 0 14px"><a href="#" onclick="forgotPwd();return false"
+                    style="font-size:12.5px;color:#1f618d;font-weight:700;text-decoration:none">🔑 نسيت كلمة المرور؟</a>
             </div>
             <button class="btn-auth" onclick="doLogin()">🚀 تسجيل الدخول</button>
             <div style="text-align:center;margin-top:14px;font-size:13px;color:#666">
@@ -114,10 +119,14 @@
                 <div class="af-w"><span class="af-ic">📧</span><input type="email" id="sEm"></div>
             </div>
             <div class="af-g"><label>كلمة المرور</label>
-                <div class="af-w"><span class="af-ic">🔒</span><input type="password" id="sPs"></div>
+                <div class="af-w has-eye"><span class="af-ic">🔒</span><input type="password" id="sPs"><button
+                        type="button" class="af-eye" title="إظهار كلمة المرور" aria-label="إظهار كلمة المرور"
+                        onclick="togglePwd('sPs',this)">👁️</button></div>
             </div>
             <div class="af-g"><label>تأكيد كلمة المرور</label>
-                <div class="af-w"><span class="af-ic">🔒</span><input type="password" id="sPs2"></div>
+                <div class="af-w has-eye"><span class="af-ic">🔒</span><input type="password" id="sPs2"><button
+                        type="button" class="af-eye" title="إظهار كلمة المرور" aria-label="إظهار كلمة المرور"
+                        onclick="togglePwd('sPs2',this)">👁️</button></div>
             </div>
             <button class="btn-auth" onclick="doSetup()">✅ إنشاء الشركة وحساب المدير</button>
             <div style="text-align:center;margin-top:14px;font-size:13px;color:#666">
@@ -19840,7 +19849,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260720-pwdmail"></script>
+    <script type="module" src="app.js?v=20260720-forgot"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260719-sinvret"></script>

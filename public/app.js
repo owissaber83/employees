@@ -1496,6 +1496,37 @@ window.doLogin = async function () {
 
 window.doLogout = () => cf2('هل تريد تسجيل الخروج؟', () => { stopIdleGuard(); signOut(auth) });
 
+// 👁️ إظهار/إخفاء كلمة المرور
+window.togglePwd = function (id, btn) {
+    const i = $(id); if (!i) return;
+    const show = i.type === 'password';
+    i.type = show ? 'text' : 'password';
+    if (btn) {
+        btn.textContent = show ? '🙈' : '👁️';
+        const t = show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور';
+        btn.title = t; btn.setAttribute('aria-label', t);
+    }
+    try { i.focus({ preventScroll: true }); const n = i.value.length; i.setSelectionRange(n, n); } catch (e) { }
+};
+
+// 🔑 نسيت كلمة المرور — يرسل رابط إعادة التعيين لبريد المستخدم نفسه
+//    الرسالة محايدة عمداً: لا تكشف إن كان البريد مسجّلاً أم لا (حفاظاً على «حماية تعداد البريد» المفعّلة في Console).
+window.forgotPwd = async function () {
+    const em = ($('lE')?.value || '').trim();
+    const er = $('aErr');
+    if (!em) {
+        if (er) { er.textContent = 'اكتب بريدك الإلكتروني في الحقل أعلاه أولاً، ثم اضغط «نسيت كلمة المرور؟»'; er.classList.add('show'); }
+        $('lE')?.focus(); return;
+    }
+    try {
+        await sendPasswordResetEmail(auth, em);
+        if (er) er.classList.remove('show');
+        toast(`📨 إن كان لهذا البريد حساب فسيصلك رابط إعادة التعيين خلال دقائق.\n⚠️ تحقّق من مجلد الرسائل غير المرغوبة (Spam)`, 'ok', 9000);
+    } catch (e) {
+        if (er) { er.textContent = (typeof authEr === 'function' && e.code) ? authEr(e.code) : (e.message || 'تعذّر إرسال الرابط'); er.classList.add('show'); }
+    }
+};
+
 // ── 🔐 سياسة كلمة المرور ────────────────────────────────────────────────────
 // 8 أحرف على الأقل + حرف ورقم. تُكمّل سياسة Firebase Console من جهة الواجهة.
 // تُعيد رسالة الخطأ، أو '' إذا كانت كلمة المرور مقبولة.
