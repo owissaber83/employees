@@ -12915,8 +12915,8 @@ function cust360Statement(key, c) {
 window.cust360SetRange = function () { window._cust360.stmtFrom = ($('c360From') || {}).value || ''; window._cust360.stmtTo = ($('c360To') || {}).value || ''; cust360Render(); };
 
 // إجراءات سريعة
-window.custNewInvoice = function (key) { closeCust360(); if (typeof openSInvEditor === 'function') { openSInvEditor(); setTimeout(() => { if ($('mSInvCustomer')) { $('mSInvCustomer').value = key; if (typeof onSInvCustomerChange === 'function') onSInvCustomerChange(); } }, 150); } else toast('⚠️ وحدة فواتير المبيعات غير متاحة', 'er'); };
-window.custNewReceipt = function (key) { closeCust360(); if (typeof openVoucherEditor === 'function') { openVoucherEditor('receipt'); setTimeout(() => { if ($('mVoucherParty')) { $('mVoucherParty').value = key; if (typeof onVoucherPartyChange === 'function') onVoucherPartyChange(); } }, 150); } else toast('⚠️ وحدة سندات القبض غير متاحة', 'er'); };
+window.custNewInvoice = function (key) { if (typeof openSInvEditor === 'function') { openSInvEditor(); setTimeout(() => { if ($('mSInvCustomer')) { $('mSInvCustomer').value = key; if (typeof onSInvCustomerChange === 'function') onSInvCustomerChange(); } }, 150); } else toast('⚠️ وحدة فواتير المبيعات غير متاحة', 'er'); };
+window.custNewReceipt = function (key) { if (typeof openVoucherEditor === 'function') { openVoucherEditor('receipt'); setTimeout(() => { if ($('mVoucherParty')) { $('mVoucherParty').value = key; if (typeof onVoucherPartyChange === 'function') onVoucherPartyChange(); } }, 150); } else toast('⚠️ وحدة سندات القبض غير متاحة', 'er'); };
 window.custShare = function (key, mode) {
     const c = window.customers?.[key]; if (!c) return; const bal = calcCustomerBalance(key); const ag = calcCustomerAging(key);
     const co = custCoName();
@@ -13894,6 +13894,7 @@ window.openVendor360 = function (key) {
 window.closeVen360 = function () { document.getElementById('ven360Overlay')?.remove(); document.body.style.overflow = ''; };
 window.ven360Tab = function (tab) { window._ven360.tab = tab; ven360Render(); };
 function ven360Refresh() { if (document.getElementById('ven360Overlay')) ven360Render(); }
+window.ven360Refresh = ven360Refresh;   // يستدعيها app.js عند تغيّر الموردين/الفواتير/السندات
 
 // مؤشرات المورد: المشتريات، عدد الفواتير، متوسط أيام السداد (DPO)
 function calcVendorKpis(key) {
@@ -14076,13 +14077,13 @@ window.ven360DelDoc = function (key, docKey) {
         catch (e) { toast('❌ ' + (e.message || e), 'er'); }
     });
 };
+// ℹ️ لا نُغلق ملف المورد: نوافذ التطبيق (.ov) بـ z-index:10000 أي فوق طبقة الملف (9990)،
+//    فتظهر فوقه ويعود المستخدم إليه بعد الحفظ بدل أن يُقذف لقائمة الموردين.
 window.ven360NewInvoice = function (key) {
-    closeVen360();
     if (typeof openPInvEditor === 'function') { openPInvEditor(); setTimeout(() => { const s = $('mPInvVendor'); if (s) { s.value = key; s.dispatchEvent(new Event('change')); } }, 120); }
     else toast('افتح فواتير المشتريات لإنشاء فاتورة', 'wn');
 };
 window.ven360NewPayment = function (key) {
-    closeVen360();
     if (typeof openVoucherEditor === 'function') {
         openVoucherEditor('payment');
         setTimeout(() => { const s = $('mVoucherParty'); if (s) { s.value = key; if (typeof onVoucherPartyChange === 'function') onVoucherPartyChange(); } }, 120);

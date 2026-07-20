@@ -3095,6 +3095,7 @@ function startListeners() {
         if ($('pg-vendors')?.classList.contains('act') && typeof renderVendors === 'function') renderVendors();
         // إعادة ملء قائمة الموردين في محرر فواتير المشتريات
         if ($('mPInvEditor')?.classList.contains('show') && typeof fillPInvVendors === 'function') fillPInvVendors();
+        if (typeof ven360Refresh === 'function') ven360Refresh();   // 🏭 حدّث ملف المورد المفتوح
     });
     // 🧾 فواتير المشتريات
     onValue(R.pinv, sn => {
@@ -3102,6 +3103,7 @@ function startListeners() {
         if ($('pg-purchaseinvoices')?.classList.contains('act') && typeof renderPurchaseInvoices === 'function') renderPurchaseInvoices();
         // إعادة رسم الموردين (لتحديث الأرصدة)
         if ($('pg-vendors')?.classList.contains('act') && typeof renderVendors === 'function') renderVendors();
+        if (typeof ven360Refresh === 'function') ven360Refresh();   // 🏭 حدّث ملف المورد المفتوح
     });
     // 💵 سندات القبض (Receipts)
     onValue(R.rcpt, sn => {
@@ -3117,6 +3119,7 @@ function startListeners() {
         if ($('pg-payments')?.classList.contains('act') && typeof renderPayments === 'function') renderPayments();
         // إعادة رسم الموردين والفواتير
         if ($('pg-vendors')?.classList.contains('act') && typeof renderVendors === 'function') renderVendors();
+        if (typeof ven360Refresh === 'function') ven360Refresh();   // 🏭 حدّث ملف المورد المفتوح
         if ($('pg-purchaseinvoices')?.classList.contains('act') && typeof renderPurchaseInvoices === 'function') renderPurchaseInvoices();
     });
     // 📦 أصناف المخزون
