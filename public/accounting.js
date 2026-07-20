@@ -14498,7 +14498,10 @@ window.moveSInvLine = function (idx, dir) {
     #ssPanel{position:fixed;z-index:12000;background:#fff;border:1px solid #ccd6e2;border-radius:9px;box-shadow:0 12px 34px rgba(0,0,0,.20);display:none;flex-direction:column;overflow:hidden;font-family:inherit}
     #ssPanel.ss-open{display:flex}
     #ssSearch{width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #2d6a9f;border-radius:7px;font-family:inherit;font-size:13px;outline:none}
-    #ssList{overflow:auto;max-height:280px}
+    #ssList{overflow-y:auto;overscroll-behavior:contain;max-height:280px}
+    #ssList::-webkit-scrollbar{width:9px}
+    #ssList::-webkit-scrollbar-thumb{background:#c7d2dd;border-radius:9px}
+    #ssList::-webkit-scrollbar-thumb:hover{background:#a9b8c7}
     .ss-item{padding:8px 11px;cursor:pointer;font-size:12.5px;color:#1a3a5c;border-bottom:1px solid #f2f5f8;line-height:1.35}
     .ss-item:hover,.ss-item.ss-act{background:#eaf2fb}
     .ss-item .ss-sub{font-size:10px;color:#8a98a8;margin-top:1px}
@@ -14513,7 +14516,10 @@ window.moveSInvLine = function (idx, dir) {
         searchInp.addEventListener('input', () => draw(searchInp.value));
         searchInp.addEventListener('keydown', onKey);
         document.addEventListener('mousedown', (e) => { if (panel.classList.contains('ss-open') && !panel.contains(e.target) && e.target !== window._ssTrigger && !(window._ssTrigger && window._ssTrigger.contains && window._ssTrigger.contains(e.target))) close(); }, true);
-        window.addEventListener('resize', close); window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        // ⚠️ الالتقاط (capture) يرصد تمرير أي عنصر — بما فيه القائمة نفسها. لولا هذا الاستثناء
+        //    لأُغلقت القائمة بمجرد محاولة التمرير داخلها.
+        window.addEventListener('scroll', (e) => { if (panel && e.target && panel.contains(e.target)) return; close(); }, true);
     }
     function draw(q) {
         q = (q || '').trim().toLowerCase();
@@ -14542,10 +14548,18 @@ window.moveSInvLine = function (idx, dir) {
             const w = Math.max(240, r.width);
             panel.style.width = w + 'px';
             panel.style.left = Math.max(6, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+            // 📏 لا تخرج القائمة عن الشاشة مهما بلغ عدد الأصناف: نختار الجهة الأوسع (أسفل/أعلى)
+            //    ونقيّد ارتفاع القائمة بالمساحة المتاحة فعلياً — والتمرير الداخلي يتكفّل بالباقي.
+            const GAP = 8, CHROME = 54;                       // صندوق البحث + الحشو والحدود
+            const below = window.innerHeight - r.bottom - GAP;
+            const above = r.top - GAP;
+            const useAbove = below < 200 && above > below;    // اقلبها لأعلى فقط إن كان الأسفل ضيقاً والأعلى أوسع
+            listEl.style.maxHeight = Math.max(120, Math.min(380, (useAbove ? above : below) - CHROME)) + 'px';
             panel.style.top = (r.bottom + 4) + 'px';
             panel.classList.add('ss-open');
-            searchInp.value = ''; draw(''); setTimeout(() => searchInp.focus(), 20);
-            setTimeout(() => { const pr = panel.getBoundingClientRect(); if (pr.bottom > window.innerHeight - 6 && r.top > pr.height) panel.style.top = Math.max(6, r.top - pr.height - 4) + 'px'; }, 0);
+            searchInp.value = ''; draw('');
+            if (useAbove) panel.style.top = Math.max(GAP, r.top - panel.getBoundingClientRect().height - 4) + 'px';
+            setTimeout(() => searchInp.focus(), 20);
         },
         close
     };
