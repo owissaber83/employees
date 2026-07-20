@@ -4444,7 +4444,9 @@ window.resetUserPwd = function (uid) {
     if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const u = us[uid]; if (!u || !u.email) { toast('لا يوجد بريد لهذا المستخدم', 'er'); return }
     cf2(`إرسال رابط إعادة تعيين كلمة المرور إلى:\n${u.email}؟\n\nسيصل للمستخدم بريد يضبط منه كلمة مرور جديدة.`, async () => {
-        try { await sendPasswordResetEmail(auth, u.email); toast('✅ أُرسل رابط إعادة التعيين إلى ' + u.email, 'ok', 5000); if (typeof logAudit === 'function') logAudit('إعادة تعيين كلمة مرور', 'المستخدمون', `إرسال رابط لـ ${u.email}`); }
+        // ⚠️ مع تفعيل «حماية تعداد البريد» في Console لا يُبلّغ Firebase عن عدم وجود الحساب،
+        //    فينجح هذا الاستدعاء حتى لو لم يكن للبريد حساب مصادقة أصلاً. لذا الرسالة مشروطة لا قاطعة.
+        try { await sendPasswordResetEmail(auth, u.email); toast(`📨 طُلب إرسال الرابط إلى ${u.email} — إن كان له حساب فسيصل خلال دقائق. تحقّق من مجلد الرسائل غير المرغوبة (Spam)`, 'ok', 8000); if (typeof logAudit === 'function') logAudit('إعادة تعيين كلمة مرور', 'المستخدمون', `إرسال رابط لـ ${u.email}`); }
         catch (e) { toast('❌ ' + (typeof authEr === 'function' && e.code ? authEr(e.code) : (e.message || e)), 'er'); }
     });
 };
