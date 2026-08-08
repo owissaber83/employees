@@ -359,6 +359,16 @@ window.runTransaction = runTransaction;
 window.get = get;
 window.onValue = onValue;
 
+// ── مستمع مرن (watch) — قراءة تتحمّل رفض الصلاحية [أمان: تصليب سرّية القراءة] ──────
+// onValue العادي يُلقي PERMISSION_DENIED ويُلغي المستمع عند تشديد قواعد القراءة،
+// فتنكسر واجهة الأدوار غير المصرّح لها. watch يلتقط الرفض ويُمرّر لقطة فارغة
+// للمعالج نفسه، فتصبح الحالة المحلية {} وتُرسَم الواجهة فارغة بهدوء بلا خطأ.
+const _EMPTY_SNAP = { exists: () => false, val: () => null, forEach: () => false, hasChildren: () => false, hasChild: () => false, numChildren: () => 0, child: () => _EMPTY_SNAP, key: null };
+function watch(reference, handler) {
+    return onValue(reference, handler, () => { try { handler(_EMPTY_SNAP); } catch (e) { } });
+}
+window.watch = watch;
+
 // ── Permissions ───────────────────────────
 const PG = [
     {
@@ -2928,7 +2938,7 @@ function startListeners() {
         if ($('pg-suppliers_catalog')?.classList.contains('act')) { renderVendorsCatalog(); updateVendorsKPIs() }
         if ($('mMatCat')?.classList.contains('show')) fillMatSupplierSelect();
     });
-    onValue(R.tr, sn => { tr = sn.exists() ? sn.val() : {}; window.tr = tr; renderSt(); renderDB(); pdfFilter() });
+    watch(R.tr, sn => { tr = sn.exists() ? sn.val() : {}; window.tr = tr; renderSt(); renderDB(); pdfFilter() });
     onValue(R.us, sn => { us = sn.exists() ? sn.val() : {}; window.us = us; $('k6').textContent = Object.keys(us).length; renderUsL() });
     onValue(R.emp, sn => { emp = sn.exists() ? sn.val() : {}; window.emp = emp; renderEmps(); updateEmpKPIs(); updateDeptFilter(); updateDocAlertBadge(); if ($('pg-docalerts')?.classList.contains('act')) renderDocAlerts(); if ($('pg-dashboard')?.classList.contains('act')) renderDashboardAlerts(); if ($('pg-attendance')?.classList.contains('act') && $('atBulkCard')?.style.display !== 'none') fillBulkEmpsList(); if ($('pg-probation')?.classList.contains('act') && typeof renderProbation === 'function') renderProbation(); if ($('pg-hranalytics')?.classList.contains('act') && typeof renderHrAnalytics === 'function') renderHrAnalytics() });
     onValue(R.prj, sn => {
@@ -2972,7 +2982,7 @@ function startListeners() {
         window.goodsReceipts = goodsReceipts;
         if ($('pg-grn')?.classList.contains('act')) { renderGRNs(); updateGRNKPIs() }
     });
-    onValue(R.invs, sn => {
+    watch(R.invs, sn => {
         supplierInvoices = sn.exists() ? sn.val() : {};
         window.supplierInvoices = supplierInvoices;
         if ($('pg-invoices')?.classList.contains('act')) { renderInvoices(); updateInvKPIs() }
@@ -3001,24 +3011,24 @@ function startListeners() {
         window.cffExternal = sn.exists() ? sn.val() : {};
         if ($('pg-cashforecast')?.classList.contains('act') && typeof renderCashFlowForecast === 'function') renderCashFlowForecast();
     });
-    onValue(R.recSInv, sn => {
+    watch(R.recSInv, sn => {
         window.recurringSalesInvoices = sn.exists() ? sn.val() : {};
         if ($('pg-recurringsinv')?.classList.contains('act') && typeof renderRecurringSInv === 'function') renderRecurringSInv();
     });
-    onValue(R.recJrn, sn => {
+    watch(R.recJrn, sn => {
         window.recurringJournals = sn.exists() ? sn.val() : {};
         if ($('pg-recurringjournals')?.classList.contains('act') && typeof renderRecurringJournals === 'function') renderRecurringJournals();
     });
     onValue(R.currencies, sn => { window.currencies = sn.exists() ? sn.val() : {}; });
-    onValue(R.revRec, sn => {
+    watch(R.revRec, sn => {
         window.revenueRecognition = sn.exists() ? sn.val() : {};
         if ($('pg-revrecognition')?.classList.contains('act') && typeof renderRevenueRecognition === 'function') renderRevenueRecognition();
     });
-    onValue(R.fxReval, sn => {
+    watch(R.fxReval, sn => {
         window.fxRevaluations = sn.exists() ? sn.val() : {};
         if ($('pg-fxrevaluation')?.classList.contains('act') && typeof renderFXRevaluation === 'function') renderFXRevaluation();
     });
-    onValue(R.amortz, sn => {
+    watch(R.amortz, sn => {
         window.amortizations = sn.exists() ? sn.val() : {};
         if ($('pg-amortization')?.classList.contains('act') && typeof renderAmortizations === 'function') renderAmortizations();
     });
@@ -3048,32 +3058,32 @@ function startListeners() {
         if ($('pg-incometax')?.classList.contains('act') && typeof renderIncomeTax === 'function') renderIncomeTax();
     });
     // 💰 التعديلات الضريبية المحفوظة لكل سنة (مصدر واحد يُغذّي القوائم والإيضاح)
-    onValue(R.incomeTaxAdjustments, sn => {
+    watch(R.incomeTaxAdjustments, sn => {
         window.incomeTaxAdjustments = sn.exists() ? sn.val() : {};
         if ($('pg-incometax')?.classList.contains('act') && typeof renderIncomeTax === 'function') renderIncomeTax();
         else if ($('pg-finstatements')?.classList.contains('act') && typeof renderFinancialStatements === 'function') renderFinancialStatements();
     });
-    onValue(R.zakatReturns, sn => {
+    watch(R.zakatReturns, sn => {
         window.zakatReturns = sn.exists() ? sn.val() : {};
         if ($('pg-zakat')?.classList.contains('act') && typeof renderZakat === 'function') renderZakat();
     });
-    onValue(R.whtRecords, sn => {
+    watch(R.whtRecords, sn => {
         window.whtRecords = sn.exists() ? sn.val() : {};
         if ($('pg-wht')?.classList.contains('act') && typeof renderWHT === 'function') renderWHT();
     });
-    onValue(R.closingChecklists, sn => {
+    watch(R.closingChecklists, sn => {
         window.closingData = sn.exists() ? sn.val() : {};
         if ($('pg-closing')?.classList.contains('act') && typeof renderClosing === 'function') renderClosing();
     });
-    onValue(R.glBudgets, sn => {
+    watch(R.glBudgets, sn => {
         window.glBudgets = sn.exists() ? sn.val() : {};
         if ($('pg-glbudget')?.classList.contains('act') && typeof renderGLBudget === 'function') renderGLBudget();
     });
-    onValue(R.fsgReports, sn => {
+    watch(R.fsgReports, sn => {
         window.fsgReports = sn.exists() ? sn.val() : {};
         if ($('pg-fsg')?.classList.contains('act') && typeof renderFSG === 'function') renderFSG();
     });
-    onValue(R.jrnTemplates, sn => {
+    watch(R.jrnTemplates, sn => {
         window.jrnTemplates = sn.exists() ? sn.val() : {};
         if ($('pg-jrntemplates')?.classList.contains('act') && typeof renderJrnTemplates === 'function') renderJrnTemplates();
     });
@@ -3118,7 +3128,7 @@ function startListeners() {
         if ($('pg-customers')?.classList.contains('act') && typeof renderCustomers === 'function') renderCustomers();
         if (typeof refreshNotifBell === 'function') refreshNotifBell();
     });
-    onValue(R.custAdvances, sn => { window.customerAdvances = sn.exists() ? sn.val() : {}; if ($('pg-salesinvoices')?.classList.contains('act') && typeof renderSalesInvoices === 'function') renderSalesInvoices(); });
+    watch(R.custAdvances, sn => { window.customerAdvances = sn.exists() ? sn.val() : {}; if ($('pg-salesinvoices')?.classList.contains('act') && typeof renderSalesInvoices === 'function') renderSalesInvoices(); });
     // 📋 قوالب المشاريع
     onValue(R.projTemplates, sn => { window.projectTemplates = sn.exists() ? sn.val() : {}; });
     // ⏱️ تسجيل الأوقات (Timesheets)
@@ -3150,7 +3160,7 @@ function startListeners() {
     window._treListenersDone = true; // يمنع المستمع الكسول في accounting.js من التكرار
     window._tre = window._tre || { guarantees: {}, cheques: {}, retentions: {} };
     ['guarantees', 'cheques', 'retentions'].forEach(tk => {
-        onValue(R[tk], sn => {
+        watch(R[tk], sn => {
             window._tre[tk] = sn.val() || {};
             if ($('pg-treasury')?.classList.contains('act') && typeof renderTreasury === 'function') renderTreasury();
             if ($('pg-dashboard')?.classList.contains('act') && typeof renderTreasuryWidget === 'function') renderTreasuryWidget();
@@ -3225,7 +3235,7 @@ function startListeners() {
         if (typeof ven360Refresh === 'function') ven360Refresh();   // 🏭 حدّث ملف المورد المفتوح
     });
     // 🧾 فواتير المشتريات
-    onValue(R.pinv, sn => {
+    watch(R.pinv, sn => {
         window.purchaseInvoices = sn.exists() ? sn.val() : {};
         if ($('pg-purchaseinvoices')?.classList.contains('act') && typeof renderPurchaseInvoices === 'function') renderPurchaseInvoices();
         // إعادة رسم الموردين (لتحديث الأرصدة)
@@ -3233,7 +3243,7 @@ function startListeners() {
         if (typeof ven360Refresh === 'function') ven360Refresh();   // 🏭 حدّث ملف المورد المفتوح
     });
     // 💵 سندات القبض (Receipts)
-    onValue(R.rcpt, sn => {
+    watch(R.rcpt, sn => {
         window.receipts = sn.exists() ? sn.val() : {};
         if ($('pg-receipts')?.classList.contains('act') && typeof renderReceipts === 'function') renderReceipts();
         // إعادة رسم العملاء والفواتير (لتحديث الأرصدة)
@@ -3241,7 +3251,7 @@ function startListeners() {
         if ($('pg-salesinvoices')?.classList.contains('act') && typeof renderSalesInvoices === 'function') renderSalesInvoices();
     });
     // 💸 سندات الصرف (Payments)
-    onValue(R.paym, sn => {
+    watch(R.paym, sn => {
         window.payments = sn.exists() ? sn.val() : {};
         if ($('pg-payments')?.classList.contains('act') && typeof renderPayments === 'function') renderPayments();
         // إعادة رسم الموردين والفواتير
@@ -3278,7 +3288,7 @@ function startListeners() {
         if ($('mInvMovement')?.classList.contains('show') && typeof fillInvMovementWarehouses === 'function') fillInvMovementWarehouses();
     });
     // 🔗 إعدادات حسابات مسير الرواتب
-    onValue(R.pas, sn => {
+    watch(R.pas, sn => {
         window.payrollAccSettings = sn.exists() ? sn.val() : {};
         // إعادة رسم تاب الإعدادات إذا مفتوح
         if ($('prjTab-acc')?.style.display !== 'none' && typeof renderProjectsAccountingTab === 'function') renderProjectsAccountingTab();
@@ -3301,7 +3311,7 @@ function startListeners() {
         if ($('pg-projectdetail')?.classList.contains('act') && typeof pdRenderTab === 'function') pdRenderTab(window._pd?.tab || 'overview');
     });
     // 📊 التكاليف غير المباشرة (إهلاك، إيجارات...) وتوزيعها على المشاريع
-    onValue(R.indcost, sn => {
+    watch(R.indcost, sn => {
         window.indirectCosts = sn.exists() ? sn.val() : {};
         if ($('pg-indirectcosts')?.classList.contains('act') && typeof renderIndirectCosts === 'function') renderIndirectCosts();
         if ($('pg-projectdetail')?.classList.contains('act') && (window._pd?.tab === 'expenses' || window._pd?.tab === 'overview') && typeof renderProjectDetail === 'function') renderProjectDetail();

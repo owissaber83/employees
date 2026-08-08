@@ -32338,11 +32338,11 @@ function fsExtEnsureListeners() {
             window._fsBenchmarks = sn.val() || {};
             if (['analysis', 'external'].includes(fsState.activeTab) && $('pg-finstatements')?.classList.contains('act')) renderFinancialStatements();
         });
-        onValue(R.fsAnalyses, sn => {
+        watch(R.fsAnalyses, sn => {
             window._fsAnalyses = sn.val() || {};
             if (fsState.activeTab === 'external' && $('pg-finstatements')?.classList.contains('act')) renderFinancialStatements();
         });
-        if (R.vatRecSessions) onValue(R.vatRecSessions, sn => {
+        if (R.vatRecSessions) watch(R.vatRecSessions, sn => {
             window._vatRecSessions = sn.val() || {};
             if (window._vatState && window._vatState.view === 'reconcile' && $('pg-vatreturn')?.classList.contains('act') && typeof renderVatReturn === 'function') renderVatReturn();
         });
