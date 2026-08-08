@@ -23,6 +23,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/adminA'), { role: 'admin', active: true });
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
+  await set(ref(db, 'tenants/A/ledger/users/pmA'), { role: 'project_manager', active: true });   // دور غير محاسبي وغير موظف (لاختبار تصليب كتابة المالية)
   await set(ref(db, 'tenants/A/ledger/users/deadAdminA'), { role: 'admin', active: false });   // مدير مُوقَف (لاختبار علم active)
   await set(ref(db, 'tenants/A/ledger/announcements/a1'), { title: 'إعلان' });                  // تحت $other (يقرؤه الموظف)
   await set(ref(db, 'tenants/A/ledger/journalEntries/j1'), { number: 'JV-1' });
@@ -50,6 +51,7 @@ const db = {
   adminA: testEnv.authenticatedContext('adminA').database(),
   acctA: testEnv.authenticatedContext('acctA').database(),
   viewerA: testEnv.authenticatedContext('viewerA').database(),
+  pmA: testEnv.authenticatedContext('pmA').database(),               // مدير مشروع (غير محاسبي)
   deadAdminA: testEnv.authenticatedContext('deadAdminA').database(),   // مدير مُوقَف (active:false)
   adminE: testEnv.authenticatedContext('adminE').database(),
   stranger: testEnv.authenticatedContext('stranger').database(),  // مصادَق لكن غير عضو في أي مستأجر
@@ -220,6 +222,31 @@ await test('محاسب A لا ينشئ userIndex لمستخدم آخر (المد
 await test('غريب لا ينشئ userIndex لمستخدم آخر', assertFails(set(ref(db.stranger, 'userIndex/victim'), { tenantId: 'A' })));
 await test('المشغّل ما زال لا يكتب قيود اليومية (لم نمنحه بيانات محاسبية)', assertFails(set(ref(db.op, 'tenants/A/ledger/journalEntries/opjv'), { number: 'OP-1', status: 'draft', date: '2026-06-01', period: '2026-06' })));
 await test('المشغّل ما زال لا يكتب في الموردين ($other)', assertFails(set(ref(db.op, 'tenants/A/ledger/suppliers/opsup'), { name: 'x' })));
+
+console.log('\n💰 تصليب كتابة المالية [P0] — الكتابة للمحاسب/المدير فقط، والقراءة لم تُكسَر:');
+// أدوار غير محاسبية (كانت تكتب المالية تحت $other) صارت ممنوعة من الكتابة
+await test('مدير مشروع لا يكتب مدفوعة (payments — تصليب)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/payments/pk1'), { amount: 50000 })));
+await test('مدير مشروع لا يكتب سند قبض (receipts — تصليب)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/receipts/rk1'), { amount: 50000 })));
+await test('مدير مشروع لا يكتب دفعة عميل مقدمة (customerAdvances — تصليب)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/customerAdvances/ca1'), { amount: 50000 })));
+await test('مدير مشروع لا يكتب معاملة (transactions — تصليب)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/transactions/tk1'), { amount: 50000 })));
+await test('مدير مشروع لا يكتب إقرار ضريبي (vatRecSessions — تصليب)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/vatRecSessions/v1'), { net: 100 })));
+await test('مدير مشروع لا يكتب ضماناً/خطاب ضمان (guarantees — تصليب)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/guarantees/g1'), { amount: 100 })));
+await test('مشاهد لا يكتب مدفوعة (payments)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/payments/pv1'), { amount: 1 })));
+// المحاسب/المدير: الكتابة مسموحة كالمعتاد
+await test('محاسب A يكتب مدفوعة (payments)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/payments/pa1'), { amount: 1000, voucherNo: 'PV-1' })));
+await test('محاسب A يكتب سند قبض (receipts)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/receipts/ra1'), { amount: 1000 })));
+await test('محاسب A يكتب دفعة عميل مقدمة (customerAdvances)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/customerAdvances/caa1'), { amount: 1000, customerId: 'c1' })));
+await test('محاسب A يكتب شيكاً (cheques)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/cheques/ch1'), { amount: 1000 })));
+await test('مدير A يكتب مدفوعة (payments)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/payments/pad1'), { amount: 1000 })));
+// القراءة لم تُكسَر: المستمعات العامة تظل حيّة لكل الأدوار (تأجيل سرّية القراءة للمرحلة B)
+await test('مدير مشروع ما زال يقرأ المدفوعات (القراءة لم تُكسَر)', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/payments'))));
+await test('محاسب A يقرأ المدفوعات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/payments'))));
+// بوابة الاشتراك المنتهي تسري على المالية المُصلَّبة
+await test('اشتراك منتهٍ يمنع كتابة مدفوعة', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/payments/pex1'), { amount: 1 })));
+// عزل المستأجر يسري على المالية المُصلَّبة
+await test('محاسب A لا يكتب مدفوعة في شركة B (عزل)', assertFails(set(ref(db.acctA, 'tenants/B/ledger/payments/hack'), { amount: 1 })));
+// مدير المشروع ما زال يكتب البيانات التشغيلية المشتركة ($other) — لم نقيّده هناك
+await test('مدير مشروع يكتب في المشاريع ($other لم يُقيَّد)', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/projects/pmproj'), { name: 'مشروع' })));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
