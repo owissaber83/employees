@@ -35,6 +35,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/myData/E1'), { profile: { name: 'موظفي' } });
   await set(ref(db, 'tenants/A/ledger/myData/E2'), { profile: { name: 'موظف آخر' } });
   await set(ref(db, 'tenants/A/ledger/auditLog/e1'), { action: 'seed' });
+  // [أمان C] ردّ استبيان لزميل (E2) + علامة "أجاب" لزميل — لاختبار سرّية الاستبيانات
+  await set(ref(db, 'tenants/A/ledger/surveyResponses/sr_e2'), { surveyId: 'sv1', empKey: 'E2', answers: { enps: 3 } });
+  await set(ref(db, 'tenants/A/ledger/surveyDone/E2/sv1'), true);
   await set(ref(db, 'tenants/A/ledger/_errorLog/err1'), { kind: 'js-error', message: 'seed' });
   // المستأجر B (منفصل تماماً)
   await set(ref(db, 'tenants/B/meta'), { createdBy: 'adminB', accessUntil: FUTURE });
@@ -265,6 +268,24 @@ await test('مدير مشروع يقرأ خطابات الضمان (غير مو�
 // الموظف ما زال يقرأ ما يخصّه: الإعلانات (بثّ) والخدمة الذاتية
 await test('موظف ما زال يقرأ الإعلانات (بثّ — لم تُحجب)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/announcements'))));
 await test('موظف ما زال يقرأ طلبات إجازاته (leaves — خدمة ذاتية)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/leaves'))));
+
+console.log('\n🕵️ سرّية الاستبيانات [C] — ردود زملائك محجوبة، وعلامة "أجبتُ" خاصة بك:');
+// الردود الكاملة للموارد البشرية/المدير فقط — الموظف/المشاهد لا يقرؤونها
+await test('موظف لا يقرأ ردود الاستبيانات (سرّية الزملاء)', assertFails(get(ref(db.empU, 'tenants/A/ledger/surveyResponses'))));
+await test('موظف لا يقرأ ردّ زميل مفرداً', assertFails(get(ref(db.empU, 'tenants/A/ledger/surveyResponses/sr_e2'))));
+await test('مشاهد لا يقرأ ردود الاستبيانات', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/surveyResponses'))));
+await test('مدير A يقرأ ردود الاستبيانات (تجميع النتائج)', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/surveyResponses'))));
+// الموظف ما زال يُرسل ردّه (كتابة) رغم أنه لا يقرأ ردود غيره
+await test('موظف يُرسل ردّ استبيان (كتابة مسموحة)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/surveyResponses/sr_e1'), { surveyId: 'sv1', empKey: 'E1', answers: { enps: 9 } })));
+// علامة "أجبتُ" الخاصة (surveyDone/{empKey}) — يقرأ/يكتب علامته فقط
+await test('موظف يكتب علامة "أجبتُ" الخاصة به (surveyDone/E1)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/surveyDone/E1/sv1'), true)));
+await test('موظف يقرأ علاماته الخاصة (surveyDone/E1)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/surveyDone/E1'))));
+await test('موظف لا يقرأ علامات زميل (surveyDone/E2)', assertFails(get(ref(db.empU, 'tenants/A/ledger/surveyDone/E2'))));
+await test('موظف لا يكتب علامة زميل (surveyDone/E2 — انتحال)', assertFails(set(ref(db.empU, 'tenants/A/ledger/surveyDone/E2/sv1'), true)));
+// المدير يكتب علامات أي موظف (ترحيل لمرة واحدة)
+await test('مدير A يكتب علامة أي موظف (ترحيل)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/surveyDone/E1/sv2'), true)));
+// عزل المستأجر يسري على العلامات
+await test('موظف A لا يكتب علامة في شركة B (عزل)', assertFails(set(ref(db.empU, 'tenants/B/ledger/surveyDone/E1/sv1'), true)));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);

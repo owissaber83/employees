@@ -884,7 +884,13 @@ function hsCalcENPS(resps) {
     const prom = vals.filter(v => v >= 9).length, det = vals.filter(v => v <= 6).length, pass = vals.length - prom - det;
     return { score: Math.round((prom / vals.length - det / vals.length) * 100), prom, pass, det, n: vals.length };
 }
-function hsHasResponded(sid, empKey) { return Object.values(hsSurveyResp()).some(r => r.surveyId === sid && r.empKey === empKey); }
+// [أمان C] علامة "أجبتُ" الخاصة بكل موظف (surveyDone/{empKey}/{surveyId}) — تتيح للموظف معرفة استبياناته
+// المُجابة دون قراءة ردود زملائه (الردود الكاملة صارت مقصورة على الموارد البشرية حفاظاً على السرّية).
+function hsSurveyDoneOf(empKey) { return (window.surveyDone && window.surveyDone[empKey]) || {}; }
+function hsHasResponded(sid, empKey) {
+    if (hsSurveyDoneOf(empKey)[sid]) return true;                                            // العلامة الخاصة (متاحة للموظف)
+    return Object.values(hsSurveyResp()).some(r => r.surveyId === sid && r.empKey === empKey); // احتياط للموارد البشرية (تملك الردود)
+}
 
 window.renderSurveys = function () {
     const c = document.getElementById('pg-surveys'); if (!c) return;
@@ -1023,5 +1029,10 @@ window.hsSubmitSurvey = async function () {
     const empKey = me ? me.key : (window.myP?.empKey || '');
     if (empKey && hsHasResponded(a.surveyId, empKey)) { toast('لقد أجبت على هذا الاستبيان مسبقاً', 'wn'); document.getElementById('hsGenModal').style.display = 'none'; return; }
     const rec = { surveyId: a.surveyId, empKey: empKey || null, empName: s.anonymous ? '' : (me?.data?.name || ''), answers: a.answers, comment: document.getElementById('hsAnsComment')?.value.trim() || '', submittedAt: new Date().toISOString() };
-    try { await window.push(window.R.surveyResponses, rec); toast('✅ شكراً — تم إرسال ردّك', 'ok'); document.getElementById('hsGenModal').style.display = 'none'; if (typeof renderSelfService === 'function') renderSelfService(); } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
+    try {
+        await window.push(window.R.surveyResponses, rec);
+        // [أمان C] سجّل علامة "أجبتُ" الخاصة بالموظف (يقرؤها هو دون بقية الردود)
+        if (empKey) { try { await window.update(window.ref(window.db, 'ledger/surveyDone/' + empKey), { [a.surveyId]: true }); } catch (e) { } }
+        toast('✅ شكراً — تم إرسال ردّك', 'ok'); document.getElementById('hsGenModal').style.display = 'none'; if (typeof renderSelfService === 'function') renderSelfService();
+    } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
 };

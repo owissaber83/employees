@@ -1813,6 +1813,24 @@ onAuthStateChanged(auth, async fbU => {
     }
 });
 
+// [أمان C] ترحيل لمرة واحدة: توليد علامات surveyDone من الردود القديمة، كي لا تظهر استبيانات
+// سبق أن أجابها الموظف كـ«مفتوحة» بعد قصر قراءة الردود على الموارد البشرية. يعمل للمدير فقط
+// (يملك كتابة settings + قراءة كل الردود)، ومحميّ بعلَم حتى لا يتكرر.
+let _surveyDoneMigRun = false;
+async function migrateSurveyDone() {
+    if (_surveyDoneMigRun) return; _surveyDoneMigRun = true;   // مرة واحدة لكل جلسة
+    try {
+        if (!(myP && myP.role === 'admin')) return;
+        const flagSn = await get(ref(db, 'ledger/settings/_migrations/surveyDone'));
+        if (flagSn.exists()) return;
+        const resp = window.surveyResponses || {};
+        const updates = {};
+        Object.values(resp).forEach(r => { if (r && r.empKey && r.surveyId) updates['ledger/surveyDone/' + r.empKey + '/' + r.surveyId] = true; });
+        if (Object.keys(updates).length) await update(ref(db), updates);
+        await set(ref(db, 'ledger/settings/_migrations/surveyDone'), { at: new Date().toISOString(), count: Object.keys(updates).length });
+    } catch (e) { _surveyDoneMigRun = false; /* ترحيل اختياري — يُعاد في جلسة لاحقة */ }
+}
+
 // ── Init App ──────────────────────────────
 function initApp() {
     window.__appLoaded = true; // 🛡️ تأكيد نجاح تحميل النظام (لمعالج الأخطاء)
@@ -3150,7 +3168,14 @@ function startListeners() {
     onValue(R.goals, sn => { window.goals = sn.exists() ? sn.val() : {}; if ($('pg-goals')?.classList.contains('act') && typeof renderGoals === 'function') renderGoals(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     onValue(R.training, sn => { window.training = sn.exists() ? sn.val() : {}; if ($('pg-training')?.classList.contains('act') && typeof renderTraining === 'function') renderTraining(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     onValue(R.surveys, sn => { window.surveys = sn.exists() ? sn.val() : {}; if ($('pg-surveys')?.classList.contains('act') && typeof renderSurveys === 'function') renderSurveys(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
-    onValue(R.surveyResponses, sn => { window.surveyResponses = sn.exists() ? sn.val() : {}; if ($('pg-surveys')?.classList.contains('act') && typeof renderSurveys === 'function') renderSurveys(); });
+    // [أمان C] ردود الاستبيانات الكاملة للموارد البشرية فقط (سرّية) — يشترك بها المدير/موظف HR وحدهما.
+    if (myP && (myP.role === 'admin' || myP.role === 'hr_officer')) {
+        watch(R.surveyResponses, sn => { window.surveyResponses = sn.exists() ? sn.val() : {}; if ($('pg-surveys')?.classList.contains('act') && typeof renderSurveys === 'function') renderSurveys(); if (typeof migrateSurveyDone === 'function') migrateSurveyDone(); });
+    }
+    // [أمان C] الموظف يشترك بعلامات "أجبتُ" الخاصة به فقط (surveyDone/{empKey}) — لا يرى ردود غيره.
+    if (myP && myP.empKey) {
+        watch(ref(db, 'ledger/surveyDone/' + myP.empKey), sn => { window.surveyDone = window.surveyDone || {}; window.surveyDone[myP.empKey] = sn.exists() ? sn.val() : {}; if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
+    }
     // 🕗 الورديات والجداول (shifts.js)
     onValue(R.shifts, sn => { window.shifts = sn.exists() ? sn.val() : {}; if ($('pg-shifts')?.classList.contains('act') && typeof renderShifts === 'function') renderShifts(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); if ($('pg-attendance')?.classList.contains('act') && typeof renderAttendance === 'function') renderAttendance(); });
     onValue(R.roster, sn => { window.roster = sn.exists() ? sn.val() : {}; if ($('pg-shifts')?.classList.contains('act') && typeof renderShifts === 'function') renderShifts(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });

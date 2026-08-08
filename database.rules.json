@@ -221,8 +221,14 @@
             ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'viewer' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
           },
           "surveyResponses": {
-            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
             ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'viewer' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+          },
+          "surveyDone": {
+            "$empKey": {
+              ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+            }
           },
 
           "payments": {
