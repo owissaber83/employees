@@ -889,6 +889,11 @@ window.saveCoaAccount = async function () {
             if (data.parent) rememberAncestorsExpanded(data.parent);
             toast('✅ تم تحديث الحساب', 'ok');
         } else {
+            // 🔒 حجز ذري لرمز الحساب قبل الإضافة — يمنع تصادم مستخدمين يضيفان نفس الرمز بالتزامن
+            // (الفحص أعلاه من الكاش المحلي فقط وغير كافٍ وحده؛ هذا حجز فعلي على الخادم)
+            const claimRef = ref(db, `ledger/counters/coaCode/${code}`);
+            const claim = await runTransaction(claimRef, current => current ? undefined : true);
+            if (!claim.committed) { toast('⚠️ رمز الحساب حُجز للتو من مستخدم آخر — أعد المحاولة برمز مختلف', 'er', 6000); return; }
             // إضافة
             data.createdAt = new Date().toISOString();
             data.createdBy = data.updatedBy;
@@ -1058,7 +1063,7 @@ async function createJournalForPMC(pmcData) {
         }
     ];
 
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-PMC-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-PMC-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: pmcData.date || pmcData.month + '-01',
@@ -1199,7 +1204,7 @@ function coaRenderBalTab(st) {
                     const ti = typeInfo(r.a.type);
                     const lvlBg = r.header ? (r.depth === 0 ? ti.color : ti.bg) : '';
                     const lvlColor = r.header && r.depth === 0 ? 'white' : '#1a3a5c';
-                    return `<tr data-code="${esc(r.a.code || '')}" data-search="${(r.a.code || '').toLowerCase()} ${(r.a.nameAr || '').toLowerCase()} ${(r.a.nameEn || '').toLowerCase()}" data-header="${r.header ? 1 : 0}" data-debit="${r.t.debit || 0}" data-credit="${r.t.credit || 0}" style="${r.header ? `background:${lvlBg};font-weight:800` : ''}${r.a.active === false ? ';opacity:.55' : ''}">
+                    return `<tr data-code="${esc(r.a.code || '')}" data-search="${esc((r.a.code || '').toLowerCase())} ${esc((r.a.nameAr || '').toLowerCase())} ${esc((r.a.nameEn || '').toLowerCase())}" data-header="${r.header ? 1 : 0}" data-debit="${r.t.debit || 0}" data-credit="${r.t.credit || 0}" style="${r.header ? `background:${lvlBg};font-weight:800` : ''}${r.a.active === false ? ';opacity:.55' : ''}">
                         <td style="font-family:monospace;font-weight:800;color:${r.header && r.depth === 0 ? 'white' : ti.color}">${esc(r.a.code)}</td>
                         <td style="text-align:right;padding-right:${10 + r.depth * 22}px;color:${lvlColor};font-weight:${r.header ? '800' : '600'}">${r.header ? '📁 ' : ''}${esc(r.a.nameAr || '')}${r.a.active === false ? ' <span style="font-size:9px;background:#fdecea;color:#7b1c1c;padding:1px 6px;border-radius:4px">موقوف</span>' : ''}</td>
                         <td><span style="background:${r.header && r.depth === 0 ? 'rgba(255,255,255,.25)' : ti.bg};color:${r.header && r.depth === 0 ? 'white' : ti.color};padding:2px 9px;border-radius:6px;font-size:10px;font-weight:700">${ti.ar}</span></td>
@@ -1247,7 +1252,7 @@ function coaRenderStmtTab(st) {
                     <div id="coaAccDropList" style="max-height:260px;overflow-y:auto;margin-top:8px">
                         ${Object.values(window.chartOfAccounts || {}).filter(a => a.nature === 'detail' && a.code && a.active !== false).sort((a, b) => (a.code || '').localeCompare(b.code || '')).map(a => {
                             const ti = COA_TYPES[a.type] || { color: '#888', bg: '#f0f5fa' };
-                            return `<div class="coa-acc-drop-it" data-search="${(a.code || '').toLowerCase()} ${(a.nameAr || '').toLowerCase()} ${(a.nameEn || '').toLowerCase()}" onclick="coaBalPickAccountKey('${a.code}')" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;border:1px solid ${st.opAccount === a.code ? '#8e44ad' : 'transparent'};background:${st.opAccount === a.code ? '#faf5fc' : 'white'}" onmouseover="this.style.background='#f4ecf7'" onmouseout="this.style.background='${st.opAccount === a.code ? '#faf5fc' : 'white'}'">
+                            return `<div class="coa-acc-drop-it" data-search="${esc((a.code || '').toLowerCase())} ${esc((a.nameAr || '').toLowerCase())} ${esc((a.nameEn || '').toLowerCase())}" onclick="coaBalPickAccountKey('${a.code}')" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;border:1px solid ${st.opAccount === a.code ? '#8e44ad' : 'transparent'};background:${st.opAccount === a.code ? '#faf5fc' : 'white'}" onmouseover="this.style.background='#f4ecf7'" onmouseout="this.style.background='${st.opAccount === a.code ? '#faf5fc' : 'white'}'">
                                 <span style="font-family:monospace;font-weight:800;color:${ti.color};background:${ti.bg};padding:2px 8px;border-radius:5px;font-size:11px">${esc(a.code)}</span>
                                 <span style="color:#1a3a5c;font-weight:600">${esc(a.nameAr || '')}</span>
                             </div>`;
@@ -1428,7 +1433,7 @@ function coaRenderOpsPanel(st) {
                         <td style="white-space:nowrap">${o.date || '—'}</td>
                         <td><span onclick="jrnRowMenu && jrnRowMenu('${o.entryKey}', event)" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-family:monospace;font-size:11px" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">${esc(o.number || '—')}</span>${o.status !== 'posted' ? ' <span style="background:#fef9e7;color:#7d4e00;font-size:9px;padding:1px 5px;border-radius:4px">مسودة</span>' : ''}</td>
                         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="${esc(o.description)}">${esc(o.description || '—')}</td>
-                        <td style="font-size:10.5px;white-space:nowrap">${ccProjLabel(o, '')}</td>
+                        <td style="font-size:10.5px;white-space:nowrap">${esc(ccProjLabel(o, ''))}</td>
                         <td style="text-align:left;font-weight:700;color:#2d6a9f">${o.debit ? fmt(o.debit) : '—'}</td>
                         <td style="text-align:left;font-weight:700;color:#c0392b">${o.credit ? fmt(o.credit) : '—'}</td>
                         <td style="text-align:left;font-weight:800;color:${running >= 0 ? '#1a3a5c' : '#c0392b'}">${fmt(running)}</td>
@@ -1461,7 +1466,7 @@ window.coaPrintAccountStatement = function () {
     let running = opening;
     const tRows = ops.map((o, i) => {
         running += o.debit - o.credit;
-        return `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${o.date || '—'}</td><td>${esc(o.number || '—')}</td><td style="text-align:right">${esc(o.description || '—')}</td><td>${ccProjLabel(o, '') }</td><td>${o.debit ? f(o.debit) : '—'}</td><td>${o.credit ? f(o.credit) : '—'}</td><td style="font-weight:800">${f(running)}</td></tr>`;
+        return `<tr class="${i % 2 ? 'even' : ''}"><td>${i + 1}</td><td>${o.date || '—'}</td><td>${esc(o.number || '—')}</td><td style="text-align:right">${esc(o.description || '—')}</td><td>${esc(ccProjLabel(o, ''))}</td><td>${o.debit ? f(o.debit) : '—'}</td><td>${o.credit ? f(o.credit) : '—'}</td><td style="font-weight:800">${f(running)}</td></tr>`;
     }).join('');
     const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب — ${acc.nameAr || st.opAccount}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
@@ -2104,11 +2109,6 @@ window.confirmCoaImport = async function () {
             // إضافة جديد
             data.createdAt = now;
             data.createdBy = userId;
-            // 🆕 إنشاء قيد محاسبي تلقائي عند الحفظ
-            const jrnResult = await createJournalForPMC(data);
-            if (jrnResult) {
-                data.journalEntryKey = jrnResult.key;
-            }
             await push(R.coa, data);
             added++;
         }
@@ -2141,19 +2141,19 @@ window.ccSelectOptions = function (selected, emptyLabel = '— بدون (عام)
         const childrenOf = pk => ccs.filter(([, c]) => c.parent === pk).sort((a, b) => (a[1].code || '').localeCompare(b[1].code || ''));
         html += `<optgroup label="🎯 مراكز التكلفة">`;
         mains.forEach(([k, c]) => {
-            html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${c.nameAr || k}</option>`;
+            html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}</option>`;
             childrenOf(k).forEach(([ck, cc]) =>
-                html += `<option value="${ck}" ${selected === ck ? 'selected' : ''}>&nbsp;&nbsp;↳ ${cc.code ? cc.code + ' — ' : ''}${cc.nameAr || ck}</option>`);
+                html += `<option value="${ck}" ${selected === ck ? 'selected' : ''}>&nbsp;&nbsp;↳ ${cc.code ? cc.code + ' — ' : ''}${esc(cc.nameAr || ck)}</option>`);
         });
         // مراكز فرعية يتيمة (أبوها محذوف) تظهر في النهاية حتى لا تختفي
         ccs.filter(([, c]) => c.parent && !(window.costCenters || {})[c.parent])
-            .forEach(([k, c]) => html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${c.nameAr || k}</option>`);
+            .forEach(([k, c]) => html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}</option>`);
         html += `</optgroup>`;
     }
     const projs = Object.entries(window.projects || {});
     if (projs.length) {
         html += `<optgroup label="🏗️ المشاريع">`;
-        projs.forEach(([k, p]) => html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${p.name || k}</option>`);
+        projs.forEach(([k, p]) => html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${esc(p.name || k)}</option>`);
         html += `</optgroup>`;
     }
     return html;
@@ -2176,19 +2176,19 @@ window.ccOnlyOptions = function (selected, emptyLabel = '-- الكل --') {
     const mains = ccs.filter(([, c]) => !c.parent).sort((a, b) => (a[1].code || '').localeCompare(b[1].code || ''));
     const childrenOf = pk => ccs.filter(([, c]) => c.parent === pk).sort((a, b) => (a[1].code || '').localeCompare(b[1].code || ''));
     mains.forEach(([k, c]) => {
-        html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${c.nameAr || k}</option>`;
+        html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}</option>`;
         childrenOf(k).forEach(([ck, cc]) =>
-            html += `<option value="${ck}" ${selected === ck ? 'selected' : ''}>&nbsp;&nbsp;↳ ${cc.code ? cc.code + ' — ' : ''}${cc.nameAr || ck}</option>`);
+            html += `<option value="${ck}" ${selected === ck ? 'selected' : ''}>&nbsp;&nbsp;↳ ${cc.code ? cc.code + ' — ' : ''}${esc(cc.nameAr || ck)}</option>`);
     });
     ccs.filter(([, c]) => c.parent && !(window.costCenters || {})[c.parent])
-        .forEach(([k, c]) => html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${c.nameAr || k}</option>`);
+        .forEach(([k, c]) => html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}</option>`);
     return html;
 };
 
 window.projOnlyOptions = function (selected, emptyLabel = '-- الكل --') {
     let html = `<option value="">${emptyLabel}</option>`;
     Object.entries(window.projects || {}).forEach(([k, p]) =>
-        html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${p.name || k}</option>`);
+        html += `<option value="${k}" ${selected === k ? 'selected' : ''}>${esc(p.name || k)}</option>`);
     return html;
 };
 
@@ -2310,7 +2310,7 @@ function ccRenderTreeTab() {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:${c.active === false ? '#f8f9fa' : 'white'};border:1px solid #e3eaf2;border-radius:10px;padding:10px 14px;margin-bottom:6px;${isChild ? 'margin-right:34px' : ''}${c.active === false ? ';opacity:.6' : ''}">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span style="font-family:monospace;font-weight:800;color:#5b2c6f;background:#f4ecf7;padding:3px 10px;border-radius:6px;font-size:12px">${esc(c.code || '—')}</span>
-                <span style="font-weight:${isChild ? '600' : '800'};color:#1a3a5c;font-size:${isChild ? '13' : '14'}px">${isChild ? '↳ ' : '🎯 '}${c.nameAr || k}</span>
+                <span style="font-weight:${isChild ? '600' : '800'};color:#1a3a5c;font-size:${isChild ? '13' : '14'}px">${isChild ? '↳ ' : '🎯 '}${esc(c.nameAr || k)}</span>
                 ${c.active === false ? '<span style="background:#fdecea;color:#7b1c1c;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">موقوف</span>' : ''}
                 ${usage[k] ? `<span style="background:#e8f4fd;color:#0d4f7c;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">${usage[k]} حركة</span>` : ''}
                 ${c.notes ? `<span style="font-size:11px;color:#888">${esc(c.notes)}</span>` : ''}
@@ -2378,7 +2378,7 @@ function ccRenderStatementTab() {
             <td><span onclick="jrnRowMenu && jrnRowMenu('${r.entryKey}', event)" style="color:#2d6a9f;cursor:pointer;font-weight:700;text-decoration:underline;font-family:monospace;font-size:11px" title="انقر لعرض خيارات القيد (عرض/تعديل/حذف/تصدير)">${esc(r.number || '—')}</span>${r.status !== 'posted' ? ' <span style="background:#fef9e7;color:#7d4e00;font-size:9px;padding:1px 5px;border-radius:4px">مسودة</span>' : ''}</td>
             <td style="font-size:11px"><span style="font-family:monospace;color:#5b2c6f;font-weight:700">${r.accountCode}</span> ${esc(r.accountName)}</td>
             <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="${esc(r.description)}">${esc(r.description || '—')}</td>
-            <td style="font-size:10.5px;white-space:nowrap">${ccProjLabel(r, '')}</td>
+            <td style="font-size:10.5px;white-space:nowrap">${esc(ccProjLabel(r, ''))}</td>
             <td style="text-align:left;font-weight:700;color:#2d6a9f">${r.debit ? fmt(r.debit) : '—'}</td>
             <td style="text-align:left;font-weight:700;color:#c0392b">${r.credit ? fmt(r.credit) : '—'}</td>
             <td style="text-align:left;font-weight:800;color:${running >= 0 ? '#1a3a5c' : '#c0392b'}">${fmt(running)}</td>
@@ -2398,11 +2398,11 @@ function ccRenderStatementTab() {
                 const gD = gRows.reduce((s, r) => s + r.debit, 0);
                 const gC = gRows.reduce((s, r) => s + r.credit, 0);
                 const isSelf = gk === target;
-                tbodyHtml += `<tr><td colspan="9" style="background:${isSelf ? '#5b2c6f' : '#f4ecf7'};color:${isSelf ? 'white' : '#5b2c6f'};font-weight:800;padding:8px 12px;font-size:12.5px">${isSelf ? '🎯' : '↳'} ${ccDisplayName(gk)}${isSelf ? ' <span style="font-size:10px;opacity:.8">(حركات المركز الرئيسي مباشرة)</span>' : ''} — ${gRows.length} حركة</td></tr>`;
+                tbodyHtml += `<tr><td colspan="9" style="background:${isSelf ? '#5b2c6f' : '#f4ecf7'};color:${isSelf ? 'white' : '#5b2c6f'};font-weight:800;padding:8px 12px;font-size:12.5px">${isSelf ? '🎯' : '↳'} ${esc(ccDisplayName(gk))}${isSelf ? ' <span style="font-size:10px;opacity:.8">(حركات المركز الرئيسي مباشرة)</span>' : ''} — ${gRows.length} حركة</td></tr>`;
                 let gRun = 0;
                 gRows.forEach((r, i) => { gRun += r.debit - r.credit; tbodyHtml += lineRow(r, i, gRun); });
                 tbodyHtml += `<tr style="background:#faf5fc;font-weight:800;font-size:11.5px">
-                    <td colspan="6" style="text-align:right;color:#5b2c6f">إجمالي ${ccDisplayName(gk)}</td>
+                    <td colspan="6" style="text-align:right;color:#5b2c6f">إجمالي ${esc(ccDisplayName(gk))}</td>
                     <td style="text-align:left;color:#2d6a9f">${fmt(gD)}</td>
                     <td style="text-align:left;color:#c0392b">${fmt(gC)}</td>
                     <td style="text-align:left;color:${gD - gC >= 0 ? '#1a3a5c' : '#c0392b'}">${fmt(gD - gC)}</td>
@@ -2416,7 +2416,7 @@ function ccRenderStatementTab() {
         body = `
         <div class="card">
             <div class="tlb">
-                <div class="c-tl" style="margin:0;border:none;padding:0">📋 كشف حساب: ${ccDisplayName(target)} ${isMain ? '<span style="background:#f4ecf7;color:#5b2c6f;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">مركز رئيسي — مجمّع حسب الفروع</span>' : ''}</div>
+                <div class="c-tl" style="margin:0;border:none;padding:0">📋 كشف حساب: ${esc(ccDisplayName(target))} ${isMain ? '<span style="background:#f4ecf7;color:#5b2c6f;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">مركز رئيسي — مجمّع حسب الفروع</span>' : ''}</div>
                 <div style="display:flex;gap:8px">
                     <button onclick="ccPrintStatement()" style="padding:7px 14px;background:#f8fafc;color:#555;border:1.5px solid #d0d7e0;border-radius:8px;cursor:pointer;font-size:12px">🖨️ طباعة</button>
                     <button onclick="ccExportStatementExcel()" style="padding:7px 14px;background:#1e7e34;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700">📤 Excel</button>
@@ -2497,12 +2497,12 @@ function ccRenderReportTab() {
 
     mains.forEach(([k, c]) => {
         const tMain = ccCalcTotals(ccGatherLines(k, st.from, st.to, st.includeDraft)); // يشمل الفروع
-        bodyRows += row(`🎯 ${c.code ? c.code + ' — ' : ''}${c.nameAr || k}`, tMain, { main: true });
+        bodyRows += row(`🎯 ${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}`, tMain, { main: true });
         addGrand(tMain);
         childrenOf(k).forEach(([ck, cc]) => {
             const tCh = ccCalcTotals(ccGatherLines(ck, st.from, st.to, st.includeDraft));
             // عند التصفية بمركز رئيسي تُعرض كل فروعه حتى بدون حركات
-            if (tCh.count || st.reportMain) bodyRows += row(`↳ ${cc.code ? cc.code + ' — ' : ''}${cc.nameAr || ck}`, tCh, { child: true });
+            if (tCh.count || st.reportMain) bodyRows += row(`↳ ${cc.code ? cc.code + ' — ' : ''}${esc(cc.nameAr || ck)}`, tCh, { child: true });
         });
     });
 
@@ -2511,7 +2511,7 @@ function ccRenderReportTab() {
     if (!st.reportMain) {
         Object.entries(window.projects || {}).forEach(([k, p]) => {
             const tP = ccCalcTotals(ccGatherLines(k, st.from, st.to, st.includeDraft));
-            if (tP.count) { projRows += row(`🏗️ ${p.name || k}`, tP); addGrand(tP); }
+            if (tP.count) { projRows += row(`🏗️ ${esc(p.name || k)}`, tP); addGrand(tP); }
         });
     }
 
@@ -2521,7 +2521,7 @@ function ccRenderReportTab() {
                 <label style="font-size:11px;color:#666;font-weight:700">🎯 المركز الرئيسي</label>
                 <select onchange="ccUpdState('reportMain', this.value)" style="width:100%;padding:8px;border:1.5px solid #d0d7e0;border-radius:6px;font-family:inherit;font-size:12px;margin-top:3px;background:white">
                     <option value="">— كل المراكز والمشاريع —</option>
-                    ${allMains.map(([k, c]) => `<option value="${k}" ${st.reportMain === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${c.nameAr || k}</option>`).join('')}
+                    ${allMains.map(([k, c]) => `<option value="${k}" ${st.reportMain === k ? 'selected' : ''}>${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}</option>`).join('')}
                 </select>
             </div>
             <div>
@@ -2539,7 +2539,7 @@ function ccRenderReportTab() {
 
         <div class="card">
             <div class="tlb">
-                <div class="c-tl" style="margin:0;border:none;padding:0">📊 ${st.reportMain ? `تقرير: ${ccDisplayName(st.reportMain)} وفروعه` : 'تقرير المراكز الرئيسية والفرعية'} ${st.from || st.to ? `<span style="font-size:11px;color:#888;font-weight:400">(${st.from || '...'} ← ${st.to || '...'})</span>` : ''}</div>
+                <div class="c-tl" style="margin:0;border:none;padding:0">📊 ${st.reportMain ? `تقرير: ${esc(ccDisplayName(st.reportMain))} وفروعه` : 'تقرير المراكز الرئيسية والفرعية'} ${st.from || st.to ? `<span style="font-size:11px;color:#888;font-weight:400">(${st.from || '...'} ← ${st.to || '...'})</span>` : ''}</div>
                 <div style="display:flex;gap:8px">
                     <button onclick="ccPrintReport()" style="padding:7px 14px;background:#f8fafc;color:#555;border:1.5px solid #d0d7e0;border-radius:8px;cursor:pointer;font-size:12px">🖨️ طباعة</button>
                     <button onclick="ccExportReportExcel()" style="padding:7px 14px;background:#1e7e34;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700">📤 Excel</button>
@@ -2582,22 +2582,22 @@ window.ccPrintStatement = function () {
             const gRows = rows.filter(r => (r.costCenter || '') === gk);
             if (!gRows.length) return;
             const gD = gRows.reduce((s, r) => s + r.debit, 0), gC = gRows.reduce((s, r) => s + r.credit, 0);
-            tRows += `<tr><td colspan="8" style="background:#5b2c6f;color:white;font-weight:800;text-align:right;padding:7px 10px">${gk === st.stmtTarget ? '🎯' : '↳'} ${ccDisplayName(gk)} — ${gRows.length} حركة</td></tr>`;
+            tRows += `<tr><td colspan="8" style="background:#5b2c6f;color:white;font-weight:800;text-align:right;padding:7px 10px">${gk === st.stmtTarget ? '🎯' : '↳'} ${esc(ccDisplayName(gk))} — ${gRows.length} حركة</td></tr>`;
             let gRun = 0;
             gRows.forEach((r, i) => { gRun += r.debit - r.credit; tRows += printLine(r, i, gRun); });
-            tRows += `<tr><td colspan="5" style="text-align:right;font-weight:800;background:#f4ecf7">إجمالي ${ccDisplayName(gk)}</td><td style="font-weight:800;background:#f4ecf7">${f(gD)}</td><td style="font-weight:800;background:#f4ecf7">${f(gC)}</td><td style="font-weight:800;background:#f4ecf7">${f(gD - gC)}</td></tr>`;
+            tRows += `<tr><td colspan="5" style="text-align:right;font-weight:800;background:#f4ecf7">إجمالي ${esc(ccDisplayName(gk))}</td><td style="font-weight:800;background:#f4ecf7">${f(gD)}</td><td style="font-weight:800;background:#f4ecf7">${f(gC)}</td><td style="font-weight:800;background:#f4ecf7">${f(gD - gC)}</td></tr>`;
         });
     } else {
         let running = 0;
         tRows = rows.map((r, i) => { running += r.debit - r.credit; return printLine(r, i, running); }).join('');
     }
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب — ${ccDisplayName(st.stmtTarget)}</title>
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>كشف حساب — ${esc(ccDisplayName(st.stmtTarget))}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
 .hdr{background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
 table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:12px}th{padding:7px 6px;background:#f4ecf7;font-weight:700;text-align:center;border-bottom:2px solid #d7bde2}td{padding:5px 6px;text-align:center;border-bottom:1px solid #f0f0f0}tr.even td{background:#fafbfc}tfoot td{font-weight:800;background:#f4ecf7}
 .content{padding:14px 18px}.footer{margin-top:16px;padding-top:10px;border-top:2px solid #5b2c6f;display:flex;justify-content:space-between;font-size:8pt;color:#999}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>
-<div class="hdr"><div><div style="font-size:16px;font-weight:800">📋 كشف حساب مركز التكلفة: ${ccDisplayName(st.stmtTarget)}</div>
+<div class="hdr"><div><div style="font-size:16px;font-weight:800">📋 كشف حساب مركز التكلفة: ${esc(ccDisplayName(st.stmtTarget))}</div>
 <div style="font-size:9.5px;opacity:.85;margin-top:3px">${cA} | الفترة: ${st.from || 'البداية'} ← ${st.to || 'اليوم'} | ${rows.length} حركة</div></div><div style="font-size:22px">🎯</div></div>
 <div class="content"><table><thead><tr><th>#</th><th>التاريخ</th><th>رقم القيد</th><th>الحساب</th><th>البيان</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
 <tbody>${tRows}</tbody><tfoot><tr><td colspan="5" style="text-align:right">الإجمالي</td><td>${f(totD)}</td><td>${f(totC)}</td><td>${f(totD - totC)}</td></tr></tfoot></table>
@@ -2658,11 +2658,11 @@ window.ccPrintReport = function () {
     let bodyRows = '';
     mains.forEach(([k, c]) => {
         const tMain = ccCalcTotals(ccGatherLines(k, st.from, st.to, st.includeDraft));
-        bodyRows += prow(`🎯 ${c.code ? c.code + ' — ' : ''}${c.nameAr || k}`, tMain, 'main');
+        bodyRows += prow(`🎯 ${c.code ? c.code + ' — ' : ''}${esc(c.nameAr || k)}`, tMain, 'main');
         addGrand(tMain);
         childrenOf(k).forEach(([ck, cc]) => {
             const tCh = ccCalcTotals(ccGatherLines(ck, st.from, st.to, st.includeDraft));
-            if (tCh.count || st.reportMain) bodyRows += prow(`&nbsp;&nbsp;&nbsp;↳ ${cc.code ? cc.code + ' — ' : ''}${cc.nameAr || ck}`, tCh, '');
+            if (tCh.count || st.reportMain) bodyRows += prow(`&nbsp;&nbsp;&nbsp;↳ ${cc.code ? cc.code + ' — ' : ''}${esc(cc.nameAr || ck)}`, tCh, '');
         });
     });
     if (!st.reportMain) {
@@ -2671,13 +2671,13 @@ window.ccPrintReport = function () {
             const tP = ccCalcTotals(ccGatherLines(k, st.from, st.to, st.includeDraft));
             if (!tP.count) return;
             if (!projHeaderAdded) { bodyRows += `<tr><td colspan="7" style="background:#e8f4fd;font-weight:800;color:#1a5276;text-align:right;padding:7px 10px">🏗️ المشاريع</td></tr>`; projHeaderAdded = true; }
-            bodyRows += prow(`🏗️ ${p.name || k}`, tP, '');
+            bodyRows += prow(`🏗️ ${esc(p.name || k)}`, tP, '');
             addGrand(tP);
         });
     }
     if (!bodyRows) { toast('لا توجد بيانات للطباعة', 'er'); return; }
 
-    const title = st.reportMain ? `تقرير: ${ccDisplayName(st.reportMain)} وفروعه` : 'تقرير مراكز التكلفة الرئيسية والفرعية';
+    const title = st.reportMain ? `تقرير: ${esc(ccDisplayName(st.reportMain))} وفروعه` : 'تقرير مراكز التكلفة الرئيسية والفرعية';
     const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"><meta charset="UTF-8"><title>${title}</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',Arial,sans-serif;direction:rtl;color:#333;font-size:10pt}
 .hdr{background:linear-gradient(135deg,#5b2c6f,#8e44ad);color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
@@ -2758,7 +2758,7 @@ window.openCcForm = function (key = null, parentKey = null) {
         <div style="margin-bottom:10px"><label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px">المركز الرئيسي (اختياري — اتركه فارغاً ليكون رئيسياً)</label>
             <select id="cc-parent" style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;font-family:inherit;background:white">
                 <option value="">— رئيسي —</option>
-                ${mains.map(([k, cc]) => `<option value="${k}" ${selectedParent === k ? 'selected' : ''}>${cc.code ? cc.code + ' — ' : ''}${cc.nameAr || k}</option>`).join('')}
+                ${mains.map(([k, cc]) => `<option value="${k}" ${selectedParent === k ? 'selected' : ''}>${cc.code ? cc.code + ' — ' : ''}${esc(cc.nameAr || k)}</option>`).join('')}
             </select></div>
         <div style="margin-bottom:10px"><label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px">ملاحظات</label>
             <input id="cc-notes" value="${esc(c.notes || '')}" placeholder="اختياري..." style="width:100%;padding:9px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit"></div>
@@ -2960,7 +2960,7 @@ async function createJournalForPMC(pmcData) {
         }
     ];
 
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-PMC-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-PMC-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: pmcData.date || pmcData.month + '-01',
@@ -3301,7 +3301,7 @@ function renderJrnRow(key, entry, idx) {
         ? `<div onclick="event.stopPropagation();drillToSource('${key}')" title="فتح المستند المصدر — ${esc(_src.label)}" style="margin-top:3px;font-size:9px;background:#8e44ad;color:white;padding:2px 6px;border-radius:3px;font-weight:700;display:inline-block;cursor:pointer">🔗 ${esc(_src.label)}</div>`
         : '';
 
-    return `<tr style="background:${rowBg}" data-jrn-key="${key}" data-search="${(entry.number || '').toLowerCase()} ${(entry.description || '').toLowerCase()}">
+    return `<tr style="background:${rowBg}" data-jrn-key="${key}" data-search="${esc((entry.number || '').toLowerCase())} ${esc((entry.description || '').toLowerCase())}">
         <td style="padding:8px;text-align:center"><input type="checkbox" class="jrn-row-check" value="${key}" title="حدّد للتصدير — أو للحذف (مسودات/ملغاة فقط)"></td>
         <td style="padding:8px;font-family:monospace;font-weight:700;color:#1a3a5c">${esc(entry.number || '-')}${sourceBadge}</td>
         <td style="padding:8px">${entry.date || '-'}</td>
@@ -3358,6 +3358,20 @@ function generateJrnNumber(bookCode) {
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return yearPrefix + String(next).padStart(5, '0');
 }
+// 🔒 حجز ذري لرقم القيد عبر runTransaction — تُستخدم عند الحفظ الفعلي فقط (لا عند المعاينة في النموذج)
+// كي لا يتصادم رقمان عند حفظ/ترحيل متزامن من مستخدمين مختلفين. تُبذَر تلقائياً من أعلى رقم محلي
+// موجود فعلاً عند أول استدعاء لكل (دفتر × سنة) — تلائم البيانات المُرحَّلة قبل هذا التعديل.
+async function generateJrnNumberAtomic(bookCode) {
+    const book = jrnBookByCode(bookCode);
+    const year = new Date().getFullYear();
+    const yearPrefix = book.prefix + '-' + year + '-';
+    const seed = Object.values(window.journalEntries || {}).reduce((mx, e) =>
+        (e.number || '').startsWith(yearPrefix) ? Math.max(mx, parseInt((e.number || '').split('-')[2]) || 0) : mx, 0);
+    const counterRef = ref(db, `ledger/counters/jrn/${book.prefix}/${year}`);
+    const result = await runTransaction(counterRef, current => (typeof current === 'number' ? current : seed) + 1);
+    return yearPrefix + String(result.snapshot.val()).padStart(5, '0');
+}
+window.generateJrnNumberAtomic = generateJrnNumberAtomic;
 
 // اختيار الدفتر (نوع اليومية) — يعيد ترقيم القيد الجديد بترقيم الدفتر المستقل
 window.jrnSetBook = function (code) {
@@ -3709,7 +3723,7 @@ async function generateRecJrnForMonth(key, ym) {
     const now = new Date().toISOString();
     const date = `${ym}-${String(t.dayOfMonth || 1).padStart(2, '0')}`;
     const total = (t.lines || []).reduce((s, l) => s + (+l.debit || 0), 0);
-    const num = generateJrnNumber();
+    const num = await generateJrnNumberAtomic();
     const jrnRef = await push(R.jrn, {
         number: num, date, lines: t.lines || [], totalDebit: total, totalCredit: total,
         status: t.status === 'draft' ? 'draft' : 'posted',
@@ -4029,7 +4043,7 @@ async function generateRecSInvForPeriod(key, ym) {
     const now = new Date().toISOString();
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const inv = {
-        number: generateSInvNumber(),
+        number: await generateSInvNumberAtomic(),
         date, dueDate,
         customerId: t.customerId,
         projectId: t.projectId || '',
@@ -4215,7 +4229,7 @@ window.postPOCRecognition = async function (pid) {
         lines.push({ accountCode: deferAcc.code, accountName: deferAcc.nameAr, description: `إيراد مؤجل (فوترة زائدة) - ${esc(p.name)}`, costCenter: pid, projectId: pid, debit: 0, credit: -adj });
     }
     const amt = Math.abs(adj);
-    const num = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-POC-' + Date.now());
+    const num = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-POC-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: num, date: period + '-28', lines, totalDebit: amt, totalCredit: amt,
         status: 'posted', sourceType: 'revenue_recognition', sourceKey: `${pid}_${period}`,
@@ -4357,7 +4371,7 @@ window.postFXRevaluation = async function (code) {
 
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const now = new Date().toISOString();
-    const num = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-FX-' + Date.now());
+    const num = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-FX-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: num, date: period + '-28', lines, totalDebit, totalCredit,
         status: 'posted', sourceType: 'fx_revaluation', sourceKey: `${code}_${period}`,
@@ -4908,7 +4922,7 @@ async function generateAmortForMonth(key, ym) {
         { accountCode: expAcc.code, accountName: expAcc.nameAr, description: `إطفاء ${esc(t.name)} - ${ym}`, costCenter: cc, projectId: pj, debit: monthly, credit: 0 },
         { accountCode: preAcc.code, accountName: preAcc.nameAr, description: `إطفاء مصروف مدفوع مقدماً - ${esc(t.name)}`, costCenter: cc, projectId: pj, debit: 0, credit: monthly }
     ];
-    const num = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AMZ-' + Date.now());
+    const num = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-AMZ-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: num, date: ym + '-28', lines, totalDebit: monthly, totalCredit: monthly,
         status: 'posted', sourceType: 'amortization', sourceKey: key, reference: `AMZ-${ym}`,
@@ -5029,7 +5043,7 @@ window.postEmpExp = async function (key) {
         { accountCode: expAcc.code, accountName: expAcc.nameAr, description: `مصروف ${esc(emp?.name || '')}: ${esc(c.description || '')}`, costCenter: cc, projectId: pj, debit: amt, credit: 0 },
         { accountCode: payAcc.code, accountName: payAcc.nameAr, description: `صرف مصروف موظف: ${esc(emp?.name || '')}`, costCenter: cc, projectId: pj, debit: 0, credit: amt }
     ];
-    const num = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-EXP-' + Date.now());
+    const num = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-EXP-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: num, date: c.date || now.slice(0, 10), lines, totalDebit: amt, totalCredit: amt,
         status: 'posted', sourceType: 'employee_expense', sourceKey: key, reference: `EXP-${(emp?.name || c.empId)}`,
@@ -5202,7 +5216,7 @@ function renderJrnLinesReadonly() {
             <td style="padding:6px;font-size:11px">${esc(line.accountName || '')}</td>
             <td style="padding:6px;font-size:11px;color:#555">${esc(line.description || '—')}</td>
             <td style="padding:6px;text-align:center;font-size:10px">${line.date || '—'}</td>
-            <td style="padding:6px;font-size:10px;color:#5b2c6f">${cc || '—'}</td>
+            <td style="padding:6px;font-size:10px;color:#5b2c6f">${esc(cc) || '—'}</td>
             <td style="padding:6px;text-align:left;direction:ltr;color:#2d6a9f;font-weight:700">${line.debit ? fmt(line.debit) : ''}</td>
             <td style="padding:6px;text-align:left;direction:ltr;color:#c0392b;font-weight:700">${line.credit ? fmt(line.credit) : ''}</td>
             <td style="padding:6px;text-align:center;font-size:9.5px;font-weight:700;color:#b9770e">${taxCell}</td>
@@ -6511,9 +6525,12 @@ window.saveJrnEntry = async function (status) {
     const key = $('mJrnKey').value;
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const now = new Date().toISOString();
+    // 🔒 قيد جديد فقط: حجز رقم ذري عند الحفظ الفعلي (يتجاهل الرقم المعروض في الحقل — كان مجرد معاينة).
+    // قيد قائم يحتفظ برقمه الأصلي دائماً بلا إعادة حجز.
+    const jrnFinalNumber = key ? $('mJrnNumber').value : await generateJrnNumberAtomic(jrnEditorState.book || 'GEN');
 
     const data = {
-        number: $('mJrnNumber').value,
+        number: jrnFinalNumber,
         date: $('mJrnDate').value,
         period: ($('mJrnDate').value || '').slice(0, 7),  // 🔒 شهر القيد (YYYY-MM) — تفرض عليه القواعد قفل الفترة خادمياً
         reference: $('mJrnRef').value.trim(),
@@ -6701,7 +6718,7 @@ window.submitReverseJrn = async function () {
     const lines = (entry.lines || []).map(l => ({ accountCode: l.accountCode, accountName: l.accountName, description: 'عكس: ' + (l.description || ''), date: '', costCenter: l.costCenter || '', projectId: l.projectId || '', debit: parseFloat(l.credit) || 0, credit: parseFloat(l.debit) || 0 }));
     const totalDebit = Math.round(lines.reduce((s, l) => s + l.debit, 0) * 100) / 100;
     const totalCredit = Math.round(lines.reduce((s, l) => s + l.credit, 0) * 100) / 100;
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-REV-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-REV-' + Date.now());
     try {
         const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'عكس قيد ' + (entry.number || ''), description: `قيد عكسي للقيد ${esc(entry.number || '')}${reason ? ' — ' + reason : ''}`, lines, totalDebit, totalCredit, currency: entry.currency || baseCurrencyCode(), exchangeRate: entry.exchangeRate || 1, foreignTotal: entry.foreignTotal || 0, status: 'posted', sourceType: 'reversal', sourceKey: key, reversalOf: key, reversalOfNumber: entry.number || '', projectId: entry.projectId || '', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
         await update(ref(db, 'ledger/journalEntries/' + key), { reversedByKey: jrnRef.key, reversedByNumber: jrnNumber, reversedAt: now, reversedBy: userId });
@@ -6728,7 +6745,7 @@ async function jrnAutoReverseOne(key) {
     });
     const totalDebit = Math.round(lines.reduce((s, l) => s + l.debit, 0) * 100) / 100;
     const totalCredit = Math.round(lines.reduce((s, l) => s + l.credit, 0) * 100) / 100;
-    const jrnNumber = generateJrnNumber(entry.journalBook || 'GEN');
+    const jrnNumber = await generateJrnNumberAtomic(entry.journalBook || 'GEN');
     try {
         const jrnRef = await push(R.jrn, { number: jrnNumber, date, reference: 'عكس تلقائي ' + (entry.number || ''), description: `قيد عكسي تلقائي للقيد ${esc(entry.number || '')}`, lines, totalDebit, totalCredit, currency: entry.currency || baseCurrencyCode(), exchangeRate: entry.exchangeRate || 1, journalBook: entry.journalBook || 'GEN', status: 'posted', sourceType: 'reversal', sourceKey: key, reversalOf: key, reversalOfNumber: entry.number || '', autoGenerated: true, createdAt: now, createdBy: userId, postedAt: now, postedBy: userId });
         await update(ref(db, 'ledger/journalEntries/' + key), { reversedByKey: jrnRef.key, reversedByNumber: jrnNumber, reversedAt: now, reversedBy: userId, autoReversed: true });
@@ -6977,7 +6994,7 @@ window.viewJrnEntry = function (key) {
                     <td>${esc(l.accountName)}</td>
                     <td>${esc(l.description || '—')}</td>
                     <td style="text-align:center;font-size:10px">${l.date ? `<strong>${l.date}</strong>` : (entry.date || '—')}</td>
-                    <td style="background:#f4ecf7;font-size:10px">${ccProjLabel(l, entry.projectId)}</td>
+                    <td style="background:#f4ecf7;font-size:10px">${esc(ccProjLabel(l, entry.projectId))}</td>
                     <td style="text-align:left;color:#2d6a9f;font-weight:700">${l.debit ? fmt(l.debit) : '—'}</td>
                     <td style="text-align:left;color:#c0392b;font-weight:700">${l.credit ? fmt(l.credit) : '—'}</td>
                 </tr>
@@ -8069,16 +8086,16 @@ function renderPMCCardsView(filtered, grandTotal) {
 
         // وسوم المستوى الأول
         const l1Tags = Object.entries(g.byLevel1).sort((a,b)=>b[1]-a[1]).slice(0,5)
-            .map(([l1,amt]) => `<span style="background:#e8f4fd;color:#1a3a5c;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${l1} · ${fmt(amt)}</span>`).join('');
+            .map(([l1,amt]) => `<span style="background:#e8f4fd;color:#1a3a5c;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${esc(l1)} · ${fmt(amt)}</span>`).join('');
 
         // جدول التفاصيل
         const detailRows = g.items.map(([key, c], i) => {
             const info = getPMCCategoryInfo(c.category);
-            const levels = [c.level1,c.level2,c.level3,c.level4,c.level5].filter(Boolean).join(' › ');
+            const levels = [c.level1,c.level2,c.level3,c.level4,c.level5].filter(Boolean).map(esc).join(' › ');
             return `<tr style="${i%2?'background:#fafbfc':'background:white'}">
                 <td style="padding:7px 10px;font-size:11px;color:#444">${levels||'—'}</td>
-                <td style="padding:7px 10px"><span style="background:${info.bg};color:${info.color};padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700">${c.customCategory||info.ar}</span></td>
-                <td style="padding:7px 10px;font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.description||''}">${c.description||'—'}</td>
+                <td style="padding:7px 10px"><span style="background:${info.bg};color:${info.color};padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700">${c.customCategory?esc(c.customCategory):info.ar}</span></td>
+                <td style="padding:7px 10px;font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.description||'')}">${esc(c.description||'') || '—'}</td>
                 <td style="padding:7px 10px;text-align:center;font-weight:900;color:#e67e22;font-size:12px">${fmt(c.amount)}</td>
                 <td style="padding:7px 10px;text-align:center">
                     <button onclick="editPMC('${key}')" style="background:#2d6a9f;color:white;border:none;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;margin-left:2px">✏️</button>
@@ -8208,11 +8225,11 @@ window.pmcPrintCards = function() {
         // سجلات التفاصيل
         const detailRows = g.items.map(([, c], i) => {
             const info = getPMCCategoryInfo(c.category);
-            const levels = [c.level1,c.level2,c.level3,c.level4,c.level5].filter(Boolean).join(' › ');
+            const levels = [c.level1,c.level2,c.level3,c.level4,c.level5].filter(Boolean).map(esc).join(' › ');
             return `<tr class="${i%2?'even':''}">
                 <td>${levels||'—'}</td>
-                <td><span class="badge" style="background:${info.bg};color:${info.color}">${c.customCategory||info.ar}</span></td>
-                <td>${c.description||'—'}</td>
+                <td><span class="badge" style="background:${info.bg};color:${info.color}">${c.customCategory?esc(c.customCategory):info.ar}</span></td>
+                <td>${esc(c.description||'') || '—'}</td>
                 <td class="num">${f(c.amount)}</td>
             </tr>`;
         }).join('');
@@ -9224,7 +9241,7 @@ function renderPMCTreeView(filtered, grandTotal) {
                         const label = c.description || c.reference || '—';
                         html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 14px;border-bottom:1px solid #f0f2f5;transition:background .15s;gap:8px" onmouseover="this.style.background='#f8fbff'" onmouseout="this.style.background=''">
                             <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden">
-                                <span style="font-size:12px;color:#444;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${label.replace(/"/g,'&quot;')}">${label}</span>
+                                <span style="font-size:12px;color:#444;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${esc(label)}">${esc(label)}</span>
                                 <span style="background:${info.bg};color:${info.color};padding:1px 7px;border-radius:6px;font-size:10px;white-space:nowrap;flex-shrink:0">${info.ar}</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -9238,7 +9255,7 @@ function renderPMCTreeView(filtered, grandTotal) {
                     const l3Total = sumItems(items);
                     html += `<div style="margin:4px 0">
                         <div style="background:#f0f9f0;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;border-right:3px solid #27ae60">
-                            <span style="font-size:11px;font-weight:700;color:#27ae60">📋 ${l3key}</span>
+                            <span style="font-size:11px;font-weight:700;color:#27ae60">📋 ${esc(l3key)}</span>
                             <span style="font-size:11px;color:#27ae60;font-weight:800">${fmt(l3Total)} ر</span>
                         </div>`;
                     items.forEach(([key,c]) => {
@@ -9246,7 +9263,7 @@ function renderPMCTreeView(filtered, grandTotal) {
                         const label = c.description || c.reference || '—';
                         html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 14px 5px 28px;border-bottom:1px solid #f0f2f5;transition:background .15s;gap:8px" onmouseover="this.style.background='#f8fbff'" onmouseout="this.style.background=''">
                             <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden">
-                                <span style="font-size:11px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${label.replace(/"/g,'&quot;')}">${label}</span>
+                                <span style="font-size:11px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${esc(label)}">${esc(label)}</span>
                                 <span style="background:${info.bg};color:${info.color};padding:1px 6px;border-radius:5px;font-size:10px;white-space:nowrap;flex-shrink:0">${info.ar}</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -9409,7 +9426,7 @@ window.pmcPrintTree = function() {
                                         rows += `<tr class="${i%2?'even':'odd'} item">
                                             <td class="indent"></td><td class="indent"></td>
                                             <td colspan="2"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                                                <span style="color:#444;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
+                                                <span style="color:#444;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lbl)}</span>
                                                 <span style="font-size:10px;color:#888;white-space:nowrap;flex-shrink:0">${info.ar}</span>
                                             </div></td>
                                             <td class="num">${f(parseFloat(c.amount)||0)}</td>
@@ -9419,7 +9436,7 @@ window.pmcPrintTree = function() {
                                     const l3Total = sumItems(items);
                                     rows += `<tr class="l3header">
                                         <td class="indent"></td><td class="indent"></td>
-                                        <td colspan="2">📋 ${l3key}</td>
+                                        <td colspan="2">📋 ${esc(l3key)}</td>
                                         <td class="num">${f(l3Total)}</td>
                                     </tr>`;
                                     items.forEach(([,c], i) => {
@@ -9428,7 +9445,7 @@ window.pmcPrintTree = function() {
                                         rows += `<tr class="${i%2?'even':'odd'} item">
                                             <td class="indent"></td><td class="indent"></td><td class="indent"></td>
                                             <td><div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                                                <span style="color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
+                                                <span style="color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lbl)}</span>
                                                 <span style="font-size:10px;color:#888;white-space:nowrap;flex-shrink:0">${info.ar}</span>
                                             </div></td>
                                             <td class="num">${f(parseFloat(c.amount)||0)}</td>
@@ -10252,7 +10269,7 @@ window.savePMC = async function (addAnother) {
             toast('✅ تم التحديث', 'ok');
         } else {
             data.createdAt = now; data.createdBy = userId;
-            await push(R.pmc, data);
+            const newRef = await push(R.pmc, data);
             toast('✅ تم إضافة التكلفة', 'ok');
             // 🆕 إنشاء قيد محاسبي تلقائي
             const jrnResult = await createJournalForPMC(data);
@@ -11207,7 +11224,7 @@ function renderGLAccountSelector(container) {
                         ${detailAccounts.map(([key, a], i) => {
                             const type = COA_TYPES[a.type] || { ar: '—', color: '#888', bg: '#f0f5fa' };
                             const movements = movementCounts[a.code] || 0;
-                            return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}" data-search="${(a.code || '').toLowerCase()} ${(a.nameAr || '').toLowerCase()} ${(a.nameEn || '').toLowerCase()}">
+                            return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}" data-search="${esc((a.code || '').toLowerCase())} ${esc((a.nameAr || '').toLowerCase())} ${esc((a.nameEn || '').toLowerCase())}">
                                 <td style="padding:8px;font-family:monospace;font-weight:800;color:${type.color}">${esc(a.code)}</td>
                                 <td style="padding:8px;font-weight:600">${esc(a.nameAr)}
                                     ${a.nameEn ? `<div style="font-size:10px;color:#888;direction:ltr">${esc(a.nameEn)}</div>` : ''}
@@ -11484,9 +11501,9 @@ function renderGLReport(container) {
                                 <td style="padding:7px;font-family:monospace;font-weight:700;color:#2d6a9f">${esc(m.number || '-')} ${statusBadge}</td>
                                 <td style="padding:7px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.description || '')}">
                                     ${esc(m.description || '—')}
-                                    ${m.lineDescription && m.lineDescription !== m.description ? `<div style="font-size:10px;color:#888">↳ ${m.lineDescription}</div>` : ''}
+                                    ${m.lineDescription && m.lineDescription !== m.description ? `<div style="font-size:10px;color:#888">↳ ${esc(m.lineDescription)}</div>` : ''}
                                 </td>
-                                <td style="padding:7px;font-size:11px;color:#666">${ccName}</td>
+                                <td style="padding:7px;font-size:11px;color:#666">${esc(ccName)}</td>
                                 <td style="padding:7px;text-align:center;color:#27ae60;font-weight:700">${m.debit ? fmt(m.debit) : '—'}</td>
                                 <td style="padding:7px;text-align:center;color:#c0392b;font-weight:700">${m.credit ? fmt(m.credit) : '—'}</td>
                                 <td style="padding:7px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(Math.abs(m.balance))} <span style="font-size:9px;color:${m.balance >= 0 ? '#27ae60' : '#c0392b'}">${m.balance >= 0 ? 'م' : 'د'}</span></td>
@@ -11726,6 +11743,74 @@ let tbState = {
     projectId: ''              // فلتر المشروع (منفصل عن مركز التكلفة)
 };
 
+// 🧮 دالة حساب موحّدة لميزان المراجعة — تُستخدم من العرض والطباعة والتصدير الثلاثة معاً
+// (كانت كل واحدة تُعيد كتابة نفس منطق الحساب بشكل مستقل — مصدر تباعد محتمل وعبء أداء مكرر)
+function tbCalcBalances() {
+    const accounts = window.chartOfAccounts || {};
+    const journalEntries = window.journalEntries || {};
+    const balances = {}; // { accountCode: { debit, credit, opening, ... } }
+
+    // 1. الأرصدة الافتتاحية لكل حساب
+    Object.entries(accounts).forEach(([key, a]) => {
+        if (a.nature === 'header') return; // الحسابات الرئيسية لا تحوي حركات مباشرة
+        balances[a.code] = { key, account: a, opening: parseFloat(a.openingBalance) || 0, debit: 0, credit: 0, count: 0 };
+    });
+
+    // 2. جمع الحركات من القيود
+    Object.values(journalEntries).forEach(e => {
+        if (!tbState.includeStatuses.includes(e.status || 'draft')) return;
+        const isOpen = fsIsOpeningEntry(e); // 🟢 القيد الافتتاحي = رصيد أول المدة دائماً (لا حركة)
+        if (tbState.toDate && (e.date || '') > tbState.toDate) return;
+        if (!isOpen && tbState.fromDate && (e.date || '') < tbState.fromDate) return;
+        (e.lines || []).forEach(line => {
+            if (!line.accountCode) return;
+            if (tbState.costCenter && line.costCenter !== tbState.costCenter) return;
+            if (tbState.projectId && !ccLineMatchesProject(line, tbState.projectId)) return;
+            const b = balances[line.accountCode];
+            if (!b) return; // حساب رئيسي أو غير موجود
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            if (isOpen) { b.opening += debit - credit; }
+            else { b.debit += debit; b.credit += credit; b.count++; }
+        });
+    });
+
+    // 3. الرصيد الختامي = افتتاحي + مدين - دائن. الأصول/المصروفات طبيعتها مدينة، والباقي دائنة —
+    //    نفس صيغة finalDebit/finalCredit تُطبَّق على الحالتين (رصيد موجب=مدين، سالب=دائن)؛
+    //    الشذوذ (isAnomaly) هو ما يُميّز الحساب الذي انعكست طبيعته فعلياً.
+    Object.values(balances).forEach(b => {
+        b.netBalance = b.opening + b.debit - b.credit;
+        const naturallyDebit = ['asset', 'expense'].includes(b.account.type);
+        b.finalDebit = b.netBalance > 0 ? b.netBalance : 0;
+        b.finalCredit = b.netBalance < 0 ? Math.abs(b.netBalance) : 0;
+        b.isAnomaly = (naturallyDebit && b.netBalance < 0) || (!naturallyDebit && b.netBalance > 0);
+    });
+
+    // 4. تصفية الحسابات بدون حركة (إذا showZero = false)
+    let displayBalances = Object.values(balances);
+    if (!tbState.showZero) displayBalances = displayBalances.filter(b => b.opening !== 0 || b.debit !== 0 || b.credit !== 0);
+
+    // 5. الإجماليات
+    const totals = displayBalances.reduce((acc, b) => {
+        acc.opening += b.opening; acc.debit += b.debit; acc.credit += b.credit;
+        acc.finalDebit += b.finalDebit; acc.finalCredit += b.finalCredit;
+        return acc;
+    }, { opening: 0, debit: 0, credit: 0, finalDebit: 0, finalCredit: 0 });
+
+    // 6. التوازن + إحصائيات (تُستخدم من شاشة العرض فقط، لكن حسابها زهيد التكلفة فتبقى هنا موحّدة)
+    const debitCreditBalance = Math.abs(totals.debit - totals.credit) < 0.01;
+    const finalBalance = Math.abs(totals.finalDebit - totals.finalCredit) < 0.01;
+    const stats = {
+        totalAccounts: displayBalances.length,
+        withMovements: displayBalances.filter(b => b.count > 0).length,
+        anomalies: displayBalances.filter(b => b.isAnomaly).length,
+        byType: { asset: 0, liability: 0, equity: 0, revenue: 0, expense: 0 }
+    };
+    displayBalances.forEach(b => { if (stats.byType[b.account.type] !== undefined) stats.byType[b.account.type] += b.finalDebit - b.finalCredit; });
+
+    return { balances, displayBalances, totals, debitCreditBalance, finalBalance, stats };
+}
+
 // ── دالة العرض الرئيسية ─────────────────
 window.renderTrialBalance = function () {
     const container = $('pg-trialbalance'); if (!container) return;
@@ -11753,101 +11838,8 @@ window.renderTrialBalance = function () {
         tbState.toDate = new Date().toISOString().slice(0, 10);
     }
 
-    // ── حساب أرصدة كل الحسابات ─────────────
-    const journalEntries = window.journalEntries || {};
-    const balances = {}; // { accountCode: { debit, credit, opening } }
-
-    // 1. الأرصدة الافتتاحية لكل حساب
-    accountsArr.forEach(([key, a]) => {
-        if (a.nature === 'header') return; // الحسابات الرئيسية لا تحوي حركات مباشرة
-        balances[a.code] = {
-            key,
-            account: a,
-            opening: parseFloat(a.openingBalance) || 0,
-            debit: 0,
-            credit: 0,
-            count: 0
-        };
-    });
-
-    // 2. جمع الحركات من القيود
-    Object.values(journalEntries).forEach(e => {
-        if (!tbState.includeStatuses.includes(e.status || 'draft')) return;
-        const isOpen = fsIsOpeningEntry(e); // 🟢 القيد الافتتاحي = رصيد أول المدة دائماً (لا حركة)
-        if (tbState.toDate && (e.date || '') > tbState.toDate) return;
-        if (!isOpen && tbState.fromDate && (e.date || '') < tbState.fromDate) return;
-
-        (e.lines || []).forEach(line => {
-            if (!line.accountCode) return;
-            // تطبيق فلتر مركز التكلفة
-            if (tbState.costCenter && line.costCenter !== tbState.costCenter) return;
-            if (tbState.projectId && !ccLineMatchesProject(line, tbState.projectId)) return;
-            if (!balances[line.accountCode]) return; // حساب رئيسي أو غير موجود
-
-            const debit = parseFloat(line.debit) || 0;
-            const credit = parseFloat(line.credit) || 0;
-            if (isOpen) { balances[line.accountCode].opening += debit - credit; }
-            else {
-                balances[line.accountCode].debit += debit;
-                balances[line.accountCode].credit += credit;
-                balances[line.accountCode].count++;
-            }
-        });
-    });
-
-    // 3. حساب الرصيد الختامي = افتتاحي + مدين - دائن
-    Object.values(balances).forEach(b => {
-        b.netBalance = b.opening + b.debit - b.credit;
-        // الرصيد النهائي للعرض: إما مدين (موجب) أو دائن (موجب)
-        // الأصول والمصروفات: طبيعتها مدينة (Net موجب = مدين)
-        // الخصوم وحقوق الملكية والإيرادات: طبيعتها دائنة (Net سالب = دائن)
-        const naturallyDebit = ['asset', 'expense'].includes(b.account.type);
-        if (naturallyDebit) {
-            // الرصيد الموجب = مدين، السالب = دائن (شاذ)
-            b.finalDebit = b.netBalance > 0 ? b.netBalance : 0;
-            b.finalCredit = b.netBalance < 0 ? Math.abs(b.netBalance) : 0;
-        } else {
-            // الرصيد السالب = دائن، الموجب = مدين (شاذ)
-            b.finalDebit = b.netBalance > 0 ? b.netBalance : 0;
-            b.finalCredit = b.netBalance < 0 ? Math.abs(b.netBalance) : 0;
-        }
-        b.isAnomaly = (naturallyDebit && b.netBalance < 0) || (!naturallyDebit && b.netBalance > 0);
-    });
-
-    // 4. تصفية الحسابات بدون حركة (إذا showZero = false)
-    let displayBalances = Object.values(balances);
-    if (!tbState.showZero) {
-        displayBalances = displayBalances.filter(b =>
-            b.opening !== 0 || b.debit !== 0 || b.credit !== 0
-        );
-    }
-
-    // 5. الإجماليات
-    const totals = displayBalances.reduce((acc, b) => {
-        acc.opening += b.opening;
-        acc.debit += b.debit;
-        acc.credit += b.credit;
-        acc.finalDebit += b.finalDebit;
-        acc.finalCredit += b.finalCredit;
-        return acc;
-    }, { opening: 0, debit: 0, credit: 0, finalDebit: 0, finalCredit: 0 });
-
-    // 6. التحقق من التوازن
-    const debitCreditBalance = Math.abs(totals.debit - totals.credit) < 0.01;
-    const finalBalance = Math.abs(totals.finalDebit - totals.finalCredit) < 0.01;
-
-    // 7. إحصائيات
-    const stats = {
-        totalAccounts: displayBalances.length,
-        withMovements: displayBalances.filter(b => b.count > 0).length,
-        anomalies: displayBalances.filter(b => b.isAnomaly).length,
-        byType: { asset: 0, liability: 0, equity: 0, revenue: 0, expense: 0 }
-    };
-    displayBalances.forEach(b => {
-        if (stats.byType[b.account.type] !== undefined) {
-            stats.byType[b.account.type] += b.finalDebit - b.finalCredit;
-        }
-    });
+    // ── حساب أرصدة كل الحسابات (دالة موحّدة تشاركها الطباعة والتصدير أيضاً) ─────────────
+    const { displayBalances, totals, finalBalance, stats } = tbCalcBalances();
 
     container.innerHTML = `
         <!-- Hero -->
@@ -12053,7 +12045,7 @@ function renderTBGrouped(balances) {
         items.forEach((b, i) => {
             const a = b.account;
             const anomalyMark = b.isAnomaly ? ' <span style="background:#f39c12;color:white;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700" title="رصيد بعكس طبيعة الحساب">⚠️ شاذ</span>' : '';
-            html += `<tr style="${i % 2 ? 'background:#fafbfc' : ''}" data-search="${(a.code || '').toLowerCase()} ${(a.nameAr || '').toLowerCase()}">
+            html += `<tr style="${i % 2 ? 'background:#fafbfc' : ''}" data-search="${esc((a.code || '').toLowerCase())} ${esc((a.nameAr || '').toLowerCase())}">
                 <td style="padding:7px;font-family:monospace;font-weight:700;color:${typeInfo.color}">${esc(a.code)}</td>
                 <td style="padding:7px;font-weight:600">
                     <span style="cursor:pointer;color:#2d6a9f;text-decoration:underline" onclick="openGLForAccount('${a.code}');nav('generalledger')" title="عرض دفتر الأستاذ">${esc(a.nameAr)}</span>
@@ -12128,41 +12120,8 @@ window.setTBDateRange = function (range) {
 
 // ── طباعة ─────────────────
 window.printTrialBalance = function () {
-    const accounts = window.chartOfAccounts || {};
-    const journalEntries = window.journalEntries || {};
-
-    // إعادة الحسابات (نفس منطق العرض)
-    const balances = {};
-    Object.entries(accounts).forEach(([key, a]) => {
-        if (a.nature === 'header') return;
-        balances[a.code] = { account: a, opening: parseFloat(a.openingBalance) || 0, debit: 0, credit: 0 };
-    });
-    Object.values(journalEntries).forEach(e => {
-        if (!tbState.includeStatuses.includes(e.status || 'draft')) return;
-        const isOpen = fsIsOpeningEntry(e); // 🟢 القيد الافتتاحي = رصيد أول المدة دائماً
-        if (tbState.toDate && (e.date || '') > tbState.toDate) return;
-        if (!isOpen && tbState.fromDate && (e.date || '') < tbState.fromDate) return;
-        (e.lines || []).forEach(line => {
-            if (!line.accountCode || !balances[line.accountCode]) return;
-            if (tbState.costCenter && line.costCenter !== tbState.costCenter) return;
-            if (tbState.projectId && !ccLineMatchesProject(line, tbState.projectId)) return;
-            const debit = parseFloat(line.debit) || 0;
-            const credit = parseFloat(line.credit) || 0;
-            if (isOpen) { balances[line.accountCode].opening += debit - credit; }
-            else { balances[line.accountCode].debit += debit; balances[line.accountCode].credit += credit; }
-        });
-    });
-    Object.values(balances).forEach(b => {
-        b.netBalance = b.opening + b.debit - b.credit;
-        b.finalDebit = b.netBalance > 0 ? b.netBalance : 0;
-        b.finalCredit = b.netBalance < 0 ? Math.abs(b.netBalance) : 0;
-    });
-    let displayBalances = Object.values(balances);
-    if (!tbState.showZero) displayBalances = displayBalances.filter(b => b.opening !== 0 || b.debit !== 0 || b.credit !== 0);
-    const totals = displayBalances.reduce((a, b) => ({
-        opening: a.opening + b.opening, debit: a.debit + b.debit, credit: a.credit + b.credit,
-        finalDebit: a.finalDebit + b.finalDebit, finalCredit: a.finalCredit + b.finalCredit
-    }), { opening: 0, debit: 0, credit: 0, finalDebit: 0, finalCredit: 0 });
+    // نفس دالة الحساب المستخدمة في شاشة العرض والتصدير — بدل نسخة مستقلة كانت قد تنحرف عنها
+    const { displayBalances, totals } = tbCalcBalances();
 
     const grouped = { asset: [], liability: [], equity: [], revenue: [], expense: [] };
     displayBalances.forEach(b => { if (grouped[b.account.type]) grouped[b.account.type].push(b); });
@@ -12250,36 +12209,11 @@ window.printTrialBalance = function () {
 
 // ── تصدير Excel ─────────────────
 window.exportTrialBalanceExcel = function () {
-    const accounts = window.chartOfAccounts || {};
-    const journalEntries = window.journalEntries || {};
-
-    const balances = {};
-    Object.entries(accounts).forEach(([key, a]) => {
-        if (a.nature === 'header') return;
-        balances[a.code] = { account: a, opening: parseFloat(a.openingBalance) || 0, debit: 0, credit: 0 };
-    });
-    Object.values(journalEntries).forEach(e => {
-        if (!tbState.includeStatuses.includes(e.status || 'draft')) return;
-        const isOpen = fsIsOpeningEntry(e); // 🟢 القيد الافتتاحي = رصيد أول المدة دائماً
-        if (tbState.toDate && (e.date || '') > tbState.toDate) return;
-        if (!isOpen && tbState.fromDate && (e.date || '') < tbState.fromDate) return;
-        (e.lines || []).forEach(line => {
-            if (!line.accountCode || !balances[line.accountCode]) return;
-            if (tbState.costCenter && line.costCenter !== tbState.costCenter) return;
-            if (tbState.projectId && !ccLineMatchesProject(line, tbState.projectId)) return;
-            const debit = parseFloat(line.debit) || 0;
-            const credit = parseFloat(line.credit) || 0;
-            if (isOpen) { balances[line.accountCode].opening += debit - credit; }
-            else { balances[line.accountCode].debit += debit; balances[line.accountCode].credit += credit; }
-        });
-    });
+    // نفس دالة الحساب المستخدمة في شاشة العرض والطباعة — بدل نسخة مستقلة كانت قد تنحرف عنها
+    const { displayBalances } = tbCalcBalances();
 
     const rows = [];
-    Object.values(balances).forEach(b => {
-        if (!tbState.showZero && b.opening === 0 && b.debit === 0 && b.credit === 0) return;
-        const net = b.opening + b.debit - b.credit;
-        const finalDebit = net > 0 ? net : 0;
-        const finalCredit = net < 0 ? Math.abs(net) : 0;
+    displayBalances.forEach(b => {
         const type = COA_TYPES[b.account.type] || { ar: '—' };
         rows.push({
             'الرمز': b.account.code,
@@ -12288,8 +12222,8 @@ window.exportTrialBalanceExcel = function () {
             'الرصيد الافتتاحي': b.opening,
             'حركات مدين': b.debit,
             'حركات دائن': b.credit,
-            'الرصيد الختامي - مدين': finalDebit,
-            'الرصيد الختامي - دائن': finalCredit
+            'الرصيد الختامي - مدين': b.finalDebit,
+            'الرصيد الختامي - دائن': b.finalCredit
         });
     });
 
@@ -12613,7 +12547,7 @@ function renderCustomerRow(key, c, idx, canManage) {
            ${cr.status === 'over' ? '<div style="font-size:9px;color:#c0392b;font-weight:800;margin-top:2px">🚫 تجاوز الحد</div>' : cr.status === 'warning' ? `<div style="font-size:9px;color:#f39c12;font-weight:700;margin-top:2px">${cr.pct}%</div>` : ''}`
         : '<span style="color:#ccc;font-size:11px">بلا حد</span>';
 
-    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(c.code || '').toLowerCase()} ${(c.nameAr || '').toLowerCase()} ${(c.nameEn || '').toLowerCase()} ${(c.phone || '').toLowerCase()} ${(c.vatNumber || '').toLowerCase()} ${(c.salespersonName || '').toLowerCase()}">
+    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${esc((c.code || '').toLowerCase())} ${esc((c.nameAr || '').toLowerCase())} ${esc((c.nameEn || '').toLowerCase())} ${esc((c.phone || '').toLowerCase())} ${esc((c.vatNumber || '').toLowerCase())} ${esc((c.salespersonName || '').toLowerCase())}">
         <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(c.code || '—')}</td>
         <td style="padding:8px"><span style="background:${t.color}22;color:${t.color};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${esc(t.label)}</span></td>
         <td style="padding:8px;font-weight:700">
@@ -13127,7 +13061,7 @@ function cust360Body(key, tab, c, bal, kp, cr) {
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
                 ${contacts.length ? contacts.map(([ck, ct]) => `<div style="display:flex;align-items:center;gap:10px;background:#f8fafc;border-radius:9px;padding:9px 12px">
                     <div style="width:34px;height:34px;border-radius:50%;background:#0e6251;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">${(ct.name || '?').charAt(0)}</div>
-                    <div style="flex:1"><div style="font-weight:700;color:#1a3a5c;font-size:13px">${(ct.name || '').replace(/</g, '&lt;')} ${ct.role ? `<span style="font-size:10px;color:#888;font-weight:400">· ${(ct.role || '').replace(/</g, '&lt;')}</span>` : ''}</div><div style="font-size:11px;color:#666;direction:ltr;text-align:right">${ct.phone ? '📞 ' + ct.phone : ''} ${ct.email ? '· ✉️ ' + ct.email : ''}</div></div>
+                    <div style="flex:1"><div style="font-weight:700;color:#1a3a5c;font-size:13px">${esc(ct.name || '')} ${ct.role ? `<span style="font-size:10px;color:#888;font-weight:400">· ${esc(ct.role || '')}</span>` : ''}</div><div style="font-size:11px;color:#666;direction:ltr;text-align:right">${ct.phone ? '📞 ' + esc(ct.phone) : ''} ${ct.email ? '· ✉️ ' + esc(ct.email) : ''}</div></div>
                     <button class="btn" onclick="cust360DelContact('${ck}')" style="background:#fdedec;color:#c0392b;padding:3px 8px;font-size:11px">🗑️</button>
                 </div>`).join('') : '<div style="color:#999;font-size:12px;text-align:center;padding:14px">لا توجد جهات اتصال — أضف جهة أدناه</div>'}
             </div>
@@ -13150,7 +13084,7 @@ function cust360Body(key, tab, c, bal, kp, cr) {
                 <button class="btn" onclick="cust360AddActivity()" style="background:#0e6251;color:#fff;padding:8px 16px;font-weight:800">إضافة</button>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px">
-                ${acts.length ? acts.map(([ak, a]) => `<div style="display:flex;gap:10px;background:#f8fafc;border-radius:9px;padding:9px 12px"><div style="font-size:18px">${typeIcon[a.type] || '📝'}</div><div style="flex:1"><div style="font-size:12px;color:#1a3a5c">${(a.text || '').replace(/</g, '&lt;')}</div><div style="font-size:10px;color:#999;margin-top:2px">${(a.byName || '')} · ${a.at ? new Date(a.at).toLocaleString('ar-EG') : ''}</div></div><button class="btn" onclick="cust360DelActivity('${ak}')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px">🗑️</button></div>`).join('') : '<div style="color:#999;font-size:12px;text-align:center;padding:14px">لا يوجد نشاط مسجّل بعد</div>'}
+                ${acts.length ? acts.map(([ak, a]) => `<div style="display:flex;gap:10px;background:#f8fafc;border-radius:9px;padding:9px 12px"><div style="font-size:18px">${typeIcon[a.type] || '📝'}</div><div style="flex:1"><div style="font-size:12px;color:#1a3a5c">${esc(a.text || '')}</div><div style="font-size:10px;color:#999;margin-top:2px">${esc(a.byName || '')} · ${a.at ? new Date(a.at).toLocaleString('ar-EG') : ''}</div></div><button class="btn" onclick="cust360DelActivity('${ak}')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px">🗑️</button></div>`).join('') : '<div style="color:#999;font-size:12px;text-align:center;padding:14px">لا يوجد نشاط مسجّل بعد</div>'}
             </div>
         </div>`;
     }
@@ -14006,6 +13940,17 @@ function generateSInvNumber() {
     return yearPrefix + String(next).padStart(5, '0');
 }
 window.generateSInvNumber = generateSInvNumber;
+// 🔒 حجز ذري لرقم فاتورة المبيعات عند الحفظ الفعلي (انظر شرح generateJrnNumberAtomic)
+async function generateSInvNumberAtomic() {
+    const year = new Date().getFullYear();
+    const yearPrefix = 'INV-' + year + '-';
+    const seed = Object.values(window.salesInvoices || {}).reduce((mx, i) =>
+        (i.number || '').startsWith(yearPrefix) ? Math.max(mx, parseInt((i.number || '').split('-')[2]) || 0) : mx, 0);
+    const counterRef = ref(db, `ledger/counters/sinv/${year}`);
+    const result = await runTransaction(counterRef, current => (typeof current === 'number' ? current : seed) + 1);
+    return yearPrefix + String(result.snapshot.val()).padStart(5, '0');
+}
+window.generateSInvNumberAtomic = generateSInvNumberAtomic;
 window.createJournalForSInv = createJournalForSInv;
 
 // ══════════ 💰 الدفعات المقدمة من العملاء (تُسترد على الفواتير) ══════════
@@ -14121,7 +14066,7 @@ window.saveCustomerAdvance = async function () {
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
         const now = new Date().toISOString();
-        const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-ADV-' + Date.now());
+        const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-ADV-' + Date.now());
         const desc = `دفعة مقدمة من العميل ${esc(customer?.nameAr || '')}${note ? ' — ' + esc(note) : ''}`;
         const lines = [
             { accountCode: bankAcc.code, accountName: bankAcc.nameAr, description: desc, costCenter: projectId, debit: split.gross, credit: 0 },
@@ -14671,7 +14616,7 @@ function renderSInvRow(key, inv, idx) {
     const canDeletePosted = inv.status === 'posted' && (isAdmin || isFinanceMgr);
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-key="${key}"
-        data-search="${(inv.number || '').toLowerCase()} ${(customer?.nameAr || '').toLowerCase()} ${(inv.subject || '').toLowerCase()}"
+        data-search="${esc((inv.number || '').toLowerCase())} ${esc((customer?.nameAr || '').toLowerCase())} ${esc((inv.subject || '').toLowerCase())}"
         data-date="${inv.date || ''}"
         data-due="${inv.dueDate || ''}"
         data-status="${inv.status || ''}"
@@ -14684,7 +14629,7 @@ function renderSInvRow(key, inv, idx) {
             <div style="font-weight:700">${esc(customer?.nameAr || '—')}</div>
             ${customer?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${esc(customer.code)}</div>` : ''}
         </td>
-        <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.subject || ''}">${inv.subject || '—'}</td>
+        <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(inv.subject || '')}">${esc(inv.subject || '') || '—'}</td>
         <td style="padding:8px;color:${isOverdue ? '#c0392b' : '#666'};font-weight:${isOverdue ? '700' : 'normal'}">${inv.dueDate || '-'}</td>
         <td style="padding:8px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(grand)}${sinvDue(inv) < grand - 0.01 ? `<div style="font-size:9px;color:#16a085;font-weight:700" title="صافي المستحق بعد الاحتجاز واسترداد الدفعة">صافي: ${fmt(sinvDue(inv))}</div>` : ''}</td>
         <td style="padding:8px;text-align:center;color:${isPaid ? '#27ae60' : '#666'};font-weight:700">${fmt(paid)}</td>
@@ -15719,9 +15664,11 @@ window.saveSInv = async function (status) {
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const now = new Date().toISOString();
     const sinvAttachments = sinvParseAttach(($('mSInvAttach') || {}).value || '');
+    // 🔒 فاتورة جديدة فقط: حجز رقم ذري عند الحفظ الفعلي؛ الفاتورة القائمة تحتفظ برقمها الأصلي
+    const sinvFinalNumber = key ? $('mSInvNumber').value : await generateSInvNumberAtomic();
 
     const data = {
-        number: $('mSInvNumber').value,
+        number: sinvFinalNumber,
         attachments: sinvAttachments.length ? sinvAttachments : null,
         needsApproval: needsApproval ? true : null,
         approvalRequestedBy: needsApproval ? userId : ($('mSInvKey').value && window.salesInvoices?.[$('mSInvKey').value]?.approvalRequestedBy) || null,
@@ -15801,14 +15748,16 @@ window.saveSInv = async function (status) {
             const existingAudit = (typeof window.salesInvoices?.[key]?.auditLog === 'object' && window.salesInvoices[key].auditLog) || {};
             const auditKey = 'edit_' + Date.now();
 
-            // 1. تحديث بيانات الفاتورة (يبقى status = posted)
-            const updateData = { ...data, status: 'posted' };
-            updateData.paidAmount = parseFloat(original.paidAmount) || 0; // احتفظ بالمدفوع
-            updateData.lastEditedAt = now;
-            updateData.lastEditedBy = userId;
-            updateData.auditLog = { ...existingAudit, [auditKey]: auditEntry };
+            // 🔒 1. أنشئ القيد الجديد أولاً — القيد القديم والفاتورة يبقيان كما هما حتى ننجح.
+            //    هذا يمنع حالة "فاتورة مرحّلة بلا أي قيد محاسبي" لو تعذّر إيجاد حساب في القيد الجديد
+            //    (كان القيد القديم يُلغى ويُكتب status:posted قبل التأكد من نجاح القيد الجديد).
+            const newJrnRef = await createJournalForSInv(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
+            if (!newJrnRef) {
+                toast(`⚠️ تعذّر إنشاء القيد المحاسبي الجديد — لم يُطبَّق التعديل، والفاتورة والقيد الأصليان كما هما. راجع سبب التعذّر أعلاه ثم أعد المحاولة.`, 'er', 10000);
+                return;
+            }
 
-            // 2. ⚠️ إلغاء القيد القديم (لا نحذفه، نضع status = cancelled)
+            // 2. ⚠️ القيد الجديد نجح — الآن فقط ألغِ القديم (لا نحذفه، نضع status = cancelled)
             if (original.journalEntryKey) {
                 try {
                     await update(ref(db, 'ledger/journalEntries/' + original.journalEntryKey), {
@@ -15820,13 +15769,15 @@ window.saveSInv = async function (status) {
                 } catch (e) { console.error('Cancel old journal error:', e); }
             }
 
-            // 3. حفظ الفاتورة المُعدَّلة
+            // 3. تحديث بيانات الفاتورة (يبقى status = posted؛ journalEntryKey/Number مكتوبان فعلاً من createJournalForSInv)
+            const updateData = { ...data, status: 'posted' };
+            updateData.paidAmount = parseFloat(original.paidAmount) || 0; // احتفظ بالمدفوع
+            updateData.lastEditedAt = now;
+            updateData.lastEditedBy = userId;
+            updateData.auditLog = { ...existingAudit, [auditKey]: auditEntry };
             await update(ref(db, 'ledger/salesInvoices/' + key), updateData);
 
-            // 4. إنشاء قيد محاسبي جديد بالقيم الجديدة
-            await createJournalForSInv(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
-
-            // 5. 📦 احذف حركات المخزون القديمة + أنشئ جديدة
+            // 4. 📦 احذف حركات المخزون القديمة + أنشئ جديدة
             await deleteInventoryMovementsForInvoice('sales_invoice', key);
             await createInventoryMovementsForSInv(key, { ...data, status: 'posted' });
 
@@ -15841,6 +15792,11 @@ window.saveSInv = async function (status) {
 
         // الحالة العادية
         let invKey = key;
+        // 🔒 النية الأصلية (draft/posted) — تُكتب الفاتورة بحالة "مسودة" أولاً دائماً، ولا تُرحَّل
+        // فعلياً في قاعدة البيانات إلا بعد نجاح إنشاء القيد المحاسبي المرتبط (يمنع فاتورة
+        // "مرحّلة" بلا قيد محاسبي عند تعذّر إيجاد حساب).
+        const intendedPost = status === 'posted';
+        if (intendedPost) data.status = 'draft';
         if (key) {
             await update(ref(db, 'ledger/salesInvoices/' + key), data);
         } else {
@@ -15852,14 +15808,19 @@ window.saveSInv = async function (status) {
             invKey = newRef.key;
         }
 
-        // 🎯 إذا تم الترحيل، أنشئ قيد محاسبي تلقائي
-        if (status === 'posted') {
+        // 🎯 إذا كانت النية الترحيل: حاول إنشاء القيد المحاسبي أولاً، ولا تُرحَّل الفاتورة فعلياً إلا بعد نجاحه
+        if (intendedPost) {
             data.postedAt = now;
             data.postedBy = userId;
-            await update(ref(db, 'ledger/salesInvoices/' + invKey), { status: 'posted', postedAt: now, postedBy: userId });
-            await createJournalForSInv(invKey, data);
-            // 📦 إنشاء حركات مخزون خروج تلقائياً
-            await createInventoryMovementsForSInv(invKey, data);
+            const jrnRef = await createJournalForSInv(invKey, { ...data, status: 'posted' });
+            if (jrnRef) {
+                await update(ref(db, 'ledger/salesInvoices/' + invKey), { status: 'posted', postedAt: now, postedBy: userId });
+                // 📦 إنشاء حركات مخزون خروج تلقائياً
+                await createInventoryMovementsForSInv(invKey, { ...data, status: 'posted' });
+            } else {
+                status = 'draft'; // تصحيح المتغيّر المستخدم في رسالة الحفظ بالأسفل — لم تُرحَّل فعلياً
+                toast(`⚠️ حُفظت الفاتورة ${esc(data.number)} كمسودة لتعذّر إنشاء القيد المحاسبي التلقائي — راجع سبب التعذّر أعلاه ثم أعد الترحيل يدوياً`, 'er', 10000);
+            }
         }
 
         toast(`✅ تم ${status === 'posted' ? 'ترحيل الفاتورة وإنشاء القيد المحاسبي' : 'حفظ الفاتورة كمسودة'}`, 'ok');
@@ -16080,7 +16041,7 @@ async function createJournalForCreditNote(cnKey, cn) {
     const totDebit = lines.filter(l => l.debit).reduce((s, l) => s + l.debit, 0);
     const rd = Math.round((grandBase - totDebit) * 100) / 100;
     if (Math.abs(rd) >= 0.01) lines[0].debit = Math.round((lines[0].debit + rd) * 100) / 100;
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-CN-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-CN-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: jrnNumber, date: cn.date, reference: 'إشعار دائن ' + cn.number, description: `عكس فاتورة ${cn.invoiceNumber} بإشعار دائن ${esc(cn.number)}`,
         lines, totalDebit: grandBase, totalCredit: grandBase, currency: cn.currency, exchangeRate: fx, foreignTotal: cn.grandTotal,
@@ -16093,10 +16054,10 @@ async function createReturnMovementsForCN(cnKey, cn) {
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system'; const now = new Date().toISOString();
     for (const line of cn.lines) {
         if (!line.itemId) continue; const item = window.inventoryItems?.[line.itemId]; if (!item || item.type === 'service') continue;
-        const bal = calcInvItemBalance(line.itemId);
-        const cogs = bal.avgCost > 0 ? bal.avgCost : (parseFloat(item.costPrice) || parseFloat(line.unitPrice) || 0);
+        const movingAvg = calcInvItemMovingAvg(line.itemId);
+        const cogs = movingAvg.avgCost > 0 ? movingAvg.avgCost : (parseFloat(item.costPrice) || parseFloat(line.unitPrice) || 0);
         try {
-            await push(R.invmov, { number: generateInvMovNumber('in'), date: cn.date, type: 'in', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: cogs, projectId: cn.projectId || '', reason: 'sales_return', description: `مرتجع - إشعار دائن ${esc(cn.number)}${line.description ? ' - ' + line.description : ''}`, sourceType: 'credit_note', sourceKey: cnKey, createdAt: now, createdBy: userId });
+            await push(R.invmov, { number: await generateInvMovNumberAtomic('in'), date: cn.date, type: 'in', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: cogs, projectId: cn.projectId || '', reason: 'sales_return', description: `مرتجع - إشعار دائن ${esc(cn.number)}${line.description ? ' - ' + line.description : ''}`, sourceType: 'credit_note', sourceKey: cnKey, createdAt: now, createdBy: userId });
             count++;
         } catch (e) { console.error('CN movement error:', e); }
     }
@@ -16217,7 +16178,7 @@ async function createJournalForDebitNote(dnKey, dn) {
     const totCredit = lines.filter(l => l.credit).reduce((s, l) => s + l.credit, 0);
     const rd = Math.round((grandBase - totCredit) * 100) / 100;
     if (Math.abs(rd) >= 0.01) lines[1].credit = Math.round((lines[1].credit + rd) * 100) / 100;
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-DN-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-DN-' + Date.now());
     const jrnRef = await push(R.jrn, {
         number: jrnNumber, date: dn.date, reference: 'إشعار مدين ' + dn.number, description: `عكس فاتورة مشتريات ${dn.invoiceNumber} بإشعار مدين ${esc(dn.number)}`,
         lines, totalDebit: grandBase, totalCredit: grandBase, currency: dn.currency, exchangeRate: fx, foreignTotal: dn.grandTotal,
@@ -16231,7 +16192,7 @@ async function createReturnMovementsForDN(dnKey, dn) {
     for (const line of dn.lines) {
         if (!line.itemId) continue; const item = window.inventoryItems?.[line.itemId]; if (!item || item.type === 'service') continue;
         try {
-            await push(R.invmov, { number: generateInvMovNumber('out'), date: dn.date, type: 'out', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: parseFloat(line.unitPrice) || 0, projectId: dn.projectId || '', reason: 'purchase_return', description: `مرتجع مشتريات - إشعار مدين ${esc(dn.number)}${line.description ? ' - ' + line.description : ''}`, sourceType: 'debit_note', sourceKey: dnKey, createdAt: now, createdBy: userId });
+            await push(R.invmov, { number: await generateInvMovNumberAtomic('out'), date: dn.date, type: 'out', itemId: line.itemId, qty: parseFloat(line.qty) || 0, unitPrice: parseFloat(line.unitPrice) || 0, projectId: dn.projectId || '', reason: 'purchase_return', description: `مرتجع مشتريات - إشعار مدين ${esc(dn.number)}${line.description ? ' - ' + line.description : ''}`, sourceType: 'debit_note', sourceKey: dnKey, createdAt: now, createdBy: userId });
             count++;
         } catch (e) { console.error('DN movement error:', e); }
     }
@@ -16480,7 +16441,7 @@ async function createJournalForSInv(invKey, inv) {
     lines.sort((a, b) => ((+b.debit || 0) > 0 ? 1 : 0) - ((+a.debit || 0) > 0 ? 1 : 0));
 
     // إنشاء القيد
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AUTO-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-AUTO-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: inv.date,
@@ -16504,6 +16465,7 @@ async function createJournalForSInv(invKey, inv) {
     const jrnRef = await push(R.jrn, jrnData);
     // ربط القيد بالفاتورة
     await update(ref(db, 'ledger/salesInvoices/' + invKey), { journalEntryKey: jrnRef.key, journalEntryNumber: jrnNumber });
+    return jrnRef; // 🔒 يُستخدم من المستدعي للتحقق من نجاح إنشاء القيد قبل تأكيد حالة "مرحّلة"
 }
 
 // ── ترحيل فاتورة موجودة كمسودة ─────────────────
@@ -16530,15 +16492,19 @@ window.postSInv = async function (key, silent) {
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
         const now = new Date().toISOString();
+        // 🔒 أنشئ القيد أولاً — لا نكتب status:'posted' إلا بعد نجاحه
+        const jrnRef = await createJournalForSInv(key, { ...inv, status: 'posted', postedAt: now, postedBy: userId });
+        if (!jrnRef) {
+            toast(`⚠️ تعذّر الترحيل: لم يُنشأ القيد المحاسبي — الفاتورة بقيت مسودة. راجع سبب التعذّر أعلاه.`, 'er', 10000);
+            return;
+        }
         await update(ref(db, 'ledger/salesInvoices/' + key), {
             status: 'posted',
             postedAt: now,
             postedBy: userId
         });
-        // إنشاء القيد
-        await createJournalForSInv(key, { ...inv, status: 'posted', postedAt: now, postedBy: userId });
         // 📦 إنشاء حركات مخزون
-        await createInventoryMovementsForSInv(key, inv);
+        await createInventoryMovementsForSInv(key, { ...inv, status: 'posted' });
         if (!silent) toast('✅ تم الترحيل وإنشاء القيد المحاسبي', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -16759,7 +16725,7 @@ window.viewSInv = function (key, proforma) {
                 <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.7">
                     📅 التاريخ: ${inv.date}<br>
                     📅 الاستحقاق: ${inv.dueDate || '-'}
-                    ${inv.reference ? `<br>🔗 المرجع: ${inv.reference}` : ''}
+                    ${inv.reference ? `<br>🔗 المرجع: ${esc(inv.reference)}` : ''}
                 </div>
                 ${proforma ? '<div style="margin-top:10px;background:#fff3cd;border:1px solid #f0c419;border-radius:6px;padding:6px 8px;font-size:9px;color:#7d6608;font-weight:700">⚠️ مستند غير صالح كفاتورة ضريبية — للعرض فقط حتى الترحيل</div>' : `<div style="margin-top:10px;text-align:center">
                     <img src="${zatcaQRUrl}" alt="ZATCA QR" style="width:110px;height:110px;border:1px solid #eee;border-radius:6px" crossorigin="anonymous">
@@ -16775,17 +16741,17 @@ window.viewSInv = function (key, proforma) {
                     <strong>${esc(customer?.nameAr || '—')}</strong>
                     ${customer?.nameEn ? `<br><span style="direction:ltr">${esc(customer.nameEn)}</span>` : ''}
                     ${customer?.address ? `<br>📍 ${esc(customer.address)}` : ''}
-                    ${customer?.phone ? `<br>📞 ${customer.phone}` : ''}
-                    ${customer?.vatNumber ? `<br>🆔 VAT: ${customer.vatNumber}` : ''}
+                    ${customer?.phone ? `<br>📞 ${esc(customer.phone)}` : ''}
+                    ${customer?.vatNumber ? `<br>🆔 VAT: ${esc(customer.vatNumber)}` : ''}
                 </div>
             </div>
             <div class="party">
                 <h4>📋 معلومات الفاتورة</h4>
                 <div class="party-detail">
-                    ${inv.subject ? `<strong>الموضوع:</strong> ${inv.subject}<br>` : ''}
-                    ${projectName ? `<strong>المشروع:</strong> ${projectName}<br>` : ''}
+                    ${inv.subject ? `<strong>الموضوع:</strong> ${esc(inv.subject)}<br>` : ''}
+                    ${projectName ? `<strong>المشروع:</strong> ${esc(projectName)}<br>` : ''}
                     <strong>الحالة:</strong> ${inv.status === 'posted' ? '✅ مرحّلة' : '📝 مسودة'}
-                    ${inv.journalEntryNumber ? `<br><strong>قيد المحاسبة:</strong> ${inv.journalEntryNumber}` : ''}
+                    ${inv.journalEntryNumber ? `<br><strong>قيد المحاسبة:</strong> ${esc(inv.journalEntryNumber)}` : ''}
                 </div>
             </div>
         </div>
@@ -17048,7 +17014,7 @@ function renderVendorRow(key, v, idx, canManage) {
     const t = typeLabels[v.type] || typeLabels.other;
     const isActive = v.active !== false;
 
-    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(v.code || '').toLowerCase()} ${(v.nameAr || '').toLowerCase()} ${(v.nameEn || '').toLowerCase()} ${(v.phone || '').toLowerCase()} ${(v.vatNumber || '').toLowerCase()}">
+    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${esc((v.code || '').toLowerCase())} ${esc((v.nameAr || '').toLowerCase())} ${esc((v.nameEn || '').toLowerCase())} ${esc((v.phone || '').toLowerCase())} ${esc((v.vatNumber || '').toLowerCase())}">
         <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(v.code || '—')}</td>
         <td style="padding:8px"><span style="background:${t.color}22;color:${t.color};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${esc(t.label)}</span></td>
         <td style="padding:8px;font-weight:700">
@@ -17493,6 +17459,17 @@ function generatePInvNumber() {
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return yearPrefix + String(next).padStart(5, '0');
 }
+// 🔒 حجز ذري لرقم فاتورة المشتريات عند الحفظ الفعلي (انظر شرح generateJrnNumberAtomic)
+async function generatePInvNumberAtomic() {
+    const year = new Date().getFullYear();
+    const yearPrefix = 'PINV-' + year + '-';
+    const seed = Object.values(window.purchaseInvoices || {}).reduce((mx, i) =>
+        (i.number || '').startsWith(yearPrefix) ? Math.max(mx, parseInt((i.number || '').split('-')[2]) || 0) : mx, 0);
+    const counterRef = ref(db, `ledger/counters/pinv/${year}`);
+    const result = await runTransaction(counterRef, current => (typeof current === 'number' ? current : seed) + 1);
+    return yearPrefix + String(result.snapshot.val()).padStart(5, '0');
+}
+window.generatePInvNumberAtomic = generatePInvNumberAtomic;
 
 // ── الحسابات الافتراضية لكل نوع مصروف (المشتريات تذهب لحسابات المشتريات 51xx) ─────
 function getExpenseAccountForType(expenseType) {
@@ -17648,7 +17625,7 @@ function renderPInvRow(key, inv, idx) {
     const canPost = inv.status === 'draft' && (isAdmin || canFn('post_purchase_invoice'));
     const canDelete = inv.status === 'draft' && (isAdmin || canFn('delete_purchase_invoice'));
 
-    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(inv.number || '').toLowerCase()} ${(inv.vendorRef || '').toLowerCase()} ${(vendor?.nameAr || '').toLowerCase()} ${(inv.subject || '').toLowerCase()}">
+    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${esc((inv.number || '').toLowerCase())} ${esc((inv.vendorRef || '').toLowerCase())} ${esc((vendor?.nameAr || '').toLowerCase())} ${esc((inv.subject || '').toLowerCase())}">
         <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(inv.number || '-')}</td>
         <td style="padding:8px;font-family:monospace;font-size:11px;color:#666">${inv.vendorRef || '—'}</td>
         <td style="padding:8px">${inv.date || '-'}</td>
@@ -17656,7 +17633,7 @@ function renderPInvRow(key, inv, idx) {
             <div style="font-weight:700">${esc(vendor?.nameAr || '—')}</div>
             ${vendor?.code ? `<div style="font-size:10px;color:#888;font-family:monospace">${esc(vendor.code)}</div>` : ''}
         </td>
-        <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.subject || ''}">${inv.subject || '—'}</td>
+        <td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(inv.subject || '')}">${esc(inv.subject || '') || '—'}</td>
         <td style="padding:8px;color:${isOverdue ? '#c0392b' : '#666'};font-weight:${isOverdue ? '700' : 'normal'}">${inv.dueDate || '-'}</td>
         <td style="padding:8px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(grand)}${sinvDue(inv) < grand - 0.01 ? `<div style="font-size:9px;color:#16a085;font-weight:700" title="صافي المستحق بعد الاحتجاز واسترداد الدفعة">صافي: ${fmt(sinvDue(inv))}</div>` : ''}</td>
         <td style="padding:8px;text-align:center;color:${isPaid ? '#27ae60' : '#666'};font-weight:700">${fmt(paid)}</td>
@@ -18105,7 +18082,7 @@ async function pinvEnsureItemsForLines(lines, expenseType) {
         // 3) إنشاء صنف جديد صامت
         let newCode = code;
         if (!newCode || Object.values(items).some(it => String(it.code) === newCode)) {
-            newCode = (typeof generateInvItemCode === 'function') ? generateInvItemCode('material') : ('AUTO-' + Date.now());
+            newCode = (typeof generateInvItemCodeAtomic === 'function') ? await generateInvItemCodeAtomic('material') : ('AUTO-' + Date.now());
         }
         const now = new Date().toISOString();
         const uid = (typeof curU !== 'undefined' && curU && curU.uid) ? curU.uid : 'system';
@@ -18151,9 +18128,11 @@ window.savePInv = async function (status) {
     const key = $('mPInvKey').value;
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const now = new Date().toISOString();
+    // 🔒 فاتورة جديدة فقط: حجز رقم ذري عند الحفظ الفعلي؛ الفاتورة القائمة تحتفظ برقمها الأصلي
+    const pinvFinalNumber = key ? $('mPInvNumber').value : await generatePInvNumberAtomic();
 
     const data = {
-        number: $('mPInvNumber').value,
+        number: pinvFinalNumber,
         vendorRef,
         date: $('mPInvDate').value,
         dueDate: $('mPInvDueDate').value,
@@ -18215,13 +18194,14 @@ window.savePInv = async function (status) {
             const existingAudit = (typeof window.purchaseInvoices?.[key]?.auditLog === 'object' && window.purchaseInvoices[key].auditLog) || {};
             const auditKey = 'edit_' + Date.now();
 
-            const updateData = { ...data, status: 'posted' };
-            updateData.paidAmount = parseFloat(original.paidAmount) || 0;
-            updateData.lastEditedAt = now;
-            updateData.lastEditedBy = userId;
-            updateData.auditLog = { ...existingAudit, [auditKey]: auditEntry };
+            // 🔒 أنشئ القيد الجديد أولاً — القيد القديم والفاتورة يبقيان كما هما حتى ننجح
+            const newJrnRef = await createJournalForPInv(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
+            if (!newJrnRef) {
+                toast(`⚠️ تعذّر إنشاء القيد المحاسبي الجديد — لم يُطبَّق التعديل، والفاتورة والقيد الأصليان كما هما. راجع سبب التعذّر أعلاه ثم أعد المحاولة.`, 'er', 10000);
+                return;
+            }
 
-            // إلغاء القيد القديم
+            // القيد الجديد نجح — الآن فقط ألغِ القديم
             if (original.journalEntryKey) {
                 try {
                     await update(ref(db, 'ledger/journalEntries/' + original.journalEntryKey), {
@@ -18233,10 +18213,14 @@ window.savePInv = async function (status) {
                 } catch (e) { console.error('Cancel old journal error:', e); }
             }
 
+            const updateData = { ...data, status: 'posted' };
+            updateData.paidAmount = parseFloat(original.paidAmount) || 0;
+            updateData.lastEditedAt = now;
+            updateData.lastEditedBy = userId;
+            updateData.auditLog = { ...existingAudit, [auditKey]: auditEntry };
             await update(ref(db, 'ledger/purchaseInvoices/' + key), updateData);
             // 📦 احذف حركات المخزون القديمة + أنشئ جديدة
             await deleteInventoryMovementsForInvoice('purchase_invoice', key);
-            await createJournalForPInv(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
             await createInventoryMovementsForPInv(key, { ...data, status: 'posted' });
 
             toast(`✅ تم تعديل الفاتورة المرحّلة ${data.number} — استُبدل القيد القديم بقيد جديد`, 'ok');
@@ -18248,6 +18232,9 @@ window.savePInv = async function (status) {
 
         // الحالة العادية
         let invKey = key;
+        // 🔒 تُكتب "مسودة" أولاً دائماً؛ لا تُرحَّل فعلياً إلا بعد نجاح القيد المحاسبي المرتبط
+        const intendedPost = status === 'posted';
+        if (intendedPost) data.status = 'draft';
         if (key) {
             await update(ref(db, 'ledger/purchaseInvoices/' + key), data);
         } else {
@@ -18257,13 +18244,18 @@ window.savePInv = async function (status) {
             invKey = newRef.key;
         }
 
-        if (status === 'posted') {
+        if (intendedPost) {
             data.postedAt = now;
             data.postedBy = userId;
-            await update(ref(db, 'ledger/purchaseInvoices/' + invKey), { status: 'posted', postedAt: now, postedBy: userId });
-            await createJournalForPInv(invKey, data);
-            // 📦 إنشاء حركات مخزون دخول تلقائياً
-            await createInventoryMovementsForPInv(invKey, data);
+            const jrnRef = await createJournalForPInv(invKey, { ...data, status: 'posted' });
+            if (jrnRef) {
+                await update(ref(db, 'ledger/purchaseInvoices/' + invKey), { status: 'posted', postedAt: now, postedBy: userId });
+                // 📦 إنشاء حركات مخزون دخول تلقائياً
+                await createInventoryMovementsForPInv(invKey, { ...data, status: 'posted' });
+            } else {
+                status = 'draft';
+                toast(`⚠️ حُفظت الفاتورة ${esc(data.number)} كمسودة لتعذّر إنشاء القيد المحاسبي التلقائي — راجع سبب التعذّر أعلاه ثم أعد الترحيل يدوياً`, 'er', 10000);
+            }
         }
 
         toast(`✅ تم ${status === 'posted' ? 'ترحيل الفاتورة وإنشاء القيد المحاسبي' : 'حفظ الفاتورة كمسودة'}`, 'ok');
@@ -18455,7 +18447,7 @@ window.createJournalForPayroll = async function (payrollKey, payroll) {
     const lastDayOfMonth = new Date(yyP, mmP, 0).getDate();
     const jrnDate = `${payroll.month}-${String(lastDayOfMonth).padStart(2, '0')}`;
 
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AUTO-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-AUTO-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: jrnDate,
@@ -18556,7 +18548,7 @@ async function createJournalForPInv(invKey, inv) {
         credit: grandBase
     });
 
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AUTO-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-AUTO-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: inv.date,
@@ -18579,6 +18571,7 @@ async function createJournalForPInv(invKey, inv) {
 
     const jrnRef = await push(R.jrn, jrnData);
     await update(ref(db, 'ledger/purchaseInvoices/' + invKey), { journalEntryKey: jrnRef.key, journalEntryNumber: jrnNumber });
+    return jrnRef; // 🔒 يُستخدم من المستدعي للتحقق من نجاح إنشاء القيد قبل تأكيد حالة "مرحّلة"
 }
 
 // ── ترحيل فاتورة موجودة ─────────────────
@@ -18590,14 +18583,19 @@ window.postPInv = async function (key) {
     try {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
         const now = new Date().toISOString();
+        // 🔒 أنشئ القيد أولاً — لا نكتب status:'posted' إلا بعد نجاحه
+        const jrnRef = await createJournalForPInv(key, { ...inv, status: 'posted', postedAt: now, postedBy: userId });
+        if (!jrnRef) {
+            toast(`⚠️ تعذّر الترحيل: لم يُنشأ القيد المحاسبي — الفاتورة بقيت مسودة. راجع سبب التعذّر أعلاه.`, 'er', 10000);
+            return;
+        }
         await update(ref(db, 'ledger/purchaseInvoices/' + key), {
             status: 'posted',
             postedAt: now,
             postedBy: userId
         });
-        await createJournalForPInv(key, { ...inv, status: 'posted', postedAt: now, postedBy: userId });
         // 📦 إنشاء حركات مخزون
-        await createInventoryMovementsForPInv(key, inv);
+        await createInventoryMovementsForPInv(key, { ...inv, status: 'posted' });
         toast('✅ تم الترحيل وإنشاء القيد المحاسبي', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -18662,7 +18660,7 @@ window.viewPInv = function (key) {
                 <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.7">
                     📅 التاريخ: ${inv.date}<br>
                     📅 الاستحقاق: ${inv.dueDate || '-'}<br>
-                    🔗 رقم المورد: <strong>${inv.vendorRef || '-'}</strong>
+                    🔗 رقم المورد: <strong>${esc(inv.vendorRef || '-')}</strong>
                 </div>
             </div>
         </div>
@@ -18674,18 +18672,18 @@ window.viewPInv = function (key) {
                     <strong>${esc(vendor?.nameAr || '—')}</strong>
                     ${vendor?.nameEn ? `<br><span style="direction:ltr">${esc(vendor.nameEn)}</span>` : ''}
                     ${vendor?.address ? `<br>📍 ${esc(vendor.address)}` : ''}
-                    ${vendor?.phone ? `<br>📞 ${vendor.phone}` : ''}
-                    ${vendor?.vatNumber ? `<br>🆔 VAT: ${vendor.vatNumber}` : ''}
+                    ${vendor?.phone ? `<br>📞 ${esc(vendor.phone)}` : ''}
+                    ${vendor?.vatNumber ? `<br>🆔 VAT: ${esc(vendor.vatNumber)}` : ''}
                 </div>
             </div>
             <div class="party">
                 <h4>📋 معلومات الفاتورة</h4>
                 <div class="party-detail">
-                    ${inv.subject ? `<strong>الموضوع:</strong> ${inv.subject}<br>` : ''}
-                    ${projectName ? `<strong>المشروع:</strong> ${projectName}<br>` : ''}
-                    <strong>نوع المصروف:</strong> ${inv.expenseType}<br>
+                    ${inv.subject ? `<strong>الموضوع:</strong> ${esc(inv.subject)}<br>` : ''}
+                    ${projectName ? `<strong>المشروع:</strong> ${esc(projectName)}<br>` : ''}
+                    <strong>نوع المصروف:</strong> ${esc(inv.expenseType)}<br>
                     <strong>الحالة:</strong> ${inv.status === 'posted' ? '✅ مرحّلة' : '📝 مسودة'}
-                    ${inv.journalEntryNumber ? `<br><strong>قيد المحاسبة:</strong> ${inv.journalEntryNumber}` : ''}
+                    ${inv.journalEntryNumber ? `<br><strong>قيد المحاسبة:</strong> ${esc(inv.journalEntryNumber)}` : ''}
                 </div>
             </div>
         </div>
@@ -18794,6 +18792,19 @@ function generateVoucherNumber(type) {
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return yearPrefix + String(next).padStart(5, '0');
 }
+// 🔒 حجز ذري لرقم السند عند الحفظ الفعلي (انظر شرح generateJrnNumberAtomic)
+async function generateVoucherNumberAtomic(type) {
+    const data = type === 'receipt' ? (window.receipts || {}) : (window.payments || {});
+    const year = new Date().getFullYear();
+    const prefix = type === 'receipt' ? 'RCV-' : 'PAY-';
+    const yearPrefix = prefix + year + '-';
+    const seed = Object.values(data).reduce((mx, v) =>
+        (v.number || '').startsWith(yearPrefix) ? Math.max(mx, parseInt((v.number || '').split('-')[2]) || 0) : mx, 0);
+    const counterRef = ref(db, `ledger/counters/voucher/${type}/${year}`);
+    const result = await runTransaction(counterRef, current => (typeof current === 'number' ? current : seed) + 1);
+    return yearPrefix + String(result.snapshot.val()).padStart(5, '0');
+}
+window.generateVoucherNumberAtomic = generateVoucherNumberAtomic;
 
 // ═══════════════════════════════════════════════════════════════════
 // 💵 RECEIPTS (سندات القبض - من العملاء)
@@ -19036,7 +19047,7 @@ function renderVoucherRow(key, v, idx, type) {
 
     const tableBody = type === 'receipt' ? 'rcptTableBody' : 'paymTableBody';
 
-    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${(v.number || '').toLowerCase()} ${(party?.nameAr || '').toLowerCase()} ${(v.description || '').toLowerCase()}">
+    return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${esc((v.number || '').toLowerCase())} ${esc((party?.nameAr || '').toLowerCase())} ${esc((v.description || '').toLowerCase())}">
         <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(v.number || '-')}</td>
         <td style="padding:8px">${v.date || '-'}</td>
         <td style="padding:8px">
@@ -19414,9 +19425,11 @@ window.saveVoucher = async function (status) {
     const key = $('mVoucherKey').value;
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const now = new Date().toISOString();
+    // 🔒 سند جديد فقط: حجز رقم ذري عند الحفظ الفعلي؛ السند القائم يحتفظ برقمه الأصلي
+    const voucherFinalNumber = key ? $('mVoucherNumber').value : await generateVoucherNumberAtomic(type);
 
     const data = {
-        number: $('mVoucherNumber').value,
+        number: voucherFinalNumber,
         date: $('mVoucherDate').value,
         type,
         partyId,
@@ -19453,7 +19466,14 @@ window.saveVoucher = async function (status) {
             const existingAudit = existing?.auditLog || {};
             const auditKey = 'edit_' + Date.now();
 
-            // إلغاء القيد القديم + إلغاء التخصيصات القديمة على الفواتير
+            // 🔒 أنشئ القيد الجديد أولاً — القيد القديم والتخصيصات والسند يبقون كما هم حتى ننجح
+            const newJrnRef = await createJournalForVoucher(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
+            if (!newJrnRef) {
+                toast(`⚠️ تعذّر إنشاء القيد المحاسبي الجديد — لم يُطبَّق التعديل، والسند والقيد الأصليان كما هما. راجع سبب التعذّر أعلاه ثم أعد المحاولة.`, 'er', 10000);
+                return;
+            }
+
+            // القيد الجديد نجح — الآن فقط ألغِ القديم وإلغِ التخصيصات القديمة
             if (original.journalEntryKey) {
                 try {
                     await update(ref(db, 'ledger/journalEntries/' + original.journalEntryKey), {
@@ -19464,18 +19484,15 @@ window.saveVoucher = async function (status) {
                     });
                 } catch (e) { console.error('Cancel old journal error:', e); }
             }
-            // إلغاء التخصيصات القديمة
             await unallocateFromInvoices(original.allocations, type);
 
             const updateData = { ...data, status: 'posted' };
             updateData.lastEditedAt = now;
             updateData.lastEditedBy = userId;
             updateData.auditLog = { ...existingAudit, [auditKey]: auditEntry };
-
             await update(ref(db, dbPath + key), updateData);
-            // تطبيق التخصيصات الجديدة + إنشاء قيد جديد
+            // تطبيق التخصيصات الجديدة
             await allocateToInvoices(data.allocations, type, key);
-            await createJournalForVoucher(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
 
             toast(`✅ تم تعديل السند ${data.number} — استُبدل القيد القديم بقيد جديد`, 'ok');
             voucherEditorState.editingPosted = false;
@@ -19486,6 +19503,9 @@ window.saveVoucher = async function (status) {
 
         // الحالة العادية
         let vKey = key;
+        // 🔒 يُكتب "مسودة" أولاً دائماً؛ لا يُرحَّل فعلياً (ولا تُطبَّق تخصيصاته على الفواتير) إلا بعد نجاح القيد المحاسبي
+        const intendedPost = status === 'posted';
+        if (intendedPost) data.status = 'draft';
         if (key) {
             await update(ref(db, dbPath + key), data);
         } else {
@@ -19495,14 +19515,18 @@ window.saveVoucher = async function (status) {
             vKey = newRef.key;
         }
 
-        if (status === 'posted') {
+        if (intendedPost) {
             data.postedAt = now;
             data.postedBy = userId;
-            await update(ref(db, dbPath + vKey), { status: 'posted', postedAt: now, postedBy: userId });
-            // تطبيق التخصيصات على الفواتير
-            await allocateToInvoices(data.allocations, type, vKey);
-            // إنشاء القيد المحاسبي
-            await createJournalForVoucher(vKey, data);
+            const jrnRef = await createJournalForVoucher(vKey, { ...data, status: 'posted' });
+            if (jrnRef) {
+                await update(ref(db, dbPath + vKey), { status: 'posted', postedAt: now, postedBy: userId });
+                // تطبيق التخصيصات على الفواتير — بعد التأكد من وجود القيد المحاسبي فقط
+                await allocateToInvoices(data.allocations, type, vKey);
+            } else {
+                status = 'draft';
+                toast(`⚠️ حُفظ السند ${esc(data.number)} كمسودة لتعذّر إنشاء القيد المحاسبي التلقائي — راجع سبب التعذّر أعلاه ثم أعد الترحيل يدوياً`, 'er', 10000);
+            }
         }
 
         toast(`✅ تم ${status === 'posted' ? 'ترحيل السند وإنشاء القيد' : 'حفظ السند كمسودة'}`, 'ok');
@@ -19664,7 +19688,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
         });
     }
 
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-AUTO-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-AUTO-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: voucher.date,
@@ -19688,6 +19712,7 @@ async function createJournalForVoucher(voucherKey, voucher) {
     const jrnRef = await push(R.jrn, jrnData);
     const path = type === 'receipt' ? 'ledger/receipts/' : 'ledger/payments/';
     await update(ref(db, path + voucherKey), { journalEntryKey: jrnRef.key, journalEntryNumber: jrnNumber });
+    return jrnRef; // 🔒 يُستخدم من المستدعي للتحقق من نجاح إنشاء القيد قبل تخصيص السند على الفواتير
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -19797,9 +19822,14 @@ window.postVoucher = async function (key, type) {
         const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
         const now = new Date().toISOString();
         const path = type === 'receipt' ? 'ledger/receipts/' : 'ledger/payments/';
+        // 🔒 أنشئ القيد أولاً — لا نكتب status:'posted' ولا نُطبّق التخصيصات على الفواتير إلا بعد نجاحه
+        const jrnRef = await createJournalForVoucher(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
+        if (!jrnRef) {
+            toast(`⚠️ تعذّر الترحيل: لم يُنشأ القيد المحاسبي — السند بقي مسودة. راجع سبب التعذّر أعلاه.`, 'er', 10000);
+            return;
+        }
         await update(ref(db, path + key), { status: 'posted', postedAt: now, postedBy: userId });
         await allocateToInvoices(data.allocations, type, key);
-        await createJournalForVoucher(key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
         toast('✅ تم الترحيل وإنشاء القيد', 'ok');
     } catch (e) {
         toast('❌ خطأ: ' + (e.message || e), 'er');
@@ -20094,6 +20124,16 @@ function generateInvItemCode(type) {
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return prefix + String(next).padStart(4, '0');
 }
+// 🔒 حجز ذري لرمز الصنف عند الحفظ الفعلي (انظر شرح generateJrnNumberAtomic)
+async function generateInvItemCodeAtomic(type) {
+    const prefix = type === 'service' ? 'SRV-' : 'ITM-';
+    const seed = Object.values(window.inventoryItems || {}).reduce((mx, i) =>
+        (i.code || '').startsWith(prefix) ? Math.max(mx, parseInt((i.code || '').replace(/\D/g, '')) || 0) : mx, 0);
+    const counterRef = ref(db, `ledger/counters/invItem/${type}`);
+    const result = await runTransaction(counterRef, current => (typeof current === 'number' ? current : seed) + 1);
+    return prefix + String(result.snapshot.val()).padStart(4, '0');
+}
+window.generateInvItemCodeAtomic = generateInvItemCodeAtomic;
 
 // ── توليد رقم حركة ─────────────────
 function generateInvMovNumber(type) {
@@ -20106,6 +20146,18 @@ function generateInvMovNumber(type) {
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return yearPrefix + String(next).padStart(5, '0');
 }
+// 🔒 حجز ذري لرقم حركة المخزون عند الحفظ الفعلي (انظر شرح generateJrnNumberAtomic)
+async function generateInvMovNumberAtomic(type) {
+    const year = new Date().getFullYear();
+    const prefix = type === 'in' ? 'IN-' : 'OUT-';
+    const yearPrefix = prefix + year + '-';
+    const seed = Object.values(window.inventoryMovements || {}).reduce((mx, m) =>
+        (m.number || '').startsWith(yearPrefix) ? Math.max(mx, parseInt((m.number || '').split('-')[2]) || 0) : mx, 0);
+    const counterRef = ref(db, `ledger/counters/invmov/${type}/${year}`);
+    const result = await runTransaction(counterRef, current => (typeof current === 'number' ? current : seed) + 1);
+    return yearPrefix + String(result.snapshot.val()).padStart(5, '0');
+}
+window.generateInvMovNumberAtomic = generateInvMovNumberAtomic;
 
 // ── المخازن ─────────────────
 const WAREHOUSE_MAIN_FALLBACK = 'main'; // معرّف افتراضي يُستخدم قبل إنشاء أي مخزن
@@ -20360,7 +20412,7 @@ function renderInvItemRow(key, it, idx, canManage) {
         valueHtml = `<span style="font-weight:700;color:#e67e22">${fmt(totalVal)}</span>`;
     }
 
-    const searchTxt = `${(it.code || '').toLowerCase()} ${(it.nameAr || '').toLowerCase()} ${(it.nameEn || '').toLowerCase()} ${(it.barcode || '').toLowerCase()}`;
+    const searchTxt = esc(`${(it.code || '').toLowerCase()} ${(it.nameAr || '').toLowerCase()} ${(it.nameEn || '').toLowerCase()} ${(it.barcode || '').toLowerCase()}`);
 
     return `<tr style="${idx % 2 ? 'background:#fafbfc' : ''}" data-search="${searchTxt}" data-type="${it.type || 'material'}" data-belowmin="${belowMin ? '1' : '0'}">
         <td style="padding:8px;font-family:monospace;font-weight:800;color:#1a3a5c">${esc(it.code || '—')}</td>
@@ -20518,7 +20570,7 @@ window.saveInvItem = async function () {
     let code = $('mInvItemCode').value.trim();
     const isService = $('mInvItemTypeService').checked;
     const type = isService ? 'service' : 'material';
-    if (!code) code = generateInvItemCode(type);
+    if (!code) code = await generateInvItemCodeAtomic(type);
 
     const key = $('mInvItemKey').value;
     const duplicate = Object.entries(window.inventoryItems || {}).find(([k, it]) => it.code === code && k !== key);
@@ -20731,7 +20783,7 @@ function renderInvMovRow(key, m, idx, runningBalance) {
     const isAdmin = (typeof myP !== 'undefined' && myP?.role === 'admin');
     const canDelete = isAdmin || canFn('delete_inv_movement');
 
-    const searchTxt = `${(m.number || '').toLowerCase()} ${(item?.nameAr || '').toLowerCase()} ${(m.description || '').toLowerCase()}`;
+    const searchTxt = esc(`${(m.number || '').toLowerCase()} ${(item?.nameAr || '').toLowerCase()} ${(m.description || '').toLowerCase()}`);
     const whId = whIdOfMovement(m);
     const wh = window.warehouses?.[whId];
     const whLabel = wh ? `${wh.type === 'main' ? '🏢' : '📦'} ${esc(wh.name || '—')}` : '—';
@@ -20747,7 +20799,7 @@ function renderInvMovRow(key, m, idx, runningBalance) {
         <td style="padding:8px;text-align:center;font-weight:800;color:${isIn ? '#27ae60' : '#c0392b'}">${fmt(qty)} <span style="font-size:9px;color:#888">${INV_UNITS[item?.unit] || ''}</span></td>
         <td style="padding:8px;text-align:center">${fmt(m.unitPrice || 0)}</td>
         <td style="padding:8px;text-align:center;font-weight:700;color:#e67e22">${fmt(total)}</td>
-        <td style="padding:8px;font-size:11px">${reasonLabel}${m.batchNo ? `<div style="font-size:9px;color:#888">🏷️ ${m.batchNo}</div>` : ''}${m.expiryDate ? `<div style="font-size:9px;color:${new Date(m.expiryDate) < new Date() ? '#c0392b' : '#888'}">⏳ ${m.expiryDate}</div>` : ''}</td>
+        <td style="padding:8px;font-size:11px">${reasonLabel}${m.batchNo ? `<div style="font-size:9px;color:#888">🏷️ ${esc(m.batchNo)}</div>` : ''}${m.expiryDate ? `<div style="font-size:9px;color:${new Date(m.expiryDate) < new Date() ? '#c0392b' : '#888'}">⏳ ${m.expiryDate}</div>` : ''}</td>
         <td style="padding:8px;font-size:11px;color:#666">${whLabel}</td>
         <td style="padding:8px;font-size:11px;color:#666">${projName || '—'}</td>
         <td style="padding:8px;text-align:center;font-weight:800;color:${(runningBalance ?? 0) < 0 ? '#c0392b' : '#16a085'}">${runningBalance != null ? fmt(runningBalance) : '—'} <span style="font-size:9px;color:#888">${INV_UNITS[item?.unit] || ''}</span></td>
@@ -20814,7 +20866,7 @@ window.fillWarehouseSelect = function (sel, opts) {
             let lbl = (w.type === 'main' ? '🏢 ' : '📦 ') + (w.name || '—');
             if (w.projectId && window.projects?.[w.projectId]) lbl += ` (${window.projects[w.projectId].name})`;
             else if (w.region) lbl += ` (${w.region})`;
-            return `<option value="${k}">${lbl}</option>`;
+            return `<option value="${k}">${esc(lbl)}</option>`;
         }).join('');
     if (current && sel.querySelector(`option[value="${current}"]`)) sel.value = current;
     else {
@@ -20920,7 +20972,7 @@ window.saveInvMovement = async function () {
     const now = new Date().toISOString();
 
     const data = {
-        number: $('mInvMovNumber').value,
+        number: await generateInvMovNumberAtomic(isIn ? 'in' : 'out'),
         date: $('mInvMovDate').value,
         type: isIn ? 'in' : 'out',
         itemId: itemKey,
@@ -21390,7 +21442,7 @@ async function createInventoryMovementsForPInv(invKey, inv) {
         if (item.type === 'service') continue; // الخدمات لا تُسجَّل في المخزون
 
         try {
-            const movNumber = generateInvMovNumber('in');
+            const movNumber = await generateInvMovNumberAtomic('in');
             await push(R.invmov, {
                 number: movNumber,
                 date: inv.date,
@@ -21440,9 +21492,12 @@ async function createInventoryMovementsForSInv(invKey, inv) {
         }
 
         try {
-            const movNumber = generateInvMovNumber('out');
-            // للمبيعات نستخدم متوسط التكلفة لحساب تكلفة البضاعة المباعة (COGS)
-            const cogsPrice = bal.avgCost > 0 ? bal.avgCost : (parseFloat(item.costPrice) || parseFloat(line.unitPrice) || 0);
+            const movNumber = await generateInvMovNumberAtomic('out');
+            // للمبيعات نستخدم المتوسط المرجّح المتحرك (Moving Average) لحساب تكلفة البضاعة المباعة (COGS)
+            // — لا المتوسط التراكمي منذ بداية عمر الصنف (calcInvItemBalance.avgCost)، الذي يُنتج تكلفة خاطئة
+            // بعد أي دورة رصيد صفري ثم شراء لاحق بسعر مختلف.
+            const movingAvg = calcInvItemMovingAvg(line.itemId);
+            const cogsPrice = movingAvg.avgCost > 0 ? movingAvg.avgCost : (parseFloat(item.costPrice) || parseFloat(line.unitPrice) || 0);
             await push(R.invmov, {
                 number: movNumber,
                 date: inv.date,
@@ -22308,7 +22363,7 @@ window.saveInvItem = async function () {
         let code = $('mInvItemCode').value.trim();
         const isService = $('mInvItemTypeService').checked;
         const type = isService ? 'service' : 'material';
-        if (!code) code = generateInvItemCode(type);
+        if (!code) code = await generateInvItemCodeAtomic(type);
 
         const duplicate = Object.entries(window.inventoryItems || {}).find(([k, it]) => it.code === code);
         if (duplicate) { toast('⚠️ رمز الصنف مستخدم بالفعل', 'er'); return; }
@@ -22910,9 +22965,20 @@ function fsIsOpeningEntry(e) {
 // يعتمد على نفس منطق ميزان المراجعة (opening + debit - credit) مع تقسيم الحركات
 // إلى ما قبل بداية الفترة (لحساب الرصيد الافتتاحي للفترة) وما بعدها (حركة الفترة)
 // 🟢 في الفترات المحددة (fromDate مضبوط): القيد الافتتاحي يُصنَّف كرصيد أول المدة حتى لو وقع تاريخه داخل الفترة
+// 🧮 تخزين مؤقت: calcFSBalances تُستدعى عشرات المرات لعرض واحد (عمود لكل فترة/شهر في المقارنات
+// والاتجاهات) وتمسح كل القيود في كل مرة. النتيجة هنا للقراءة فقط من كل المستدعين (تحقّقنا: لا
+// أحد يُعدّل حقول balances بعد إرجاعها) — فتخزينها مؤقتاً آمن. يُفرَّغ الكاش تلقائياً بمجرد
+// تغيّر مرجع window.journalEntries أو window.chartOfAccounts (أي وصول لقطة جديدة من onValue).
+let _fsBalancesCache = { je: null, coa: null, map: new Map() };
 function calcFSBalances(fromDate, toDate, statuses, costCenter, projectId) {
     const accounts = window.chartOfAccounts || {};
     const journalEntries = window.journalEntries || {};
+    if (_fsBalancesCache.je !== journalEntries || _fsBalancesCache.coa !== accounts) {
+        _fsBalancesCache = { je: journalEntries, coa: accounts, map: new Map() };
+    }
+    const _cacheKey = [fromDate || '', toDate || '', (statuses || []).join(','), costCenter || '', projectId || ''].join('§');
+    if (_fsBalancesCache.map.has(_cacheKey)) return _fsBalancesCache.map.get(_cacheKey);
+
     const balances = {};
     const codeToKey = {};
     Object.entries(accounts).forEach(([key, a]) => {
@@ -22963,7 +23029,9 @@ function calcFSBalances(fromDate, toDate, statuses, costCenter, projectId) {
         b.naturalMovement = naturallyDebit ? (b.periodDebit - b.periodCredit) : (b.periodCredit - b.periodDebit);
     });
 
-    return { balances, codeToKey };
+    const _result = { balances, codeToKey };
+    _fsBalancesCache.map.set(_cacheKey, _result);
+    return _result;
 }
 
 function fsByType(balances, type) {
@@ -23858,7 +23926,7 @@ window.generateFSClosingEntry = async function () {
 
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
     const now = new Date().toISOString();
-    const jrnNumber = typeof generateJrnNumber === 'function' ? generateJrnNumber() : ('JV-CLOSE-' + Date.now());
+    const jrnNumber = typeof generateJrnNumberAtomic === 'function' ? await generateJrnNumberAtomic() : ('JV-CLOSE-' + Date.now());
     const jrnData = {
         number: jrnNumber,
         date: fsState.toDate,
@@ -29546,7 +29614,7 @@ window.renderAccountAnalysis = function () {
                 run += naturallyDebit ? (r.debit - r.credit) : (r.credit - r.debit); sd += r.debit; sc += r.credit;
                 return `<tr style="border-bottom:1px solid #f4f4f4;cursor:pointer" onclick="jrnRowMenu('${r.ekey}',event)" title="انقر لعرض القيد والمستند المصدر">
                     <td style="padding:6px 8px">${r.date}</td><td style="padding:6px 8px;font-family:monospace;color:#2980b9">${esc(r.number)}</td>
-                    <td style="padding:6px 8px">${(r.desc || '').replace(/</g, '&lt;')}</td><td style="padding:6px 8px;font-size:11px;color:#777">${r.cc}</td>
+                    <td style="padding:6px 8px">${esc(r.desc || '')}</td><td style="padding:6px 8px;font-size:11px;color:#777">${esc(r.cc)}</td>
                     <td style="padding:6px 8px;text-align:left;color:#2d6a9f">${r.debit ? fmt(r.debit) : '—'}</td><td style="padding:6px 8px;text-align:left;color:#c0392b">${r.credit ? fmt(r.credit) : '—'}</td>
                     <td style="padding:6px 8px;text-align:left;font-weight:700">${fmt(run)}</td></tr>`;
             }).join('');
@@ -29684,8 +29752,19 @@ window.prPay = async function () {
         const g = groups[gk];
         const amount = Math.round(g.items.reduce((s, x) => s + x.rem, 0) * 100) / 100;
         const allocations = {}; g.items.forEach(x => { allocations[x.k] = x.rem; });
-        const data = { number: generateVoucherNumber('payment'), date: st.date, type: 'payment', partyId: g.vendorId, method: st.method, cashAccountCode: st.cashAccountCode, amount, currency: g.currency, exchangeRate: g.rate, amountBase: Math.round(amount * g.rate * 100) / 100, projectId: '', description: `دفعة مجمّعة — ${g.items.length} فاتورة`, allocations, notes: 'دفعة مجمّعة (Payment Run)', status: 'posted', createdAt: now, createdBy: userId, postedAt: now, postedBy: userId, source: 'payment_run' };
-        try { const r = await push(R.paym, data); await allocateToInvoices(allocations, 'payment', r.key); await createJournalForVoucher(r.key, data); vouchers++; }
+        // 🔒 يُحفظ "مسودة" أولاً؛ لا يُرحَّل وتُطبَّق تخصيصاته على فواتير المورد إلا بعد نجاح القيد المحاسبي
+        const data = { number: await generateVoucherNumberAtomic('payment'), date: st.date, type: 'payment', partyId: g.vendorId, method: st.method, cashAccountCode: st.cashAccountCode, amount, currency: g.currency, exchangeRate: g.rate, amountBase: Math.round(amount * g.rate * 100) / 100, projectId: '', description: `دفعة مجمّعة — ${g.items.length} فاتورة`, allocations, notes: 'دفعة مجمّعة (Payment Run)', status: 'draft', createdAt: now, createdBy: userId, source: 'payment_run' };
+        try {
+            const r = await push(R.paym, data);
+            const jrnRef = await createJournalForVoucher(r.key, { ...data, status: 'posted', postedAt: now, postedBy: userId });
+            if (jrnRef) {
+                await update(ref(db, 'ledger/payments/' + r.key), { status: 'posted', postedAt: now, postedBy: userId });
+                await allocateToInvoices(allocations, 'payment', r.key);
+                vouchers++;
+            } else {
+                errors++; // بقي "مسودة" — القيد لم يُنشأ فلا نُحدّث أرصدة فواتير المورد
+            }
+        }
         catch (e) { console.error('Payment run error:', e); errors++; }
     }
     if (typeof logAudit === 'function') logAudit('دفعات مجمّعة', 'سندات الصرف', `${vouchers} سند بإجمالي ${fmt(total)}`);
@@ -30521,11 +30600,11 @@ window.renderAuditLog = function () {
         <label>إلى: <input type="date" value="${st.to}" onchange="audSetFilter('to',this.value)" style="padding:6px;border-radius:6px;border:1px solid #ddd"></label>
         <label>القسم: <select onchange="audSetFilter('module',this.value)" style="padding:6px;border-radius:6px;border:1px solid #ddd">
             <option value="">الكل</option>
-            ${modules.map(m => `<option value="${m}" ${st.module === m ? 'selected' : ''}>${m}</option>`).join('')}
+            ${modules.map(m => `<option value="${esc(m)}" ${st.module === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
         </select></label>
         <label>المستخدم: <select onchange="audSetFilter('user',this.value)" style="padding:6px;border-radius:6px;border:1px solid #ddd">
             <option value="">الكل</option>
-            ${users.map(u => `<option value="${u}" ${st.user === u ? 'selected' : ''}>${u}</option>`).join('')}
+            ${users.map(u => `<option value="${esc(u)}" ${st.user === u ? 'selected' : ''}>${esc(u)}</option>`).join('')}
         </select></label>
         <input type="text" placeholder="🔍 بحث في الوصف/الإجراء..." value="${st.q}" oninput="audSetFilter('q',this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid #ddd;flex:1;min-width:200px">
         <span style="color:#666;font-size:12px;margin-right:auto">عرض ${shown.length} من ${rows.length} سجل</span>
@@ -30553,9 +30632,9 @@ window.renderAuditLog = function () {
             html += `<tr>
                 ${canManage ? `<td><input type="checkbox" class="aud-chk" data-key="${r.key}" onchange="audUpdateBulkBar()"></td>` : ''}
                 <td style="white-space:nowrap;font-size:12px">${r.at ? new Date(r.at).toLocaleString('ar-SA') : ''}</td>
-                <td>${r.byName || '-'}</td>
-                <td>${r.module || '-'}</td>
-                <td>${r.action || '-'}</td>
+                <td>${esc(r.byName || '-')}</td>
+                <td>${esc(r.module || '-')}</td>
+                <td>${esc(r.action || '-')}</td>
                 <td style="text-align:right">${esc(r.description || '-')}</td>
                 ${canManage ? `<td><button onclick="audDeleteEntry('${r.key}')" style="border:none;background:none;cursor:pointer;font-size:13px" title="حذف">🗑️</button></td>` : ''}
             </tr>`;
@@ -31094,7 +31173,7 @@ window.printInvMovementVoucher = function (key) {
         <tr><td>السبب</td><td>${reasonLabel}</td></tr>
         <tr><td>المشروع</td><td>${projName}</td></tr>
         <tr><td>البيان</td><td>${esc(m.description || '—')}</td></tr>
-        ${m.batchNo ? `<tr><td>رقم التشغيلة</td><td>${m.batchNo}</td></tr>` : ''}
+        ${m.batchNo ? `<tr><td>رقم التشغيلة</td><td>${esc(m.batchNo)}</td></tr>` : ''}
         ${m.expiryDate ? `<tr><td>تاريخ الانتهاء</td><td>${m.expiryDate}</td></tr>` : ''}
         ${m.notes ? `<tr><td>ملاحظات</td><td>${esc(m.notes)}</td></tr>` : ''}
     </table>
@@ -31213,7 +31292,7 @@ function renderInvDashboardReport(container) {
                     const expired = new Date(r.m.expiryDate) < new Date();
                     return `<tr style="${i % 2 ? 'background:#fafbfc' : ''}">
                         <td style="padding:8px">${esc(r.it.nameAr || '—')}</td>
-                        <td style="padding:8px;text-align:center;font-family:monospace">${r.m.batchNo || '—'}</td>
+                        <td style="padding:8px;text-align:center;font-family:monospace">${esc(r.m.batchNo || '') || '—'}</td>
                         <td style="padding:8px;text-align:center;font-weight:700;color:${expired ? '#c0392b' : '#e67e22'}">${expired ? '🔴' : '🟠'} ${r.m.expiryDate}</td>
                     </tr>`;
                 }).join('')}</tbody>

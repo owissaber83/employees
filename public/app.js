@@ -93,7 +93,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get, runTransaction as _rawRunTransaction } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
 import { getStorage, ref as _sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
@@ -201,9 +201,12 @@ function _blockWriteIfSupport() {
 function update(reference, values) { if (_blockWriteIfSupport()) return Promise.reject(new Error('support-readonly')); return _rawUpdate(reference, scopeUpdates(values)); }
 function set(reference, value) { if (_blockWriteIfSupport()) return Promise.reject(new Error('support-readonly')); return _rawSet(reference, value); }
 function remove(reference) { if (_blockWriteIfSupport()) return Promise.reject(new Error('support-readonly')); return _rawRemove(reference); }
+// معاملة ذرية (لعدّادات الترقيم التسلسلي: قيود/فواتير/سندات/أكواد) — تمنع تصادم رقمين عند الحفظ المتزامن
+function runTransaction(reference, updateFn, opts) { if (_blockWriteIfSupport()) return Promise.reject(new Error('support-readonly')); return _rawRunTransaction(reference, updateFn, opts); }
 window.update = update;
 window.set = set;
 window.remove = remove;
+window.runTransaction = runTransaction;
 window.scopeUpdates = scopeUpdates;
 
 // كائن المراجع R — يُعاد بناؤه بعد معرفة المستأجر كي تأخذ المراجع بادئة المستأجر الصحيحة
@@ -352,6 +355,7 @@ window.set = set;
 window.push = push;
 window.update = update;
 window.remove = remove;
+window.runTransaction = runTransaction;
 window.get = get;
 window.onValue = onValue;
 
@@ -4962,7 +4966,8 @@ window.isPageModuleEnabled = function (pg) {
 };
 
 window.updProfile = async function () {
-    const nm = $('myNm').value.trim(), np = $('myPs').value;
+    // إزالة أقواس HTML من الاسم عند المصدر (دفاع في العمق) — الاسم يُعرض بلا تعقيم في أماكن كثيرة عبر النظام (سجل التدقيق، القيود، الفواتير...)
+    const nm = $('myNm').value.trim().replace(/[<>]/g, ''), np = $('myPs').value;
     if (!nm) { toast('الاسم مطلوب', 'er'); return }
     try {
         await fbUpP(curU, { displayName: nm });

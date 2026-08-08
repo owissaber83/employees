@@ -110,6 +110,13 @@ await test('مشاهد A لا يقرأ المطابقات (admin/accountant فق
 await test('اشتراك منتهٍ يمنع كتابة المطابقة', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/jrnRecon/m3'), { account: 'x' })));
 await test('عضو A لا يكتب مطابقة في B (عزل)', assertFails(set(ref(db.adminA, 'tenants/B/ledger/jrnRecon/hack'), { account: 'x' })));
 
+console.log('\n🔢 عدّادات الترقيم التسلسلي (counters — runTransaction للقيود/الفواتير/السندات):');
+await test('محاسب A يكتب عدّاد (حجز رقم قيد)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/counters/jrn/GEN/2026'), 42)));
+await test('محاسب A يقرأ العدّادات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/counters'))));
+await test('مشاهد A لا يكتب عدّاد', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/counters/jrn/GEN/2026'), 99)));
+await test('اشتراك منتهٍ يمنع كتابة عدّاد', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/counters/jrn/GEN/2026'), 1)));
+await test('عضو A لا يكتب عدّاد في B (عزل)', assertFails(set(ref(db.adminA, 'tenants/B/ledger/counters/jrn/GEN/2026'), 1)));
+
 console.log('\n👥 مجموعات العملاء/الموردين:');
 await test('محاسب A يكتب مجموعة عملاء', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/customerGroups/g1'), { name: 'عملاء الرياض', accountCode: '1130-01' })));
 await test('عضو A يقرأ مجموعات العملاء', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/customerGroups'))));
@@ -136,6 +143,16 @@ await test('مدير A يعدّل قيدًا مُرحَّلًا (مسموح لل
 await test('محاسب A يُلغي قيدًا مُرحَّلًا (posted → cancelled)', assertSucceeds(update(ref(db.acctA, 'tenants/A/ledger/journalEntries/jp'), { status: 'cancelled', cancelReason: 'تصحيح' })));
 // إنشاء قيد جديد وتعديل مسودة لا يتأثران
 await test('محاسب A يُنشئ قيدًا جديدًا (غير متأثر)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jnew'), { number: 'JV-N', status: 'draft', date: '2026-06-01', period: '2026-06' })));
+
+console.log('\n⚖️ توازن القيد (debit = credit) على مستوى الخادم — لا يُتّكَل على الواجهة وحدها:');
+// قيد مُرحَّل مباشرة (بتجاوز واجهة saveJrnEntry) بمجموع مدين ≠ دائن يجب أن يُرفض من القاعدة نفسها
+await test('محاسب A لا يكتب قيدًا مُرحَّلًا غير متزن', assertFails(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/junbal'), { number: 'JV-UNBAL', status: 'posted', date: '2026-06-05', period: '2026-06', totalDebit: 100, totalCredit: 80 })));
+// قيد مُرحَّل بلا حقلي totalDebit/totalCredit إطلاقاً يجب أن يُرفض أيضًا (لا إفلات بحذف الحقل)
+await test('محاسب A لا يكتب قيدًا مُرحَّلًا بلا مجاميع', assertFails(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jnototals'), { number: 'JV-NT', status: 'posted', date: '2026-06-05', period: '2026-06' })));
+// قيد مُرحَّل متزن فعليًا يُقبل بشكل طبيعي
+await test('محاسب A يكتب قيدًا مُرحَّلًا متزنًا', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jbal'), { number: 'JV-BAL', status: 'posted', date: '2026-06-05', period: '2026-06', totalDebit: 250.5, totalCredit: 250.5 })));
+// المسودات (status !== 'posted') ليست جزءًا من دفتر الأستاذ بعد — فحص التوازن لا يُطبَّق عليها
+await test('محاسب A يكتب مسودة غير متزنة (فحص التوازن للمُرحَّل فقط)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/journalEntries/jdraftunbal'), { number: 'JV-DU', status: 'draft', date: '2026-06-05', period: '2026-06', totalDebit: 100, totalCredit: 1 })));
 
 console.log('\n🔒 قفل الفترة (period lock) — للقيود التي تحمل حقل period:');
 // محاسب: يُمنع من الكتابة في فترة مقفلة
