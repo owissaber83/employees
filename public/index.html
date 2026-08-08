@@ -18485,7 +18485,7 @@
                     <!-- اختيار العميل (إجباري) -->
                     <div class="fg" style="margin-bottom:10px">
                         <label style="font-weight:700;color:#1a3a5c">اختر العميل من القائمة <span style="color:#e74c3c">*</span></label>
-                        <select id="prjCustomerId" onchange="onPrjCustomerChange()" style="width:100%;padding:10px;border:2px solid #2d6a9f;border-radius:8px;font-family:inherit;font-size:13px;background:white">
+                        <select id="prjCustomerId" data-ss="1" onchange="onPrjCustomerChange()" style="width:100%;padding:10px;border:2px solid #2d6a9f;border-radius:8px;font-family:inherit;font-size:13px;background:white">
                             <option value="">-- اختر عميلاً --</option>
                         </select>
                         <div id="prjCustomerHint" style="font-size:11px;color:#888;margin-top:4px">إذا لم يكن العميل موجوداً اضغط "➕ عميل جديد"</div>
@@ -18590,22 +18590,22 @@
                     <div style="font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:10px">👔 المسؤولون عن المشروع</div>
                     <div class="fgr" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
                         <div class="fg"><label>مدير المشروع *</label>
-                            <select id="prjProjectManager" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                            <select id="prjProjectManager" data-ss="1" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                                 <option value="">-- اختر --</option>
                             </select>
                         </div>
                         <div class="fg"><label>المهندس الرئيسي بالموقع</label>
-                            <select id="prjSiteEngineer" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                            <select id="prjSiteEngineer" data-ss="1" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                                 <option value="">-- اختر --</option>
                             </select>
                         </div>
                         <div class="fg"><label>المشرف الفني</label>
-                            <select id="prjSupervisor" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                            <select id="prjSupervisor" data-ss="1" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                                 <option value="">-- اختر --</option>
                             </select>
                         </div>
                         <div class="fg"><label>المدير المالي للمشروع</label>
-                            <select id="prjFinanceManager" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                            <select id="prjFinanceManager" data-ss="1" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                                 <option value="">-- اختر --</option>
                             </select>
                         </div>
@@ -18614,7 +18614,7 @@
 
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:8px">👷 فريق العمل (الموظفون المعينون)</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-                    <select id="prjEmpSelect" style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
+                    <select id="prjEmpSelect" data-ss="1" style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                         <option value="">-- اختر موظفاً --</option>
                     </select>
                     <button class="btn b-g" style="padding:8px 16px;font-size:12px" onclick="addEmpToProj()">➕ إضافة</button>
@@ -19868,7 +19868,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260808-review1"></script>
+    <script type="module" src="app.js?v=20260720-prjsearch"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260808-review1"></script>

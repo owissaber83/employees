@@ -6482,6 +6482,15 @@ window.openPrjM = function (key = null, tab = 'pt1') {
         if ($('prjMatSummary')) $('prjMatSummary').innerHTML = '';
     }
     ov('mPrj');
+    // 🔍 قوائم منسدلة بها بحث: تأكيد تعبئة الفريق ثم تحويل كل قوائم المشروع الطويلة
+    if (typeof fillTeamMemberSelects === 'function') fillTeamMemberSelects();
+    setTimeout(() => {
+        const root = $('mPrj');
+        if (root && typeof ssAutoEnhance === 'function') {
+            ssAutoEnhance(root);
+            if (typeof ssRefresh === 'function') ['prjProjectManager', 'prjSiteEngineer', 'prjSupervisor', 'prjFinanceManager', 'prjEmpSelect', 'prjCustomerId'].forEach(id => ssRefresh(id));
+        }
+    }, 60);
 };
 
 // Attach click handlers to material tab buttons in project rows (robust to re-renders)
@@ -17031,6 +17040,9 @@ function fillReportProjectFilter() {
     Object.entries(projects).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
         .forEach(([k, p]) => sel.innerHTML += `<option value="${k}">${p.name || k}</option>`);
     if (cur) sel.value = cur;
+    // 🔍 قائمة منسدلة بها بحث
+    sel.setAttribute('data-ss', '1');
+    if (typeof ssEnhance === 'function') { ssEnhance('prjRepProjectFilter', '🔍 جميع المشاريع'); if (typeof ssRefresh === 'function') ssRefresh('prjRepProjectFilter'); }
 }
 
 // === تبديل التقرير النشط ===
