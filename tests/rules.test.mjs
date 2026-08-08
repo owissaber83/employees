@@ -248,6 +248,24 @@ await test('محاسب A لا يكتب مدفوعة في شركة B (عزل)', a
 // مدير المشروع ما زال يكتب البيانات التشغيلية المشتركة ($other) — لم نقيّده هناك
 await test('مدير مشروع يكتب في المشاريع ($other لم يُقيَّد)', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/projects/pmproj'), { name: 'مشروع' })));
 
+console.log('\n🙈 سرّية قراءة المالية [B-3] — تُحجب عن الموظف/المشاهد، وتبقى لأدوار الإدارة:');
+// الموظف/المشاهد (الأكثر عدداً والأقل ثقة) لا يقرؤون المالية بعد الآن
+await test('موظف لا يقرأ المدفوعات (payments — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/payments'))));
+await test('موظف لا يقرأ المعاملات (transactions — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/transactions'))));
+await test('موظف لا يقرأ سندات القبض (receipts — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/receipts'))));
+await test('موظف لا يقرأ خطابات الضمان (guarantees — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/guarantees'))));
+await test('موظف لا يقرأ الدفعات المقدمة (customerAdvances — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/customerAdvances'))));
+await test('موظف لا يقرأ سجل الاستقطاع (whtRecords — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/whtRecords'))));
+await test('مشاهد لا يقرأ المدفوعات (payments — سرّية)', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/payments'))));
+await test('مشاهد لا يقرأ المعاملات (transactions — سرّية)', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/transactions'))));
+// أدوار الإدارة (محاسب/مدير/مدير مشروع) تقرأ المالية كالمعتاد — صفر تراجع في واجهة الإدارة
+await test('محاسب A يقرأ المعاملات (لم تتأثر الإدارة)', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/transactions'))));
+await test('مدير A يقرأ الدفعات المقدمة', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/customerAdvances'))));
+await test('مدير مشروع يقرأ خطابات الضمان (غير موظف/مشاهد)', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/guarantees'))));
+// الموظف ما زال يقرأ ما يخصّه: الإعلانات (بثّ) والخدمة الذاتية
+await test('موظف ما زال يقرأ الإعلانات (بثّ — لم تُحجب)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/announcements'))));
+await test('موظف ما زال يقرأ طلبات إجازاته (leaves — خدمة ذاتية)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/leaves'))));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
