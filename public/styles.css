@@ -141,6 +141,49 @@ max-width: 100%;
 --pu: #8e44ad;
 --li: #f0f2f5;
 --sh: 0 2px 15px rgba(0, 0, 0, .08);
+
+/* ══ رموز قسم الموارد البشرية (HR design tokens) — المرحلة أ ══
+   تُستخدم في hr-suite.js · hr-approvals.js · hr-requests.js · hr-extra.js.
+   القيم هنا هي ألوان القسم الأصلية بالضبط، فلا فرق بصري عن السابق.
+   لتغيير هوية القسم (ثيم جسر) تُعاد تعريفها لاحقاً تحت body[data-sec="hr"]
+   دون لمس أي ملف JS.
+   ⚠️ استثناء: دالة hsOpenLetterWindow (خطابات HR المطبوعة) تكتب مستنداً في
+   نافذة مستقلة لا ترث هذه المتغيّرات — ألوانها صريحة عمداً، لا تحوّلها. */
+
+/* الهوية والأزرق */
+--hr-pri: #1a3a5c;
+--hr-pri2: #2d6a9f;
+--hr-blue: #2980b9;
+--hr-ink: #243b53;
+
+/* التمييز والنجاح */
+--hr-acc: #16a085;
+--hr-ok: #27ae60;
+--hr-ok-d: #1e8449;
+
+/* الحالات */
+--hr-danger: #c0392b;
+--hr-danger2: #e74c3c;
+--hr-warn: #e67e22;
+--hr-warn-d: #b9770e;
+--hr-alt: #8e44ad;
+
+/* النصوص الباهتة */
+--hr-muted: #95a5a6;
+--hr-muted2: #7f8c8d;
+--hr-muted3: #8a97a5;
+
+/* الحدود */
+--hr-bd: #d9e2ec;
+--hr-bd2: #d0d7e0;
+
+/* السطوح */
+--hr-sf1: #f0f0f0;
+--hr-sf2: #f2f5f8;
+--hr-sf3: #eef5fb;
+--hr-sf4: #f0f5fa;
+--hr-sf5: #eef2f6;
+--hr-sf-ok: #eafaf1;
 }
 
 body {

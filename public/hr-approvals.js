@@ -72,10 +72,10 @@ function apvCanAct(rec) {
 // نصّ حالة الموافقة للعرض
 window.apvStatusHtml = function (rec) {
     const a = rec && rec.approval; if (!a) return '';
-    if (a.status === 'approved') return '<span style="background:#eafaf1;color:#1e8449;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700">✅ مُعتمد بالكامل</span>';
-    if (a.status === 'rejected') return '<span style="background:#fdecea;color:#c0392b;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700">❌ مرفوض</span>';
+    if (a.status === 'approved') return '<span style="background:var(--hr-sf-ok);color:var(--hr-ok-d);padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700">✅ مُعتمد بالكامل</span>';
+    if (a.status === 'rejected') return '<span style="background:#fdecea;color:var(--hr-danger);padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700">❌ مرفوض</span>';
     const s = a.steps[a.cur];
-    return `<span style="background:#eef5fb;color:#2d6a9f;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700">⏳ الخطوة ${a.cur + 1}/${a.steps.length}: ${apvEsc(s ? (s.name || apvStepApproverLabel(s)) : '')}</span>`;
+    return `<span style="background:var(--hr-sf3);color:var(--hr-pri2);padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700">⏳ الخطوة ${a.cur + 1}/${a.steps.length}: ${apvEsc(s ? (s.name || apvStepApproverLabel(s)) : '')}</span>`;
 };
 window.apvActive = apvActive;
 window.apvInit = apvInit;
@@ -122,21 +122,21 @@ function apvCanManage() { const p = window.myP; return !!(p && (p.role === 'admi
 
 window.renderApprovalFlows = function () {
     const c = document.getElementById('pg-approvalflows'); if (!c) return;
-    if (!apvCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية/المدير فقط</div>'; return; }
+    if (!apvCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--hr-danger)">🚫 هذه الصفحة متاحة للموارد البشرية/المدير فقط</div>'; return; }
 
     const typeCard = (type) => {
         const meta = APV_TYPES[type]; const p = apvPolicy(type) || { enabled: false, steps: [] };
         const steps = Array.isArray(p.steps) ? p.steps : [];
         const stepRow = (s, i) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f7fafc;border:1px solid #e6edf3;border-radius:9px;margin-bottom:6px">
-            <span style="background:#2d6a9f;color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none">${i + 1}</span>
-            <span style="flex:1;font-size:13px;font-weight:700;color:#243b53">${apvEsc(s.name || apvStepApproverLabel(s))}</span>
+            <span style="background:var(--hr-pri2);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none">${i + 1}</span>
+            <span style="flex:1;font-size:13px;font-weight:700;color:var(--hr-ink)">${apvEsc(s.name || apvStepApproverLabel(s))}</span>
             <span style="font-size:11.5px;color:#5b7185">${apvEsc(apvStepApproverLabel(s))}</span>
             <button class="btn b-r" style="padding:2px 8px;font-size:11px" onclick="apvRemoveStep('${type}',${i})">🗑️</button>
         </div>`;
-        return `<div class="card" style="margin-bottom:14px;border-right:5px solid ${p.enabled ? '#16a085' : '#c3ccd6'}">
+        return `<div class="card" style="margin-bottom:14px;border-right:5px solid ${p.enabled ? 'var(--hr-acc)' : '#c3ccd6'}">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
                 <div class="c-tl" style="margin:0">${meta.icon} ${apvEsc(meta.label)}</div>
-                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;cursor:pointer;color:${p.enabled ? '#16a085' : '#7d8a97'}">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;cursor:pointer;color:${p.enabled ? 'var(--hr-acc)' : '#7d8a97'}">
                     <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="apvToggle('${type}',this.checked)" style="width:16px;height:16px;cursor:pointer">
                     ${p.enabled ? 'مسار مفعّل' : 'مسار مُعطّل (اعتماد بخطوة واحدة)'}
                 </label>
@@ -155,7 +155,7 @@ window.renderApprovalFlows = function () {
     };
 
     c.innerHTML = `<div style="padding:0 4px">
-        <div style="font-size:16px;font-weight:800;color:#1a3a5c;margin-bottom:6px">✅ مسارات الموافقات</div>
+        <div style="font-size:16px;font-weight:800;color:var(--hr-pri);margin-bottom:6px">✅ مسارات الموافقات</div>
         <div style="font-size:12.5px;color:#66788a;margin-bottom:14px;line-height:1.7">حدِّد سلسلة الاعتماد لكل نوع طلب. تُطبَّق السلسلة على الطلبات <b>الجديدة</b> بعد التفعيل؛ الطلبات القائمة تُكمل مسارها القديم. بلا تفعيل، يبقى الاعتماد بخطوة واحدة كالمعتاد.</div>
         ${Object.keys(APV_TYPES).map(typeCard).join('')}
     </div>`;

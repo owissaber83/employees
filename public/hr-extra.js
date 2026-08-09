@@ -6,10 +6,10 @@
 // ── أنواع الجزاءات (سلّم تأديبي وفق لائحة تنظيم العمل) ───────────────────────
 const DISC_TYPES = {
     notice: { label: '📝 تنبيه', color: '#3498db', sev: 1 },
-    warning: { label: '⚠️ إنذار كتابي', color: '#e67e22', sev: 2 },
-    fine: { label: '💸 غرامة/خصم', color: '#e74c3c', sev: 3 },
+    warning: { label: '⚠️ إنذار كتابي', color: 'var(--hr-warn)', sev: 2 },
+    fine: { label: '💸 غرامة/خصم', color: 'var(--hr-danger2)', sev: 3 },
     denyRaise: { label: '⛔ حرمان علاوة/ترقية', color: '#9b59b6', sev: 3 },
-    suspend: { label: '🚫 إيقاف عن العمل', color: '#c0392b', sev: 4 },
+    suspend: { label: '🚫 إيقاف عن العمل', color: 'var(--hr-danger)', sev: 4 },
     dismiss: { label: '🔴 فصل من الخدمة', color: '#7b0000', sev: 5 }
 };
 const DISC_TYPE_ORDER = ['notice', 'warning', 'fine', 'denyRaise', 'suspend', 'dismiss'];
@@ -18,7 +18,7 @@ function hxEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({
 function hxMoney(v) { return (typeof fmt === 'function') ? fmt(Number(v) || 0) : (Number(v) || 0).toLocaleString('en'); }
 function hxDisc() { return window.disciplinary || {}; }
 function hxEmpName(id) { const e = (window.emp || {})[id]; return e ? (e.name || '—') : '—'; }
-function hxInp() { return 'padding:8px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box'; }
+function hxInp() { return 'padding:8px;border:1.5px solid var(--hr-bd2);border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box'; }
 function hxMyName() { try { return (window.curU && (window.myP?.name || window.curU.displayName)) || ''; } catch (e) { return ''; } }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -45,20 +45,20 @@ window.renderDisciplinary = function () {
 
     c.innerHTML = `<div style="padding:0 4px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-            <div style="font-size:16px;font-weight:800;color:#1a3a5c">⚖️ الجزاءات والإنذارات</div>
+            <div style="font-size:16px;font-weight:800;color:var(--hr-pri)">⚖️ الجزاءات والإنذارات</div>
             <button class="btn b-g" onclick="hxOpenDisc()" style="font-weight:800">➕ تسجيل جزاء/إنذار</button>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-            ${kpi('📋', 'إجمالي السجلات', all.length, '#2980b9')}
-            ${kpi('⚠️', 'إنذارات نشطة', activeWarn, activeWarn ? '#e67e22' : '#95a5a6')}
-            ${kpi('📅', 'هذا العام', thisYear, '#8e44ad')}
-            ${kpi('💸', 'إجمالي الغرامات', hxMoney(totalFines), '#e74c3c')}
+            ${kpi('📋', 'إجمالي السجلات', all.length, 'var(--hr-blue)')}
+            ${kpi('⚠️', 'إنذارات نشطة', activeWarn, activeWarn ? 'var(--hr-warn)' : 'var(--hr-muted)')}
+            ${kpi('📅', 'هذا العام', thisYear, 'var(--hr-alt)')}
+            ${kpi('💸', 'إجمالي الغرامات', hxMoney(totalFines), 'var(--hr-danger2)')}
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#fff;padding:12px 14px;border-radius:10px;margin-bottom:14px">
             <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">الموظف</label><select onchange="window._hxDisc.emp=this.value;renderDisciplinary()" style="${hxInp()}"><option value="">الكل</option>${empOpts}</select></div>
             <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">النوع</label><select onchange="window._hxDisc.type=this.value;renderDisciplinary()" style="${hxInp()}"><option value="">الكل</option>${typeOpts}</select></div>
             <div><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">السنة</label><select onchange="window._hxDisc.year=this.value;renderDisciplinary()" style="${hxInp()}"><option value="">الكل</option>${yearOpts}</select></div>
-            <button class="btn" onclick="window._hxDisc={emp:'',type:'',year:''};renderDisciplinary()" style="background:#f0f0f0">↺ إعادة ضبط</button>
+            <button class="btn" onclick="window._hxDisc={emp:'',type:'',year:''};renderDisciplinary()" style="background:var(--hr-sf1)">↺ إعادة ضبط</button>
         </div>
         <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px">
@@ -71,11 +71,11 @@ window.renderDisciplinary = function () {
         return `<tr style="border-bottom:1px solid #f3f3f3">
                     <td style="padding:8px 9px;white-space:nowrap">${d.date || '—'}</td>
                     <td style="font-weight:700">${hxEsc(d.empName || hxEmpName(d.empKey))}</td>
-                    <td><span style="background:${t.color}18;color:${t.color};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">${t.label}</span></td>
+                    <td><span style="background:color-mix(in srgb, ${t.color} 9%, transparent);color:${t.color};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">${t.label}</span></td>
                     <td style="color:#555;max-width:220px">${hxEsc(d.description || '—')}</td>
                     <td style="color:#666">${hxEsc(d.action || '—')}${d.penaltyDays ? ` · ${d.penaltyDays} يوم` : ''}</td>
-                    <td style="text-align:center;color:#e74c3c;font-weight:700">${d.penaltyAmount ? hxMoney(d.penaltyAmount) : '—'}</td>
-                    <td style="text-align:center"><span style="color:${open ? '#e67e22' : '#7f8c8d'};font-weight:700;font-size:11px">${open ? '🟠 نشط' : '⚫ منتهٍ'}</span>${d.acknowledged ? ' <span title="اطّلع الموظف" style="color:#27ae60">✔</span>' : ''}</td>
+                    <td style="text-align:center;color:var(--hr-danger2);font-weight:700">${d.penaltyAmount ? hxMoney(d.penaltyAmount) : '—'}</td>
+                    <td style="text-align:center"><span style="color:${open ? 'var(--hr-warn)' : 'var(--hr-muted2)'};font-weight:700;font-size:11px">${open ? '🟠 نشط' : '⚫ منتهٍ'}</span>${d.acknowledged ? ' <span title="اطّلع الموظف" style="color:var(--hr-ok)">✔</span>' : ''}</td>
                     <td style="text-align:left;white-space:nowrap"><button class="btn" onclick="hxOpenDisc('${d.k}')" style="font-size:11px;padding:3px 7px">✏️</button> <button class="btn b-r" onclick="hxDeleteDisc('${d.k}')" style="font-size:11px;padding:3px 7px">🗑️</button></td>
                 </tr>`;
     }).join('') : '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">لا سجلات في هذا الفلتر</td></tr>'}</tbody>
@@ -110,7 +110,7 @@ function hxEnsureDiscModal() {
     d.id = 'hxDiscModal';
     d.style.cssText = 'display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px';
     d.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:22px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 id="hxDiscTitle" style="margin:0;color:#c0392b;font-size:18px">⚖️ تسجيل جزاء/إنذار</h3><button onclick="hxCloseDisc()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 id="hxDiscTitle" style="margin:0;color:var(--hr-danger);font-size:18px">⚖️ تسجيل جزاء/إنذار</h3><button onclick="hxCloseDisc()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button></div>
         <input id="hxDiscKey" type="hidden">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             ${fg('الموظف *', `<select id="hxDiscEmp" style="width:100%;${hxInp()}"></select>`)}
@@ -123,7 +123,7 @@ function hxEnsureDiscModal() {
         ${fg('وصف المخالفة *', `<textarea id="hxDiscDesc" rows="2" style="width:100%;${hxInp()};resize:vertical"></textarea>`)}
         ${fg('الإجراء المتّخذ', `<textarea id="hxDiscAction" rows="2" style="width:100%;${hxInp()};resize:vertical"></textarea>`)}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:14px;cursor:pointer"><input id="hxDiscAck" type="checkbox"> اطّلع الموظف ووقّع على المخالفة</label>
-        <div style="display:flex;gap:8px"><button class="btn b-g" onclick="hxSaveDisc()" style="flex:1;font-weight:800">💾 حفظ</button><button class="btn" onclick="hxCloseDisc()" style="background:#f0f0f0">إلغاء</button></div>
+        <div style="display:flex;gap:8px"><button class="btn b-g" onclick="hxSaveDisc()" style="flex:1;font-weight:800">💾 حفظ</button><button class="btn" onclick="hxCloseDisc()" style="background:var(--hr-sf1)">إلغاء</button></div>
     </div>`;
     document.body.appendChild(d);
 }
@@ -174,14 +174,14 @@ window.renderOrgChart = function () {
     const totalActive = emps.length;
     const managerOf = name => { const d = Object.values(depts).find(x => x.name === name); if (!d) return null; return d.managerName || (d.managerId && (window.emp || {})[d.managerId]?.name) || null; };
 
-    const empChip = e => `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 8px;border-radius:7px;background:#f7f9fb;margin-bottom:4px;font-size:12px"><span style="font-weight:600;color:#1a3a5c">${hxEsc(e.name)}</span><span style="color:#999;font-size:11px">${hxEsc(e.job || '')}</span></div>`;
+    const empChip = e => `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 8px;border-radius:7px;background:#f7f9fb;margin-bottom:4px;font-size:12px"><span style="font-weight:600;color:var(--hr-pri)">${hxEsc(e.name)}</span><span style="color:#999;font-size:11px">${hxEsc(e.job || '')}</span></div>`;
     const deptCard = name => {
         const list = (byDept[name] || []).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
         const mgr = managerOf(name);
-        return `<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;border-top:3px solid #16a085">
-            <div style="background:linear-gradient(135deg,#16a08512,transparent);padding:12px 14px;border-bottom:1px solid #f0f0f0">
+        return `<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;border-top:3px solid var(--hr-acc)">
+            <div style="background:linear-gradient(135deg,#16a08512,transparent);padding:12px 14px;border-bottom:1px solid var(--hr-sf1)">
                 <div style="font-weight:800;color:#0e7c66;font-size:14px">🏢 ${hxEsc(name)}</div>
-                <div style="font-size:11.5px;color:#888;margin-top:2px">${mgr ? '👤 المدير: <b style="color:#555">' + hxEsc(mgr) + '</b>' : '<span style="color:#c0392b">بلا مدير محدّد</span>'} · ${list.length} موظف</div>
+                <div style="font-size:11.5px;color:#888;margin-top:2px">${mgr ? '👤 المدير: <b style="color:#555">' + hxEsc(mgr) + '</b>' : '<span style="color:var(--hr-danger)">بلا مدير محدّد</span>'} · ${list.length} موظف</div>
             </div>
             <div style="padding:10px 12px">${list.length ? list.map(empChip).join('') : '<div style="color:#bbb;font-size:12px;text-align:center;padding:6px">لا موظفين</div>'}</div>
         </div>`;
@@ -189,18 +189,18 @@ window.renderOrgChart = function () {
 
     c.innerHTML = `<div style="padding:0 4px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-            <div style="font-size:16px;font-weight:800;color:#1a3a5c">🏛️ الهيكل التنظيمي</div>
+            <div style="font-size:16px;font-weight:800;color:var(--hr-pri)">🏛️ الهيكل التنظيمي</div>
             <button class="btn" onclick="window.print()" style="background:#eef2f7">🖨️ طباعة</button>
         </div>
         <div style="text-align:center;margin-bottom:18px">
-            <div style="display:inline-block;background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff;padding:14px 40px;border-radius:14px;font-weight:800;font-size:18px;box-shadow:0 3px 12px rgba(26,58,92,.3)">🏛️ ${hxEsc(company)}</div>
+            <div style="display:inline-block;background:linear-gradient(135deg,var(--hr-pri),var(--hr-pri2));color:#fff;padding:14px 40px;border-radius:14px;font-weight:800;font-size:18px;box-shadow:0 3px 12px rgba(26,58,92,.3)">🏛️ ${hxEsc(company)}</div>
             <div style="font-size:12px;color:#888;margin-top:8px">${deptList.length} إدارة · ${totalActive} موظف نشط</div>
             <div style="width:2px;height:20px;background:#cbd5e1;margin:6px auto 0"></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
             ${deptList.length ? deptList.map(deptCard).join('') : '<div style="grid-column:1/-1;text-align:center;color:#aaa;padding:24px">لا إدارات — أضف إدارات وموظفين لعرض الهيكل</div>'}
-            ${noDept.length ? `<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;border-top:3px solid #95a5a6">
-                <div style="background:#95a5a612;padding:12px 14px;border-bottom:1px solid #f0f0f0"><div style="font-weight:800;color:#7f8c8d;font-size:14px">❔ بدون إدارة</div><div style="font-size:11.5px;color:#888;margin-top:2px">${noDept.length} موظف غير مرتبط بإدارة</div></div>
+            ${noDept.length ? `<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;border-top:3px solid var(--hr-muted)">
+                <div style="background:#95a5a612;padding:12px 14px;border-bottom:1px solid var(--hr-sf1)"><div style="font-weight:800;color:var(--hr-muted2);font-size:14px">❔ بدون إدارة</div><div style="font-size:11.5px;color:#888;margin-top:2px">${noDept.length} موظف غير مرتبط بإدارة</div></div>
                 <div style="padding:10px 12px">${noDept.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar')).map(empChip).join('')}</div>
             </div>` : ''}
         </div>

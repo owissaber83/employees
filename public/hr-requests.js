@@ -7,20 +7,20 @@
 'use strict';
 
 const TK_TYPES = {
-    complaint: { label: 'شكوى', icon: '⚠️', color: '#c0392b' },
-    hr_inquiry: { label: 'استفسار موارد بشرية', icon: '👥', color: '#8e44ad' },
-    it_support: { label: 'دعم تقني', icon: '💻', color: '#2d6a9f' },
-    doc_request: { label: 'طلب مستند', icon: '📄', color: '#16a085' },
+    complaint: { label: 'شكوى', icon: '⚠️', color: 'var(--hr-danger)' },
+    hr_inquiry: { label: 'استفسار موارد بشرية', icon: '👥', color: 'var(--hr-alt)' },
+    it_support: { label: 'دعم تقني', icon: '💻', color: 'var(--hr-pri2)' },
+    doc_request: { label: 'طلب مستند', icon: '📄', color: 'var(--hr-acc)' },
     finance: { label: 'استفسار مالي', icon: '💰', color: '#d35400' },
-    other: { label: 'أخرى', icon: '📌', color: '#7f8c8d' }
+    other: { label: 'أخرى', icon: '📌', color: 'var(--hr-muted2)' }
 };
 const TK_STATUS = {
-    open: { label: 'مفتوحة', color: '#e67e22', bg: '#fef6ee' },
-    in_progress: { label: 'قيد المعالجة', color: '#2d6a9f', bg: '#eef5fb' },
-    resolved: { label: 'تمّت المعالجة', color: '#1e8449', bg: '#eafaf1' },
-    closed: { label: 'مغلقة', color: '#7f8c8d', bg: '#f2f4f6' }
+    open: { label: 'مفتوحة', color: 'var(--hr-warn)', bg: '#fef6ee' },
+    in_progress: { label: 'قيد المعالجة', color: 'var(--hr-pri2)', bg: 'var(--hr-sf3)' },
+    resolved: { label: 'تمّت المعالجة', color: 'var(--hr-ok-d)', bg: 'var(--hr-sf-ok)' },
+    closed: { label: 'مغلقة', color: 'var(--hr-muted2)', bg: '#f2f4f6' }
 };
-const TK_PRIORITY = { low: { label: 'منخفضة', color: '#7f8c8d' }, normal: { label: 'عادية', color: '#2d6a9f' }, high: { label: 'عالية', color: '#e67e22' }, urgent: { label: 'عاجلة', color: '#c0392b' } };
+const TK_PRIORITY = { low: { label: 'منخفضة', color: 'var(--hr-muted2)' }, normal: { label: 'عادية', color: 'var(--hr-pri2)' }, high: { label: 'عالية', color: 'var(--hr-warn)' }, urgent: { label: 'عاجلة', color: 'var(--hr-danger)' } };
 
 function tkEsc(s) { return (typeof esc === 'function') ? esc(s) : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function tkMyName() { return (window.myP && window.myP.name) || (window.curU && window.curU.email) || ''; }
@@ -118,7 +118,7 @@ window.tkOpenAssigned = async function (empKey, id) {
 window._tkFilter = window._tkFilter || { status: '', type: '' };
 window.renderTickets = function () {
     const c = document.getElementById('pg-tickets'); if (!c) return;
-    if (!tkCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:#c0392b">🚫 هذه الصفحة متاحة للموارد البشرية/المدير فقط</div>'; return; }
+    if (!tkCanManage()) { c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--hr-danger)">🚫 هذه الصفحة متاحة للموارد البشرية/المدير فقط</div>'; return; }
     const all = tkAllFlat();
     const f = window._tkFilter;
     const shown = all.filter(t => (!f.status || (t.status || 'open') === f.status) && (!f.type || t.type === f.type))
@@ -127,25 +127,25 @@ window.renderTickets = function () {
 
     const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:13px 17px;flex:1;min-width:135px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:21px;font-weight:800;color:${col};margin-top:3px">${val}</div></div>`;
 
-    const row = t => `<tr style="border-bottom:1px solid #f2f5f8;cursor:pointer" onclick="tkOpen('${t.empKey}','${t.id}')">
+    const row = t => `<tr style="border-bottom:1px solid var(--hr-sf2);cursor:pointer" onclick="tkOpen('${t.empKey}','${t.id}')">
         <td style="padding:8px 10px;font-weight:700">${tkEsc(t.empName || '—')}</td>
         <td style="padding:8px 10px">${tkTypeBadge(t.type)}</td>
-        <td style="padding:8px 10px;font-weight:600;color:#243b53">${tkEsc(t.subject || '')}</td>
+        <td style="padding:8px 10px;font-weight:600;color:var(--hr-ink)">${tkEsc(t.subject || '')}</td>
         <td style="padding:8px 10px">${tkPrioBadge(t.priority)}</td>
         <td style="padding:8px 10px;color:#888;font-size:11px;white-space:nowrap">${tkFmtDate(t.createdAt)}</td>
         <td style="padding:8px 10px;text-align:center">${tkStatusBadge(t.status)}</td>
     </tr>`;
 
-    const filterBtn = (val, label, cur) => `<button class="btn" onclick="tkSetFilter('status','${val}')" style="padding:5px 11px;font-size:12px;${cur === val ? 'background:#2d6a9f;color:#fff' : 'background:#eef2f6;color:#334'}">${label}</button>`;
+    const filterBtn = (val, label, cur) => `<button class="btn" onclick="tkSetFilter('status','${val}')" style="padding:5px 11px;font-size:12px;${cur === val ? 'background:var(--hr-pri2);color:#fff' : 'background:var(--hr-sf5);color:#334'}">${label}</button>`;
     const typeOpts = `<option value="">كل الأنواع</option>` + Object.entries(TK_TYPES).map(([k, v]) => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('');
 
     c.innerHTML = `<div style="padding:0 4px">
-        <div style="font-size:16px;font-weight:800;color:#1a3a5c;margin-bottom:12px">🎫 مركز الطلبات والتذاكر</div>
+        <div style="font-size:16px;font-weight:800;color:var(--hr-pri);margin-bottom:12px">🎫 مركز الطلبات والتذاكر</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-            ${kpi('📥', 'مفتوحة', count('open'), '#e67e22')}
-            ${kpi('⚙️', 'قيد المعالجة', count('in_progress'), '#2d6a9f')}
-            ${kpi('✅', 'تمّت المعالجة', count('resolved'), '#1e8449')}
-            ${kpi('🗂️', 'الإجمالي', all.length, '#8e44ad')}
+            ${kpi('📥', 'مفتوحة', count('open'), 'var(--hr-warn)')}
+            ${kpi('⚙️', 'قيد المعالجة', count('in_progress'), 'var(--hr-pri2)')}
+            ${kpi('✅', 'تمّت المعالجة', count('resolved'), 'var(--hr-ok-d)')}
+            ${kpi('🗂️', 'الإجمالي', all.length, 'var(--hr-alt)')}
         </div>
         <div class="card">
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
@@ -153,7 +153,7 @@ window.renderTickets = function () {
                 <select onchange="tkSetFilter('type',this.value)" style="padding:5px 9px;font-size:12px;margin-right:auto">${typeOpts}</select>
             </div>
             ${shown.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-                <thead><tr style="background:#f0f5fa;text-align:right;color:#1a3a5c"><th style="padding:8px 10px">الموظف</th><th style="padding:8px 10px">النوع</th><th style="padding:8px 10px">الموضوع</th><th style="padding:8px 10px">الأولوية</th><th style="padding:8px 10px">التاريخ</th><th style="padding:8px 10px;text-align:center">الحالة</th></tr></thead>
+                <thead><tr style="background:var(--hr-sf4);text-align:right;color:var(--hr-pri)"><th style="padding:8px 10px">الموظف</th><th style="padding:8px 10px">النوع</th><th style="padding:8px 10px">الموضوع</th><th style="padding:8px 10px">الأولوية</th><th style="padding:8px 10px">التاريخ</th><th style="padding:8px 10px;text-align:center">الحالة</th></tr></thead>
                 <tbody>${shown.map(row).join('')}</tbody></table></div>`
             : '<div style="color:#aaa;text-align:center;padding:26px">لا تذاكر مطابقة للفلتر.</div>'}
         </div>
@@ -167,24 +167,24 @@ window.tkOpen = function (empKey, id) {
     const comments = t.comments ? Object.values(t.comments).sort((a, b) => (a.at || '').localeCompare(b.at || '')) : [];
     const us = window.us || window.users || {};
     const assignOpts = `<option value="">— بدون إسناد —</option>` + Object.entries(us).filter(([, u]) => u && u.active !== false).map(([uid, u]) => `<option value="${uid}" ${t.assigneeUid === uid ? 'selected' : ''}>${tkEsc(u.name || uid)}</option>`).join('');
-    const thread = comments.length ? comments.map(cm => `<div style="margin-bottom:8px;padding:8px 10px;border-radius:9px;background:${cm.staff ? '#eef5fb' : '#f7faf7'};border:1px solid ${cm.staff ? '#dceaf6' : '#e6f0e6'}">
+    const thread = comments.length ? comments.map(cm => `<div style="margin-bottom:8px;padding:8px 10px;border-radius:9px;background:${cm.staff ? 'var(--hr-sf3)' : '#f7faf7'};border:1px solid ${cm.staff ? '#dceaf6' : '#e6f0e6'}">
         <div style="font-size:11px;color:#66788a;margin-bottom:3px">${cm.staff ? '🛠️ ' : '🙋 '}${tkEsc(cm.byName || '')} · ${tkFmtDate(cm.at)}</div>
-        <div style="font-size:13px;color:#243b53;white-space:pre-wrap">${tkEsc(cm.text)}</div></div>`).join('') : '<div style="color:#aaa;font-size:12.5px;padding:6px 2px">لا ردود بعد.</div>';
+        <div style="font-size:13px;color:var(--hr-ink);white-space:pre-wrap">${tkEsc(cm.text)}</div></div>`).join('') : '<div style="color:#aaa;font-size:12.5px;padding:6px 2px">لا ردود بعد.</div>';
 
     const html = `<div style="max-width:640px">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">${tkTypeBadge(t.type)} ${tkPrioBadge(t.priority)} ${tkStatusBadge(t.status)}</div>
-        <div style="font-size:16px;font-weight:800;color:#1a3a5c;margin-bottom:4px">${tkEsc(t.subject || '')}</div>
+        <div style="font-size:16px;font-weight:800;color:var(--hr-pri);margin-bottom:4px">${tkEsc(t.subject || '')}</div>
         <div style="font-size:12px;color:#66788a;margin-bottom:10px">👷 ${tkEsc(t.empName || '')} · ${tkFmtDate(t.createdAt)}</div>
-        ${t.body ? `<div style="font-size:13px;color:#243b53;white-space:pre-wrap;background:#fafcfe;border:1px solid #eef2f6;border-radius:9px;padding:10px;margin-bottom:12px">${tkEsc(t.body)}</div>` : ''}
+        ${t.body ? `<div style="font-size:13px;color:var(--hr-ink);white-space:pre-wrap;background:#fafcfe;border:1px solid var(--hr-sf5);border-radius:9px;padding:10px;margin-bottom:12px">${tkEsc(t.body)}</div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-bottom:12px;padding:10px;background:#f7fafc;border-radius:10px">
             <div class="fg" style="margin:0"><label style="font-size:11px">الحالة</label>
                 <select id="tkStSel" onchange="tkSetStatus('${empKey}','${id}',this.value)">${Object.entries(TK_STATUS).map(([k, v]) => `<option value="${k}" ${(t.status || 'open') === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></div>
             ${tkCanManage() ? `<div class="fg" style="margin:0"><label style="font-size:11px">الإسناد إلى</label><select id="tkAssignSel">${assignOpts}</select></div>
             <button class="btn b-b" style="padding:6px 12px;font-size:12px" onclick="tkAssign('${empKey}','${id}')">👤 إسناد</button>` : (t.assigneeName ? `<div style="font-size:12px;color:#5b7185;align-self:center">👤 مُسندة إليك</div>` : '')}
         </div>
-        <div style="font-weight:700;font-size:13px;color:#243b53;margin-bottom:6px">💬 المحادثة</div>
+        <div style="font-weight:700;font-size:13px;color:var(--hr-ink);margin-bottom:6px">💬 المحادثة</div>
         <div style="max-height:230px;overflow-y:auto;margin-bottom:10px">${thread}</div>
-        <div style="display:flex;gap:6px"><input id="tkReplyInput" placeholder="اكتب رداً..." style="flex:1;padding:8px 10px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit">
+        <div style="display:flex;gap:6px"><input id="tkReplyInput" placeholder="اكتب رداً..." style="flex:1;padding:8px 10px;border:1.5px solid var(--hr-bd2);border-radius:8px;font-family:inherit">
             <button class="btn b-g" style="padding:8px 14px;font-weight:800" onclick="tkReplyFromModal('${empKey}','${id}')">📤 إرسال</button></div>
     </div>`;
     if (typeof hsModal === 'function') hsModal('🎫 تفصيل التذكرة', html);
@@ -204,31 +204,31 @@ window.essTicketsHtml = function () {
     const LBL = 'font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:5px';
     const typeOpts = Object.entries(TK_TYPES).map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
     const prioOpts = Object.entries(TK_PRIORITY).map(([k, v]) => `<option value="${k}" ${k === 'normal' ? 'selected' : ''}>${v.label}</option>`).join('');
-    const mineRows = mine.length ? mine.map(t => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid #f2f5f8">
+    const mineRows = mine.length ? mine.map(t => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--hr-sf2)">
         <div style="min-width:0">
-            <div style="font-weight:800;color:#243b53;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tkTypeBadge(t.type)} · ${tkEsc(t.subject)}</div>
-            <div style="color:#8a97a5;font-size:11.5px;margin-top:2px">${tkFmtDate(t.createdAt)}${t.comments ? ' · 💬 ' + Object.keys(t.comments).length : ''}</div>
+            <div style="font-weight:800;color:var(--hr-ink);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tkTypeBadge(t.type)} · ${tkEsc(t.subject)}</div>
+            <div style="color:var(--hr-muted3);font-size:11.5px;margin-top:2px">${tkFmtDate(t.createdAt)}${t.comments ? ' · 💬 ' + Object.keys(t.comments).length : ''}</div>
         </div>
         <div style="flex-shrink:0">${tkStatusBadge(t.status)}</div>
     </div>`).join('') : '<div style="color:#b3bdc7;font-size:12.5px;text-align:center;padding:22px">لا طلبات بعد — افتح طلبك الأول من الأعلى.</div>';
 
     const card = (inner, extra = '') => `<div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(20,50,80,.06);${extra}">${inner}</div>`;
-    const secTitle = t => `<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin:2px 0 12px">${t}</div>`;
+    const secTitle = t => `<div style="font-size:14px;font-weight:800;color:var(--hr-pri);margin:2px 0 12px">${t}</div>`;
     // 👤 تذاكر مُسندة إليّ (لمديري الأقسام غير HR) — من فهرس الإسناد
     const assigned = Object.values(window.myAssignedTickets || {}).sort((a, b) => (b.assignedAt || '').localeCompare(a.assignedAt || ''));
-    const assignedCard = assigned.length ? card(`${secTitle(`👤 تذاكر مُسندة إليّ (${assigned.length})`)}${assigned.map(x => `<div onclick="tkOpenAssigned('${x.empKey}','${x.ticketId}')" style="cursor:pointer;padding:11px 0;border-bottom:1px solid #f2f5f8">
-        <div style="font-weight:800;color:#243b53;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tkTypeBadge(x.type)} · ${tkEsc(x.subject)}</div>
-        <div style="color:#8a97a5;font-size:11.5px;margin-top:2px">👷 ${tkEsc(x.empName || '')} · ${tkFmtDate(x.assignedAt)} · اضغط للفتح والردّ</div>
+    const assignedCard = assigned.length ? card(`${secTitle(`👤 تذاكر مُسندة إليّ (${assigned.length})`)}${assigned.map(x => `<div onclick="tkOpenAssigned('${x.empKey}','${x.ticketId}')" style="cursor:pointer;padding:11px 0;border-bottom:1px solid var(--hr-sf2)">
+        <div style="font-weight:800;color:var(--hr-ink);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tkTypeBadge(x.type)} · ${tkEsc(x.subject)}</div>
+        <div style="color:var(--hr-muted3);font-size:11.5px;margin-top:2px">👷 ${tkEsc(x.empName || '')} · ${tkFmtDate(x.assignedAt)} · اضغط للفتح والردّ</div>
     </div>`).join('')}`, 'margin-bottom:13px') : '';
 
     return `${assignedCard}${card(`${secTitle('🎫 فتح طلب / تذكرة')}
-        <div style="font-size:12px;color:#8a97a5;margin:-6px 0 12px;line-height:1.7">استفسار أو شكوى أو دعم تقني أو طلب مستند — يصل مباشرةً للموارد البشرية وتتابع حالته هنا.</div>
+        <div style="font-size:12px;color:var(--hr-muted3);margin:-6px 0 12px;line-height:1.7">استفسار أو شكوى أو دعم تقني أو طلب مستند — يصل مباشرةً للموارد البشرية وتتابع حالته هنا.</div>
         <div style="display:flex;gap:10px;margin-bottom:11px">
             <div style="flex:1"><label style="${LBL}">النوع</label><select id="essTkType" style="${INP}">${typeOpts}</select></div>
             <div style="flex:1"><label style="${LBL}">الأولوية</label><select id="essTkPrio" style="${INP}">${prioOpts}</select></div>
         </div>
         <div style="margin-bottom:11px"><label style="${LBL}">العنوان *</label><input id="essTkSubject" placeholder="عنوان مختصر للطلب" style="${INP}"></div>
         <div style="margin-bottom:13px"><label style="${LBL}">التفاصيل</label><textarea id="essTkBody" rows="3" placeholder="اشرح طلبك بالتفصيل..." style="${INP};resize:vertical"></textarea></div>
-        <button onclick="essSubmitTicket()" style="width:100%;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;font-weight:800;font-size:15px;padding:14px;border-radius:13px;box-shadow:0 4px 14px rgba(142,68,173,.3)">📤 إرسال الطلب</button>`, 'margin-bottom:13px')}
+        <button onclick="essSubmitTicket()" style="width:100%;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,var(--hr-alt),#6c3483);color:#fff;font-weight:800;font-size:15px;padding:14px;border-radius:13px;box-shadow:0 4px 14px rgba(142,68,173,.3)">📤 إرسال الطلب</button>`, 'margin-bottom:13px')}
     ${card(`${secTitle(`🗂️ طلباتي (${mine.length})`)}${mineRows}`)}`;
 };
