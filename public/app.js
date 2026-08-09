@@ -255,6 +255,7 @@ function buildRefs() {
     jrnTemplates: ref(db, 'ledger/jrnTemplates'), // 📋 قوالب القيود اليدوية: { id: { name, lines:[{accountCode,debit,credit}] } }
     periodLocks: ref(db, 'ledger/periodLocks'),    // 🔒 إقفال الفترات المحاسبية: { 'YYYY-MM': { locked, lockedAt, lockedBy } }
     geofence: ref(db, 'ledger/geofence'),          // 🎯 نطاق الحضور الجغرافي: { enabled, mode, fences:{ id:{ name, lat, lng, radius } } }
+    holidays: ref(db, 'ledger/holidays'),          // 🎉 الإجازات الرسمية: { key: { name, from, to, paid } } — يستثنيها التحضير واحتساب الغياب
     attRequests: ref(db, 'ledger/attendanceRequests'), // 🛠️ طلبات تصحيح الحضور: { id:{ empKey, date, checkIn, checkOut, reason, status } }
     yearClosings: ref(db, 'ledger/yearClosings'),  // 🗓️ إقفالات السنوات المالية: { year: { closingEntryKey, openingEntryKey, netIncome, closedAt, closedBy } }
     auditLog: ref(db, 'ledger/auditLog'),          // 🕵️ سجل التدقيق الشامل: { key: { at, by, byName, module, action, description } }
@@ -2632,7 +2633,7 @@ window.nav = function (pg, el) {
     if (pg === 'surveys') { if (typeof renderSurveys === 'function') renderSurveys(); }
     if (pg === 'orgchart') { if (typeof renderOrgChart === 'function') renderOrgChart(); }
     if (pg === 'shifts') { if (typeof renderShifts === 'function') renderShifts(); }
-    if (pg === 'attsettings') { if (typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin(); }
+    if (pg === 'attsettings') { if (typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin(); if (typeof renderHolidays === 'function') renderHolidays(); }
     if (pg === 'leavepolicies') { if (typeof renderLeavePolicies === 'function') renderLeavePolicies(); }
     if (pg === 'timesheets') { if (typeof renderTimesheets === 'function') renderTimesheets(); }
     if (pg === 'workload') { if (typeof renderWorkload === 'function') renderWorkload(); }
@@ -3161,6 +3162,12 @@ function startListeners() {
     onValue(R.geofence, sn => {
         window.geofence = sn.exists() ? sn.val() : null;
         if ($('pg-attsettings')?.classList.contains('act') && typeof renderGeofenceAdmin === 'function') renderGeofenceAdmin();
+    });
+    onValue(R.holidays, sn => {
+        window.holidays = sn.exists() ? sn.val() : {};
+        _hdIndexDirty = true;   // أبطِل ذاكرة الفهرس عند أي تغيير
+        if ($('pg-attsettings')?.classList.contains('act') && typeof renderHolidays === 'function') renderHolidays();
+        if ($('pg-attendance')?.classList.contains('act') && typeof renderAttendance === 'function') renderAttendance();
     });
     onValue(R.attRequests, sn => {
         window.attRequests = sn.exists() ? sn.val() : {};
@@ -21954,6 +21961,78 @@ window.exportPayrollWPS = function (payrollKey) {
 
 
 
+// ══ 🎉 إدارة تقويم الإجازات الرسمية (داخل صفحة إعدادات الحضور) ═══════
+window.renderHolidays = function () {
+    const c = $('holidaysCard'); if (!c) return;
+    const canEdit = myP?.role === 'admin' || can('manage_attendance') || can('edit_settings');
+    const rows = Object.entries(window.holidays || {}).map(([k, h]) => ({ k, ...h }))
+        .sort((a, b) => (b.from || '').localeCompare(a.from || ''));
+    const yr = String(new Date().getFullYear());
+    const thisYear = rows.filter(h => (h.from || '').startsWith(yr));
+    const dayCount = h => {
+        if (!h.from) return 0;
+        const end = h.to || h.from;
+        return Math.max(1, Math.round((new Date(end) - new Date(h.from)) / 86400000) + 1);
+    };
+
+    c.innerHTML = `<div class="card" style="border-right:5px solid var(--hr-warn)">
+        <div class="c-tl">🎉 تقويم الإجازات الرسمية</div>
+        <div class="hr-info" style="margin-bottom:14px">
+            الأيام المسجّلة هنا <b>يستثنيها التحضير الشهري</b> (فلا يُسجَّل حضور في العيد)، و<b>لا تُحتسب غياباً</b> في ملخص الحضور.
+            سجّل العيدين واليوم الوطني ويوم التأسيس وأي تعطيل رسمي. العيد يُسجَّل <b>مدى</b> من تاريخ إلى تاريخ.
+        </div>
+        ${canEdit ? `<div class="form-grid sm">
+            <div class="fg"><label>اسم الإجازة *</label><input id="hdName" placeholder="مثال: عيد الفطر"></div>
+            <div class="fg"><label>من *</label><input type="date" id="hdFrom"></div>
+            <div class="fg"><label>إلى (اتركه فارغاً ليوم واحد)</label><input type="date" id="hdTo"></div>
+        </div>
+        <div class="card-actions">
+            <button class="btn b-p" onclick="hdSave()">➕ إضافة</button>
+            <div id="hdStatus" class="stat"></div>
+        </div>` : ''}
+        <div style="margin-top:14px;font-size:12px;color:var(--hr-muted)">
+            ${thisYear.length ? `${thisYear.length} إجازة مسجّلة في ${yr} — بمجموع ${thisYear.reduce((s, h) => s + dayCount(h), 0)} يوم` : `لا إجازات مسجّلة في ${yr}`}
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px">
+            <thead><tr style="text-align:right"><th style="padding:8px">الإجازة</th><th>من</th><th>إلى</th><th>الأيام</th>${canEdit ? '<th></th>' : ''}</tr></thead>
+            <tbody>${rows.length ? rows.map(h => `<tr>
+                <td style="padding:8px;font-weight:700;color:var(--hr-ink)">${esc(h.name || '—')}</td>
+                <td>${esc(h.from || '—')}</td>
+                <td>${esc(h.to || h.from || '—')}</td>
+                <td style="text-align:center;font-weight:700">${dayCount(h)}</td>
+                ${canEdit ? `<td style="text-align:left"><button class="btn b-r" style="padding:3px 9px;font-size:11px" onclick="hdDelete('${h.k}')">🗑️</button></td>` : ''}
+            </tr>`).join('') : `<tr><td colspan="${canEdit ? 5 : 4}" style="text-align:center;color:#aaa;padding:20px">لا إجازات مسجّلة بعد</td></tr>`}</tbody>
+        </table>
+    </div>`;
+};
+
+window.hdSave = async function () {
+    if (!(myP?.role === 'admin' || can('manage_attendance') || can('edit_settings'))) { toast('ليس لديك صلاحية', 'er'); return; }
+    const name = ($('hdName')?.value || '').trim();
+    const from = $('hdFrom')?.value || '';
+    let to = $('hdTo')?.value || '';
+    if (!name || !from) { toast('الاسم وتاريخ البداية مطلوبان', 'er'); return; }
+    if (to && to < from) { toast('تاريخ النهاية قبل البداية', 'er'); return; }
+    if (!to) to = from;
+    try {
+        await push(R.holidays, { name, from, to, addedBy: curU?.uid || '', addedAt: new Date().toISOString() });
+        if (typeof logAudit === 'function') logAudit('create', 'attendance', `إضافة إجازة رسمية: ${name} (${from} → ${to})`);
+        $('hdName').value = ''; $('hdFrom').value = ''; $('hdTo').value = '';
+        toast('🎉 أُضيفت الإجازة', 'ok');
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+window.hdDelete = function (key) {
+    const h = (window.holidays || {})[key];
+    cf2(`حذف إجازة "${h?.name || ''}"؟`, async () => {
+        try {
+            await remove(ref(db, 'ledger/holidays/' + key));
+            if (typeof logAudit === 'function') logAudit('delete', 'attendance', `حذف إجازة رسمية: ${h?.name || key}`);
+            toast('🗑️ حُذفت', 'ok');
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
 // ══ 🗂️ تبويبات صفحة الحضور ══════════════════════════════════════════
 // ثلاث وظائف مختلفة كانت مكدّسة في تمرير واحد: تشغيل يومي، سجلات، تحضير شهري.
 // نفس نمط window._essTab في الخدمة الذاتية — حالة + إعادة رسم، بلا عنصر شريط جديد.
@@ -22193,6 +22272,7 @@ window.doBulkMonthlyAttendance = async function () {
     const [y, m] = month.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     const dates = [];
+    let holidaySkipped = 0;   // أيام استُثنيت لأنها إجازات رسمية — نُظهرها في التأكيد
     for (let d = 1; d <= lastDay; d++) {
         const dt = new Date(y, m - 1, d);
         const dow = dt.getDay(); // 0=Sun, 5=Fri, 6=Sat
@@ -22200,13 +22280,16 @@ window.doBulkMonthlyAttendance = async function () {
         if (skipMode === 'fri_sat' && (dow === 5 || dow === 6)) skip = true;
         else if (skipMode === 'fri' && dow === 5) skip = true;
         else if (skipMode === 'sat_sun' && (dow === 6 || dow === 0)) skip = true;
-        if (!skip) dates.push(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+        const ds = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        // 🎉 لا تُحضِّر أحداً في إجازة رسمية (عيد/وطني/تأسيس) — تدخل الرواتب وتقارير التكلفة
+        if (!skip && isHoliday(ds)) { skip = true; holidaySkipped++; }
+        if (!skip) dates.push(ds);
     }
 
     // تأكيد
     const totalOps = selected.length * dates.length;
     const confirmed = await new Promise(resolve => {
-        cf2(`سيتم محاولة تحضير ${selected.length} موظف لـ ${dates.length} يوم عمل (إجمالي ${totalOps} عملية محتملة). متابعة؟`,
+        cf2(`سيتم محاولة تحضير ${selected.length} موظف لـ ${dates.length} يوم عمل (إجمالي ${totalOps} عملية محتملة).${holidaySkipped ? `\n\n🎉 استُثني ${holidaySkipped} يوم إجازة رسمية.` : ''} متابعة؟`,
             () => resolve(true), () => resolve(false));
     });
     if (!confirmed) { status.textContent = ''; return }
@@ -23065,13 +23148,49 @@ window.atSetThisMonth = function () {
 };
 
 // عدد أيام العمل في نطاق تاريخ (استثناء الجمعة والسبت)
+// ══ 🎉 الإجازات الرسمية ══════════════════════════════════════════════
+// تُخزَّن كمدى (from..to) لأن العيد عدة أيام. نبني فهرساً مسطّحاً بالتواريخ
+// لأن countWorkDays تستدعي isHoliday في حلقة يومية — بلا فهرس تصير O(أيام×إجازات).
+let _hdIndex = null, _hdIndexDirty = true;
+function _hdBuildIndex() {
+    _hdIndex = new Map();
+    Object.values(window.holidays || {}).forEach(h => {
+        if (!h || !h.from) return;
+        const end = h.to || h.from;
+        // حارس: مدى مقلوب أو مفتوح لن يعلّق الحلقة
+        if (end < h.from) return;
+        const cur = new Date(h.from + 'T00:00:00');
+        const stop = new Date(end + 'T00:00:00');
+        let guard = 0;
+        while (cur <= stop && guard++ < 400) {
+            // ⚠️ من المكوّنات المحلية لا toISOString: الأخيرة تحوّل لـ UTC فتُزيح
+            // اليوم للخلف في التوقيتات المتقدّمة على UTC (الرياض +3).
+            _hdIndex.set(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`, h.name || 'إجازة رسمية');
+            cur.setDate(cur.getDate() + 1);
+        }
+    });
+    _hdIndexDirty = false;
+}
+// هل هذا التاريخ (YYYY-MM-DD) إجازة رسمية؟
+window.isHoliday = function (dateStr) {
+    if (_hdIndexDirty || !_hdIndex) _hdBuildIndex();
+    return _hdIndex.has(dateStr);
+};
+// اسم الإجازة الرسمية لهذا التاريخ (أو '')
+window.holidayName = function (dateStr) {
+    if (_hdIndexDirty || !_hdIndex) _hdBuildIndex();
+    return _hdIndex.get(dateStr) || '';
+};
+
 function countWorkDays(from, to) {
     let count = 0;
     const cur = new Date(from);
     const end = new Date(to);
     while (cur <= end) {
         const day = cur.getDay(); // 0=sun .. 6=sat
-        if (day !== 5 && day !== 6) count++; // استثناء جمعة وسبت
+        const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        // استثناء الجمعة والسبت + الإجازات الرسمية (وإلا ظهرت العطل غياباً)
+        if (day !== 5 && day !== 6 && !isHoliday(ds)) count++;
         cur.setDate(cur.getDate() + 1);
     }
     return count;
