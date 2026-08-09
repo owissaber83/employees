@@ -2467,12 +2467,16 @@ window.renderApprovalsInbox = function () {
         });
     });
 
-    // 🕘 الأذونات والاستئذان
-    if (isAdmin || can('approve_leave')) {
+    // 🕘 الأذونات والاستئذان (تدعم سلاسل الاعتماد متعددة المستويات)
+    {
         Object.entries(window.permissions || {}).filter(([, p]) => (p.status || 'pending') === 'pending').forEach(([pk, p]) => {
+            const chained = p.approval && p.approval.steps;
+            const eligible = chained ? (typeof apvCanAct === 'function' && apvCanAct(p)) : (isAdmin || can('approve_leave'));
+            if (!eligible) return;
+            const stepTxt = chained ? ` · ⏳ خطوة ${p.approval.cur + 1}/${p.approval.steps.length}` : '';
             cards.push({
                 icon: '🕘', color: '#e67e22', title: `إذن ${esc(p.empName || '')} — ${(PERM_TYPES[p.type] || PERM_TYPES.other)[0]}`,
-                sub: `${p.date || ''}${p.fromTime ? ` · ${p.fromTime}${p.toTime ? ' ← ' + p.toTime : ''}` : ''} · ${p.hours || 0} ساعة${p.deductible ? ' · قابل للخصم' : ''}${p.reason ? ` — «${esc(p.reason)}»` : ''}`,
+                sub: `${p.date || ''}${p.fromTime ? ` · ${p.fromTime}${p.toTime ? ' ← ' + p.toTime : ''}` : ''} · ${p.hours || 0} ساعة${p.deductible ? ' · قابل للخصم' : ''}${p.reason ? ` — «${esc(p.reason)}»` : ''}${stepTxt}`,
                 actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="approvePerm('${pk}')">✅ اعتماد</button>`,
                           `<button class="btn b-r" style="padding:5px 12px;font-size:11px" onclick="rejectPerm('${pk}')">❌ رفض</button>`],
                 view: () => nav('permissions', document.getElementById('n-perm'))
@@ -10630,12 +10634,27 @@ window.savePerm = async function (key) {
     };
     try {
         if (key) { await update(ref(db, `ledger/permissions/${key}`), data); toast('تم التحديث ✓', 'ok'); }
-        else { data.status = 'pending'; data.createdAt = new Date().toISOString(); data.createdBy = curU?.uid || ''; await push(R.permissions, data); toast('تم تقديم الإذن ✓', 'ok'); }
+        else { data.status = 'pending'; data.createdAt = new Date().toISOString(); data.createdBy = curU?.uid || ''; const _pmApv = (typeof apvInit === 'function') ? apvInit('permission', emp[empKey]) : null; if (_pmApv) data.approval = _pmApv; await push(R.permissions, data); toast('تم تقديم الإذن ✓', 'ok'); }
         document.getElementById('permOverlay')?.remove();
     } catch (e) { toast('خطأ: ' + e.message, 'er'); }
 };
-window.approvePerm = function (key) { update(ref(db, `ledger/permissions/${key}`), { status: 'approved', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الاعتماد ✓', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er')); };
-window.rejectPerm = function (key) { update(ref(db, `ledger/permissions/${key}`), { status: 'rejected', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الرفض', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er')); };
+window.approvePerm = function (key) {
+    const p = (window.permissions || {})[key];
+    if (p && p.approval && p.approval.steps) {   // ✅ [HR-APV] سلسلة اعتماد
+        if (typeof apvCanAct === 'function' && !apvCanAct(p)) { toast('🚫 لست معتمِد الخطوة الحالية', 'er'); return; }
+        apvDecide('permission', key, p, true, ''); return;
+    }
+    update(ref(db, `ledger/permissions/${key}`), { status: 'approved', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الاعتماد ✓', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er'));
+};
+window.rejectPerm = function (key) {
+    const p = (window.permissions || {})[key];
+    if (p && p.approval && p.approval.steps) {   // ✅ [HR-APV] رفض ضمن السلسلة
+        if (typeof apvCanAct === 'function' && !apvCanAct(p)) { toast('🚫 لست معتمِد الخطوة الحالية', 'er'); return; }
+        const r = prompt('سبب الرفض (اختياري):'); if (r === null) return;
+        apvDecide('permission', key, p, false, r || ''); return;
+    }
+    update(ref(db, `ledger/permissions/${key}`), { status: 'rejected', reviewedBy: myP?.name || '', reviewedAt: new Date().toISOString() }).then(() => toast('تم الرفض', 'ok')).catch(e => toast('خطأ: ' + e.message, 'er'));
+};
 window.deletePerm = function (key) { cf2('حذف هذا الإذن؟', async () => { try { await remove(ref(db, `ledger/permissions/${key}`)); toast('تم الحذف', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
 
 // 📅 تقويم إجازات الفريق — شبكة شهرية (موظف × يوم) بالإجازات المعتمدة، ملوّنة حسب النوع
@@ -22722,12 +22741,15 @@ window.essSubmitPerm = async function () {
     const fromTime = $('essPmFrom')?.value || '', toTime = $('essPmTo')?.value || '';
     const type = $('essPmType')?.value || 'other';
     try {
-        await push(R.permissions, {
+        const _pmRec = {
             empKey: me.key, empName: me.data.name || '', type, date, fromTime, toTime,
             hours: (typeof permHours === 'function' ? permHours(fromTime, toTime) : 0),
             reason: $('essPmReason')?.value.trim() || '', deductible: (PERM_TYPES[type]?.[2]) !== false,
             status: 'pending', createdAt: new Date().toISOString(), createdBy: curU?.uid || '', viaSelfService: true
-        });
+        };
+        const _pmApv = (typeof apvInit === 'function') ? apvInit('permission', me.data) : null;  // ✅ [HR-APV]
+        if (_pmApv) _pmRec.approval = _pmApv;
+        await push(R.permissions, _pmRec);
         toast('✅ تم تقديم الإذن — بانتظار الاعتماد', 'ok');
         if ($('essPmFrom')) $('essPmFrom').value = ''; if ($('essPmTo')) $('essPmTo').value = ''; if ($('essPmReason')) $('essPmReason').value = '';
     } catch (e) { toast('خطأ: ' + e.message, 'er'); }

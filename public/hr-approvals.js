@@ -6,13 +6,12 @@
 // ╚══════════════════════════════════════════════════════════════════════════╝
 'use strict';
 
-// أنواع الطلبات المدعومة + المجموعة التي تُخزَّن فيها
+// أنواع الطلبات المدعومة + المجموعة التي تُخزَّن فيها.
+// (نقتصر على الطلبات ذات نمط «تقديم ← اعتماد» الواضح؛ الخطابات تُصدَر بالطباعة،
+//  والمصروفات تُرحَّل محاسبياً، والسلف يُنشئها HR مباشرة — تُوصَل لاحقاً عند الحاجة.)
 const APV_TYPES = {
     leave: { label: 'طلبات الإجازة', icon: '🌴', col: 'leaves' },
-    permission: { label: 'الأذونات والاستئذان', icon: '🕘', col: 'permissions' },
-    loan: { label: 'السلف والقروض', icon: '💳', col: 'loans' },
-    letter: { label: 'طلبات خطابات HR', icon: '📄', col: 'hrLetters' },
-    expense: { label: 'مطالبات المصروفات', icon: '🧾', col: 'employeeExpenses' }
+    permission: { label: 'الأذونات والاستئذان', icon: '🕘', col: 'permissions' }
 };
 // الأدوار التي يصحّ أن تكون معتمِدة (خطوة role)
 const APV_ROLES = { hr_officer: '👥 موظف موارد بشرية', admin_officer: '📋 موظف إداري', finance_manager: '💰 مدير مالي', executive_director: '👔 مدير تنفيذي', project_manager: '📋 مدير مشروع', admin: '🛡️ مدير النظام' };
