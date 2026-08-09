@@ -14558,10 +14558,13 @@
                                 <select id="prjStatusFilter" onchange="renderProjects()"
                                     style="padding:7px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
                                     <option value="">-- جميع الحالات --</option>
+                                    <option value="bidding">📝 مناقصة</option>
+                                    <option value="awarded">🏆 تُرسية</option>
                                     <option value="planning">📋 في التخطيط</option>
                                     <option value="active">⚙️ قيد التنفيذ</option>
                                     <option value="completed">✅ مكتمل</option>
                                     <option value="on-hold">⏸️ موقوف</option>
+                                    <option value="cancelled">🚫 ملغى</option>
                                 </select>
                             </div>
                             <button class="btn b-g" id="bAddProject" onclick="openPrjM()">➕ إضافة مشروع</button>
@@ -19954,7 +19957,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-prjread"></script>
+    <script type="module" src="app.js?v=20260809-prjfix"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260809-hr3"></script>

@@ -6433,6 +6433,16 @@ let materials = {};
 let matRequests = {};
 let matPurchases = {};
 
+// خريطة حالات المشروع الموحّدة (كل الحالات السبع التي يحفظها النموذج — كان statusMap يترجم 4 فقط)
+const PRJ_STATUS = {
+    bidding: { lb: '📝 مناقصة', bg: '#eef2f6', col: '#5b7185' },
+    awarded: { lb: '🏆 تُرسية', bg: '#e8f4fd', col: '#1a5276' },
+    planning: { lb: '📋 تخطيط', bg: '#fff3cd', col: '#664d03' },
+    active: { lb: '⚙️ تنفيذ', bg: '#d4edda', col: '#155724' },
+    completed: { lb: '✅ مكتمل', bg: '#cfe2ff', col: '#084298' },
+    'on-hold': { lb: '⏸️ موقوف', bg: '#f8d7da', col: '#721c24' },
+    cancelled: { lb: '🚫 ملغى', bg: '#eaeded', col: '#5d6d7e' }
+};
 window.renderProjects = function () {
     if (!$('pg-projects').classList.contains('act')) return;
     const search = ($('prjSearch')?.value || '').toLowerCase();
@@ -6440,10 +6450,31 @@ window.renderProjects = function () {
     // 🗄️ المؤرشفة: تُخفى افتراضياً؛ زر تبديل يعرضها وحدها للاستعادة
     const showArch = !!window._showArchivedPrj;
     const archCount = Object.values(projects).filter(p => p.archived).length;
+    // ⚡ فهرسة مسبقة (مرّة واحدة) بدل الحساب التربيعي لكل صف: عدد الموظفين + مجاميع المستخلصات
+    const empCountIdx = {};
+    Object.values(projEmpAssignments || {}).forEach(a => { if (a && a.projectId) empCountIdx[a.projectId] = (empCountIdx[a.projectId] || 0) + 1; });
+    const billIdx = {};
+    Object.values(window.progressBillings || {}).forEach(b => {
+        if (!b || !b.projectId || b.status === 'cancelled') return;
+        const x = billIdx[b.projectId] || (billIdx[b.projectId] = { billed: 0, net: 0, paid: 0, count: 0 });
+        if (b.status === 'approved' || b.status === 'paid') { x.billed += parseFloat(b.currentAmount) || 0; x.net += parseFloat(b.netAmount) || 0; x.count++; }
+        if (b.status === 'paid') x.paid += parseFloat(b.netAmount) || 0;
+    });
     let items = Object.entries(projects).filter(([, p]) => showArch ? p.archived : !p.archived);
-    if (search) items = items.filter(([, p]) => (p.name || '').toLowerCase().includes(search) || (p.description || '').toLowerCase().includes(search));
-    if (statusF) items = items.filter(([, p]) => p.status === statusF);
+    if (search) items = items.filter(([, p]) => [p.name, p.description, p.code, p.contractNo, p.contractRef, p.ownerName, (window.customers || {})[p.customerId]?.nameAr].some(v => (v || '').toLowerCase().includes(search)));
+    if (statusF) items = items.filter(([, p]) => (p.status || '') === statusF);
     items.sort((a, b) => new Date(b[1].createdAt) - new Date(a[1].createdAt));
+    // 📄 ترقيم الصفحات (50/صفحة)
+    const PER = 50; const totalCount = items.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PER));
+    if (!window._prjPage || window._prjPage > totalPages) window._prjPage = 1;
+    const page = window._prjPage;
+    const pageItems = items.slice((page - 1) * PER, page * PER);
+    const pager = totalPages > 1 ? `<div style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:12px;flex-wrap:wrap">
+        <button ${page <= 1 ? 'disabled' : ''} onclick="window._prjPage=${page - 1};renderProjects()" style="padding:5px 12px;border:1.5px solid #d0d7e0;border-radius:8px;background:#fff;cursor:${page <= 1 ? 'not-allowed' : 'pointer'};font-family:inherit;font-size:12px;opacity:${page <= 1 ? .5 : 1}">‹ السابق</button>
+        <span style="font-size:12px;color:#5b7185;font-weight:700">صفحة ${page} من ${totalPages} · ${totalCount} مشروع</span>
+        <button ${page >= totalPages ? 'disabled' : ''} onclick="window._prjPage=${page + 1};renderProjects()" style="padding:5px 12px;border:1.5px solid #d0d7e0;border-radius:8px;background:#fff;cursor:${page >= totalPages ? 'not-allowed' : 'pointer'};font-family:inherit;font-size:12px;opacity:${page >= totalPages ? .5 : 1}">التالي ›</button>
+    </div>` : '';
     const archToggle = (archCount || showArch) ? `<div style="margin-bottom:10px"><button onclick="window._showArchivedPrj=${!showArch};renderProjects()" style="border:1.5px solid ${showArch ? '#e67e22' : '#d0d7e0'};background:${showArch ? '#fef6ee' : '#fff'};color:${showArch ? '#c0562b' : '#5b7185'};border-radius:9px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800">${showArch ? '↩️ العودة للمشاريع النشطة' : `🗄️ المؤرشفة (${archCount})`}</button></div>` : '';
     if (!items.length) { $('prjL').innerHTML = archToggle + `<div class="empty"><div class="ei">${showArch ? '🗄️' : '📁'}</div><p>${showArch ? 'لا مشاريع مؤرشفة' : 'لا توجد نتائج'}</p></div>`; return }
     $('prjL').innerHTML = archToggle + `<table class="st">
@@ -6451,19 +6482,15 @@ window.renderProjects = function () {
             <th>#</th><th>المشروع</th><th>المدير</th><th>التاريخ</th><th>قيمة العقد</th><th>المستخلَص</th><th>الذمة</th><th>الموظفون</th><th>الحالة</th><th>إجراءات</th>
         </tr></thead>
         <tbody>
-        ${items.map(([k, p], i) => {
-        const statusMap = {
-            'planning': '📋 في التخطيط',
-            'active': '⚙️ قيد التنفيذ',
-            'completed': '✅ مكتمل',
-            'on-hold': '⏸️ موقوف'
-        };
-        const empCount = Object.values(projEmpAssignments).filter(a => a.projectId === k).length;
-        const bd = calcProjectBillings(k);
+        ${pageItems.map(([k, p], i) => {
+        const st = PRJ_STATUS[p.status] || { lb: p.status || '—', bg: '#eef2f6', col: '#5b7185' };
+        const empCount = empCountIdx[k] || 0;
+        const bi = billIdx[k] || { billed: 0, net: 0, paid: 0, count: 0 };
+        const bd = { totalBilled: bi.billed, totalReceivable: bi.net - bi.paid, count: bi.count };
         const contractValue = window.getProjectContractValue(k);
         const billingPct = contractValue > 0 ? Math.round((bd.totalBilled / contractValue) * 100) : 0;
         return `<tr>
-                <td style="font-weight:700;color:#888">${i + 1}</td>
+                <td style="font-weight:700;color:#888">${(page - 1) * PER + i + 1}</td>
                 <td><div style="font-weight:600;color:#1a3a5c">${esc(p.name) || '-'}</div>
                     <div style="font-size:11px;color:#888">${p.description ? esc(p.description.substring(0, 50)) + '...' : ''}</div>
                     ${p.customerId ? `<div style="font-size:11px;margin-top:2px"><span style="background:#e8f4fd;color:#1a5276;padding:2px 7px;border-radius:8px">🤝 ${esc((window.customers||{})[p.customerId]?.nameAr || p.ownerName || '')}</span></div>` : (p.ownerName ? `<div style="font-size:11px;color:#888;margin-top:2px">👤 ${esc(p.ownerName)}</div>` : '')}
@@ -6482,7 +6509,7 @@ window.renderProjects = function () {
                     ${bd.totalReceivable > 0 ? fmt(bd.totalReceivable) : '<span style="color:#27ae60;font-size:11px">✅ محصَّل</span>'}
                 </td>
                 <td><span style="background:#e8f4fd;color:#1a5276;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">${empCount} موظف</span></td>
-                <td><span style="background:${p.status === 'active' ? '#d4edda' : p.status === 'completed' ? '#cfe2ff' : p.status === 'on-hold' ? '#f8d7da' : '#fff3cd'};color:${p.status === 'active' ? '#155724' : p.status === 'completed' ? '#084298' : p.status === 'on-hold' ? '#721c24' : '#664d03'};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${statusMap[p.status] || p.status}</span></td>
+                <td><span style="background:${st.bg};color:${st.col};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${st.lb}</span></td>
                 <td><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
                     <button class="btn" style="padding:4px 10px;font-size:11px;background:#1a3a5c;color:white;font-weight:700" onclick="pdOpen('${k}')" title="فتح ملف المشروع الكامل">📂 الملف</button>
                     ${p.archived ? `<button class="btn b-g" style="padding:4px 10px;font-size:11px" onclick="restoreProject('${k}')" title="استعادة من الأرشيف">↩️ استعادة</button>` : `
@@ -6494,7 +6521,7 @@ window.renderProjects = function () {
             </tr>`;
     }).join('')}
         </tbody>
-    </table>`;
+    </table>` + pager;
     // attach delegated listeners for project material buttons
     if (window.attachProjectMatBtns) attachProjectMatBtns();
     updateProjectKPIs();
@@ -6726,6 +6753,11 @@ window.savePrj = async function () {
     const contractValue = parseFloat($('prjContractValue')?.value) || 0;
     if (contractValue <= 0) { toast('⚠️ قيمة العقد مطلوبة', 'er'); prjTab('pt1', document.querySelector('#mPrj .pt-btn')); $('prjContractValue').focus(); return }
     const key = $('mPrjK').value;
+    // ── حراسة دورة الحياة: تأكيد عند تعديل مشروع «مكتمل/ملغى» (سجل نهائي) ──
+    if (key && projects[key] && ['completed', 'cancelled'].includes(projects[key].status)) {
+        const ok = await cf2(`⚠️ المشروع «${esc(projects[key].name || '')}» بحالة ${projects[key].status === 'completed' ? '«مكتمل»' : '«ملغى»'} — التعديل على سجل نهائي. هل تؤكّد المتابعة؟`);
+        if (!ok) return;
+    }
     const matBudgetEstimate = parseFloat($('prjMatBudget')?.value) || 0;
     const laborCost = parseFloat($('prjLaborCost')?.value) || 0;
     const equipCost = parseFloat($('prjEquipCost')?.value) || 0;
@@ -6735,6 +6767,16 @@ window.savePrj = async function () {
     const subTotal = matBudgetEstimate + laborCost + equipCost + subcontractors + indirectCost;
     const contingencyAmt = subTotal * (contingencyPct / 100);
     const totalEstimatedCost = subTotal + contingencyAmt;
+
+    // ── تحقّق من المدخلات (كان غائباً: تواريخ معكوسة/قيم سالبة/نِسب > 100 تُحفظ) ──
+    const _sd = $('prjStart')?.value || '', _ed = $('prjEnd')?.value || '';
+    if (_sd && _ed && _ed < _sd) { toast('⚠️ تاريخ النهاية قبل تاريخ البداية', 'er'); prjTab('pt1', document.querySelector('#mPrj .pt-btn')); return; }
+    for (const [lbl, v] of [['نسبة الاحتفاظ', parseFloat($('prjRetentionPct')?.value) || 0], ['الدفعة المقدمة %', parseFloat($('prjAdvancePct')?.value) || 0], ['نسبة استرداد الدفعة', parseFloat($('prjAdvRecoveryPct')?.value) || 0], ['نسبة الطوارئ', contingencyPct], ['هامش الربح المستهدف', parseFloat($('prjTargetMargin')?.value) || 0]]) {
+        if (v < 0 || v > 100) { toast(`⚠️ ${lbl} يجب أن تكون بين 0 و100`, 'er'); return; }
+    }
+    for (const [lbl, v] of [['الدفعة المقدمة', parseFloat($('prjAdvancePayment')?.value) || 0], ['موازنة المواد', matBudgetEstimate], ['تكلفة العمالة', laborCost], ['تكلفة المعدات', equipCost], ['الباطن', subcontractors], ['التكاليف غير المباشرة', indirectCost]]) {
+        if (v < 0) { toast(`⚠️ «${lbl}» لا يمكن أن تكون قيمة سالبة`, 'er'); return; }
+    }
 
     // أسماء أعضاء الفريق
     const pmId = $('prjProjectManager')?.value || '';
@@ -6756,9 +6798,7 @@ window.savePrj = async function () {
         ownerContact: customer.nameAr || '',
         ownerPhone: customer.phone || '',
         ownerEmail: customer.email || '',
-        clientName: customer.nameAr || ownerName,
-        clientAddress: customer.address || '',
-        clientVATNumber: customer.vatNumber || '',
+        // (clientName/clientAddress/clientVATNumber تُضبط أدناه في إعدادات المستخلصات — أُزيلت التكرارات الميتة)
         // Location & contract
         city: $('prjCity')?.value?.trim() || '',
         area: $('prjArea')?.value?.trim() || '',
