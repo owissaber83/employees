@@ -360,8 +360,11 @@ await test('مشاهد لا يكتب مشروعاً', assertFails(set(ref(db.vie
 await test('موظف لا يكتب مشروعاً', assertFails(set(ref(db.empU, 'tenants/A/ledger/projects/p4'), { name: 'x' })));
 await test('اشتراك منتهٍ يمنع كتابة مشروع', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/projects/px'), { name: 'x' })));
 await test('عزل: مدير مشروع A لا يكتب مشروعاً في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/projects/hack'), { name: 'x' })));
-// القراءة لم تُقفَل بعد (سرّية قيمة العقد = متابعة لاحقة): الموظف ما زال يقرأ المشاريع
-await test('موظف ما زال يقرأ المشاريع (سرّية القيمة مؤجّلة)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/projects'))));
+// سرّية قيمة العقد: الموظف/المشاهد لا يقرآن المشاريع؛ أدوار الإدارة تقرأ
+await test('موظف لا يقرأ المشاريع (سرّية قيمة العقد)', assertFails(get(ref(db.empU, 'tenants/A/ledger/projects'))));
+await test('مشاهد لا يقرأ المشاريع', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/projects'))));
+await test('مدير مشروع يقرأ المشاريع', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/projects'))));
+await test('محاسب يقرأ المشاريع', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/projects'))));
 
 console.log('\n📁 سرّية مالية المشاريع [PRJ-FIN] — BOQ/مستخلصات/عقود باطن تُحجب عن الموظف/المشاهد:');
 await test('موظف لا يقرأ المستخلصات (progressBillings)', assertFails(get(ref(db.empU, 'tenants/A/ledger/progressBillings'))));

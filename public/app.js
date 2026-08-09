@@ -3015,7 +3015,7 @@ function startListeners() {
     watch(R.tr, sn => { tr = sn.exists() ? sn.val() : {}; window.tr = tr; renderSt(); renderDB(); pdfFilter() });
     onValue(R.us, sn => { us = sn.exists() ? sn.val() : {}; window.us = us; $('k6').textContent = Object.keys(us).length; renderUsL() });
     onValue(R.emp, sn => { emp = sn.exists() ? sn.val() : {}; window.emp = emp; renderEmps(); updateEmpKPIs(); updateDeptFilter(); updateDocAlertBadge(); if ($('pg-docalerts')?.classList.contains('act')) renderDocAlerts(); if ($('pg-dashboard')?.classList.contains('act')) renderDashboardAlerts(); if ($('pg-attendance')?.classList.contains('act') && $('atBulkCard')?.style.display !== 'none') fillBulkEmpsList(); if ($('pg-probation')?.classList.contains('act') && typeof renderProbation === 'function') renderProbation(); if ($('pg-hranalytics')?.classList.contains('act') && typeof renderHrAnalytics === 'function') renderHrAnalytics() });
-    onValue(R.prj, sn => {
+    watch(R.prj, sn => {
         projects = sn.exists() ? sn.val() : {};
         window.projects = projects; // 🌍 تعريض المشاريع لـ accounting.js
         if ($('pg-projects')?.classList.contains('act')) renderProjects();

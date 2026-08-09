@@ -344,7 +344,7 @@
             ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'accountant') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false"
           },
           "projects": {
-            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'employee' && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'viewer'",
             ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'project_manager' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'executive_director') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
           },
           "progressBillings": {
