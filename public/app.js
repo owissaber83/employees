@@ -22623,7 +22623,6 @@ window.renderSelfService = function () {
             <div style="flex:1;text-align:center"><div style="font-size:24px;font-weight:900;color:${loanOutstanding > 0 ? '#c0392b' : '#27ae60'}">${loanOutstanding > 0 ? fmt(loanOutstanding) : '0'}</div><div style="font-size:11px;color:#7a8896;font-weight:700">متبقي السلف</div></div>
         </div>`, 'margin-bottom:13px')}
         ${scard(`${secTitle('🕐 آخر سجلات حضوري')}${myAtt.length ? myAtt.map(a => listRow(a.date || '—', `${a.checkIn ? new Date(a.checkIn).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'} ← ${a.checkOut ? new Date(a.checkOut).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'}`, `<span style="font-weight:800;color:#16a085;font-size:13px">${(a.totalHours || 0).toFixed(1)} س</span>`)).join('') : empty('لا سجلات حضور بعد')}`, 'margin-bottom:13px')}
-        ${(typeof essTicketsHtml === 'function') ? essTicketsHtml() : ''}
         <div style="background:linear-gradient(135deg,#eef5fb,#f8fbfe);border:1px dashed #b9d4ea;border-radius:14px;padding:13px 15px;font-size:11.5px;color:#2d6a9f;line-height:1.8;text-align:center">📲 <b>ثبّت الخدمة كتطبيق:</b> من متصفح جوالك اختر «إضافة إلى الشاشة الرئيسية» لفتحها كتطبيق بنقرة.</div>`;
     } else if (tab === 'leave') {
         const leaveTypeOpts = Object.entries(LEAVE_TYPE_LABELS).map(([k, v]) => `<option value="${k}">${v.lb || k}</option>`).join('');
@@ -22663,6 +22662,8 @@ window.renderSelfService = function () {
             <div style="margin-bottom:13px">${lbl('وصف المصروف')}<input id="essExpDesc" placeholder="مثال: انتقالات مأمورية جدة" style="${inp}"></div>
             ${bigBtn('essSubmitExpense()', '📤 إرسال المطالبة', 'linear-gradient(135deg,#2d6a9f,#1f4e79)', 'rgba(45,106,159,.32)')}
             ${myExpenses.length ? `<div style="margin-top:14px">${myExpenses.map(x => listRow(x.description || 'مصروف', x.date || '', `<span style="font-weight:800;font-size:12.5px">${fmt(x.amount || 0)}</span> ${essStatusBadge(x.status === 'paid' ? 'approved' : x.status === 'approved' ? 'approved' : x.status === 'rejected' ? 'rejected' : 'pending')}`)).join('')}</div>` : ''}`)}`;
+    } else if (tab === 'tickets') {
+        body = (typeof essTicketsHtml === 'function') ? essTicketsHtml() : empty('وحدة الطلبات غير متاحة');
     } else {
         body = `
         ${scard(`${secTitle('👤 ملفّي الشخصي')}
@@ -22684,7 +22685,7 @@ window.renderSelfService = function () {
             ${myLetters.length ? `<div style="margin-top:13px">${myLetters.map(l => listRow(`${(hsLetterLabel ? hsLetterLabel(l.type) : l.type)}`, (l.issuedAt || l.requestedAt || '').slice(0, 10), essStatusBadge(l.status === 'issued' ? 'approved' : 'pending'))).join('')}</div>` : ''}`)}`;
     }
 
-    const tabs = [['home', '🏠', 'الرئيسية'], ['leave', '🌴', 'إجازة'], ['perm', '🕘', 'إذن'], ['pay', '💰', 'الراتب'], ['file', '📁', 'ملفّي']];
+    const tabs = [['home', '🏠', 'الرئيسية'], ['leave', '🌴', 'إجازة'], ['perm', '🕘', 'إذن'], ['tickets', '🎫', 'الطلبات'], ['pay', '💰', 'الراتب'], ['file', '📁', 'ملفّي']];
     c.innerHTML = `<div style="max-width:460px;margin:0 auto;padding-bottom:14px">
         <!-- ترويسة التطبيق -->
         <div style="background:linear-gradient(140deg,#1a3a5c,#2d6a9f);border-radius:0 0 26px 26px;padding:18px 18px 52px;color:#fff;position:relative">

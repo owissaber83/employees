@@ -179,27 +179,30 @@ window.tkReplyFromModal = async function (empKey, id) {
 // ══ قسم الخدمة الذاتية: نموذج فتح تذكرة + قائمة تذاكري ═══════════════════════════
 window.essTicketsHtml = function () {
     const mine = tkMineFlat().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // أنماط متّسقة مع الخدمة الذاتية (scard / inp / bigBtn)
+    const INP = 'padding:12px;border:1.5px solid #d9e0e8;border-radius:11px;font-family:inherit;font-size:14px;box-sizing:border-box;width:100%;background:#fbfcfd';
+    const LBL = 'font-size:11.5px;font-weight:800;color:#7a8896;display:block;margin-bottom:5px';
     const typeOpts = Object.entries(TK_TYPES).map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
     const prioOpts = Object.entries(TK_PRIORITY).map(([k, v]) => `<option value="${k}" ${k === 'normal' ? 'selected' : ''}>${v.label}</option>`).join('');
-    const mineRows = mine.length ? mine.map(t => `<div style="padding:9px 11px;border:1px solid #eef2f6;border-radius:9px;margin-bottom:6px;background:#fff">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-            <div style="font-weight:700;color:#243b53;font-size:13px">${tkTypeBadge(t.type)} — ${tkEsc(t.subject)}</div>
-            ${tkStatusBadge(t.status)}
+    const mineRows = mine.length ? mine.map(t => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid #f2f5f8">
+        <div style="min-width:0">
+            <div style="font-weight:800;color:#243b53;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tkTypeBadge(t.type)} · ${tkEsc(t.subject)}</div>
+            <div style="color:#8a97a5;font-size:11.5px;margin-top:2px">${tkFmtDate(t.createdAt)}${t.comments ? ' · 💬 ' + Object.keys(t.comments).length : ''}</div>
         </div>
-        <div style="font-size:11px;color:#8a97a5;margin-top:3px">${tkFmtDate(t.createdAt)}${t.comments ? ' · 💬 ' + Object.keys(t.comments).length : ''}</div>
-    </div>`).join('') : '<div style="color:#aaa;font-size:12.5px;text-align:center;padding:12px">لا طلبات بعد.</div>';
+        <div style="flex-shrink:0">${tkStatusBadge(t.status)}</div>
+    </div>`).join('') : '<div style="color:#b3bdc7;font-size:12.5px;text-align:center;padding:22px">لا طلبات بعد — افتح طلبك الأول من الأعلى.</div>';
 
-    return `<div class="card" style="border-right:5px solid #8e44ad">
-        <div class="c-tl">🎫 الطلبات والتذاكر</div>
-        <div style="font-size:12px;color:#66788a;margin-bottom:10px">افتح طلباً أو استفساراً أو شكوى وتابع حالته — يصل مباشرة للموارد البشرية.</div>
-        <div class="form-grid">
-            <div class="fg"><label>النوع</label><select id="essTkType">${typeOpts}</select></div>
-            <div class="fg"><label>الأولوية</label><select id="essTkPrio">${prioOpts}</select></div>
-            <div class="fg" style="grid-column:1/-1"><label>العنوان *</label><input id="essTkSubject" placeholder="عنوان مختصر للطلب"></div>
-            <div class="fg" style="grid-column:1/-1"><label>التفاصيل</label><textarea id="essTkBody" rows="3" placeholder="اشرح طلبك بالتفصيل..." style="resize:vertical"></textarea></div>
+    const card = (inner, extra = '') => `<div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(20,50,80,.06);${extra}">${inner}</div>`;
+    const secTitle = t => `<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin:2px 0 12px">${t}</div>`;
+
+    return `${card(`${secTitle('🎫 فتح طلب / تذكرة')}
+        <div style="font-size:12px;color:#8a97a5;margin:-6px 0 12px;line-height:1.7">استفسار أو شكوى أو دعم تقني أو طلب مستند — يصل مباشرةً للموارد البشرية وتتابع حالته هنا.</div>
+        <div style="display:flex;gap:10px;margin-bottom:11px">
+            <div style="flex:1"><label style="${LBL}">النوع</label><select id="essTkType" style="${INP}">${typeOpts}</select></div>
+            <div style="flex:1"><label style="${LBL}">الأولوية</label><select id="essTkPrio" style="${INP}">${prioOpts}</select></div>
         </div>
-        <button class="btn b-g" onclick="essSubmitTicket()" style="font-weight:800;margin-top:4px">📤 إرسال الطلب</button>
-        <div style="font-weight:700;font-size:13px;color:#243b53;margin:14px 0 7px">🗂️ طلباتي (${mine.length})</div>
-        ${mineRows}
-    </div>`;
+        <div style="margin-bottom:11px"><label style="${LBL}">العنوان *</label><input id="essTkSubject" placeholder="عنوان مختصر للطلب" style="${INP}"></div>
+        <div style="margin-bottom:13px"><label style="${LBL}">التفاصيل</label><textarea id="essTkBody" rows="3" placeholder="اشرح طلبك بالتفصيل..." style="${INP};resize:vertical"></textarea></div>
+        <button onclick="essSubmitTicket()" style="width:100%;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;font-weight:800;font-size:15px;padding:14px;border-radius:13px;box-shadow:0 4px 14px rgba(142,68,173,.3)">📤 إرسال الطلب</button>`, 'margin-bottom:13px')}
+    ${card(`${secTitle(`🗂️ طلباتي (${mine.length})`)}${mineRows}`)}`;
 };
