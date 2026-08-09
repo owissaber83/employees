@@ -186,6 +186,124 @@ max-width: 100%;
 --hr-sf-ok: #eafaf1;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   🎨 هوية «جسر» — تسري على صفحات الموارد البشرية فقط
+   يفعّلها nav() في app.js عبر body[data-sec="hr"] (قائمة HR_SECTION_PAGES).
+   بقية البرنامج (المحاسبة/المشاريع/المشتريات) يبقى بهوية GBR الكحلية.
+
+   مبدأ التوزيع: أصفر جسر لون **سطح** لا لون نص — النص الأصفر على أبيض
+   تباينه 1.44:1 (غير مقروء). فالأصفر يذهب للأسطح والتمييز، ونسخته
+   النصّية الآمنة ذهبية داكنة (--hr-acc = 5.54:1).
+   كل ألوان النصوص هنا ≥ 4.5:1 على أبيض (WCAG AA).
+   ══════════════════════════════════════════════════════════════════════ */
+body[data-sec="hr"] {
+/* ألوان جسر الخام — للاستعمال المباشر في تنسيقات القسم */
+--jisr-yellow: #ffd24d;
+--jisr-yellow-soft: #fff8e1;
+--jisr-blue: #2b72bd;
+--jisr-ink: #1c2b3f;
+
+/* الهوية والأزرق — نصوص، تبقى داكنة */
+--hr-pri: #1c2b3f;
+--hr-pri2: #2b72bd;
+--hr-blue: #2b72bd;
+--hr-ink: #1c2b3f;
+
+/* التمييز: ذهبي جسر (نسخة نصّية آمنة من الأصفر) + الأخضر الدلالي */
+--hr-acc: #8a6100;
+--hr-ok: #1e7a4d;
+--hr-ok-d: #1e7a4d;
+
+/* الحالات */
+--hr-danger: #c0392b;
+--hr-danger2: #c9432f;
+--hr-warn: #a85a00;
+--hr-warn-d: #8a6100;
+--hr-alt: #7d4bb0;
+
+/* النصوص الباهتة */
+--hr-muted: #647385;
+--hr-muted2: #647385;
+--hr-muted3: #677687;
+
+/* الحدود */
+--hr-bd: #e3e8ef;
+--hr-bd2: #d8e0ea;
+
+/* السطوح — هنا يعيش أصفر جسر */
+--hr-sf1: #f4f6f9;
+--hr-sf2: #e8edf3;
+--hr-sf3: #fff8e1;
+--hr-sf4: #fffbeb;
+--hr-sf5: #eef2f7;
+--hr-sf-ok: #e8f6ee;
+}
+
+/* خلفية الصفحة الفاتحة لقسم HR (جسر يستخدم رمادياً فاتحاً لا أبيض) */
+body[data-sec="hr"] {
+background: #f4f6f9;
+}
+
+/* ── شكل العرض على نمط جسر: بطاقات ناعمة، جداول مسطّحة، أزرار صفراء ── */
+
+/* بطاقات: زوايا أوسع، ظلّ أنعم، حدّ أفتح */
+body[data-sec="hr"] .card {
+border-radius: 14px;
+border: 1px solid #e6ebf1;
+box-shadow: 0 1px 3px rgba(20, 40, 70, .06);
+}
+
+/* عنوان البطاقة: تمييز جسر الأصفر بدل الخط الأزرق */
+body[data-sec="hr"] .c-tl {
+color: var(--jisr-ink);
+border-bottom: 2px solid var(--jisr-yellow);
+}
+
+/* شريط علوي بتوقيع جسر: خطّ أصفر سفلي — أول ما تراه عند دخول القسم */
+body[data-sec="hr"] .tb {
+border-bottom: 3px solid var(--jisr-yellow);
+}
+
+body[data-sec="hr"] .tb-t {
+color: var(--jisr-ink);
+}
+
+/* جداول: رأس فاتح، فواصل رفيعة، بلا حدود ثقيلة */
+body[data-sec="hr"] .pg table {
+border-collapse: collapse;
+}
+
+body[data-sec="hr"] .pg thead tr {
+background: #f7f9fc;
+}
+
+body[data-sec="hr"] .pg thead th {
+color: #55637a;
+font-weight: 700;
+border-bottom: 2px solid var(--jisr-yellow);
+}
+
+body[data-sec="hr"] .pg tbody tr {
+border-bottom: 1px solid #eef2f7;
+}
+
+body[data-sec="hr"] .pg tbody tr:hover {
+background: var(--jisr-yellow-soft);
+}
+
+/* الزرّ الأساسي: أصفر جسر بنصّ داكن (توقيعه البصري) — تباين 9.94:1 */
+body[data-sec="hr"] .btn.b-p {
+background: var(--jisr-yellow);
+color: var(--jisr-ink);
+font-weight: 700;
+}
+
+/* الزرّ الثانوي الأزرق يتبع أزرق جسر */
+body[data-sec="hr"] .btn.b-b {
+background: var(--jisr-blue);
+color: #fff;
+}
+
 body {
 font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
 background: var(--li);

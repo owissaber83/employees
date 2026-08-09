@@ -2547,6 +2547,16 @@ window.renderApprovalsInbox = function () {
 };
 
 // ── Navigate ──────────────────────────────
+// 🎨 صفحات قسم الموارد البشرية — تُفعّل عليها هوية «جسر» عبر body[data-sec="hr"].
+// اللوحة نفسها معرّفة في styles.css؛ لا يحتاج أي ملف JS تعديلاً لتغييرها.
+const HR_SECTION_PAGES = new Set([
+    'employees', 'departments', 'attendance', 'attsettings', 'payroll', 'deferredreport',
+    'payrolldashboard', 'laborcostreport', 'leaves', 'permissions', 'loans', 'performance',
+    'docalerts', 'empstatement', 'recruitment', 'disciplinary', 'orgchart', 'shifts',
+    'leavepolicies', 'approvalflows', 'tickets', 'hrletters', 'hranalytics', 'announcements',
+    'probation', 'goals', 'training', 'surveys', 'selfservice', 'hrdashboard', 'hrguide'
+]);
+
 window.nav = function (pg, el) {
     const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', recruitment: 'view_recruitment', disciplinary: 'view_disciplinary', orgchart: 'view_org_chart', shifts: 'manage_shifts', leavepolicies: 'manage_leave_policies', hrletters: 'view_employees', hranalytics: 'view_employees', announcements: 'view_employees', probation: 'view_employees', goals: 'view_performance', training: 'view_employees', surveys: 'view_employees' };
     if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
@@ -2572,6 +2582,10 @@ window.nav = function (pg, el) {
     document.querySelectorAll('.sb-it').forEach(x => x.classList.remove('act'));
     document.querySelectorAll('.sb-grp-h').forEach(x => x.classList.remove('has-active'));
     $('pg-' + pg).classList.add('act'); if (el) el.classList.add('act');
+
+    // 🎨 فعّل/عطّل هوية «جسر» حسب القسم — معزولة عن بقية البرنامج
+    if (HR_SECTION_PAGES.has(pg)) document.body.dataset.sec = 'hr';
+    else delete document.body.dataset.sec;
 
     // إذا الزر داخل مجموعة، افتحها وعلّمها كنشطة (وأغلق المجموعات الأخرى)
     if (el) {

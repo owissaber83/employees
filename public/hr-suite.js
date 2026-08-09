@@ -302,7 +302,7 @@ window.renderProbation = function () {
         .sort((a, b) => a.days - b.days);
 
     const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
-    const daysBadge = d => { const col = d < 0 ? 'var(--hr-danger)' : d <= 7 ? 'var(--hr-warn)' : d <= 30 ? 'var(--hr-warn-d)' : 'var(--hr-acc)'; const txt = d < 0 ? `منذ ${Math.abs(d)} يوم` : d === 0 ? 'اليوم' : `خلال ${d} يوم`; return `<span style="background:color-mix(in srgb, ${col} 9%, transparent);color:${col};padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`; };
+    const daysBadge = d => { const col = d < 0 ? 'var(--hr-danger)' : d <= 7 ? 'var(--hr-warn)' : d <= 30 ? 'var(--hr-warn-d)' : 'var(--hr-acc)'; const txt = d < 0 ? `منذ ${Math.abs(d)} يوم` : d === 0 ? 'اليوم' : `خلال ${d} يوم`; return `<span style="background:color-mix(in srgb, ${col} 9.41%, transparent);color:${col};padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`; };
 
     c.innerHTML = `<div style="padding:0 4px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
@@ -408,7 +408,7 @@ window.renderAnnouncements = function () {
             <div style="padding:12px 14px;border-bottom:1px solid var(--hr-sf1)">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
                     <div style="font-weight:800;color:${pr.color};font-size:14px">${hsEsc(a.title || 'إعلان')}</div>
-                    <span style="font-size:10px;color:${pr.color};background:color-mix(in srgb, ${pr.color} 9%, transparent);border-radius:8px;padding:2px 8px;white-space:nowrap">${esc(pr.label)}</span>
+                    <span style="font-size:10px;color:${pr.color};background:color-mix(in srgb, ${pr.color} 9.41%, transparent);border-radius:8px;padding:2px 8px;white-space:nowrap">${esc(pr.label)}</span>
                 </div>
                 <div style="font-size:10.5px;color:var(--hr-muted);margin-top:3px">${(a.date || a.createdAt || '').slice(0, 10)}${a.expiry ? ` · ينتهي ${a.expiry}` : ''}${off ? ' · موقوف' : expired ? ' · منتهٍ' : ''}</div>
             </div>
@@ -786,7 +786,7 @@ window.renderTraining = function () {
                     <td style="padding:7px 9px">${hsEsc(t.course || '—')}${t.provider ? `<div style="font-size:10px;color:var(--hr-muted)">${hsEsc(t.provider)}</div>` : ''}</td>
                     <td style="padding:7px 9px;color:#666">${HS_TRN_TYPES[t.type] || t.type || '—'}</td>
                     <td style="padding:7px 9px;color:#666;font-size:11px;white-space:nowrap">${t.startDate || '—'}${t.endDate ? ' ← ' + t.endDate : ''}</td>
-                    <td style="padding:7px 9px;text-align:center"><span style="background:color-mix(in srgb, ${st.color} 9%, transparent);color:${st.color};padding:2px 8px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap">${esc(st.label)}</span></td>
+                    <td style="padding:7px 9px;text-align:center"><span style="background:color-mix(in srgb, ${st.color} 9.41%, transparent);color:${st.color};padding:2px 8px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap">${esc(st.label)}</span></td>
                     <td style="padding:7px 9px;text-align:center">${t.hasCert ? `<span title="${hsEsc(t.certName || '')}${t.certExpiry ? ' · تنتهي ' + t.certExpiry : ''}" style="cursor:help">📜</span>` : '—'}</td>
                     <td style="padding:7px 9px;text-align:center;white-space:nowrap"><button class="btn" onclick="hsOpenTrn('${t.k}')" style="font-size:10px;padding:3px 7px">✏️</button> <button class="btn b-r" onclick="hsDeleteTrn('${t.k}')" style="font-size:10px;padding:3px 7px">🗑️</button></td>
                 </tr>`; }).join('')}</tbody>
