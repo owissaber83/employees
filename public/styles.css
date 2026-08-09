@@ -934,6 +934,23 @@ transform: translateY(-50%)
 background: rgba(45, 106, 159, .35);
 color: white
 }
+
+/* ══ [POLISH] تهدئة القائمة الجانبية: هوية موحّدة، لكنة زرقاء واحدة للنشط، وأيقونات هادئة ══
+   يُلغي ألوان اللكنة المضمّنة (حدود/تدرّجات/نصوص ملوّنة) في العناصر لإزالة «الزحمة» دون
+   تعديل الـ148 عنصراً؛ الأيقونات تصبح أحادية اللون بهدوء وتعود لألوانها عند التمرير/التنشيط. */
+.sb .sb-it,
+.sb .sb-grp-h { border-right-width: 0 !important; }
+.sb .sb-it:not(.act) { background: transparent !important; color: rgba(255, 255, 255, .72) !important; }
+.sb .sb-it:not(.act):hover { background: rgba(255, 255, 255, .09) !important; color: #fff !important; }
+.sb .sb-grp-h { background: rgba(255, 255, 255, .05) !important; color: rgba(255, 255, 255, .85) !important; }
+.sb .sb-grp-h:hover { background: rgba(255, 255, 255, .12) !important; }
+.sb .sb-sec { color: rgba(255, 255, 255, .32) !important; border-right-color: rgba(255, 255, 255, .09) !important; }
+.sb .sb-it .ic,
+.sb .sb-grp-h .ic { filter: grayscale(1) opacity(.6); transition: filter .2s ease; }
+.sb .sb-it:hover .ic,
+.sb .sb-it.act .ic,
+.sb .sb-grp-h:hover .ic,
+.sb .sb-grp-h.has-active .ic { filter: none; }
 .sb-badge {
 margin-right: auto;
 background: #e74c3c;
