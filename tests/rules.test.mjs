@@ -24,6 +24,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
   await set(ref(db, 'tenants/A/ledger/users/pmA'), { role: 'project_manager', active: true });   // دور غير محاسبي وغير موظف (لاختبار تصليب كتابة المالية)
+  await set(ref(db, 'tenants/A/ledger/users/hrA'), { role: 'hr_officer', active: true });         // شؤون موظفين (لاختبار منعه من تعديل/حذف المشاريع)
+  await set(ref(db, 'tenants/A/ledger/projects/p1'), { name: 'مشروع', contractValue: 5000000 }); // مشروع للاختبار (قيمة عقد حسّاسة)
   await set(ref(db, 'tenants/A/ledger/users/deadAdminA'), { role: 'admin', active: false });   // مدير مُوقَف (لاختبار علم active)
   await set(ref(db, 'tenants/A/ledger/announcements/a1'), { title: 'إعلان' });                  // تحت $other (يقرؤه الموظف)
   await set(ref(db, 'tenants/A/ledger/journalEntries/j1'), { number: 'JV-1' });
@@ -63,6 +65,7 @@ const db = {
   stranger: testEnv.authenticatedContext('stranger').database(),  // مصادَق لكن غير عضو في أي مستأجر
   op: testEnv.authenticatedContext('op1').database(),
   empU: testEnv.authenticatedContext('empU').database(),          // موظف خدمة ذاتية (empKey=E1)
+  hrA: testEnv.authenticatedContext('hrA').database(),            // شؤون موظفين
 };
 
 // ── مُشغّل اختبارات مبسّط ───────────────────────────────────────────────────
@@ -345,6 +348,20 @@ await test('مدير A يعتمد انتداباً', assertSucceeds(update(ref(d
 await test('مشاهد لا ينشئ انتداباً (viewer)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/businessTrips/hack'), { empKey: 'VW' })));
 await test('مدير مُوقَف لا ينشئ انتداباً (active=false)', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/businessTrips/t9'), { empKey: 'E1' })));
 await test('عزل: موظف A لا ينشئ انتداباً في شركة B', assertFails(set(ref(db.empU, 'tenants/B/ledger/businessTrips/t1'), { empKey: 'E1' })));
+
+console.log('\n📁 أمان المشاريع [PRJ] — الكتابة/الحذف لأدوار إدارة المشاريع فقط:');
+await test('مدير مشروع يعدّل مشروعاً', assertSucceeds(update(ref(db.pmA, 'tenants/A/ledger/projects/p1'), { name: 'مشروع محدّث' })));
+await test('مدير A يعدّل مشروعاً', assertSucceeds(update(ref(db.adminA, 'tenants/A/ledger/projects/p1'), { note: 'x' })));
+await test('مدير مشروع ينشئ مشروعاً', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/projects/p2'), { name: 'مشروع 2' })));
+await test('موظف HR لا يعدّل قيمة عقد مشروع (الثغرة الأبرز)', assertFails(update(ref(db.hrA, 'tenants/A/ledger/projects/p1'), { contractValue: 1 })));
+await test('موظف HR لا يحذف مشروعاً', assertFails(set(ref(db.hrA, 'tenants/A/ledger/projects/p1'), null)));
+await test('محاسب لا يعدّل/يحذف مشروعاً', assertFails(update(ref(db.acctA, 'tenants/A/ledger/projects/p1'), { contractValue: 1 })));
+await test('مشاهد لا يكتب مشروعاً', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/projects/p3'), { name: 'x' })));
+await test('موظف لا يكتب مشروعاً', assertFails(set(ref(db.empU, 'tenants/A/ledger/projects/p4'), { name: 'x' })));
+await test('اشتراك منتهٍ يمنع كتابة مشروع', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/projects/px'), { name: 'x' })));
+await test('عزل: مدير مشروع A لا يكتب مشروعاً في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/projects/hack'), { name: 'x' })));
+// القراءة لم تُقفَل بعد (سرّية قيمة العقد = متابعة لاحقة): الموظف ما زال يقرأ المشاريع
+await test('موظف ما زال يقرأ المشاريع (سرّية القيمة مؤجّلة)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/projects'))));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);

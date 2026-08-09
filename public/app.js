@@ -6699,6 +6699,9 @@ window.delEmpFromPrj = function (projectKey, assignKey) {
 };
 
 window.savePrj = async function () {
+    // 🔐 حارس صلاحية: إنشاء/تعديل المشاريع للمدير/مدير المشروع/المدير التنفيذي فقط (متوائم مع قاعدة projects)
+    const _prjKey = $('mPrjK')?.value;
+    if (myP?.role !== 'admin' && !can(_prjKey ? 'edit_project' : 'add_project')) { toast('🚫 ليس لديك صلاحية لإدارة المشاريع', 'er'); return; }
     const nm = $('prjNm').value.trim();
     if (!nm) { toast('اسم المشروع مطلوب', 'er'); return; }
 
@@ -6822,6 +6825,8 @@ window.savePrj = async function () {
 };
 
 window.delPrj = function (key) {
+    // 🔐 حارس صلاحية: حذف المشاريع للمدير/مدير المشروع/المدير التنفيذي فقط (متوائم مع قاعدة projects)
+    if (myP?.role !== 'admin' && !can('edit_project')) { toast('🚫 ليس لديك صلاحية لحذف المشاريع', 'er'); return; }
     cf2('هل تريد حذف هذا المشروع نهائياً؟', async () => {
         try {
             await remove(ref(db, 'ledger/projects/' + key));
