@@ -946,12 +946,9 @@ color: white
 .sb .sb-grp-h { background: rgba(255, 255, 255, .05) !important; color: rgba(255, 255, 255, .85) !important; }
 .sb .sb-grp-h:hover { background: rgba(255, 255, 255, .12) !important; }
 .sb .sb-sec { color: rgba(255, 255, 255, .32) !important; border-right-color: rgba(255, 255, 255, .09) !important; }
+/* الأيقونات ملوّنة وواضحة (بحسب تفضيل المستخدم)؛ الهدوء يأتي من تحييد أشرطة اللكنة والخلفيات أعلاه لا من تعتيم الأيقونات. */
 .sb .sb-it .ic,
-.sb .sb-grp-h .ic { filter: grayscale(1) opacity(.6); transition: filter .2s ease; }
-.sb .sb-it:hover .ic,
-.sb .sb-it.act .ic,
-.sb .sb-grp-h:hover .ic,
-.sb .sb-grp-h.has-active .ic { filter: none; }
+.sb .sb-grp-h .ic { filter: none; opacity: 1; }
 .sb-badge {
 margin-right: auto;
 background: #e74c3c;
