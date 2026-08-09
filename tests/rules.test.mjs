@@ -386,6 +386,22 @@ await test('موظف HR لا يكتب BOQ', assertFails(set(ref(db.hrA, 'tenants
 await test('عزل: مدير مشروع A لا يقرأ مستخلصات B', assertFails(get(ref(db.pmA, 'tenants/B/ledger/progressBillings'))));
 await test('اشتراك منتهٍ يمنع كتابة مستخلص', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/progressBillings/x'), { amount: 1 })));
 
+console.log('\n📁 تصليب كتابة مجموعات المشاريع بالأدوار [PRJ-W]:');
+// المستخلصات: مدير مشروع/محاسب/مهندس/تنفيذي — والمحاسب مشمول (لئلا ينكسر ترحيل القيد/تخصيص المقبوضات)
+await test('مدير مشروع يكتب مستخلصاً', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/progressBillings/pb1'), { amount: 100 })));
+await test('محاسب يكتب/يُرحّل مستخلصاً (ترحيل القيد/التحصيل)', assertSucceeds(update(ref(db.acctA, 'tenants/A/ledger/progressBillings/pb1'), { journalKey: 'j1' })));
+await test('موظف HR لا يكتب مستخلصاً', assertFails(set(ref(db.hrA, 'tenants/A/ledger/progressBillings/pbh'), { amount: 1 })));
+await test('مشاهد لا يكتب مستخلصاً', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/progressBillings/pbv'), { amount: 1 })));
+// عقود الباطن/المصروفات: محاسب مشمول
+await test('محاسب يسجّل مصروف مشروع', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/projectExpenses/e1'), { amount: 50 })));
+await test('مدير مشروع يسجّل عقد باطن', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/subcontracts/s1'), { value: 1000 })));
+await test('موظف HR لا يسجّل مصروف مشروع', assertFails(set(ref(db.hrA, 'tenants/A/ledger/projectExpenses/eh'), { amount: 1 })));
+// بنود أخرى: مدير مشروع/محاسب/تنفيذي
+await test('محاسب يكتب تكلفة شهرية للمشروع', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/projectMonthlyCosts/mc1'), { amount: 10 })));
+await test('موظف HR لا يكتب أمر تغيير', assertFails(set(ref(db.hrA, 'tenants/A/ledger/projectChangeOrders/co1'), { amount: 1 })));
+// عزل واشتراك
+await test('عزل: مدير مشروع A لا يكتب مستخلصاً في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/progressBillings/hack'), { amount: 1 })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
