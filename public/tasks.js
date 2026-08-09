@@ -907,7 +907,7 @@ window.tasksOpenEditor = function (parentKey, editKey) {
     const rem = (cur && cur.reminder) ? cur.reminder : { enabled: false };
     const title = cur ? 'تعديل مهمة' : (parentKey ? 'مهمة فرعية جديدة' : 'مهمة جديدة');
     const parentName = parentKey && window.tasksData[parentKey] ? window.tasksData[parentKey].title : '';
-    const v = (x) => x == null ? '' : String(x).replace(/"/g, '&quot;');
+    const v = (x) => x == null ? '' : String(x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); // تهريب HTML كامل (يمنع كسر textarea/الوسوم)
     const ov = document.createElement('div');
     ov.id = 'taskEditorOverlay';
     ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px';
@@ -957,7 +957,7 @@ window.tasksOpenEditor = function (parentKey, editKey) {
             <textarea id="tkNotes" rows="2" style="${inp};margin-bottom:10px">${cur ? v(cur.notes) : ''}</textarea>
             <label style="font-size:11px;color:#666;font-weight:700">📎 مرفقات (رابط لكل سطر — أو «الاسم | الرابط»)</label>
             ${cur && Array.isArray(cur.attachments) && cur.attachments.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px">${cur.attachments.map(a => `<a href="${(a.url || '').replace(/"/g, '&quot;')}" target="_blank" style="font-size:11px;background:#eaf2fb;color:#2d6a9f;border-radius:8px;padding:3px 9px;text-decoration:none">📎 ${(a.name || a.url).replace(/</g, '&lt;')}</a>`).join('')}</div>` : ''}
-            <textarea id="tkAttach" rows="2" placeholder="مثال: عقد المشروع | https://drive.google.com/..." style="${inp};margin-bottom:12px">${cur && Array.isArray(cur.attachments) ? cur.attachments.map(a => (a.name && a.name !== a.url ? a.name + ' | ' + a.url : a.url)).join('\n') : ''}</textarea>
+            <textarea id="tkAttach" rows="2" placeholder="مثال: عقد المشروع | https://drive.google.com/..." style="${inp};margin-bottom:12px">${cur && Array.isArray(cur.attachments) ? v(cur.attachments.map(a => (a.name && a.name !== a.url ? a.name + ' | ' + a.url : a.url)).join('\n')) : ''}</textarea>
 
             <div style="border:1.5px solid #f0c419;border-radius:10px;padding:12px;background:#fffdf5">
                 <div style="font-size:13px;font-weight:800;color:#7d4e00;margin-bottom:8px">🔔 التذكير</div>

@@ -1818,13 +1818,13 @@ window.asSaveReport = function(editKey, editName, editNotes, editProject) {
                     style="border:1.5px solid #dadce0;border-radius:6px;padding:9px 12px;width:100%;font-family:inherit;font-size:13px;background:#fff;outline:none;cursor:pointer">
                     <option value="">-- اختر المشروع --</option>
                     ${projs.map(([k,p])=>`
-                        <option value="${p.name}" ${p.name===defaultProj?'selected':''}>${p.name}</option>
+                        <option value="${window.esc(p.name)}" ${p.name===defaultProj?'selected':''}>${window.esc(p.name)}</option>
                     `).join('')}
                     <option value="__custom__">✏️ أدخل اسماً مخصصاً...</option>
                 </select>
                 <input id="asRProjectCustom"
                     placeholder="اكتب اسم المشروع هنا..."
-                    value="${!projs.some(([,p])=>p.name===defaultProj) && defaultProj ? defaultProj : ''}"
+                    value="${window.esc(!projs.some(([,p])=>p.name===defaultProj) && defaultProj ? defaultProj : '')}"
                     style="display:${!projs.some(([,p])=>p.name===defaultProj) && defaultProj ? 'block' : 'none'};
                            margin-top:8px;width:100%;padding:9px 12px;border:1.5px solid #1a73e8;
                            border-radius:6px;font-family:inherit;font-size:13px;outline:none">
@@ -1839,7 +1839,7 @@ window.asSaveReport = function(editKey, editName, editNotes, editProject) {
             <!-- ملاحظات -->
             <div class="as-m-group">
                 <label>ملاحظات (اختياري)</label>
-                <textarea id="asRNotes" placeholder="أضف أي ملاحظات أو تعليقات...">${editNotes||''}</textarea>
+                <textarea id="asRNotes" placeholder="أضف أي ملاحظات أو تعليقات...">${(window.esc ? window.esc(editNotes) : (editNotes||''))}</textarea>
             </div>
 
             ${!editKey ? `<div style="background:#e8f5e9;border-radius:6px;padding:10px 14px;font-size:11px;color:#1b5e20">

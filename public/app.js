@@ -10451,7 +10451,7 @@ function renderLeaveCard(lk, l, showEmp) {
                 <div style="font-size:10px;color:#aaa;margin-top:4px">طلب من ${l.requestedBy || '-'} | ${l.requestedAt ? new Date(l.requestedAt).toLocaleDateString('ar-SA') : ''}
                     ${l.approvedBy ? ` | <span style="color:#1e8449">معتمد من: ${l.approvedBy}</span>` : ''}
                     ${l.rejectedBy ? ` | <span style="color:#c0392b">مرفوض من: ${l.rejectedBy}</span>` : ''}
-                    ${l.rejectionReason ? `<br><span style="color:#c0392b">سبب الرفض: ${l.rejectionReason}</span>` : ''}
+                    ${l.rejectionReason ? `<br><span style="color:#c0392b">سبب الرفض: ${esc(l.rejectionReason)}</span>` : ''}
                 </div>
             </div>
             <span style="background:${st.bg};color:${st.col};padding:4px 12px;border-radius:10px;font-size:11px;font-weight:700">${st.lb}</span>
@@ -10585,7 +10585,7 @@ window.renderPermissions = function () {
         const [sl, sc, sbg] = PERM_STATUS[p.status] || PERM_STATUS.pending;
         const e = emp[p.empKey] || {};
         return `<tr style="border-top:1px solid #eef2f7">
-                <td style="padding:8px 9px;font-weight:700;color:#1a3a5c">${e.name || p.empName || '—'}</td>
+                <td style="padding:8px 9px;font-weight:700;color:#1a3a5c">${esc(e.name || p.empName || '—')}</td>
                 <td style="padding:8px 9px;text-align:center"><span style="color:${tc};font-weight:700;font-size:12px">${tl}</span>${p.deductible === false ? '<div style="font-size:9px;color:#27ae60">بلا خصم</div>' : ''}</td>
                 <td style="padding:8px 9px;text-align:center;color:#666">${p.date || ''}</td>
                 <td style="padding:8px 9px;text-align:center">${p.fromTime || ''}</td>
@@ -10625,7 +10625,7 @@ window.openPermForm = function (key) {
             </div>
             <div style="background:#f6f0fa;border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:#5b2c6f;font-weight:700">⏱️ مدة الإذن</span><span id="perm-hours" style="font-size:18px;font-weight:900;color:#8e44ad">0.0 ساعة</span></div>
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#333;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="perm-deduct" ${!p || p.deductible !== false ? 'checked' : ''} style="width:17px;height:17px"> يُحتسب على الموظف (قابل للخصم) — أزِله للمأموريات الرسمية</label>
-            <div style="margin-bottom:14px"><label style="${lst}">السبب</label><textarea id="perm-reason" rows="2" placeholder="سبب الاستئذان..." style="${ist};resize:vertical">${p?.reason || ''}</textarea></div>
+            <div style="margin-bottom:14px"><label style="${lst}">السبب</label><textarea id="perm-reason" rows="2" placeholder="سبب الاستئذان..." style="${ist};resize:vertical">${esc(p?.reason || '')}</textarea></div>
             <div style="display:flex;gap:8px"><button class="btn b-g" onclick="savePerm(${key ? `'${key}'` : 'null'})" style="flex:1">💾 حفظ</button><button class="btn" onclick="document.getElementById('permOverlay').remove()" style="background:#ecf0f1;color:#555">إلغاء</button></div>
         </div></div>`;
     setTimeout(permCalc, 30);
@@ -13372,7 +13372,7 @@ function renderSelectedItems() {
                 <td style="padding:7px;text-align:center;color:#666">${fmt(it.estPrice||0)}</td>
                 <td style="padding:7px;text-align:center;font-weight:800;color:#1a3a5c">${fmt(total)}</td>
                 <td style="padding:7px">
-                    <input type="text" placeholder="ملاحظة (اختيارية)" value="${it.note||''}" onchange="mrSelectedItems['${mk}'].note=this.value"
+                    <input type="text" placeholder="ملاحظة (اختيارية)" value="${esc(it.note||'')}" onchange="mrSelectedItems['${mk}'].note=this.value"
                         style="width:100%;padding:4px 8px;border:1px solid #ffe082;border-radius:4px;font-size:11px">
                 </td>
                 <td style="padding:7px;text-align:center">
@@ -25627,7 +25627,7 @@ window.openBOQItemModal = function (projectId, itemKey) {
             </div>
             <div style="margin-top:10px">
                 <label style="font-size:11px;color:#666;font-weight:700">وصف البند *</label>
-                <textarea id="boqModalDescription" rows="2" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:3px;resize:vertical">${existing?.description || ''}</textarea>
+                <textarea id="boqModalDescription" rows="2" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:3px;resize:vertical">${esc(existing?.description || '')}</textarea>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
                 <div>
@@ -25652,7 +25652,7 @@ window.openBOQItemModal = function (projectId, itemKey) {
             </div>
             <div style="margin-top:10px">
                 <label style="font-size:11px;color:#666;font-weight:700">ملاحظات (اختياري)</label>
-                <textarea id="boqModalNotes" rows="2" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:3px;resize:vertical">${existing?.notes || ''}</textarea>
+                <textarea id="boqModalNotes" rows="2" style="width:100%;padding:9px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-top:3px;resize:vertical">${esc(existing?.notes || '')}</textarea>
             </div>
         </div>
         <div style="padding:14px;border-top:1px solid #e0e8f0;display:flex;gap:8px;justify-content:flex-end">
