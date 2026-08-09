@@ -379,6 +379,10 @@ await test('مدير مشروع يقرأ جداول الكميات', assertSucce
 await test('مدير A يقرأ عقود الباطن', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/subcontracts'))));
 await test('محاسب يقرأ مصروفات المشاريع', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/projectExpenses'))));
 // عزل واشتراك
+// تصليب كتابة BOQ (manage_boq = مدير مشروع/مدير فقط) — يُغلق «محاسب/HR يحذف BOQ»
+await test('مدير مشروع يكتب بند BOQ', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/projectBOQ/p1/b1'), { desc: 'بند', contractQty: 10 })));
+await test('محاسب لا يكتب/يحذف BOQ (الثغرة المُثبَتة)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/projectBOQ/p1/b2'), { desc: 'x' })));
+await test('موظف HR لا يكتب BOQ', assertFails(set(ref(db.hrA, 'tenants/A/ledger/projectBOQ/p1/b3'), { desc: 'x' })));
 await test('عزل: مدير مشروع A لا يقرأ مستخلصات B', assertFails(get(ref(db.pmA, 'tenants/B/ledger/progressBillings'))));
 await test('اشتراك منتهٍ يمنع كتابة مستخلص', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/progressBillings/x'), { amount: 1 })));
 
