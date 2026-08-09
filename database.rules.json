@@ -234,6 +234,13 @@
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists()",
             ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
           },
+          "tickets": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+            "$empKey": {
+              ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+            }
+          },
 
           "payments": {
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'employee' && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'viewer'",

@@ -297,6 +297,18 @@ await test('مشاهد لا يعدّل سياسة اعتماد', assertFails(set
 await test('اشتراك منتهٍ يمنع تعديل سياسة الاعتماد', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/approvalPolicies/leave'), { enabled: true })));
 await test('عضو A لا يعدّل سياسة اعتماد في شركة B (عزل)', assertFails(set(ref(db.adminA, 'tenants/B/ledger/approvalPolicies/leave'), { enabled: true })));
 
+console.log('\n🎫 مركز الطلبات والتذاكر [HR-REQ] — الموظف يفتح/يرى تذاكره فقط، والموارد البشرية الكل:');
+await test('موظف يفتح تذكرة خاصة به (tickets/E1)', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/tickets/E1/t1'), { type: 'complaint', subject: 'شكوى', status: 'open', empKey: 'E1' })));
+await test('موظف يقرأ تذاكره (tickets/E1)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/tickets/E1'))));
+await test('موظف لا يقرأ تذاكر زميل (tickets/E2)', assertFails(get(ref(db.empU, 'tenants/A/ledger/tickets/E2'))));
+await test('موظف لا يفتح تذكرة باسم زميل (انتحال tickets/E2)', assertFails(set(ref(db.empU, 'tenants/A/ledger/tickets/E2/t9'), { subject: 'x' })));
+await test('موظف لا يقرأ كل التذاكر (العقدة كاملة — للإدارة)', assertFails(get(ref(db.empU, 'tenants/A/ledger/tickets'))));
+await test('مدير A يقرأ كل التذاكر (helpdesk)', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/tickets'))));
+await test('مدير A يعالج تذكرة موظف (يغيّر الحالة)', assertSucceeds(update(ref(db.adminA, 'tenants/A/ledger/tickets/E1/t1'), { status: 'resolved' })));
+await test('محاسب A لا يقرأ كل التذاكر (HR/admin فقط)', assertFails(get(ref(db.acctA, 'tenants/A/ledger/tickets'))));
+await test('مشاهد لا يفتح تذكرة (viewer محجوب — ليس صاحب empKey)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/tickets/VW/t1'), { subject: 'x' })));
+await test('موظف A لا يفتح تذكرة في شركة B (عزل)', assertFails(set(ref(db.empU, 'tenants/B/ledger/tickets/E1/t1'), { subject: 'x' })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);

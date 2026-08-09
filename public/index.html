@@ -355,6 +355,7 @@
                             <div class="sb-it sub" id="n-lvpol"     onclick="nav('leavepolicies',this)"><span class="ic">🌴</span><span>سياسات الإجازات</span></div>
                             <div class="sb-it sub" id="n-perm"      onclick="nav('permissions',this)"><span class="ic">🕘</span><span>الأذونات والاستئذان</span></div>
                             <div class="sb-it sub" id="n-apvflows"  onclick="nav('approvalflows',this)"><span class="ic">✅</span><span>مسارات الموافقات</span></div>
+                            <div class="sb-it sub" id="n-tickets"   onclick="nav('tickets',this)"><span class="ic">🎫</span><span>مركز الطلبات والتذاكر</span></div>
                             <div class="sb-it sub" id="n-ln"        onclick="nav('loans',this)"><span class="ic">💳</span><span>السلف والقروض</span></div>
                             <div class="sb-it sub" id="n-pf"        onclick="nav('performance',this)"><span class="ic">⭐</span><span>تقييمات الأداء</span></div>
                             <div class="sb-it sub" id="n-goals"     onclick="nav('goals',this)"><span class="ic">🎯</span><span>الأهداف ومؤشرات الأداء</span></div>
@@ -13596,6 +13597,9 @@
                 <!-- PAGE: APPROVAL FLOWS (مسارات الموافقات) — hr-approvals.js -->
                 <div class="pg" id="pg-approvalflows"></div>
 
+                <!-- PAGE: TICKETS / REQUESTS HUB (مركز الطلبات والتذاكر) — hr-requests.js -->
+                <div class="pg" id="pg-tickets"></div>
+
                 <!-- PAGE: HR LETTERS (خطابات الموارد البشرية) — hr-suite.js -->
                 <div class="pg" id="pg-hrletters"></div>
 
@@ -19872,7 +19876,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-apv2"></script>
+    <script type="module" src="app.js?v=20260809-req1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260809-watch"></script>
@@ -19883,6 +19887,7 @@
     <script defer src="hr-extra.js?v=20260713-hrx1"></script>
     <script defer src="hr-suite.js?v=20260809-surveyc"></script>
     <script defer src="hr-approvals.js?v=20260809-apv2"></script>
+    <script defer src="hr-requests.js?v=20260809-req1"></script>
     <script defer src="shifts.js?v=20260715-shf5"></script>
     <script defer src="leave-policies.js?v=20260713-lvp1"></script>
     <script defer src="biometric-import.js?v=20260713-bio1"></script>
