@@ -1410,16 +1410,48 @@
                         </div>
                         <div style="margin-top:16px">
                             <label style="font-size:13px;font-weight:700;color:#1a3a5c;display:block;margin-bottom:8px">اختر الموظفين *</label>
-                            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+                            <input type="text" id="atBulkSearch" oninput="atFilterBulkEmps(this.value)" placeholder="🔍 ابحث بالاسم أو الوظيفة أو الإدارة..." style="width:100%;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+                            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
                                 <button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="bulkSelectAllEmps(true)">✅ تحديد الكل</button>
                                 <button class="btn b-gr" style="padding:5px 12px;font-size:11px" onclick="bulkSelectAllEmps(false)">❌ إلغاء التحديد</button>
                                 <span id="bulkSelectedCount" style="font-size:12px;color:#666;padding:5px 10px;background:#f0f4f8;border-radius:6px;font-weight:600">0 موظف محدد</span>
+                                <span id="atBulkSearchInfo" style="font-size:11px;color:#888"></span>
                             </div>
                             <div id="atBulkEmpsList" style="max-height:240px;overflow-y:auto;border:1.5px solid #e0e8f0;border-radius:8px;padding:10px;background:#fafbfc;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px"></div>
                         </div>
                         <div class="card-actions">
                             <button class="btn" style="background:#9b59b6;color:white" onclick="doBulkMonthlyAttendance()">📆 تنفيذ التحضير الشهري</button>
                             <div id="atBulkStatus" class="stat" style="color:#5b2c6f"></div>
+                        </div>
+                    </div>
+
+                    <!-- 🗑️ حذف التحضير الشهري (عملية هدّامة — للمسؤول فقط) -->
+                    <div class="card" id="atPurgeCard" style="margin-bottom:16px;display:none;border-right:5px solid #c0392b">
+                        <div class="c-tl">🗑️ حذف التحضير الشهري</div>
+                        <div class="hr-info" style="margin-bottom:14px;background:#fdecea;border-color:#f5b7b1">
+                            ⚠️ عملية <b>لا يمكن التراجع عنها</b>. تحذف سجلات الحضور لشهر كامل — لموظف واحد أو لجميع الموظفين.
+                            لحذف <b>يوم واحد فقط</b> استخدم زرّ 🗑️ في جدول السجلات بالأسفل.
+                        </div>
+                        <div class="fg-row">
+                            <div class="fg">
+                                <label>الشهر *</label>
+                                <input type="month" id="atPurgeMonth" onchange="atPreviewPurge()">
+                            </div>
+                            <div class="fg">
+                                <label>الموظف</label>
+                                <select id="atPurgeEmp" onchange="atPreviewPurge()">
+                                    <option value="">— جميع الموظفين —</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">
+                            <input type="checkbox" id="atPurgeOnlyBulk" checked onchange="atPreviewPurge()" style="width:16px;height:16px;cursor:pointer">
+                            <span>احذف سجلات <b>التحضير الجماعي</b> فقط — واستبقِ تسجيلات الحضور الحقيقية للموظفين <span style="color:#888">(مستحسن)</span></span>
+                        </label>
+                        <div id="atPurgePreview" style="margin:12px 0;font-size:13px"></div>
+                        <div class="card-actions">
+                            <button class="btn b-r" id="atPurgeBtn" onclick="atDoPurge()" disabled>🗑️ حذف التحضير</button>
+                            <div id="atPurgeStatus" class="stat" style="color:#c0392b"></div>
                         </div>
                     </div>
 
@@ -19883,7 +19915,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-jisr1"></script>
+    <script type="module" src="app.js?v=20260809-at1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260809-hr3"></script>

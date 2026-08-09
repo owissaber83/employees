@@ -21961,12 +21961,21 @@ function initAttendanceAdminCard() {
         if (card) card.style.display = 'block';
         const bulkCard = $('atBulkCard');
         if (bulkCard) bulkCard.style.display = 'block';
+        const purgeCard = $('atPurgeCard');
+        if (purgeCard) purgeCard.style.display = 'block';
         fillAtAdminEmpSelect();
         fillBulkEmpsList();
+        fillAtPurgeEmpSelect();
         const d = $('atAdminDate'); if (d && !d.value) d.value = today();
         const bm = $('atBulkMonth'); if (bm && !bm.value) {
             const n = new Date();
             bm.value = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+        }
+        // قوائم منسدلة بها بحث (نفس أداة نموذج المشاريع) — تنفع مع الأعداد الكبيرة
+        if (typeof ssEnhance === 'function') {
+            ['atAdminEmp', 'atFilterEmp', 'atPurgeEmp'].forEach(id => {
+                const el = $(id); if (el) { el.setAttribute('data-ss', '1'); ssEnhance(id, '🔍 ابحث عن موظف...'); }
+            });
         }
     }
 }
@@ -21981,7 +21990,7 @@ function fillBulkEmpsList() {
     }
     activeEmps.sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
     container.innerHTML = activeEmps.map(([k, e]) => `
-        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:6px;border:1px solid #e0e8f0;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'">
+        <label data-emp-row="1" data-search="${esc(((e.name || '') + ' ' + (e.job || '') + ' ' + (e.dept || '')).toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:6px;border:1px solid #e0e8f0;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'">
             <input type="checkbox" data-emp-id="${k}" data-emp-name="${(e.name||'').replace(/"/g,'&quot;')}" class="bulk-emp-cb" onchange="updateBulkSelectedCount()" style="width:16px;height:16px;cursor:pointer">
             <div style="flex:1;min-width:0;overflow:hidden">
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name || '-')}</div>
@@ -21989,8 +21998,135 @@ function fillBulkEmpsList() {
             </div>
         </label>
     `).join('');
-    updateBulkSelectedCount();
+    // أعِد تطبيق البحث القائم حتى لا تُلغى الفلترة عند تحديث قائمة الموظفين
+    const q = $('atBulkSearch')?.value || '';
+    if (q.trim()) atFilterBulkEmps(q); else updateBulkSelectedCount();
 }
+
+// 🔍 بحث داخل قائمة التحضير — يُخفي غير المطابق ولا يلغي تحديده،
+// فلا يضيع اختيارك السابق كلما غيّرت نصّ البحث.
+window.atFilterBulkEmps = function (q) {
+    const container = $('atBulkEmpsList'); if (!container) return;
+    const term = (q || '').trim().toLowerCase();
+    const rows = container.querySelectorAll('[data-emp-row]');
+    let shown = 0;
+    rows.forEach(r => {
+        const hit = !term || (r.getAttribute('data-search') || '').includes(term);
+        r.style.display = hit ? '' : 'none';
+        if (hit) shown++;
+    });
+    const info = $('atBulkSearchInfo');
+    if (info) {
+        const hiddenSel = [...container.querySelectorAll('.bulk-emp-cb:checked')]
+            .filter(cb => cb.closest('[data-emp-row]')?.style.display === 'none').length;
+        info.textContent = term
+            ? `عُرض ${shown} من ${rows.length}${hiddenSel ? ` · ${hiddenSel} محدد مخفي` : ''}`
+            : '';
+    }
+    updateBulkSelectedCount();
+};
+
+// ══ 🗑️ حذف التحضير الشهري (شهر كامل — لموظف أو للجميع) ══════════════════
+// عملية هدّامة: تُظهر عدد السجلات قبل التنفيذ، تحذّر إن وُجد مسير رواتب على
+// نفس الشهر، وتُسجَّل في سجل التدقيق. لحذف يوم واحد: deleteAtRecord().
+function fillAtPurgeEmpSelect() {
+    const sel = $('atPurgeEmp'); if (!sel) return;
+    const cur = sel.value;
+    // نشتق القائمة من سجلات الحضور نفسها (لا معنى لعرض موظف بلا سجلات)
+    const uniqueEmps = {};
+    Object.values(attendance).forEach(a => {
+        if (a.employeeId && a.employeeName && !uniqueEmps[a.employeeId]) uniqueEmps[a.employeeId] = a.employeeName;
+    });
+    sel.innerHTML = '<option value="">— جميع الموظفين —</option>' +
+        Object.entries(uniqueEmps).sort((a, b) => a[1].localeCompare(b[1], 'ar'))
+            .map(([id, nm]) => `<option value="${id}">${esc(nm)}</option>`).join('');
+    if (cur && uniqueEmps[cur]) sel.value = cur;
+    if (typeof ssRefresh === 'function') ssRefresh('atPurgeEmp');
+}
+
+// السجلات المشمولة: شهر مطابق (+ موظف اختيارياً) (+ التحضير الجماعي فقط اختيارياً)
+function atPurgeTargets() {
+    const month = $('atPurgeMonth')?.value || '';
+    if (!month) return { all: [], bulk: [], real: [] };
+    const empId = $('atPurgeEmp')?.value || '';
+    const all = Object.entries(attendance).filter(([, a]) =>
+        (a.date || '').slice(0, 7) === month && (!empId || a.employeeId === empId));
+    return {
+        all,
+        bulk: all.filter(([, a]) => a.bulkGenerated === true),
+        real: all.filter(([, a]) => a.bulkGenerated !== true)
+    };
+}
+
+window.atPreviewPurge = function () {
+    const box = $('atPurgePreview'), btn = $('atPurgeBtn');
+    if (!box || !btn) return;
+    const month = $('atPurgeMonth')?.value || '';
+    if (!month) { box.innerHTML = '<span style="color:#888">اختر الشهر أولاً.</span>'; btn.disabled = true; return; }
+
+    const t = atPurgeTargets();
+    const onlyBulk = $('atPurgeOnlyBulk')?.checked !== false;
+    const doomed = onlyBulk ? t.bulk : t.all;
+    const empId = $('atPurgeEmp')?.value || '';
+    const who = empId ? ($('atPurgeEmp').selectedOptions[0]?.text || '') : 'جميع الموظفين';
+
+    if (!doomed.length) {
+        box.innerHTML = `<span style="color:#888">لا توجد سجلات مطابقة في <b>${esc(month)}</b> لـ<b>${esc(who)}</b>${onlyBulk && t.real.length ? ` — يوجد ${t.real.length} تسجيل حقيقي فقط، وهي محميّة بالخيار أعلاه.` : '.'}</span>`;
+        btn.disabled = true; return;
+    }
+
+    // تحذير: مسير رواتب على نفس الشهر
+    const prs = Object.values(window.payrolls || {}).filter(p => (p.month || '') === month);
+    const approved = prs.filter(p => (p.status || 'draft') === 'approved');
+    const warn = prs.length ? `<div style="margin-top:8px;background:#fdecea;border:1.5px solid #f5b7b1;border-radius:8px;padding:10px;color:#7b241c">
+            ⚠️ يوجد <b>${prs.length}</b> مسير رواتب على شهر <b>${esc(month)}</b>${approved.length ? ` — منها <b>${approved.length} معتمد</b>` : ''}.
+            حذف الحضور سيجعل المسير غير مطابق لبيانات الحضور. راجع قبل المتابعة.
+        </div>` : '';
+
+    const kept = onlyBulk && t.real.length
+        ? `<div style="margin-top:6px;font-size:12px;color:#1e7a4d">🛡️ سيبقى <b>${t.real.length}</b> تسجيل حضور حقيقي دون مساس.</div>` : '';
+
+    box.innerHTML = `<div style="background:#fff8e1;border:1.5px solid #f0d68a;border-radius:8px;padding:10px">
+            سيُحذف <b style="color:#c0392b;font-size:16px">${doomed.length}</b> سجل حضور — شهر <b>${esc(month)}</b> — <b>${esc(who)}</b>.
+        </div>${kept}${warn}`;
+    btn.disabled = false;
+};
+
+window.atDoPurge = function () {
+    if (!(myP?.role === 'admin' || can('manage_attendance'))) { toast('ليس لديك صلاحية', 'er'); return; }
+    const month = $('atPurgeMonth')?.value || '';
+    if (!month) { toast('اختر الشهر أولاً', 'er'); return; }
+    const onlyBulk = $('atPurgeOnlyBulk')?.checked !== false;
+    const t = atPurgeTargets();
+    const doomed = onlyBulk ? t.bulk : t.all;
+    if (!doomed.length) { toast('لا توجد سجلات للحذف', 'er'); return; }
+
+    const empId = $('atPurgeEmp')?.value || '';
+    const who = empId ? ($('atPurgeEmp').selectedOptions[0]?.text || '') : 'جميع الموظفين';
+    const prs = Object.values(window.payrolls || {}).filter(p => (p.month || '') === month);
+    const prWarn = prs.length ? `\n\n⚠️ يوجد ${prs.length} مسير رواتب على هذا الشهر.` : '';
+
+    cf2(`حذف ${doomed.length} سجل حضور لشهر ${month} (${who})؟${prWarn}\n\nلا يمكن التراجع عن هذه العملية.`, async () => {
+        const st = $('atPurgeStatus'), btn = $('atPurgeBtn');
+        if (st) st.textContent = '⏳ جارٍ الحذف...';
+        if (btn) btn.disabled = true;
+        try {
+            // نفس نمط التحضير الجماعي: تحديث واحد متعدد المسارات (يعزله scopeUpdates للمستأجر)
+            const batch = {};
+            doomed.forEach(([k]) => { batch['ledger/attendance/' + k] = null; });
+            await update(ref(db), batch);
+            if (typeof logAudit === 'function') logAudit('delete', 'attendance',
+                `حذف التحضير الشهري: ${doomed.length} سجل — شهر ${month} — ${who}${onlyBulk ? ' (التحضير الجماعي فقط)' : ' (كل السجلات)'}`);
+            if (st) st.innerHTML = `✅ حُذف <strong>${doomed.length}</strong> سجل.`;
+            toast(`🗑️ حُذف ${doomed.length} سجل حضور`, 'ok');
+            atPreviewPurge();
+        } catch (e) {
+            if (st) st.textContent = '';
+            if (btn) btn.disabled = false;
+            toast('خطأ: ' + e.message, 'er');
+        }
+    });
+};
 
 window.updateBulkSelectedCount = function () {
     const cnt = document.querySelectorAll('.bulk-emp-cb:checked').length;
@@ -21999,7 +22135,11 @@ window.updateBulkSelectedCount = function () {
 };
 
 window.bulkSelectAllEmps = function (selectAll) {
-    document.querySelectorAll('.bulk-emp-cb').forEach(cb => cb.checked = selectAll);
+    // يعمل على المعروض فقط أثناء البحث — لا يُحدِّد موظفين لا يراهم المستخدم
+    document.querySelectorAll('.bulk-emp-cb').forEach(cb => {
+        if (cb.closest('[data-emp-row]')?.style.display === 'none') return;
+        cb.checked = selectAll;
+    });
     updateBulkSelectedCount();
 };
 
@@ -22876,6 +23016,7 @@ function fillAtEmpFilter() {
         .sort((a, b) => a[1].localeCompare(b[1], 'ar'))
         .forEach(([id, nm]) => { sel.innerHTML += `<option value="${id}">${nm}</option>` });
     if (cur && uniqueEmps[cur]) sel.value = cur;
+    if (typeof ssRefresh === 'function') ssRefresh('atFilterEmp'); // حدّث نصّ القائمة المنسدلة بالبحث
 }
 
 // تعيين نطاق هذا الشهر
@@ -22920,6 +23061,8 @@ window.renderAttendance = function () {
     if (typeof renderWhosIn === 'function') renderWhosIn();
     if (typeof renderAttFixRequests === 'function') renderAttFixRequests();
     fillAtEmpFilter();
+    fillAtPurgeEmpSelect();   // تُشتق من سجلات الحضور، فتتغيّر معها
+    if ($('atPurgeCard')?.style.display !== 'none') atPreviewPurge();
 
     const empF = $('atFilterEmp')?.value || '';
     const fromF = $('atFilterFrom')?.value || '';
