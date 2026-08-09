@@ -862,9 +862,10 @@ color: white
 }
 
 .sb-it.act {
-background: linear-gradient(135deg, rgba(45, 106, 159, .8), rgba(52, 152, 219, .5));
+background: rgba(74, 163, 224, .22);
 color: white;
-font-weight: 600
+font-weight: 700;
+box-shadow: inset -3px 0 0 0 #58a6e0
 }
 
 .sb-it .ic {
