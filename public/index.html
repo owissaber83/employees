@@ -1339,6 +1339,12 @@
                         <div class="kpi k4"><div class="kpi-ic">⏱️</div><div class="kpi-lb">متوسط ساعات اليوم</div><div class="kpi-vl" id="atk4">0.00</div><div class="kpi-sb">ساعة</div></div>
                     </div>
 
+                    <!-- 🗂️ تبويبات الصفحة: اليوم · السجلات · التحضير الشهري -->
+                    <div id="atTabsBar" style="display:flex;gap:6px;background:#eef2f7;border-radius:13px;padding:5px;margin-bottom:16px;flex-wrap:wrap"></div>
+
+                    <!-- ══ تبويب: اليوم (تشغيلي — تسجيلي + تسجيل موظف + الحاضرون + طلبات التصحيح) ══ -->
+                    <div class="at-tab" id="atTab-today">
+
                     <!-- تسجيل الحضور الخاص بي -->
                     <div class="card" style="margin-bottom:16px">
                         <div class="c-tl">⏱️ تسجيل حضوري الشخصي</div>
@@ -1378,6 +1384,17 @@
                             <div id="atAdminStatus" class="stat"></div>
                         </div>
                     </div>
+
+                    <!-- 🟢 من الحاضر الآن -->
+                    <div id="whosInCard"></div>
+
+                    <!-- 🛠️ طلبات تصحيح الحضور (للمسؤول) -->
+                    <div id="attFixCard"></div>
+
+                    </div><!-- /atTab-today -->
+
+                    <!-- ══ تبويب: التحضير الشهري (للمسؤول — عمليات شهرية/نادرة) ══ -->
+                    <div class="at-tab" id="atTab-prep" style="display:none">
 
                     <!-- التحضير الشهري الجماعي -->
                     <div class="card" id="atBulkCard" style="margin-bottom:16px;display:none;border-right:5px solid #9b59b6">
@@ -1455,11 +1472,10 @@
                         </div>
                     </div>
 
-                    <!-- 🟢 من الحاضر الآن -->
-                    <div id="whosInCard"></div>
+                    </div><!-- /atTab-prep -->
 
-                    <!-- 🛠️ طلبات تصحيح الحضور (للمسؤول) -->
-                    <div id="attFixCard"></div>
+                    <!-- ══ تبويب: السجلات (فلاتر + ملخص + جدول) ══ -->
+                    <div class="at-tab" id="atTab-records" style="display:none">
 
                     <!-- جدول السجلات -->
                     <div class="card">
@@ -1537,6 +1553,8 @@
                             </div>
                         </div>
                     </div>
+
+                    </div><!-- /atTab-records -->
                 </div>
 
                 <!-- PAGE: ATTENDANCE SETTINGS (النطاق الجغرافي + دوام العمل) -->
@@ -19915,7 +19933,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-at1"></script>
+    <script type="module" src="app.js?v=20260809-at2"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260809-hr3"></script>

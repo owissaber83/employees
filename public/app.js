@@ -2699,7 +2699,7 @@ window.nav = function (pg, el) {
     if (pg === 'onboarding') { if (typeof renderOnboarding === 'function') renderOnboarding(); }
     if (pg === 'settings') { const c = document.getElementById('autoBkpChk'); if (c && currentTenantId) c.checked = localStorage.getItem('_autoBackup_' + currentTenantId) !== 'off'; }
     if (pg === 'pdfexport') { fillPdfSups(); pdfFilter() }
-    if (pg === 'attendance') { initAttendanceAdminCard(); fillAtEmpFilter(); renderAttendance(); updateAtKPIs(); refreshCheckInStatus() }
+    if (pg === 'attendance') { initAttendanceAdminCard(); atRenderTabs(); fillAtEmpFilter(); renderAttendance(); updateAtKPIs(); refreshCheckInStatus() }
     if (pg === 'payroll') { renderPayrolls(); updatePayrollKPIs(); initPayrollMonth() }
     if (pg === 'deferredreport') { if (typeof renderDeferredReport === 'function') renderDeferredReport(); }
     if (pg === 'laborcostreport') { if (typeof renderLaborCostReport === 'function') renderLaborCostReport(); }
@@ -21953,6 +21953,41 @@ window.exportPayrollWPS = function (payrollKey) {
 
 
 
+
+// ══ 🗂️ تبويبات صفحة الحضور ══════════════════════════════════════════
+// ثلاث وظائف مختلفة كانت مكدّسة في تمرير واحد: تشغيل يومي، سجلات، تحضير شهري.
+// نفس نمط window._essTab في الخدمة الذاتية — حالة + إعادة رسم، بلا عنصر شريط جديد.
+window.atRenderTabs = function () {
+    const bar = $('atTabsBar'); if (!bar) return;
+    const isAdmin = myP?.role === 'admin' || can('manage_attendance');
+    // «التحضير الشهري» عمليات إدارية بحتة؛ الموظف العادي يرى تبويبين فقط
+    const tabs = [
+        ['today', '🕐', 'اليوم'],
+        ['records', '📋', 'السجلات'],
+        ...(isAdmin ? [['prep', '📆', 'التحضير الشهري']] : [])
+    ];
+    // لو كان التبويب الحالي غير متاح لهذا المستخدم، ارجع للافتراضي
+    if (!tabs.some(t => t[0] === window._atTab)) window._atTab = 'today';
+    const cur = window._atTab;
+
+    bar.innerHTML = tabs.map(([id, ic, label]) => `
+        <button onclick="atSwitchTab('${id}')" style="flex:1;min-width:110px;border:none;cursor:pointer;font-family:inherit;padding:9px 6px;border-radius:10px;font-size:12.5px;font-weight:800;transition:all .15s;background:${cur === id ? '#fff' : 'transparent'};color:${cur === id ? 'var(--hr-pri2)' : '#8795a4'};box-shadow:${cur === id ? '0 2px 6px rgba(20,50,80,.12)' : 'none'}">
+            ${ic} ${label}
+        </button>`).join('');
+
+    ['today', 'records', 'prep'].forEach(id => {
+        const el = $('atTab-' + id);
+        if (el) el.style.display = (id === cur && tabs.some(t => t[0] === id)) ? '' : 'none';
+    });
+};
+
+window.atSwitchTab = function (id) {
+    window._atTab = id;
+    atRenderTabs();
+    // السجلات ثقيلة الرسم — نحدّثها عند فتحها فقط
+    if (id === 'records' && typeof renderAttendance === 'function') renderAttendance();
+    if (id === 'prep' && typeof atPreviewPurge === 'function') atPreviewPurge();
+};
 
 // إظهار بطاقة المسؤول
 function initAttendanceAdminCard() {
