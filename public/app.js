@@ -26970,7 +26970,7 @@ window.openBillingDetail = function (billingKey) {
                             <strong style="color:#1a3a5c" id="billCalcAfterVAT">${fmt(0)}</strong>
                         </div>
 
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#c0392b">
+                        <div style="display:none;justify-content:space-between;align-items:center;padding:4px 0;color:#c0392b">
                             <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
                                 ➖ دفعة مقدمة <span style="color:#8fa4b8;cursor:help;font-size:11px;font-weight:400" title="نسبة الدفعة المقدمة التي تُخصم من قيمة هذا المستخلص وفق شروط العقد.">ⓘ</span>
                                 ${isEditable
@@ -27081,7 +27081,9 @@ function calcBillingTotals({ currentAmount, retentionPct, advancePct, advRecover
     const totalAfterVAT = subtotal + vatAmount;
     const retentionAmount = subtotal * ((retentionPct || 0) / 100);
     const advRecoveryAmount = subtotal * ((advRecoveryPct || 0) / 100);
-    const netAmount = totalAfterVAT - retentionAmount - advanceAmount - (otherDeductions || 0) - advRecoveryAmount;
+    // [إصلاح ازدواج الخصم] لا نخصم advanceAmount من صافي المستخلص: الدفعة المقدمة تُقبض مرة واحدة عند
+    // التوقيع (تُسجَّل كالتزام/دفعة عميل مستقلة)، وتُسترَدّ تدريجياً عبر advRecovery المخصوم من كل مستخلص فقط.
+    const netAmount = totalAfterVAT - retentionAmount - (otherDeductions || 0) - advRecoveryAmount;
     return { retentionAmount, advanceAmount, advRecoveryAmount, beforeVAT: subtotal, vatAmount, netAmount, totalAfterVAT };
 }
 
@@ -27599,9 +27601,12 @@ window.createBillingApprovalJournal = async function (billingKey) {
     const cur   = parseFloat(b.currentAmount)         || 0;
     const ret   = parseFloat(b.retentionAmount)        || 0;
     const vat   = parseFloat(b.vatAmount)              || 0;
-    const adv   = (parseFloat(b.advanceAmount) || 0) + (parseFloat(b.advanceRecoveryAmount) || 0);
     const oth   = parseFloat(b.otherDeductions)        || 0;
     const net   = parseFloat(b.netAmount)              || 0;
+    // [إصلاح ازدواج الخصم] بند «استرداد الدفعة المقدمة» = المتبقّي الموازِن للقيد بعد الذمة والاحتفاظ والخصومات
+    // الأخرى مقابل (الإيراد + الضريبة). يساوي advRecovery للمستخلصات الجديدة، ويحافظ على توازن المستخلصات
+    // القديمة التي خُزِّن صافيها بالخصم المزدوج (فلا يرفضها فحص التوازن) دون تعديل قيودها المُرحَّلة.
+    const adv   = +(((cur + vat) - net - ret - oth).toFixed(2));
 
     const lines = [];
     // مدين: ذمة العميل (صافي المستحق)
