@@ -2485,6 +2485,31 @@ window.renderApprovalsInbox = function () {
         });
     }
 
+    // ✅ [HR-APV] خطابات ومصروفات ضمن سلاسل اعتماد — تظهر لمعتمِد الخطوة الحالية فقط
+    if (typeof apvMyPending === 'function') {
+        apvMyPending().filter(x => x.type === 'letter' || x.type === 'expense').forEach(({ type, key, rec }) => {
+            const a = rec.approval, stepTxt = `⏳ خطوة ${a.cur + 1}/${a.steps.length}`;
+            if (type === 'letter') {
+                const isLast = (a.cur + 1) >= a.steps.length;
+                cards.push({
+                    icon: '📄', color: '#8e44ad', title: `طلب خطاب — ${esc(rec.empName || '')}`,
+                    sub: `${(typeof hsLetterLabel === 'function' ? hsLetterLabel(rec.type) : rec.type)} · ${stepTxt}`,
+                    actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="hsIssuePending('${key}')">${isLast ? '📄 إصدار' : '✅ اعتماد الخطوة'}</button>`],
+                    view: () => nav('hrletters', document.getElementById('n-hrletters'))
+                });
+            } else {
+                const nm = esc((window.emp?.[rec.empId] || {}).name || rec.empName || rec.empId || '');
+                cards.push({
+                    icon: '🧾', color: '#2d6a9f', title: `مطالبة مصروفات — ${nm}`,
+                    sub: `${esc(rec.description || '')} · ${fmt(rec.amount || 0)} ر · ${stepTxt}`,
+                    actions: [`<button class="btn b-g" style="padding:5px 12px;font-size:11px" onclick="apvDecide('expense','${key}',window.employeeExpenses['${key}'],true,'')">✅ اعتماد</button>`,
+                              `<button class="btn b-r" style="padding:5px 12px;font-size:11px" onclick="(function(){var r=prompt('سبب الرفض:');if(r!==null)apvDecide('expense','${key}',window.employeeExpenses['${key}'],false,r);})()">❌ رفض</button>`],
+                    view: () => nav('empexpenses', document.getElementById('n-eexp'))
+                });
+            }
+        });
+    }
+
     // 📒 قيود يومية مسودة
     if (isAdmin || isFinanceMgr || can('post_journal_entry')) {
         Object.entries(window.journalEntries || {}).filter(([, e]) => (e.status || 'draft') === 'draft').forEach(([jk, e]) => {
@@ -3182,6 +3207,10 @@ function startListeners() {
     }
     if (myP && myP.empKey) {
         watch(ref(db, 'ledger/tickets/' + myP.empKey), sn => { window.myTickets = sn.exists() ? sn.val() : {}; if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
+    }
+    // 👤 [HR-REQ] تذاكر مُسندة إليّ (لأي مستخدم — مديرو الأقسام غير HR): فهرس الإسناد الخاص
+    if (curU && curU.uid) {
+        watch(ref(db, 'ledger/ticketAssignments/' + curU.uid), sn => { window.myAssignedTickets = sn.exists() ? sn.val() : {}; if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     }
     onValue(R.goals, sn => { window.goals = sn.exists() ? sn.val() : {}; if ($('pg-goals')?.classList.contains('act') && typeof renderGoals === 'function') renderGoals(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
     onValue(R.training, sn => { window.training = sn.exists() ? sn.val() : {}; if ($('pg-training')?.classList.contains('act') && typeof renderTraining === 'function') renderTraining(); if ($('pg-selfservice')?.classList.contains('act') && typeof renderSelfService === 'function') renderSelfService(); });
@@ -6068,6 +6097,17 @@ window.openEmpM = function (key = null) {
     $('et1').classList.add('act');
     document.querySelectorAll('#mEmp .pt-btn')[0].classList.add('act');
 
+    // 👤 عبّئ قائمة «المدير المباشر» (الموظفون النشطون عدا الموظف نفسه)
+    (function fillMgrSel() {
+        const sel = $('eMgr'); if (!sel) return;
+        const opts = ['<option value="">-- بدون / يُحدَّد لاحقاً --</option>'];
+        Object.entries(emp || {}).filter(([k, x]) => k !== key && (x.status || 'active') === 'active')
+            .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
+            .forEach(([k, x]) => opts.push(`<option value="${esc(k)}">${esc(x.name || '')}${x.job ? ' · ' + esc(x.job) : ''}</option>`));
+        sel.innerHTML = opts.join('');
+        sel.value = (key && emp[key] && emp[key].managerId) || '';
+    })();
+
     const numFields = ['eSalary', 'eHouseAllow', 'eTransAllow', 'ePhoneAllow', 'eNatureAllow', 'eRepAllow', 'eCarAllow', 'ePerfBonus', 'eOtherBonus', 'eOTHours', 'eOTRate',
         'eSocialComp', 'eSocialEmp', 'eMedIns', 'eProfIns', 'eIqamaRenew', 'eSponsorship', 'eLevyFee', 'eAirTicket', 'eVacAllow', 'eGratuity', 'eTraining', 'eOtherCost',
         'eAdvanceDeduct', 'eAbsenceDeduct', 'eLateDeduct', 'ePenaltyDeduct', 'eLoanDeduct', 'eOtherDeduct', 'eDailyHours', 'eWorkDays'];
@@ -6199,6 +6239,7 @@ window.saveEmp = async function () {
         leaveSick: parseFloat($('eLvSick')?.value) || 30,
         leaveEmergency: parseFloat($('eLvEmergency')?.value) || 5,
         iban: $('eIban').value.trim(), notes: $('eNotes').value.trim(),
+        managerId: $('eMgr')?.value || '',   // 👤 المدير المباشر (empKey) — لسلاسل الموافقات
         userId: $('eUserId')?.value || '',
         status: $('eStatus').value,
         // Salary & Allowances
@@ -22773,11 +22814,14 @@ window.essSubmitExpense = async function () {
     if (amount <= 0) { toast('⚠️ أدخل مبلغ المصروف', 'er'); return; }
     if (!description) { toast('⚠️ أدخل وصف المصروف', 'er'); return; }
     try {
-        await push(R.empExp, {
-            empId: me.key, date: $('essExpDate')?.value || today(), description, amount,
+        const _exRec = {
+            empId: me.key, empKey: me.key, date: $('essExpDate')?.value || today(), description, amount,
             projectId: '', status: 'draft', viaSelfService: true,
             createdAt: new Date().toISOString(), createdBy: curU?.uid || ''
-        });
+        };
+        const _exApv = (typeof apvInit === 'function') ? apvInit('expense', me.data) : null;  // ✅ [HR-APV]
+        if (_exApv) _exRec.approval = _exApv;
+        await push(R.empExp, _exRec);
         toast('✅ تم إرسال مطالبة المصروفات — بانتظار المراجعة', 'ok');
         if ($('essExpAmount')) $('essExpAmount').value = ''; if ($('essExpDesc')) $('essExpDesc').value = '';
     } catch (e) { toast('خطأ: ' + e.message, 'er'); }

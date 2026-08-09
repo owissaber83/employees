@@ -16196,6 +16196,13 @@
                                 </div>
                                 <div style="font-size:10px;color:#888;margin-top:3px">📋 الإدارات تُدار من صفحة "الإدارات والأقسام" أو أضف واحدة سريعاً بالزر +</div>
                             </div>
+                            <div>
+                                <label style="font-size:12px;color:#666">المدير المباشر</label>
+                                <select id="eMgr" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;background:white">
+                                    <option value="">-- بدون / يُحدَّد لاحقاً --</option>
+                                </select>
+                                <div style="font-size:10px;color:#888;margin-top:3px">👤 يُستخدم في سلاسل الموافقات (خطوة «المدير المباشر»)</div>
+                            </div>
                             <div id="eProjectWrap" style="display:none">
                                 <label style="font-size:12px;color:#666">المشروع *</label>
                                 <select id="eProjectId" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px">
@@ -19876,18 +19883,18 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-ess"></script>
+    <script type="module" src="app.js?v=20260809-hr3"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
-    <script defer src="accounting.js?v=20260809-watch"></script>
+    <script defer src="accounting.js?v=20260809-hr3"></script>
     <script defer src="tasks.js?v=20260809-xss"></script>
     <script defer src="crm.js?v=20260627-5"></script>
     <script defer src="timesheets.js?v=20260713-attgen1"></script>
     <script defer src="recruitment.js?v=20260713-rec1"></script>
     <script defer src="hr-extra.js?v=20260713-hrx1"></script>
-    <script defer src="hr-suite.js?v=20260809-surveyc"></script>
-    <script defer src="hr-approvals.js?v=20260809-apv2"></script>
-    <script defer src="hr-requests.js?v=20260809-ess"></script>
+    <script defer src="hr-suite.js?v=20260809-hr3"></script>
+    <script defer src="hr-approvals.js?v=20260809-hr3"></script>
+    <script defer src="hr-requests.js?v=20260809-hr3"></script>
     <script defer src="shifts.js?v=20260715-shf5"></script>
     <script defer src="leave-policies.js?v=20260713-lvp1"></script>
     <script defer src="biometric-import.js?v=20260713-bio1"></script>

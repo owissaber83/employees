@@ -142,11 +142,20 @@ window.hsIssueLetter = async function () {
 
 window.hsIssuePending = async function (key) {
     const l = hsLetters()[key]; if (!l) return;
+    const chain = l.approval && l.approval.steps;
+    // ✅ [HR-APV] سلسلة اعتماد قيد التقدّم: تحقّق من الصلاحية، والخطوة الوسطى تُقدَّم فقط (لا إصدار بعد)
+    if (chain && l.approval.status === 'pending') {
+        if (typeof window.apvCanAct === 'function' && !window.apvCanAct(l)) { toast('🚫 لست معتمِد الخطوة الحالية', 'er'); return; }
+        if ((l.approval.cur + 1) < l.approval.steps.length) { await window.apvDecide('letter', key, l, true, ''); return; }
+    }
+    // الخطوة الأخيرة أو بلا سلسلة → إصدار الخطاب (وإغلاق السلسلة إن وُجدت)
     try {
-        await window.update(window.ref(window.db, 'ledger/hrLetters/' + key), { status: 'issued', refNo: l.refNo || hsRefNo(), issuedBy: hsMyName(), issuedAt: new Date().toISOString() });
+        const patch = { status: 'issued', refNo: l.refNo || hsRefNo(), issuedBy: hsMyName(), issuedAt: new Date().toISOString() };
+        if (chain) { const a = l.approval; a.steps[a.cur] = { ...a.steps[a.cur], decision: 'approved', by: (window.curU && window.curU.uid) || null, byName: hsMyName(), at: new Date().toISOString() }; a.status = 'approved'; a.cur = a.steps.length - 1; patch.approval = a; }
+        await window.update(window.ref(window.db, 'ledger/hrLetters/' + key), patch);
         toast('✅ تم إصدار الخطاب المطلوب', 'ok');
         const e = (window.emp || {})[l.empKey] || {};
-        hsOpenLetterWindow({ ...l, k: key, status: 'issued' }, e);
+        hsOpenLetterWindow({ ...l, ...patch, k: key, status: 'issued' }, e);
     } catch (er) { toast('خطأ: ' + (er.message || er), 'er'); }
 };
 
@@ -254,7 +263,10 @@ window.essRequestLetter = async function () {
     const addressee = document.getElementById('essLetterAddr')?.value.trim() || '';
     const purpose = document.getElementById('essLetterPurpose')?.value.trim() || '';
     try {
-        await window.push(window.R.hrLetters, { empKey: me.key, empName: me.data.name || '', type, addressee, purpose, status: 'pending', requestedAt: new Date().toISOString(), viaSelfService: true });
+        const _ltRec = { empKey: me.key, empName: me.data.name || '', type, addressee, purpose, status: 'pending', requestedAt: new Date().toISOString(), viaSelfService: true };
+        const _ltApv = (typeof window.apvInit === 'function') ? window.apvInit('letter', me.data) : null;  // ✅ [HR-APV]
+        if (_ltApv) _ltRec.approval = _ltApv;
+        await window.push(window.R.hrLetters, _ltRec);
         toast('✅ أُرسل طلب الخطاب — بانتظار إصداره من الموارد البشرية', 'ok');
         if (document.getElementById('essLetterAddr')) document.getElementById('essLetterAddr').value = '';
         if (document.getElementById('essLetterPurpose')) document.getElementById('essLetterPurpose').value = '';

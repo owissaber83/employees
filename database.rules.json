@@ -238,7 +238,17 @@
             ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
             "$empKey": {
               ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
-              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('empKey').val() === $empKey || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)",
+              "$ticketId": {
+                ".read": "auth != null && data.child('assigneeUid').val() === auth.uid",
+                ".write": "auth != null && data.child('assigneeUid').val() === auth.uid && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
+              }
+            }
+          },
+          "ticketAssignments": {
+            "$uid": {
+              ".read": "auth != null && (auth.uid === $uid || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer')",
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'hr_officer') && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now)"
             }
           },
 

@@ -7,15 +7,16 @@
 'use strict';
 
 // أنواع الطلبات المدعومة + المجموعة التي تُخزَّن فيها.
-// (نقتصر على الطلبات ذات نمط «تقديم ← اعتماد» الواضح؛ الخطابات تُصدَر بالطباعة،
-//  والمصروفات تُرحَّل محاسبياً، والسلف يُنشئها HR مباشرة — تُوصَل لاحقاً عند الحاجة.)
+// (السلف يُنشئها HR مباشرة بلا تقديم موظف — تُوصَل لاحقاً عند الحاجة.)
 const APV_TYPES = {
     leave: { label: 'طلبات الإجازة', icon: '🌴', col: 'leaves' },
-    permission: { label: 'الأذونات والاستئذان', icon: '🕘', col: 'permissions' }
+    permission: { label: 'الأذونات والاستئذان', icon: '🕘', col: 'permissions' },
+    letter: { label: 'طلبات خطابات HR', icon: '📄', col: 'hrLetters' },
+    expense: { label: 'مطالبات المصروفات', icon: '🧾', col: 'employeeExpenses' }
 };
 // الأدوار التي يصحّ أن تكون معتمِدة (خطوة role)
 const APV_ROLES = { hr_officer: '👥 موظف موارد بشرية', admin_officer: '📋 موظف إداري', finance_manager: '💰 مدير مالي', executive_director: '👔 مدير تنفيذي', project_manager: '📋 مدير مشروع', admin: '🛡️ مدير النظام' };
-const APV_KINDS = { dept_manager: 'مدير الإدارة (للموظف)', role: 'دور محدَّد', user: 'مستخدم محدَّد' };
+const APV_KINDS = { direct_manager: 'المدير المباشر (للموظف)', dept_manager: 'مدير الإدارة (للموظف)', role: 'دور محدَّد', user: 'مستخدم محدَّد' };
 
 function apvEsc(s) { return (typeof esc === 'function') ? esc(s) : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function apvPolicies() { return window.approvalPolicies || {}; }
@@ -27,6 +28,7 @@ function apvUsers() { return window.us || window.users || {}; }
 // اسم معروض للمعتمِد في خطوة
 function apvStepApproverLabel(s) {
     if (!s) return '';
+    if (s.kind === 'direct_manager') return 'المدير المباشر للموظف';
     if (s.kind === 'dept_manager') return 'مدير إدارة الموظف';
     if (s.kind === 'role') return APV_ROLES[s.role] || s.role || 'دور';
     if (s.kind === 'user') return s.userName || (apvUsers()[s.userId] && apvUsers()[s.userId].name) || 'مستخدم';
@@ -62,6 +64,7 @@ function apvCanAct(rec) {
     if (p.role === 'admin') return true;                                   // تجاوز إداري
     if (s.kind === 'role') return p.role === s.role;
     if (s.kind === 'user') return (window.curU && window.curU.uid) === s.userId;
+    if (s.kind === 'direct_manager') { const emp = (window.emp || {})[rec.empKey]; const mk = emp ? emp.managerId : null; return !!(mk && p.empKey === mk); }
     if (s.kind === 'dept_manager') { const emp = (window.emp || {})[rec.empKey]; const mk = emp ? apvDeptManagerEmpKey(emp) : null; return !!(mk && p.empKey === mk); }
     return false;
 }

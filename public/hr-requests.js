@@ -90,8 +90,28 @@ window.tkSetStatus = async function (empKey, id, status) {
 };
 window.tkAssign = async function (empKey, id) {
     const uid = document.getElementById('tkAssignSel')?.value; const us = window.us || window.users || {};
-    try { await window.update(window.ref(window.db, 'ledger/tickets/' + empKey + '/' + id), { assigneeUid: uid || null, assigneeName: (us[uid] && us[uid].name) || '', status: 'in_progress' }); toast('تم الإسناد ✓', 'ok'); }
+    const t = (window.tickets && window.tickets[empKey] && window.tickets[empKey][id]) || {};
+    const prev = t.assigneeUid || null;
+    // تحديث التذكرة + فهرس الإسناد (ticketAssignments/{uid}) دفعةً واحدة — يتيح للمُسنَد إليه اكتشاف تذاكره
+    const up = {};
+    up['ledger/tickets/' + empKey + '/' + id + '/assigneeUid'] = uid || null;
+    up['ledger/tickets/' + empKey + '/' + id + '/assigneeName'] = (us[uid] && us[uid].name) || '';
+    up['ledger/tickets/' + empKey + '/' + id + '/status'] = 'in_progress';
+    if (prev && prev !== uid) up['ledger/ticketAssignments/' + prev + '/' + empKey + '_' + id] = null;
+    if (uid) up['ledger/ticketAssignments/' + uid + '/' + empKey + '_' + id] = { empKey, ticketId: id, subject: t.subject || '', empName: t.empName || '', type: t.type || 'other', assignedAt: new Date().toISOString() };
+    try { await window.update(window.ref(window.db), up); toast('تم الإسناد ✓', 'ok'); if (typeof tkOpen === 'function') tkOpen(empKey, id); }
     catch (e) { toast('خطأ: ' + (e.message || e), 'er'); }
+};
+
+// فتح تذكرة مُسندة إليّ (لمدير غير HR): يجلبها مباشرةً (له صلاحية قراءتها) ثم يعرضها بنفس النافذة
+window.tkOpenAssigned = async function (empKey, id) {
+    try {
+        const snap = await window.get(window.ref(window.db, 'ledger/tickets/' + empKey + '/' + id));
+        if (!snap.exists()) { toast('التذكرة لم تعد متاحة', 'er'); return; }
+        window.tickets = window.tickets || {}; window.tickets[empKey] = window.tickets[empKey] || {};
+        window.tickets[empKey][id] = snap.val();
+        tkOpen(empKey, id);
+    } catch (e) { toast('لا صلاحية لعرض هذه التذكرة', 'er'); }
 };
 
 // ══ صفحة الإدارة: pg-tickets ══════════════════════════════════════════════════
@@ -159,8 +179,8 @@ window.tkOpen = function (empKey, id) {
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-bottom:12px;padding:10px;background:#f7fafc;border-radius:10px">
             <div class="fg" style="margin:0"><label style="font-size:11px">الحالة</label>
                 <select id="tkStSel" onchange="tkSetStatus('${empKey}','${id}',this.value)">${Object.entries(TK_STATUS).map(([k, v]) => `<option value="${k}" ${(t.status || 'open') === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></div>
-            <div class="fg" style="margin:0"><label style="font-size:11px">الإسناد إلى</label><select id="tkAssignSel">${assignOpts}</select></div>
-            <button class="btn b-b" style="padding:6px 12px;font-size:12px" onclick="tkAssign('${empKey}','${id}')">👤 إسناد</button>
+            ${tkCanManage() ? `<div class="fg" style="margin:0"><label style="font-size:11px">الإسناد إلى</label><select id="tkAssignSel">${assignOpts}</select></div>
+            <button class="btn b-b" style="padding:6px 12px;font-size:12px" onclick="tkAssign('${empKey}','${id}')">👤 إسناد</button>` : (t.assigneeName ? `<div style="font-size:12px;color:#5b7185;align-self:center">👤 مُسندة إليك</div>` : '')}
         </div>
         <div style="font-weight:700;font-size:13px;color:#243b53;margin-bottom:6px">💬 المحادثة</div>
         <div style="max-height:230px;overflow-y:auto;margin-bottom:10px">${thread}</div>
@@ -194,8 +214,14 @@ window.essTicketsHtml = function () {
 
     const card = (inner, extra = '') => `<div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(20,50,80,.06);${extra}">${inner}</div>`;
     const secTitle = t => `<div style="font-size:14px;font-weight:800;color:#1a3a5c;margin:2px 0 12px">${t}</div>`;
+    // 👤 تذاكر مُسندة إليّ (لمديري الأقسام غير HR) — من فهرس الإسناد
+    const assigned = Object.values(window.myAssignedTickets || {}).sort((a, b) => (b.assignedAt || '').localeCompare(a.assignedAt || ''));
+    const assignedCard = assigned.length ? card(`${secTitle(`👤 تذاكر مُسندة إليّ (${assigned.length})`)}${assigned.map(x => `<div onclick="tkOpenAssigned('${x.empKey}','${x.ticketId}')" style="cursor:pointer;padding:11px 0;border-bottom:1px solid #f2f5f8">
+        <div style="font-weight:800;color:#243b53;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tkTypeBadge(x.type)} · ${tkEsc(x.subject)}</div>
+        <div style="color:#8a97a5;font-size:11.5px;margin-top:2px">👷 ${tkEsc(x.empName || '')} · ${tkFmtDate(x.assignedAt)} · اضغط للفتح والردّ</div>
+    </div>`).join('')}`, 'margin-bottom:13px') : '';
 
-    return `${card(`${secTitle('🎫 فتح طلب / تذكرة')}
+    return `${assignedCard}${card(`${secTitle('🎫 فتح طلب / تذكرة')}
         <div style="font-size:12px;color:#8a97a5;margin:-6px 0 12px;line-height:1.7">استفسار أو شكوى أو دعم تقني أو طلب مستند — يصل مباشرةً للموارد البشرية وتتابع حالته هنا.</div>
         <div style="display:flex;gap:10px;margin-bottom:11px">
             <div style="flex:1"><label style="${LBL}">النوع</label><select id="essTkType" style="${INP}">${typeOpts}</select></div>

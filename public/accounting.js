@@ -5029,6 +5029,10 @@ window.deleteEmpExp = async function (key) {
 };
 window.postEmpExp = async function (key) {
     const c = (window.employeeExpenses || {})[key]; if (!c || c.status === 'paid') return;
+    // ✅ [HR-APV] لا تُصرَف مطالبة تحمل سلسلة اعتماد قبل اكتمالها
+    if (c.approval && c.approval.steps && c.approval.status !== 'approved') {
+        toast('⚠️ يجب اكتمال سلسلة اعتماد المطالبة قبل الصرف والترحيل', 'er'); return;
+    }
     const emp = (window.emp || {})[c.empId];
     const accounts = Object.values(window.chartOfAccounts || {});
     const expAcc = accounts.find(a => a.code === c.expenseAcc);

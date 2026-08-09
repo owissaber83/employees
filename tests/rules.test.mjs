@@ -38,6 +38,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   // [أمان C] ردّ استبيان لزميل (E2) + علامة "أجاب" لزميل — لاختبار سرّية الاستبيانات
   await set(ref(db, 'tenants/A/ledger/surveyResponses/sr_e2'), { surveyId: 'sv1', empKey: 'E2', answers: { enps: 3 } });
   await set(ref(db, 'tenants/A/ledger/surveyDone/E2/sv1'), true);
+  // [HR-REQ] تذكرة لموظف آخر (E2) مُسندة لمدير مشروع (pmA) — لاختبار إسناد التذاكر لغير HR
+  await set(ref(db, 'tenants/A/ledger/tickets/E2/tA1'), { subject: 'تذكرة زميل', empKey: 'E2', assigneeUid: 'pmA', status: 'in_progress' });
+  await set(ref(db, 'tenants/A/ledger/ticketAssignments/pmA/E2_tA1'), { empKey: 'E2', ticketId: 'tA1', subject: 'تذكرة زميل' });
   await set(ref(db, 'tenants/A/ledger/_errorLog/err1'), { kind: 'js-error', message: 'seed' });
   // المستأجر B (منفصل تماماً)
   await set(ref(db, 'tenants/B/meta'), { createdBy: 'adminB', accessUntil: FUTURE });
@@ -308,6 +311,17 @@ await test('مدير A يعالج تذكرة موظف (يغيّر الحالة)'
 await test('محاسب A لا يقرأ كل التذاكر (HR/admin فقط)', assertFails(get(ref(db.acctA, 'tenants/A/ledger/tickets'))));
 await test('مشاهد لا يفتح تذكرة (viewer محجوب — ليس صاحب empKey)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/tickets/VW/t1'), { subject: 'x' })));
 await test('موظف A لا يفتح تذكرة في شركة B (عزل)', assertFails(set(ref(db.empU, 'tenants/B/ledger/tickets/E1/t1'), { subject: 'x' })));
+
+console.log('\n👤 إسناد التذاكر لمدير غير HR [HR-REQ]:');
+await test('مدير مشروع (مُسنَد إليه) يقرأ التذكرة المسندة', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/tickets/E2/tA1'))));
+await test('مدير مشروع لا يقرأ فرع تذاكر الموظف كاملاً (غير مالك/HR)', assertFails(get(ref(db.pmA, 'tenants/A/ledger/tickets/E2'))));
+await test('مدير مشروع يردّ/يحدّث التذكرة المسندة إليه', assertSucceeds(update(ref(db.pmA, 'tenants/A/ledger/tickets/E2/tA1'), { status: 'resolved' })));
+await test('موظف آخر لا يقرأ تذكرة مُسندة لغيره', assertFails(get(ref(db.empU, 'tenants/A/ledger/tickets/E2/tA1'))));
+await test('مدير مشروع يقرأ فهرس إسناده الخاص', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/ticketAssignments/pmA'))));
+await test('مدير مشروع لا يقرأ فهرس إسناد غيره', assertFails(get(ref(db.pmA, 'tenants/A/ledger/ticketAssignments/adminA'))));
+await test('مدير A (HR/admin) يكتب فهرس الإسناد', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/ticketAssignments/pmA/E2_tX'), { empKey: 'E2', ticketId: 'tX' })));
+await test('مدير مشروع لا يكتب فهرس الإسناد (ليس HR)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/ticketAssignments/pmA/hack'), { x: 1 })));
+await test('عزل: مدير مشروع لا يقرأ تذكرة مسندة في شركة B', assertFails(get(ref(db.pmA, 'tenants/B/ledger/tickets/E2/tA1'))));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
