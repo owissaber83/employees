@@ -287,6 +287,16 @@ await test('مدير A يكتب علامة أي موظف (ترحيل)', assertSu
 // عزل المستأجر يسري على العلامات
 await test('موظف A لا يكتب علامة في شركة B (عزل)', assertFails(set(ref(db.empU, 'tenants/B/ledger/surveyDone/E1/sv1'), true)));
 
+console.log('\n✅ مسارات الموافقات [HR-APV] — التهيئة للموارد البشرية/المدير، والقراءة للأعضاء:');
+await test('مدير A يعرّف سياسة اعتماد إجازة', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/approvalPolicies/leave'), { enabled: true, steps: [{ kind: 'role', role: 'hr_officer', name: 'HR' }] })));
+await test('عضو A (محاسب) يقرأ سياسات الاعتماد (يحتاجها ليعرف السلسلة)', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/approvalPolicies'))));
+await test('موظف يقرأ سياسات الاعتماد', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/approvalPolicies'))));
+await test('محاسب A لا يعدّل سياسة اعتماد (HR/admin فقط)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/approvalPolicies/leave'), { enabled: false })));
+await test('موظف لا يعدّل سياسة اعتماد', assertFails(set(ref(db.empU, 'tenants/A/ledger/approvalPolicies/leave'), { enabled: false })));
+await test('مشاهد لا يعدّل سياسة اعتماد', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/approvalPolicies/leave'), { enabled: false })));
+await test('اشتراك منتهٍ يمنع تعديل سياسة الاعتماد', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/approvalPolicies/leave'), { enabled: true })));
+await test('عضو A لا يعدّل سياسة اعتماد في شركة B (عزل)', assertFails(set(ref(db.adminA, 'tenants/B/ledger/approvalPolicies/leave'), { enabled: true })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
