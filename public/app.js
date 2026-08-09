@@ -6123,7 +6123,7 @@ window.fillEmpProjectsSelect = function () {
     sel.innerHTML = '<option value="">-- اختر مشروعاً --</option>';
     // أضف فقط المشاريع النشطة
     Object.entries(projects || {})
-        .filter(([, p]) => p && (p.status || 'active') !== 'closed' && (p.status || 'active') !== 'archived')
+        .filter(([, p]) => p && !p.archived && (p.status || 'active') !== 'closed' && (p.status || 'active') !== 'archived')
         .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'))
         .forEach(([k, p]) => { sel.innerHTML += `<option value="${esc(k)}">${esc(p.name || k)}</option>`; });
     if (cur) sel.value = cur;
@@ -6437,12 +6437,16 @@ window.renderProjects = function () {
     if (!$('pg-projects').classList.contains('act')) return;
     const search = ($('prjSearch')?.value || '').toLowerCase();
     const statusF = $('prjStatusFilter')?.value || '';
-    let items = Object.entries(projects);
+    // 🗄️ المؤرشفة: تُخفى افتراضياً؛ زر تبديل يعرضها وحدها للاستعادة
+    const showArch = !!window._showArchivedPrj;
+    const archCount = Object.values(projects).filter(p => p.archived).length;
+    let items = Object.entries(projects).filter(([, p]) => showArch ? p.archived : !p.archived);
     if (search) items = items.filter(([, p]) => (p.name || '').toLowerCase().includes(search) || (p.description || '').toLowerCase().includes(search));
     if (statusF) items = items.filter(([, p]) => p.status === statusF);
     items.sort((a, b) => new Date(b[1].createdAt) - new Date(a[1].createdAt));
-    if (!items.length) { $('prjL').innerHTML = '<div class="empty"><div class="ei">📁</div><p>لا توجد نتائج</p></div>'; return }
-    $('prjL').innerHTML = `<table class="st">
+    const archToggle = (archCount || showArch) ? `<div style="margin-bottom:10px"><button onclick="window._showArchivedPrj=${!showArch};renderProjects()" style="border:1.5px solid ${showArch ? '#e67e22' : '#d0d7e0'};background:${showArch ? '#fef6ee' : '#fff'};color:${showArch ? '#c0562b' : '#5b7185'};border-radius:9px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800">${showArch ? '↩️ العودة للمشاريع النشطة' : `🗄️ المؤرشفة (${archCount})`}</button></div>` : '';
+    if (!items.length) { $('prjL').innerHTML = archToggle + `<div class="empty"><div class="ei">${showArch ? '🗄️' : '📁'}</div><p>${showArch ? 'لا مشاريع مؤرشفة' : 'لا توجد نتائج'}</p></div>`; return }
+    $('prjL').innerHTML = archToggle + `<table class="st">
         <thead><tr>
             <th>#</th><th>المشروع</th><th>المدير</th><th>التاريخ</th><th>قيمة العقد</th><th>المستخلَص</th><th>الذمة</th><th>الموظفون</th><th>الحالة</th><th>إجراءات</th>
         </tr></thead>
@@ -6481,10 +6485,11 @@ window.renderProjects = function () {
                 <td><span style="background:${p.status === 'active' ? '#d4edda' : p.status === 'completed' ? '#cfe2ff' : p.status === 'on-hold' ? '#f8d7da' : '#fff3cd'};color:${p.status === 'active' ? '#155724' : p.status === 'completed' ? '#084298' : p.status === 'on-hold' ? '#721c24' : '#664d03'};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${statusMap[p.status] || p.status}</span></td>
                 <td><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
                     <button class="btn" style="padding:4px 10px;font-size:11px;background:#1a3a5c;color:white;font-weight:700" onclick="pdOpen('${k}')" title="فتح ملف المشروع الكامل">📂 الملف</button>
+                    ${p.archived ? `<button class="btn b-g" style="padding:4px 10px;font-size:11px" onclick="restoreProject('${k}')" title="استعادة من الأرشيف">↩️ استعادة</button>` : `
                     <button class="btn b-b" style="padding:4px 8px;font-size:11px" onclick="openPrjM('${k}')">✏️</button>
                     <button class="btn b-s" data-prj-key="${k}" style="padding:4px 8px;font-size:11px">🧾</button>
                     <button class="btn" style="padding:4px 8px;font-size:11px;background:#27ae60;color:white" onclick="openProjectFinanceReport('${k}')" title="تقرير مالي تفصيلي">📊</button>
-                    <button class="btn b-r" style="padding:4px 8px;font-size:11px" onclick="delPrj('${k}')">🗑️</button>
+                    <button class="btn b-r" style="padding:4px 8px;font-size:11px" onclick="delPrj('${k}')" title="أرشفة المشروع (يمكن استعادته)">🗑️</button>`}
                 </div></td>
             </tr>`;
     }).join('')}
@@ -6827,18 +6832,27 @@ window.savePrj = async function () {
 window.delPrj = function (key) {
     // 🔐 حارس صلاحية: حذف المشاريع للمدير/مدير المشروع/المدير التنفيذي فقط (متوائم مع قاعدة projects)
     if (myP?.role !== 'admin' && !can('edit_project')) { toast('🚫 ليس لديك صلاحية لحذف المشاريع', 'er'); return; }
-    cf2('هل تريد حذف هذا المشروع نهائياً؟', async () => {
+    const p = projects[key];
+    // 🗄️ حذف ناعم (أرشفة): الحذف الصلب كان يترك يتامى في 16 مجموعة (مستخلصات/مصروفات/مهام…) بلا نسخة خادمية على Spark.
+    cf2(`أرشفة المشروع «${esc(p?.name || '')}»؟ سيُخفى من القوائم واللوحات مع الاحتفاظ بكل بياناته المرتبطة، ويمكن استعادته لاحقاً.`, async () => {
         try {
-            await remove(ref(db, 'ledger/projects/' + key));
-            // حذف جميع تعيينات الموظفين للمشروع
-            Object.keys(projEmpAssignments).forEach(k => {
-                if (projEmpAssignments[k].projectId === key) delete projEmpAssignments[k];
-            });
-            toast('🗑️ تم الحذف', 'ok');
+            await update(ref(db, 'ledger/projects/' + key), { archived: true, archivedAt: new Date().toISOString(), archivedBy: myP?.name || '' });
+            toast('🗄️ أُرشِف المشروع (يمكن استعادته)', 'ok');
             renderProjects();
         } catch (e) {
             toast('خطأ: ' + e.message, 'er');
         }
+    });
+};
+
+window.restoreProject = function (key) {
+    if (myP?.role !== 'admin' && !can('edit_project')) { toast('🚫 ليس لديك صلاحية', 'er'); return; }
+    cf2('استعادة هذا المشروع من الأرشيف؟', async () => {
+        try {
+            await update(ref(db, 'ledger/projects/' + key), { archived: null, archivedAt: null, archivedBy: null });
+            toast('↩️ استُعيد المشروع', 'ok');
+            renderProjects();
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
 };
 
