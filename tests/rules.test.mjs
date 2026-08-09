@@ -323,6 +323,29 @@ await test('مدير A (HR/admin) يكتب فهرس الإسناد', assertSucce
 await test('مدير مشروع لا يكتب فهرس الإسناد (ليس HR)', assertFails(set(ref(db.pmA, 'tenants/A/ledger/ticketAssignments/pmA/hack'), { x: 1 })));
 await test('عزل: مدير مشروع لا يقرأ تذكرة مسندة في شركة B', assertFails(get(ref(db.pmA, 'tenants/B/ledger/tickets/E2/tA1'))));
 
+console.log('\n🩺✈️🪜 وحدات القوى العاملة [HRW]:');
+// التأمين الطبي — بيانات صحية حسّاسة: الإدارة فقط
+await test('مدير A يكتب وثيقة تأمين طبي', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/medInsurance/m1'), { empKey: 'E1', insurer: 'شركة', from: '2026-01-01', to: '2026-12-31' })));
+await test('مدير A يقرأ وثائق التأمين', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/medInsurance'))));
+await test('موظف لا يقرأ وثائق التأمين (بيانات صحية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/medInsurance'))));
+await test('موظف لا يكتب وثيقة تأمين', assertFails(set(ref(db.empU, 'tenants/A/ledger/medInsurance/hack'), { empKey: 'E1' })));
+await test('محاسب لا يقرأ وثائق التأمين', assertFails(get(ref(db.acctA, 'tenants/A/ledger/medInsurance'))));
+await test('عزل: مدير A لا يقرأ تأمين شركة B', assertFails(get(ref(db.adminA, 'tenants/B/ledger/medInsurance'))));
+
+// السلم الوظيفي — مرجع يقرؤه الجميع، يكتبه HR/admin
+await test('مدير A يكتب درجة وظيفية', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/salaryGrades/g1'), { code: 'G1', name: 'مهندس', minSalary: 5000, maxSalary: 9000 })));
+await test('موظف يقرأ الدرجات (مرجع عام)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/salaryGrades'))));
+await test('موظف لا يكتب درجة وظيفية', assertFails(set(ref(db.empU, 'tenants/A/ledger/salaryGrades/hack'), { code: 'X', minSalary: 99999 })));
+await test('محاسب لا يكتب درجة وظيفية (HR/admin فقط)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/salaryGrades/g2'), { code: 'G2' })));
+await test('عزل: مدير A لا يكتب درجة في شركة B', assertFails(set(ref(db.adminA, 'tenants/B/ledger/salaryGrades/g1'), { code: 'G1' })));
+
+// الانتداب — الموظف ينشئ طلبه (نمط الإجازات)، والمشاهد ممنوع
+await test('موظف ينشئ طلب انتداب', assertSucceeds(set(ref(db.empU, 'tenants/A/ledger/businessTrips/t1'), { empKey: 'E1', destination: 'الرياض', from: '2026-03-01', to: '2026-03-03' })));
+await test('مدير A يعتمد انتداباً', assertSucceeds(update(ref(db.adminA, 'tenants/A/ledger/businessTrips/t1'), { status: 'approved' })));
+await test('مشاهد لا ينشئ انتداباً (viewer)', assertFails(set(ref(db.viewerA, 'tenants/A/ledger/businessTrips/hack'), { empKey: 'VW' })));
+await test('مدير مُوقَف لا ينشئ انتداباً (active=false)', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/businessTrips/t9'), { empKey: 'E1' })));
+await test('عزل: موظف A لا ينشئ انتداباً في شركة B', assertFails(set(ref(db.empU, 'tenants/B/ledger/businessTrips/t1'), { empKey: 'E1' })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);

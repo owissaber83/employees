@@ -361,6 +361,8 @@
                             <div class="sb-it sub" id="n-goals"     onclick="nav('goals',this)"><span class="ic">🎯</span><span>الأهداف ومؤشرات الأداء</span></div>
                             <div class="sb-it sub" id="n-training"  onclick="nav('training',this)"><span class="ic">🎓</span><span>التدريب والتطوير</span></div>
                             <div class="sb-it sub" id="n-surveys"   onclick="nav('surveys',this)"><span class="ic">📝</span><span>استبيانات الرضا</span></div>
+                            <div class="sb-it sub" id="n-medins"    onclick="nav('medinsurance',this)"><span class="ic">🩺</span><span>التأمين الطبي</span></div>
+                            <div class="sb-it sub" id="n-trips"     onclick="nav('businesstrips',this)"><span class="ic">✈️</span><span>الانتداب وبدل السفر</span></div>
                             <div class="sb-it sub" id="n-disc"      onclick="nav('disciplinary',this)"><span class="ic">⚖️</span><span>الجزاءات والإنذارات</span></div>
                             <div class="sb-it sub" id="n-org"       onclick="nav('orgchart',this)"><span class="ic">🏛️</span><span>الهيكل التنظيمي</span></div>
                             <div class="sb-it sub" id="n-hrletters" onclick="nav('hrletters',this)"><span class="ic">📄</span><span>خطابات الموارد البشرية</span></div>
@@ -1246,6 +1248,9 @@
                         <div class="c-tl">🏢 قائمة الإدارات والأقسام</div>
                         <div id="deptsList2"><div class="empty"><div class="ei">🏢</div><p>لا توجد إدارات — أضف إدارة جديدة من الأعلى</p></div></div>
                     </div>
+
+                    <!-- 🪜 السلم الوظيفي والدرجات — hr-workforce.js -->
+                    <div id="gradesCard"></div>
                 </div>
 
                 <div class="pg" id="pg-employees">
@@ -13647,6 +13652,12 @@
                 <!-- PAGE: ORG CHART (الهيكل التنظيمي) — hr-extra.js -->
                 <div class="pg" id="pg-orgchart"></div>
 
+                <!-- PAGE: MEDICAL INSURANCE (التأمين الطبي) — hr-workforce.js -->
+                <div class="pg" id="pg-medinsurance"></div>
+
+                <!-- PAGE: BUSINESS TRIPS (الانتداب وبدل السفر) — hr-workforce.js -->
+                <div class="pg" id="pg-businesstrips"></div>
+
                 <!-- PAGE: APPROVAL FLOWS (مسارات الموافقات) — hr-approvals.js -->
                 <div class="pg" id="pg-approvalflows"></div>
 
@@ -16255,6 +16266,13 @@
                                     <option value="">-- بدون / يُحدَّد لاحقاً --</option>
                                 </select>
                                 <div style="font-size:10px;color:#888;margin-top:3px">👤 يُستخدم في سلاسل الموافقات (خطوة «المدير المباشر»)</div>
+                            </div>
+                            <div>
+                                <label style="font-size:12px;color:#666">الدرجة الوظيفية</label>
+                                <select id="eGrade" style="width:100%;padding:9px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;background:white">
+                                    <option value="">-- بلا درجة --</option>
+                                </select>
+                                <div style="font-size:10px;color:#888;margin-top:3px">🪜 تُدار من صفحة «الإدارات والأقسام» — ينبّهك النظام إن خرج الراتب عن نطاق الدرجة</div>
                             </div>
                             <div id="eProjectWrap" style="display:none">
                                 <label style="font-size:12px;color:#666">المشروع *</label>
@@ -19936,7 +19954,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-hd1"></script>
+    <script type="module" src="app.js?v=20260809-wf1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260809-hr3"></script>
@@ -19946,8 +19964,9 @@
     <script defer src="recruitment.js?v=20260713-rec1"></script>
     <script defer src="hr-extra.js?v=20260809-hrtok1"></script>
     <script defer src="hr-suite.js?v=20260809-hrtok1"></script>
-    <script defer src="hr-approvals.js?v=20260809-hrtok1"></script>
+    <script defer src="hr-approvals.js?v=20260809-wf1"></script>
     <script defer src="hr-requests.js?v=20260809-hrtok1"></script>
+    <script defer src="hr-workforce.js?v=20260809-wf1"></script>
     <script defer src="shifts.js?v=20260715-shf5"></script>
     <script defer src="leave-policies.js?v=20260713-lvp1"></script>
     <script defer src="biometric-import.js?v=20260713-bio1"></script>

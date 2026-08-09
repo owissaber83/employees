@@ -12,7 +12,8 @@ const APV_TYPES = {
     leave: { label: 'طلبات الإجازة', icon: '🌴', col: 'leaves' },
     permission: { label: 'الأذونات والاستئذان', icon: '🕘', col: 'permissions' },
     letter: { label: 'طلبات خطابات HR', icon: '📄', col: 'hrLetters' },
-    expense: { label: 'مطالبات المصروفات', icon: '🧾', col: 'employeeExpenses' }
+    expense: { label: 'مطالبات المصروفات', icon: '🧾', col: 'employeeExpenses' },
+    trip: { label: 'طلبات الانتداب والسفر', icon: '✈️', col: 'businessTrips' }
 };
 // الأدوار التي يصحّ أن تكون معتمِدة (خطوة role)
 const APV_ROLES = { hr_officer: '👥 موظف موارد بشرية', admin_officer: '📋 موظف إداري', finance_manager: '💰 مدير مالي', executive_director: '👔 مدير تنفيذي', project_manager: '📋 مدير مشروع', admin: '🛡️ مدير النظام' };
