@@ -3293,7 +3293,7 @@ function startListeners() {
         if ($('pg-subcontractors')?.classList.contains('act')) renderSubcontractors();
         if ($('pg-subcanalytics')?.classList.contains('act')) renderSubcAnalytics();
     });
-    onValue(R.subTr, sn => {
+    watch(R.subTr, sn => {
         window.subcontractorTrans = sn.exists() ? sn.val() : {};
         if ($('pg-substatement')?.classList.contains('act')) renderSubStatement();
         if ($('pg-subcanalytics')?.classList.contains('act')) renderSubcAnalytics();
@@ -3406,19 +3406,19 @@ function startListeners() {
         if ($('prjTab-acc')?.style.display !== 'none' && typeof renderProjectsAccountingTab === 'function') renderProjectsAccountingTab();
     });
     // 🏗️ بنود العقود
-    onValue(R.boq, sn => {
+    watch(R.boq, sn => {
         window.projectBOQ = sn.exists() ? sn.val() : {};
         if ($('pg-boq')?.classList.contains('act') && typeof renderBOQ === 'function') renderBOQ();
         if ($('pg-progressbillings')?.classList.contains('act') && typeof renderProgressBillings === 'function') renderProgressBillings();
         if ($('pg-projectdetail')?.classList.contains('act') && typeof pdRenderTab === 'function') pdRenderTab(window._pd?.tab || 'overview');
     });
     // 📑 المستخلصات
-    onValue(R.pexp, sn => {
+    watch(R.pexp, sn => {
         window.projectExpenses = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'expenses' && typeof renderProjectDetail === 'function') renderProjectDetail();
     });
     // 🧾 أوامر التغيير (Change Orders)
-    onValue(R.pco, sn => {
+    watch(R.pco, sn => {
         window.projectChangeOrders = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && typeof pdRenderTab === 'function') pdRenderTab(window._pd?.tab || 'overview');
     });
@@ -3456,7 +3456,7 @@ function startListeners() {
         window.submittals = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'submittals' && typeof pdRenderTab === 'function') pdRenderTab('submittals');
     });
-    onValue(R.subcontracts, sn => {
+    watch(R.subcontracts, sn => {
         window.subcontracts = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'subcontracts' && typeof pdRenderTab === 'function') pdRenderTab('subcontracts');
     });
@@ -3468,7 +3468,7 @@ function startListeners() {
         window.projectPhotos = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'photos' && typeof pdRenderTab === 'function') pdRenderTab('photos');
     });
-    onValue(R.projectMarkups, sn => {
+    watch(R.projectMarkups, sn => {
         window.projectMarkups = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'markup' && typeof pdRenderTab === 'function') pdRenderTab('markup');
     });
@@ -3510,7 +3510,7 @@ function startListeners() {
         window.costCenters = sn.exists() ? sn.val() : {};
         if ($('pg-costcenters')?.classList.contains('act') && typeof renderCostCenters === 'function') renderCostCenters();
     });
-    onValue(R.pbill, sn => {
+    watch(R.pbill, sn => {
         window.progressBillings = sn.exists() ? sn.val() : {};
         if ($('pg-progressbillings')?.classList.contains('act') && typeof renderProgressBillings === 'function') renderProgressBillings();
         if ($('pg-boq')?.classList.contains('act') && typeof renderBOQ === 'function') renderBOQ();
@@ -3519,12 +3519,12 @@ function startListeners() {
         if (typeof tryOpenBillingFromHash === 'function') tryOpenBillingFromHash();
     });
     // 💳 جدول الدفعات التعاقدية (نسب من قيمة العقد)
-    onValue(R.ppay, sn => {
+    watch(R.ppay, sn => {
         window.projectPaymentSchedule = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'contract' && typeof renderProjectDetail === 'function') renderProjectDetail();
     });
     // 📊 تكاليف المشاريع الشهرية
-    onValue(R.pmc, sn => {
+    watch(R.pmc, sn => {
         window.projectMonthlyCosts = sn.exists() ? sn.val() : {};
         if ($('pg-projectcosts')?.classList.contains('act') && typeof renderProjectMonthlyCosts === 'function') renderProjectMonthlyCosts();
     });

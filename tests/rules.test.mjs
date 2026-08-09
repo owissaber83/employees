@@ -363,6 +363,22 @@ await test('عزل: مدير مشروع A لا يكتب مشروعاً في B', 
 // القراءة لم تُقفَل بعد (سرّية قيمة العقد = متابعة لاحقة): الموظف ما زال يقرأ المشاريع
 await test('موظف ما زال يقرأ المشاريع (سرّية القيمة مؤجّلة)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/projects'))));
 
+console.log('\n📁 سرّية مالية المشاريع [PRJ-FIN] — BOQ/مستخلصات/عقود باطن تُحجب عن الموظف/المشاهد:');
+await test('موظف لا يقرأ المستخلصات (progressBillings)', assertFails(get(ref(db.empU, 'tenants/A/ledger/progressBillings'))));
+await test('موظف لا يقرأ جداول الكميات (projectBOQ — قيم العقود)', assertFails(get(ref(db.empU, 'tenants/A/ledger/projectBOQ'))));
+await test('موظف لا يقرأ عقود الباطن (subcontracts)', assertFails(get(ref(db.empU, 'tenants/A/ledger/subcontracts'))));
+await test('موظف لا يقرأ مصروفات المشاريع (projectExpenses)', assertFails(get(ref(db.empU, 'tenants/A/ledger/projectExpenses'))));
+await test('مشاهد لا يقرأ جداول الكميات (projectBOQ)', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/projectBOQ'))));
+await test('موظف لا يكتب في المستخلصات', assertFails(set(ref(db.empU, 'tenants/A/ledger/progressBillings/hack'), { amount: 1 })));
+// أدوار الإدارة تقرأ كالمعتاد (لا تراجع)
+await test('مدير مشروع يقرأ المستخلصات', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/progressBillings'))));
+await test('مدير مشروع يقرأ جداول الكميات', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/projectBOQ'))));
+await test('مدير A يقرأ عقود الباطن', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/subcontracts'))));
+await test('محاسب يقرأ مصروفات المشاريع', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/projectExpenses'))));
+// عزل واشتراك
+await test('عزل: مدير مشروع A لا يقرأ مستخلصات B', assertFails(get(ref(db.pmA, 'tenants/B/ledger/progressBillings'))));
+await test('اشتراك منتهٍ يمنع كتابة مستخلص', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/progressBillings/x'), { amount: 1 })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
