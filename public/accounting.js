@@ -19854,6 +19854,8 @@ window.postVoucher = async function (key, type) {
 };
 
 window.deleteVoucher = async function (key, type) {
+    // 🔐 صلاحية حذف سند القبض/الصرف (رسالة واضحة + دفاع في العمق؛ القاعدة تنفّذها أيضاً)
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can(type === 'receipt' ? 'delete_receipt' : 'delete_payment'))) { toast('🚫 لا تملك صلاحية حذف ' + (type === 'receipt' ? 'سندات القبض' : 'سندات الصرف'), 'er'); return; }
     const data = type === 'receipt' ? window.receipts?.[key] : window.payments?.[key];
     if (!data) return;
     if (data.status === 'draft') {
