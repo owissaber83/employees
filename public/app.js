@@ -2613,7 +2613,42 @@ const HR_SECTION_PAGES = new Set([
 ]);
 
 window.nav = function (pg, el) {
-    const pm = { dashboard: 'view_dashboard', statement: 'view_statement', suppliers: 'view_suppliers', settings: 'view_settings', pdfexport: 'pdf_export', crm: 'view_customers', timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', recruitment: 'view_recruitment', disciplinary: 'view_disciplinary', medinsurance: 'view_employees', orgchart: 'view_org_chart', shifts: 'manage_shifts', leavepolicies: 'manage_leave_policies', hrletters: 'view_employees', hranalytics: 'view_employees', announcements: 'view_employees', probation: 'view_employees', goals: 'view_performance', training: 'view_employees', surveys: 'view_employees' };
+    const pm = {
+        // ── عام / لوحات ──
+        dashboard: 'view_dashboard', execdashboard: 'view_exec_dashboard', statement: 'view_statement', settings: 'view_settings', pdfexport: 'pdf_export',
+        // ── الموردون والمشتريات ──
+        suppliers: 'view_suppliers', materials: 'view_materials',
+        // ── المشاريع ──
+        timesheets: 'view_projects', workload: 'view_projects', prjhealth: 'view_projects', projectdetail: 'view_projects', prjtasks: 'view_projects',
+        prjdashboard: 'view_project_reports', prjreports: 'view_project_reports',
+        projectcosts: 'view_project_finances', indirectcosts: 'view_project_finances', boq: 'view_project_finances', progressbillings: 'view_project_finances',
+        // ── الموارد البشرية ──
+        employees: 'view_employees', empstatement: 'view_employees', docalerts: 'view_employees', hrdashboard: 'view_employees', departments: 'view_employees',
+        recruitment: 'view_recruitment', disciplinary: 'view_disciplinary', medinsurance: 'view_employees', orgchart: 'view_org_chart',
+        shifts: 'manage_shifts', leavepolicies: 'manage_leave_policies', hrletters: 'view_employees', hranalytics: 'view_employees',
+        announcements: 'view_employees', probation: 'view_employees', goals: 'view_performance', training: 'view_employees', surveys: 'view_employees',
+        leaves: 'view_leaves', loans: 'view_loans', performance: 'view_performance', attendance: 'view_attendance', attsettings: 'view_attendance',
+        payroll: 'view_payroll', payrolldashboard: 'view_payroll', laborcostreport: 'view_payroll', deferredreport: 'view_payroll',
+        // ── المحاسبة والمالية ──
+        accdashboard: 'view_accounting', chartofaccounts: 'view_accounting', costcenters: 'view_accounting',
+        journalentries: 'view_journal_entries', recurringjournals: 'view_journal_entries', jrntemplates: 'view_journal_entries',
+        generalledger: 'view_general_ledger', trialbalance: 'view_trial_balance', acctanalysis: 'view_general_ledger',
+        finstatements: 'view_financial_analysis', finmodels: 'view_financial_analysis', cashforecast: 'view_financial_analysis',
+        segmentpl: 'view_financial_analysis', workingcapital: 'view_financial_analysis', fsg: 'view_financial_analysis',
+        glbudget: 'view_accounting', revrecognition: 'view_accounting', fxrevaluation: 'view_accounting', amortization: 'view_accounting',
+        periodlock: 'view_accounting', yearclosing: 'view_accounting', closing: 'view_accounting', taxcenter: 'view_accounting',
+        // ── المبيعات/المشتريات/السندات ──
+        customers: 'view_customers', custstatement: 'view_customers', crm: 'view_customers', vendors: 'view_vendors',
+        salesinvoices: 'view_sales_invoices', recurringsinv: 'view_sales_invoices', purchaseinvoices: 'view_purchase_invoices',
+        receipts: 'view_receipts', payments: 'view_payments', paymentrun: 'view_payments',
+        bankrec: 'view_bank_reconciliation', aging: 'view_aging_report', auditlog: 'view_audit_log',
+        // ── الضرائب ──
+        vatreturn: 'view_vat_return', incometax: 'view_income_tax', zakat: 'view_income_tax', wht: 'view_income_tax',
+        // ── المخزون والمخازن ──
+        inventory: 'view_inventory', inventorymovements: 'view_inventory', inventoryreports: 'view_inventory', warehouses: 'view_warehouses',
+        // ── الأصول الثابتة ──
+        assets: 'view_accounting', assetdashboard: 'view_accounting', assetdetail: 'view_accounting'
+    };
     if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     const p = pm[pg]; if (p && !can(p)) { toast('ليس لديك صلاحية', 'er'); return }
     // 🧩 حارس الباقة: امنع فتح صفحة تابعة لوحدة غير مُفعّلة في باقة العميل
