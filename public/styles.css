@@ -236,6 +236,16 @@ max-width: 100%;
 :root[data-theme="dark"] input:not([type=checkbox]):not([type=radio]),
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea { background-color: var(--input-bg) !important; color: var(--text) !important; border-color: var(--border) !important; }
+/* إصلاح قراءة المحتوى/الأدلّة: النصوص المضمّنة الداكنة (تُورَّث من حاويات color:#333/#666…)
+   تُفتَح — لكن فقط للعناصر التي لا تحمل لوناً خاصاً بها (نحافظ على الألوان المقصودة). */
+:root[data-theme="dark"] .pg p:not([style*="color"]),
+:root[data-theme="dark"] .pg li:not([style*="color"]),
+:root[data-theme="dark"] .pg td:not([style*="color"]),
+:root[data-theme="dark"] .pg h1:not([style*="color"]),
+:root[data-theme="dark"] .pg h2:not([style*="color"]),
+:root[data-theme="dark"] .pg h3:not([style*="color"]),
+:root[data-theme="dark"] .pg h4:not([style*="color"]),
+:root[data-theme="dark"] .pg span:not([style*="color"]):not([style*="background"]) { color: var(--text) !important; }
 
 /* ══════════════════════════════════════════════════════════════════════
    🎨 هوية «جسر» — تسري على صفحات الموارد البشرية فقط
