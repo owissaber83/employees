@@ -24,8 +24,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     <!-- 🎨 الستايل في ملف منفصل -->
     <link rel="stylesheet" href="styles.css?v=20260809-dark3">
-    <!-- 🌗 تطبيق السمة المحفوظة مبكّراً (قبل الرسم) لتفادي وميض الوضع الفاتح -->
-    <script>try{if(localStorage.getItem('gbrTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+    <!-- 🌗 الوضع الغامق مُعطَّل مؤقتاً (يسبّب مشاكل) — يُفعَّل مستقبلاً بإعادة السطر المُعلَّق أدناه -->
+    <script>try{document.documentElement.removeAttribute('data-theme');}catch(e){}
+    /* لإعادة التفعيل مستقبلاً: if(localStorage.getItem('gbrTheme')==='dark')document.documentElement.setAttribute('data-theme','dark'); */</script>
     <!-- 📱 PWA: تطبيق قابل للتثبيت يعمل دون اتصال -->
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#1a3a5c">
@@ -518,7 +519,7 @@
                             <div class="cd wt" id="cD"></div><span id="cT">جاري الاتصال...</span>
                         </div>
                         <span id="clk" style="font-size:12px;color:#888"></span>
-                        <button id="themeToggle" class="btn" onclick="toggleTheme()" title="تبديل الوضع الفاتح/الغامق" style="background:#f0f5fa;color:#1a3a5c;border:1.5px solid #d0d7e0;font-weight:700;border-radius:8px;padding:6px 11px;cursor:pointer;font-family:inherit;font-size:15px;line-height:1">🌙</button>
+                        <button id="themeToggle" class="btn" onclick="toggleTheme()" title="تبديل الوضع الفاتح/الغامق" style="display:none;background:#f0f5fa;color:#1a3a5c;border:1.5px solid #d0d7e0;font-weight:700;border-radius:8px;padding:6px 11px;cursor:pointer;font-family:inherit;font-size:15px;line-height:1">🌙</button>
                         <div id="notifBox" style="position:relative">
                             <button class="btn" onclick="toggleNotifPanel()" title="الإشعارات والمهام المعلّقة" style="background:#f0f5fa;color:#1a3a5c;border:1.5px solid #d0d7e0;font-weight:700;position:relative">🔔<span id="notifBadge" class="alert-badge" style="display:none;position:absolute;top:-6px;left:-6px;background:#e74c3c;color:white;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center">0</span></button>
                             <div id="notifPanel" style="display:none;position:absolute;top:100%;left:0;margin-top:6px;width:340px;max-height:420px;overflow-y:auto;background:white;border:1.5px solid #d0d7e0;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:5000">
@@ -20060,17 +20061,19 @@
             if (pending || !queue.length) return; pending = true;
             requestAnimationFrame(function () { pending = false; var q = queue; queue = []; for (var k = 0; k < q.length; k++) procTree(q[k], true); });
         });
-        function start() { var a = container(); if (a) { obs.observe(a, { childList: true, subtree: true }); window.fixThemeText(); } }
+        // ⛔ الوضع الغامق مُعطَّل مؤقتاً (يسبّب مشاكل) — مؤجَّل. لإعادة التفعيل مستقبلاً: اجعل DARK_ENABLED = true.
+        var DARK_ENABLED = false;
+        function start() { if (!DARK_ENABLED) return; var a = container(); if (a) { obs.observe(a, { childList: true, subtree: true }); window.fixThemeText(); } }
         if (document.readyState !== 'loading') start(); else document.addEventListener('DOMContentLoaded', start);
 
         window.toggleTheme = function () {
+            if (!DARK_ENABLED) return;   // معطَّل مؤقتاً
             var dark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (dark) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', 'dark');
             try { localStorage.setItem('gbrTheme', dark ? 'light' : 'dark'); } catch (e) { }
             var b = document.getElementById('themeToggle'); if (b) b.textContent = dark ? '🌙' : '☀️';
             window.fixThemeText();
         };
-        var tb = document.getElementById('themeToggle'); if (tb) tb.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
     })();
     </script>
 </body>
