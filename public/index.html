@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     <!-- 🎨 الستايل في ملف منفصل -->
-    <link rel="stylesheet" href="styles.css?v=20260809-dark2">
+    <link rel="stylesheet" href="styles.css?v=20260809-dark3">
     <!-- 🌗 تطبيق السمة المحفوظة مبكّراً (قبل الرسم) لتفادي وميض الوضع الفاتح -->
     <script>try{if(localStorage.getItem('gbrTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
     <!-- 📱 PWA: تطبيق قابل للتثبيت يعمل دون اتصال -->
@@ -20016,27 +20016,40 @@
         function lum(c) { return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; }
         function sat(c) { return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]); }
         // نصّ يحتاج تفتيحاً على الغامق: رمادي خافت، أو داكن جداً (كحلي/بنّي) — مع إبقاء الألوان الدلالية الزاهية
-        function liftText(s) { var c = parse(s); if (!c) return false; return (sat(c) <= 40 && lum(c) < 175) || lum(c) < 78; }
-        // خلفية فاتحة (أبيض/رمادي فاتح) → تُغمَّق؛ الخلفيات الملوّنة/المُشبَعة تبقى
-        function darkenBg(s) { var c = parse(s); if (!c) return false; return sat(c) <= 16 && lum(c) > 212; }
+        function liftText(s) { var c = parse(s); if (!c) return false; return (sat(c) <= 48 && lum(c) < 190) || lum(c) < 82; }
+        // خلفية فاتحة (أبيض/رمادي/لون باهت) — تُغمَّق للبطاقات الكبيرة، وتبقى للشارات الصغيرة
+        function lightBg(s) { var c = parse(s); if (!c) return false; return lum(c) > 208 && sat(c) <= 48; }
         function bgOf(style) {
             var m = style.match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i); if (!m) return '';
             var v = m[1].trim(); if (/gradient|url\(/i.test(v)) return '';
             var cm = v.match(/#[0-9a-f]{3,6}|rgba?\([^)]+\)/i); return cm ? cm[0] : '';
         }
-        function proc(el, dark) {
-            if (!el.style || !el.getAttribute) return;
-            if (el.dataset.tCap === undefined) {
-                var st = el.getAttribute('style') || '';
-                var cm = st.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
-                el.dataset.tC = cm ? cm[1].trim() : '';
-                el.dataset.tB = bgOf(st);
-                el.dataset.tCap = '1';
-            }
-            if (el.dataset.tC && liftText(el.dataset.tC)) el.style.color = dark ? 'var(--text)' : el.dataset.tC;
-            if (el.dataset.tB && darkenBg(el.dataset.tB)) el.style.backgroundColor = dark ? 'var(--surface)' : el.dataset.tB;
+        function cap(el) {
+            if (!el.getAttribute || el.dataset.tCap !== undefined) return;
+            var st = el.getAttribute('style') || '';
+            var cm = st.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+            el.dataset.tC = cm ? cm[1].trim() : ''; el.dataset.tB = bgOf(st); el.dataset.tCap = '1';
         }
-        function scan(root, dark) { if (!root.querySelectorAll) return; var e = root.querySelectorAll('[style*="color"],[style*="background"]'); for (var i = 0; i < e.length; i++) proc(e[i], dark); }
+        function apply(el, dark, w, h) {
+            if (!el.style) return;
+            var lb = el.dataset.tB && lightBg(el.dataset.tB);
+            var big = w >= 88 && h >= 30;                                  // بطاقة/لوحة (لا شارة صغيرة)
+            if (lb && big) el.style.backgroundColor = dark ? 'var(--surface)' : el.dataset.tB;
+            var keepBadge = lb && !big;                                     // شارة فاتحة صغيرة → تبقى كما هي (مقروءة)
+            if (el.dataset.tC && liftText(el.dataset.tC) && !keepBadge) el.style.color = dark ? 'var(--text)' : el.dataset.tC;
+        }
+        // مرّتان: قياس (قراءة) ثم تطبيق (كتابة) — يتفادى إعادة التخطيط المتكرّرة
+        function procList(list, dark) {
+            var n = list.length, d = new Array(n), i;
+            for (i = 0; i < n; i++) { cap(list[i]); d[i] = [list[i].offsetWidth, list[i].offsetHeight]; }
+            for (i = 0; i < n; i++) apply(list[i], dark, d[i][0], d[i][1]);
+        }
+        function scan(root, dark) { if (root.querySelectorAll) procList(root.querySelectorAll('[style*="color"],[style*="background"]'), dark); }
+        function procTree(node, dark) {
+            if (node.nodeType !== 1) return;
+            var list = [node]; if (node.querySelectorAll) { var q = node.querySelectorAll('[style*="color"],[style*="background"]'); for (var i = 0; i < q.length; i++) list.push(q[i]); }
+            procList(list, dark);
+        }
         function container() { return document.querySelector('.main-content') || document.getElementById('APP'); }
         window.fixThemeText = function () { var a = container(); if (a) scan(a, document.documentElement.getAttribute('data-theme') === 'dark'); };
         // راقب المحتوى الديناميكي: العقد المضافة تُعالَج فوراً في الوضع الغامق
@@ -20045,7 +20058,7 @@
             if (document.documentElement.getAttribute('data-theme') !== 'dark') return;
             for (var i = 0; i < muts.length; i++) { var an = muts[i].addedNodes; for (var j = 0; j < an.length; j++) if (an[j].nodeType === 1) queue.push(an[j]); }
             if (pending || !queue.length) return; pending = true;
-            requestAnimationFrame(function () { pending = false; var q = queue; queue = []; for (var k = 0; k < q.length; k++) { proc(q[k], true); scan(q[k], true); } });
+            requestAnimationFrame(function () { pending = false; var q = queue; queue = []; for (var k = 0; k < q.length; k++) procTree(q[k], true); });
         });
         function start() { var a = container(); if (a) { obs.observe(a, { childList: true, subtree: true }); window.fixThemeText(); } }
         if (document.readyState !== 'loading') start(); else document.addEventListener('DOMContentLoaded', start);
