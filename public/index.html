@@ -20003,15 +20003,62 @@
         window.addEventListener('scroll', onScroll);
     })();
     </script>
-    <!-- 🌗 تبديل الوضع الفاتح/الغامق (يُحفظ في localStorage) -->
+    <!-- 🌗 تبديل الوضع الفاتح/الغامق (يُحفظ) + رفع النصوص الرمادية الخافتة في الغامق -->
     <script>
-    window.toggleTheme = function () {
-        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (dark) { document.documentElement.removeAttribute('data-theme'); } else { document.documentElement.setAttribute('data-theme', 'dark'); }
-        try { localStorage.setItem('gbrTheme', dark ? 'light' : 'dark'); } catch (e) { }
-        var b = document.getElementById('themeToggle'); if (b) b.textContent = dark ? '🌙' : '☀️';
-    };
-    (function () { var dark = document.documentElement.getAttribute('data-theme') === 'dark'; var b = document.getElementById('themeToggle'); if (b) b.textContent = dark ? '☀️' : '🌙'; })();
+    (function () {
+        function parse(s) {
+            s = (s || '').trim();
+            var m = s.match(/^#([0-9a-f]{3})$/i); if (m) { var h = m[1]; return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]; }
+            m = s.match(/^#([0-9a-f]{6})$/i); if (m) { var g = m[1]; return [parseInt(g.substr(0, 2), 16), parseInt(g.substr(2, 2), 16), parseInt(g.substr(4, 2), 16)]; }
+            m = s.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i); if (m) return [+m[1], +m[2], +m[3]];
+            return null;
+        }
+        function lum(c) { return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; }
+        function sat(c) { return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]); }
+        // نصّ يحتاج تفتيحاً على الغامق: رمادي خافت، أو داكن جداً (كحلي/بنّي) — مع إبقاء الألوان الدلالية الزاهية
+        function liftText(s) { var c = parse(s); if (!c) return false; return (sat(c) <= 40 && lum(c) < 175) || lum(c) < 78; }
+        // خلفية فاتحة (أبيض/رمادي فاتح) → تُغمَّق؛ الخلفيات الملوّنة/المُشبَعة تبقى
+        function darkenBg(s) { var c = parse(s); if (!c) return false; return sat(c) <= 16 && lum(c) > 212; }
+        function bgOf(style) {
+            var m = style.match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i); if (!m) return '';
+            var v = m[1].trim(); if (/gradient|url\(/i.test(v)) return '';
+            var cm = v.match(/#[0-9a-f]{3,6}|rgba?\([^)]+\)/i); return cm ? cm[0] : '';
+        }
+        function proc(el, dark) {
+            if (!el.style || !el.getAttribute) return;
+            if (el.dataset.tCap === undefined) {
+                var st = el.getAttribute('style') || '';
+                var cm = st.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+                el.dataset.tC = cm ? cm[1].trim() : '';
+                el.dataset.tB = bgOf(st);
+                el.dataset.tCap = '1';
+            }
+            if (el.dataset.tC && liftText(el.dataset.tC)) el.style.color = dark ? 'var(--text)' : el.dataset.tC;
+            if (el.dataset.tB && darkenBg(el.dataset.tB)) el.style.backgroundColor = dark ? 'var(--surface)' : el.dataset.tB;
+        }
+        function scan(root, dark) { if (!root.querySelectorAll) return; var e = root.querySelectorAll('[style*="color"],[style*="background"]'); for (var i = 0; i < e.length; i++) proc(e[i], dark); }
+        function container() { return document.querySelector('.main-content') || document.getElementById('APP'); }
+        window.fixThemeText = function () { var a = container(); if (a) scan(a, document.documentElement.getAttribute('data-theme') === 'dark'); };
+        // راقب المحتوى الديناميكي: العقد المضافة تُعالَج فوراً في الوضع الغامق
+        var pending = false, queue = [];
+        var obs = new MutationObserver(function (muts) {
+            if (document.documentElement.getAttribute('data-theme') !== 'dark') return;
+            for (var i = 0; i < muts.length; i++) { var an = muts[i].addedNodes; for (var j = 0; j < an.length; j++) if (an[j].nodeType === 1) queue.push(an[j]); }
+            if (pending || !queue.length) return; pending = true;
+            requestAnimationFrame(function () { pending = false; var q = queue; queue = []; for (var k = 0; k < q.length; k++) { proc(q[k], true); scan(q[k], true); } });
+        });
+        function start() { var a = container(); if (a) { obs.observe(a, { childList: true, subtree: true }); window.fixThemeText(); } }
+        if (document.readyState !== 'loading') start(); else document.addEventListener('DOMContentLoaded', start);
+
+        window.toggleTheme = function () {
+            var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (dark) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', 'dark');
+            try { localStorage.setItem('gbrTheme', dark ? 'light' : 'dark'); } catch (e) { }
+            var b = document.getElementById('themeToggle'); if (b) b.textContent = dark ? '🌙' : '☀️';
+            window.fixThemeText();
+        };
+        var tb = document.getElementById('themeToggle'); if (tb) tb.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    })();
     </script>
 </body>
 
