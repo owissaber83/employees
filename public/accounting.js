@@ -15607,6 +15607,8 @@ window.editPostedSInv = async function (key) {
 // ── حفظ فاتورة (مسودة أو ترحيل) ─────────────────
 window.saveSInv = async function (status) {
     const postAction = window._sInvPostAction || ''; window._sInvPostAction = '';
+    // 🔐 صلاحية إنشاء/ترحيل فواتير المبيعات (وصل صلاحية ميتة — المرحلة 1)
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can(status === 'posted' ? 'post_sales_invoice' : 'create_sales_invoice'))) { toast('🚫 لا تملك صلاحية ' + (status === 'posted' ? 'ترحيل' : 'إنشاء') + ' فواتير المبيعات', 'er'); return; }
     const customerId = $('mSInvCustomer').value;
     if (!customerId) { toast('⚠️ يجب اختيار عميل', 'er'); return; }
 
@@ -16479,6 +16481,8 @@ window.postSInv = async function (key, silent) {
     const inv = window.salesInvoices?.[key]; if (!inv) return;
     if (inv.status !== 'draft') return;
     const isAdmin = (typeof myP !== 'undefined' && myP?.role === 'admin');
+    // 🔐 صلاحية ترحيل فواتير المبيعات (وصل صلاحية ميتة — المرحلة 1)
+    if (!isAdmin && !(typeof can === 'function' && can('post_sales_invoice'))) { if (!silent) toast('🚫 لا تملك صلاحية ترحيل فواتير المبيعات', 'er'); return; }
     // 🔐 سير الاعتماد: غير المدير لا يرحّل ما يتجاوز الحد
     if (!silent) { const thr = sinvApprovalThreshold(); if (thr > 0 && (parseFloat(inv.grandTotal) || 0) > thr && !sinvIsMgr()) { await update(ref(db, 'ledger/salesInvoices/' + key), { needsApproval: true, approvalRequestedBy: (curU?.uid || 'system') }); toast('⏳ الفاتورة تتجاوز حد الاعتماد — أُرسلت لموافقة المدير', 'wn', 6000); renderSalesInvoices(); return; } }
     // الإيقاف الائتماني اليدوي (يمنع دائماً غير المدير)
@@ -18106,6 +18110,8 @@ async function pinvEnsureItemsForLines(lines, expenseType) {
 }
 
 window.savePInv = async function (status) {
+    // 🔐 صلاحية إنشاء/ترحيل فواتير المشتريات (وصل صلاحية ميتة — المرحلة 1)
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can(status === 'posted' ? 'post_purchase_invoice' : 'create_purchase_invoice'))) { toast('🚫 لا تملك صلاحية ' + (status === 'posted' ? 'ترحيل' : 'إنشاء') + ' فواتير المشتريات', 'er'); return; }
     const vendorId = $('mPInvVendor').value;
     if (!vendorId) { toast('⚠️ يجب اختيار مورد', 'er'); return; }
 
@@ -19384,6 +19390,9 @@ window.updateVoucherBaseEquiv = function () {
 
 window.saveVoucher = async function (status) {
     const type = voucherEditorState.type;
+    // 🔐 صلاحية إنشاء/ترحيل سندات القبض/الصرف (وصل صلاحية ميتة — المرحلة 1)
+    const _pbase = type === 'receipt' ? 'receipt' : 'payment';
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can(status === 'posted' ? ('post_' + _pbase) : ('create_' + _pbase)))) { toast('🚫 لا تملك صلاحية ' + (status === 'posted' ? 'ترحيل' : 'إنشاء') + ' ' + (type === 'receipt' ? 'سندات القبض' : 'سندات الصرف'), 'er'); return; }
     const partyId = $('mVoucherParty').value;
     if (!partyId) { toast(`⚠️ يجب اختيار ${type === 'receipt' ? 'العميل' : 'المورد'}`, 'er'); return; }
 
