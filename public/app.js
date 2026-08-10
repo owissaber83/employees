@@ -2424,7 +2424,7 @@ window.refreshNotifBell = function () {
     }
 
     // 🏭 تنبيهات الأصول (ضمان/تأمين/صيانة خلال 30 يوماً)
-    if (typeof collectAssetAlerts === 'function' && (isAdmin || (typeof can === 'function' && can('view_assets')))) {
+    if (typeof collectAssetAlerts === 'function' && (isAdmin || (typeof can === 'function' && can('view_accounting')))) {
         const n = collectAssetAlerts(30).length;
         if (n) items.push({ icon: '🏭', text: `${n} تنبيه أصول (ضمان/تأمين/صيانة)`, page: 'assets', el: 'n-assets' });
     }
