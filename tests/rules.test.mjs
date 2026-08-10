@@ -3,7 +3,7 @@
 // ║  التشغيل:  npm run test:rules   (يتطلب Java + firebase-tools + npm install) ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { ref, get, set, update } from 'firebase/database';
+import { ref, get, set, update, remove } from 'firebase/database';
 import { readFileSync } from 'node:fs';
 
 const FUTURE = Date.now() + 30 * 24 * 3600 * 1000;   // اشتراك سارٍ
@@ -23,7 +23,15 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/adminA'), { role: 'admin', active: true });
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
-  await set(ref(db, 'tenants/A/ledger/users/pmA'), { role: 'project_manager', active: true });   // دور غير محاسبي وغير موظف (لاختبار تصليب كتابة المالية)
+  await set(ref(db, 'tenants/A/ledger/users/pmA'), { role: 'project_manager', active: true });
+  // 🔐 [PERM] مستخدمون لاختبار إنفاذ permsMap — مُرحَّل بلا صلاحية حذف، ومُرحَّل بها، وقديم بلا خريطة
+  await set(ref(db, 'tenants/A/ledger/users/acctNoDel'), { role: 'accountant', active: true,
+    permissions: ['create_journal_entry'], permsMap: { create_journal_entry: true } });
+  await set(ref(db, 'tenants/A/ledger/users/acctCanDel'), { role: 'accountant', active: true,
+    permissions: ['create_journal_entry', 'delete_journal_entry', 'delete_payment'],
+    permsMap: { create_journal_entry: true, delete_journal_entry: true, delete_payment: true } });
+  await set(ref(db, 'tenants/A/ledger/users/acctLegacy'), { role: 'accountant', active: true,
+    permissions: ['create_journal_entry'] });   // بلا permsMap — يمثّل مستخدماً قبل الترحيل   // دور غير محاسبي وغير موظف (لاختبار تصليب كتابة المالية)
   await set(ref(db, 'tenants/A/ledger/users/hrA'), { role: 'hr_officer', active: true });         // شؤون موظفين (لاختبار منعه من تعديل/حذف المشاريع)
   await set(ref(db, 'tenants/A/ledger/projects/p1'), { name: 'مشروع', contractValue: 5000000 }); // مشروع للاختبار (قيمة عقد حسّاسة)
   await set(ref(db, 'tenants/A/ledger/users/deadAdminA'), { role: 'admin', active: false });   // مدير مُوقَف (لاختبار علم active)
@@ -59,7 +67,10 @@ const db = {
   adminA: testEnv.authenticatedContext('adminA').database(),
   acctA: testEnv.authenticatedContext('acctA').database(),
   viewerA: testEnv.authenticatedContext('viewerA').database(),
-  pmA: testEnv.authenticatedContext('pmA').database(),               // مدير مشروع (غير محاسبي)
+  pmA: testEnv.authenticatedContext('pmA').database(),
+  acctNoDel: testEnv.authenticatedContext('acctNoDel').database(),     // [PERM] مُرحَّل بلا صلاحية حذف
+  acctCanDel: testEnv.authenticatedContext('acctCanDel').database(),   // [PERM] مُرحَّل بصلاحية حذف
+  acctLegacy: testEnv.authenticatedContext('acctLegacy').database(),   // [PERM] قديم بلا permsMap               // مدير مشروع (غير محاسبي)
   deadAdminA: testEnv.authenticatedContext('deadAdminA').database(),   // مدير مُوقَف (active:false)
   adminE: testEnv.authenticatedContext('adminE').database(),
   stranger: testEnv.authenticatedContext('stranger').database(),  // مصادَق لكن غير عضو في أي مستأجر
@@ -401,6 +412,23 @@ await test('محاسب يكتب تكلفة شهرية للمشروع', assertSuc
 await test('موظف HR لا يكتب أمر تغيير', assertFails(set(ref(db.hrA, 'tenants/A/ledger/projectChangeOrders/co1'), { amount: 1 })));
 // عزل واشتراك
 await test('عزل: مدير مشروع A لا يكتب مستخلصاً في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/progressBillings/hack'), { amount: 1 })));
+
+
+console.log('\n🔐 إنفاذ الصلاحيات على قاعدة البيانات (permsMap) [PERM]:');
+// الهدف: سحب صلاحية من واجهة الصلاحيات يجب أن يمنع فعلاً — لا إخفاء زر فقط
+await set(ref(db.adminA, 'tenants/A/ledger/journalEntries/pj1'), { number: 'JV-P1' });
+await set(ref(db.adminA, 'tenants/A/ledger/journalEntries/pj2'), { number: 'JV-P2' });
+await set(ref(db.adminA, 'tenants/A/ledger/journalEntries/pj3'), { number: 'JV-P3' });
+await set(ref(db.adminA, 'tenants/A/ledger/payments/pp1'), { amount: 10 });
+
+await test('محاسب سُحبت منه delete_journal_entry لا يحذف قيداً', assertFails(remove(ref(db.acctNoDel, 'tenants/A/ledger/journalEntries/pj1'))));
+await test('نفسه ما زال يُنشئ/يعدّل قيداً (لم ينكسر عمله)', assertSucceeds(update(ref(db.acctNoDel, 'tenants/A/ledger/journalEntries/pj1'), { number: 'JV-P1b' })));
+await test('محاسب له delete_journal_entry يحذف قيداً', assertSucceeds(remove(ref(db.acctCanDel, 'tenants/A/ledger/journalEntries/pj2'))));
+await test('توافق خلفي: محاسب بلا permsMap يحذف كما كان', assertSucceeds(remove(ref(db.acctLegacy, 'tenants/A/ledger/journalEntries/pj3'))));
+await test('محاسب سُحبت منه delete_payment لا يحذف سند صرف', assertFails(remove(ref(db.acctNoDel, 'tenants/A/ledger/payments/pp1'))));
+await test('الدور يبقى السقف: HR بخريطة صلاحيات لا يحذف قيداً', assertFails(remove(ref(db.hrA, 'tenants/A/ledger/journalEntries/pj1'))));
+await test('المدير يكتب على جذر المجموعة (استعادة نسخة احتياطية)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/receipts'), { r9: { amount: 1 } })));
+await test('محاسب لا يكتب على جذر المجموعة', assertFails(set(ref(db.acctCanDel, 'tenants/A/ledger/receipts'), { hack: { amount: 1 } })));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);

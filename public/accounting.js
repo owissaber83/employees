@@ -7423,6 +7423,8 @@ window.cancelJrnEntry = async function (key) {
 
 // ── حذف القيد ─────────────────
 window.deleteJrnEntry = async function (key) {
+    // 🔐 صلاحية delete_journal_entry كانت معرَّفة في المصفوفة ولا تُفحص في أي مكان
+    if (myP?.role !== 'admin' && !can('delete_journal_entry')) { toast('🚫 ليس لديك صلاحية حذف القيود', 'er'); return; }
     const entry = window.journalEntries?.[key]; if (!entry) return;
     if (entry.status !== 'draft' && entry.status !== 'cancelled') { toast('⚠️ لا يمكن حذف قيد مرحّل (ألغِه بدلاً من ذلك)', 'er'); return; }
     {

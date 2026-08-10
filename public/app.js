@@ -833,6 +833,57 @@ function can(p) {
     return (myP.permissions || []).includes(p);
 }
 
+// ══ 🔐 خريطة الصلاحيات (permsMap) — أساس الإنفاذ الخلفي ══════════════════
+// قواعد RTDB **لا تفحص عضوية المصفوفات**: لا توجد طريقة لاختبار
+// permissions.includes('del_project') داخل قاعدة. لذلك تُكتب الصلاحيات
+// **أيضاً** كخريطة { del_project: true } فتصبح قابلة للفحص مباشرةً بـ
+// permsMap/del_project === true.
+//
+// الحقلان يُكتبان معاً (كتابة مزدوجة): `permissions` تبقى مصدر الواجهة بلا
+// تغيير، و`permsMap` مشتقّة منها للقواعد. لا هجرة مطلوبة من المستخدم —
+// migratePermsMaps() تبني الخريطة للمستخدمين القدامى مرة واحدة.
+window.permsToMap = function (arr) {
+    const m = {};
+    (Array.isArray(arr) ? arr : []).forEach(k => {
+        // مفاتيح Firebase لا تقبل . $ # [ ] / — مفاتيحنا حروف وأرقام وشرطة سفلية
+        if (k && typeof k === 'string' && /^[A-Za-z0-9_]+$/.test(k)) m[k] = true;
+    });
+    return m;
+};
+// يُلحق permsMap بأي كائن كتابة يحمل permissions. استُخدم في كل مواضع الكتابة
+// الستة بدل تكرار المنطق.
+window.withPermsMap = function (vals) {
+    if (vals && Array.isArray(vals.permissions)) vals.permsMap = permsToMap(vals.permissions);
+    return vals;
+};
+
+// ترحيل لمرة واحدة: يبني permsMap لكل مستخدم قديم بلا خريطة.
+// آمن ومتكرّر التشغيل (idempotent) — لا يلمس من له خريطة مطابقة، ولا يغيّر
+// `permissions` إطلاقاً. القواعد مصمّمة لتتجاهل الإنفاذ لمن لا خريطة له،
+// فالتشغيل قبل الترحيل لا يقفل أحداً.
+window.migratePermsMaps = async function () {
+    if (!(myP && myP.role === 'admin')) { toast('🚫 للمدير فقط', 'er'); return; }
+    const users = window.us || {};
+    const batch = {}; let need = 0, skip = 0;
+    Object.entries(users).forEach(([uid, u]) => {
+        const want = permsToMap(u.permissions);
+        const cur = u.permsMap || {};
+        const same = Object.keys(want).length === Object.keys(cur).length &&
+            Object.keys(want).every(k => cur[k] === true);
+        if (same) { skip++; return; }
+        batch[`ledger/users/${uid}/permsMap`] = want;
+        need++;
+    });
+    if (!need) { toast(`✅ كل المستخدمين مُرحَّلون (${skip})`, 'ok'); return; }
+    cf2(`بناء خريطة الصلاحيات لـ ${need} مستخدم؟ (${skip} مُرحَّل مسبقاً)\n\nلا يغيّر أي صلاحية — يبني نسخة قابلة للفحص من القواعد.`, async () => {
+        try {
+            await update(ref(db), batch);
+            if (typeof logAudit === 'function') logAudit('ترحيل', 'المستخدمون', `بناء permsMap لـ ${need} مستخدم`);
+            toast(`✅ رُحِّل ${need} مستخدم`, 'ok');
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
 // ══ 💾 نسخة احتياطية محلية على جهاز العميل (تعمل بلا خادم — Spark) ══════════════════
 async function _gzipBlob(str) {
     try {
@@ -1539,7 +1590,7 @@ window.doSetup = async function () {
         await update(_rawRef(secDb, '/'), {
             [`tenants/${tid}/meta`]: { companyName: cn, createdAt: nowISO, createdBy: uid, accessUntil: Date.now() + TRIAL_DAYS * 86400000 },
             [`userIndex/${uid}`]: { tenantId: tid },
-            [`tenants/${tid}/ledger/users/${uid}`]: { name: nm, email: em, role: 'admin', permissions: ALL_P, active: true, createdAt: nowISO }
+            [`tenants/${tid}/ledger/users/${uid}`]: withPermsMap({ name: nm, email: em, role: 'admin', permissions: ALL_P, active: true, createdAt: nowISO })
         });
         await signOut(sAuth);
         window.__registering = false;
@@ -4639,7 +4690,7 @@ window.saveNU = async function () {
         //    بكتابة ledger/users و userIndex عبر قواعد قاعدة البيانات (نفس نمط permsSave).
         const sup = !!window.__impersonating;
         const putUser = (r, v) => sup ? _rawSet(r, v) : set(r, v);
-        await putUser(ref(db, `ledger/users/${uid}`), { name: nm, email: em, role, permissions: perms, active: true, createdAt: new Date().toISOString(), ...(sup ? { createdBySupport: true } : {}) });
+        await putUser(ref(db, `ledger/users/${uid}`), withPermsMap({ name: nm, email: em, role, permissions: perms, active: true, createdAt: new Date().toISOString(), ...(sup ? { createdBySupport: true } : {}) }));
         // 🏢 اربط المستخدم بشركة المدير الحالي في الفهرس العام (يتطلبه تسجيل الدخول)
         await putUser(_rawRef(db, `userIndex/${uid}`), { tenantId: currentTenantId });
         // 🕵️ شفافية: أي إنشاء مستخدم من الدعم يُسجَّل في سجل تدقيق الشركة نفسها ليراه مديرها
@@ -4696,7 +4747,7 @@ window.doInviteEmployee = async function () {
         const cr = await createUserWithEmailAndPassword(sAuth, em, ps);
         await fbUpP(cr.user, { displayName: e.name || em });
         const uid = cr.user.uid; await signOut(sAuth);
-        await set(ref(db, `ledger/users/${uid}`), { name: e.name || em, email: em, role: 'employee', permissions: [], active: true, empKey, createdAt: new Date().toISOString() });
+        await set(ref(db, `ledger/users/${uid}`), withPermsMap({ name: e.name || em, email: em, role: 'employee', permissions: [], active: true, empKey, createdAt: new Date().toISOString() }));
         await set(_rawRef(db, `userIndex/${uid}`), { tenantId: currentTenantId });
         // اربط سجل الموظف بالحساب (بريد + userId) ليتعرّف عليه التطبيق تلقائياً
         await update(ref(db, `ledger/employees/${empKey}`), { email: em, userId: uid });
@@ -4754,7 +4805,7 @@ window.saveEU = async function () {
         const u = us[uid] || {};
         let empKey = u.empKey || '';
         if (!empKey) { const found = Object.entries(emp).find(([, ee]) => ee.userId === uid || (ee.email && ee.email.toLowerCase() === (u.email || '').toLowerCase())); if (found) empKey = found[0]; }
-        const upd = { name: nm, role: 'employee', permissions: [], active: ac, updatedAt: new Date().toISOString() };
+        const upd = withPermsMap({ name: nm, role: 'employee', permissions: [], active: ac, updatedAt: new Date().toISOString() });
         if (empKey) upd.empKey = empKey;
         try {
             await update(ref(db, `ledger/users/${uid}`), upd);
@@ -4786,7 +4837,7 @@ window.saveEU = async function () {
     else if (matchesPreset('engineer')) role = 'engineer';
     else if (perms.includes('add_transaction')) role = 'accountant';
     // 👑 وضع دعم المالك: نكتب عبر _rawUpdate لتجاوز حاجز «القراءة فقط» (القواعد تسمح للمشغّل)
-    const _vals = { name: nm, role, permissions: perms, active: ac, updatedAt: new Date().toISOString() };
+    const _vals = withPermsMap({ name: nm, role, permissions: perms, active: ac, updatedAt: new Date().toISOString() });
     try { await (window.__impersonating ? _rawUpdate(ref(db, `ledger/users/${uid}`), _vals) : update(ref(db, `ledger/users/${uid}`), _vals)); toast('تم التحديث ✓', 'ok'); cov('mEU') }
     catch (e) { toast('خطأ: ' + e.message, 'er') }
 };
@@ -4880,6 +4931,7 @@ window.renderPermsMatrix = function (rebuild) {
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                     <input id="permsSearch" type="text" value="${(st.q || '').replace(/"/g, '&quot;')}" oninput="permsSearch(this.value)" placeholder="🔍 ابحث في الصلاحيات..." style="padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:12px;min-width:200px">
+                    <button class="btn" onclick="migratePermsMaps()" style="background:#8e44ad;color:#fff;font-weight:800" title="يبني نسخة من الصلاحيات قابلة للفحص من قواعد قاعدة البيانات — لا يغيّر أي صلاحية">🔐 تفعيل الإنفاذ الخلفي</button>
                     <button class="btn b-g" onclick="permsSave()" style="font-weight:800">💾 حفظ التغييرات</button>
                 </div>
             </div>
@@ -4959,7 +5011,7 @@ window.permsSave = async function () {
         : update(ref(db, `ledger/users/${uid}`), vals);
     for (const uid of [...st.dirty]) {
         if ((window.us || {})[uid] && window.us[uid].role === 'admin') { continue; } // المدير لا تُحفظ له قائمة (دوره يتجاوزها)
-        try { await saveUser(uid, { permissions: [...(st.perms[uid] || [])], updatedAt: new Date().toISOString() }); ok++; }
+        try { await saveUser(uid, withPermsMap({ permissions: [...(st.perms[uid] || [])], updatedAt: new Date().toISOString() })); ok++; }
         catch (e) { fail++; }
     }
     // سجل التدقيق داخل الشركة يرفض كتابة المشغّل (ليس عضواً) — نتجاوزه في وضع الدعم
@@ -6329,6 +6381,8 @@ window.saveEmp = async function () {
 };
 
 window.delEmp = function (key) {
+    // 🔐 صلاحية delete_employee كانت معرَّفة في مصفوفة الصلاحيات ولا تُفحص في أي مكان
+    if (myP?.role !== 'admin' && !can('delete_employee')) { toast('🚫 ليس لديك صلاحية حذف الموظفين', 'er'); return; }
     cf2('هل تريد حذف هذا الموظف نهائياً؟', async () => {
         try { await remove(ref(db, 'ledger/employees/' + key)); toast('🗑️ تم الحذف', 'ok') }
         catch (e) { toast('خطأ: ' + e.message, 'er') }
@@ -6870,8 +6924,9 @@ window.savePrj = async function () {
 };
 
 window.delPrj = function (key) {
-    // 🔐 حارس صلاحية: حذف المشاريع للمدير/مدير المشروع/المدير التنفيذي فقط (متوائم مع قاعدة projects)
-    if (myP?.role !== 'admin' && !can('edit_project')) { toast('🚫 ليس لديك صلاحية لحذف المشاريع', 'er'); return; }
+    // 🔐 حارس صلاحية: الحذف يتطلب del_project تحديداً — لا edit_project.
+    // (كان يفحص edit_project، فكان سحب «حذف مشروع» من المصفوفة بلا أثر.)
+    if (myP?.role !== 'admin' && !can('del_project')) { toast('🚫 ليس لديك صلاحية لحذف المشاريع', 'er'); return; }
     const p = projects[key];
     // 🗄️ حذف ناعم (أرشفة): الحذف الصلب كان يترك يتامى في 16 مجموعة (مستخلصات/مصروفات/مهام…) بلا نسخة خادمية على Spark.
     cf2(`أرشفة المشروع «${esc(p?.name || '')}»؟ سيُخفى من القوائم واللوحات مع الاحتفاظ بكل بياناته المرتبطة، ويمكن استعادته لاحقاً.`, async () => {
