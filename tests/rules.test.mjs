@@ -32,6 +32,10 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     permsMap: { create_journal_entry: true, delete_journal_entry: true, delete_payment: true } });
   await set(ref(db, 'tenants/A/ledger/users/acctLegacy'), { role: 'accountant', active: true,
     permissions: ['create_journal_entry'] });   // بلا permsMap — يمثّل مستخدماً قبل الترحيل   // دور غير محاسبي وغير موظف (لاختبار تصليب كتابة المالية)
+  // [FIN-READ] مدير مشروع مُنح صلاحيات عرض مالية عبر permsMap — لاختبار منفذ الصلاحية في قراءة المالية
+  await set(ref(db, 'tenants/A/ledger/users/pmView'), { role: 'project_manager', active: true,
+    permissions: ['view_payments', 'view_journal_entries', 'view_sales_invoices', 'view_purchase_invoices', 'view_receipts'],
+    permsMap: { view_payments: true, view_journal_entries: true, view_sales_invoices: true, view_purchase_invoices: true, view_receipts: true } });
   await set(ref(db, 'tenants/A/ledger/users/hrA'), { role: 'hr_officer', active: true });         // شؤون موظفين (لاختبار منعه من تعديل/حذف المشاريع)
   await set(ref(db, 'tenants/A/ledger/projects/p1'), { name: 'مشروع', contractValue: 5000000 }); // مشروع للاختبار (قيمة عقد حسّاسة)
   await set(ref(db, 'tenants/A/ledger/users/deadAdminA'), { role: 'admin', active: false });   // مدير مُوقَف (لاختبار علم active)
@@ -71,6 +75,7 @@ const db = {
   acctNoDel: testEnv.authenticatedContext('acctNoDel').database(),     // [PERM] مُرحَّل بلا صلاحية حذف
   acctCanDel: testEnv.authenticatedContext('acctCanDel').database(),   // [PERM] مُرحَّل بصلاحية حذف
   acctLegacy: testEnv.authenticatedContext('acctLegacy').database(),   // [PERM] قديم بلا permsMap               // مدير مشروع (غير محاسبي)
+  pmView: testEnv.authenticatedContext('pmView').database(),           // [FIN-READ] مدير مشروع مُنح صلاحيات عرض مالية
   deadAdminA: testEnv.authenticatedContext('deadAdminA').database(),   // مدير مُوقَف (active:false)
   adminE: testEnv.authenticatedContext('adminE').database(),
   stranger: testEnv.authenticatedContext('stranger').database(),  // مصادَق لكن غير عضو في أي مستأجر
@@ -258,8 +263,7 @@ await test('محاسب A يكتب سند قبض (receipts)', assertSucceeds(set(
 await test('محاسب A يكتب دفعة عميل مقدمة (customerAdvances)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/customerAdvances/caa1'), { amount: 1000, customerId: 'c1' })));
 await test('محاسب A يكتب شيكاً (cheques)', assertSucceeds(set(ref(db.acctA, 'tenants/A/ledger/cheques/ch1'), { amount: 1000 })));
 await test('مدير A يكتب مدفوعة (payments)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/payments/pad1'), { amount: 1000 })));
-// القراءة لم تُكسَر: المستمعات العامة تظل حيّة لكل الأدوار (تأجيل سرّية القراءة للمرحلة B)
-await test('مدير مشروع ما زال يقرأ المدفوعات (القراءة لم تُكسَر)', assertSucceeds(get(ref(db.pmA, 'tenants/A/ledger/payments'))));
+// [FIN-READ] سرّية قراءة المعاملات المحاسبية: مقصورة على الأدوار المالية أو من مُنح صلاحية عرض
 await test('محاسب A يقرأ المدفوعات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/payments'))));
 // بوابة الاشتراك المنتهي تسري على المالية المُصلَّبة
 await test('اشتراك منتهٍ يمنع كتابة مدفوعة', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/payments/pex1'), { amount: 1 })));
@@ -285,6 +289,24 @@ await test('مدير مشروع يقرأ خطابات الضمان (غير مو�
 // الموظف ما زال يقرأ ما يخصّه: الإعلانات (بثّ) والخدمة الذاتية
 await test('موظف ما زال يقرأ الإعلانات (بثّ — لم تُحجب)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/announcements'))));
 await test('موظف ما زال يقرأ طلبات إجازاته (leaves — خدمة ذاتية)', assertSucceeds(get(ref(db.empU, 'tenants/A/ledger/leaves'))));
+
+console.log('\n📒 سرّية قراءة المعاملات المحاسبية [FIN-READ] — قيود/فواتير/سندات مقصورة على المالية أو من مُنح صلاحية عرض:');
+// الأدوار غير المالية (مدير مشروع بلا صلاحية عرض) لم تعد تقرأ المعاملات المحاسبية
+await test('مدير مشروع لا يقرأ قيود اليومية (journalEntries — سرّية محاسبية)', assertFails(get(ref(db.pmA, 'tenants/A/ledger/journalEntries'))));
+await test('مدير مشروع لا يقرأ المدفوعات (payments — سرّية محاسبية)', assertFails(get(ref(db.pmA, 'tenants/A/ledger/payments'))));
+await test('مدير مشروع لا يقرأ سندات القبض (receipts — سرّية محاسبية)', assertFails(get(ref(db.pmA, 'tenants/A/ledger/receipts'))));
+await test('مدير مشروع لا يقرأ فواتير المشتريات (purchaseInvoices — سرّية محاسبية)', assertFails(get(ref(db.pmA, 'tenants/A/ledger/purchaseInvoices'))));
+await test('مدير مشروع لا يقرأ فواتير المبيعات (salesInvoices — سرّية محاسبية)', assertFails(get(ref(db.pmA, 'tenants/A/ledger/salesInvoices'))));
+// الموظف/المشاهد أيضاً محجوبان عن القيود والمبيعات (كانا مقروءين قبل التشديد)
+await test('موظف لا يقرأ قيود اليومية (journalEntries — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/journalEntries'))));
+await test('موظف لا يقرأ فواتير المبيعات (salesInvoices — سرّية)', assertFails(get(ref(db.empU, 'tenants/A/ledger/salesInvoices'))));
+// منفذ الصلاحية: دور غير مالي مُنح view_* عبر permsMap يقرأ المعاملة المعنيّة
+await test('مدير مشروع مُنح view_payments يقرأ المدفوعات (منفذ الصلاحية)', assertSucceeds(get(ref(db.pmView, 'tenants/A/ledger/payments'))));
+await test('مدير مشروع مُنح view_journal_entries يقرأ القيود', assertSucceeds(get(ref(db.pmView, 'tenants/A/ledger/journalEntries'))));
+await test('مدير مشروع مُنح view_sales_invoices يقرأ فواتير المبيعات', assertSucceeds(get(ref(db.pmView, 'tenants/A/ledger/salesInvoices'))));
+// الأدوار المالية تقرأ كالمعتاد — صفر تراجع
+await test('محاسب A يقرأ فواتير المبيعات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/salesInvoices'))));
+await test('مدير A يقرأ قيود اليومية', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/journalEntries'))));
 
 console.log('\n🕵️ سرّية الاستبيانات [C] — ردود زملائك محجوبة، وعلامة "أجبتُ" خاصة بك:');
 // الردود الكاملة للموارد البشرية/المدير فقط — الموظف/المشاهد لا يقرؤونها
