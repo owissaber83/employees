@@ -142,6 +142,22 @@ max-width: 100%;
 --li: #f0f2f5;
 --sh: 0 2px 15px rgba(0, 0, 0, .08);
 
+/* ══ رموز السمة (فاتح افتراضي) — أساس الوضع الفاتح/الغامق [مرحلة 1] ══
+   المكوّنات المشتركة تشير إلى هذه الرموز؛ الوضع الغامق يعيد تعريفها فقط تحت
+   :root[data-theme="dark"] أدناه. الألوان المضمّنة في دوال العرض تبقى فاتحة
+   حتى تُرحَّل تدريجياً. */
+--bg: #f0f2f5;
+--surface: #ffffff;
+--surface-2: #f8fafc;
+--surface-3: #eef2f6;
+--text: #33404d;
+--text-strong: #1a3a5c;
+--muted: #7a8896;
+--border: #e8ecf0;
+--border-2: #dde4ed;
+--row-hover: #e8f4fd;
+--input-bg: #ffffff;
+
 /* ══ رموز قسم الموارد البشرية (HR design tokens) — المرحلة أ ══
    تُستخدم في hr-suite.js · hr-approvals.js · hr-requests.js · hr-extra.js.
    القيم هنا هي ألوان القسم الأصلية بالضبط، فلا فرق بصري عن السابق.
@@ -185,6 +201,41 @@ max-width: 100%;
 --hr-sf5: #eef2f6;
 --hr-sf-ok: #eafaf1;
 }
+
+/* ══ الوضع الغامق [مرحلة 1]: يعيد تعريف رموز السمة فقط ══
+   يُفعّل بوضع data-theme="dark" على <html> (زرّ التبديل يحفظه في localStorage).
+   يغطّي المكوّنات المشتركة (خلفية، بطاقات، جداول، حقول، شريط علوي، نوافذ)؛
+   الألوان المضمّنة في دوال العرض تبقى فاتحة حتى تُرحَّل. */
+:root[data-theme="dark"] {
+--bg: #0f1620;
+--surface: #18222e;
+--surface-2: #131c26;
+--surface-3: #1f2a37;
+--text: #cdd6e0;
+--text-strong: #e6edf4;
+--muted: #8a97a5;
+--border: #28323f;
+--border-2: #2b3542;
+--row-hover: #202c3a;
+--input-bg: #0f1720;
+--li: #0f1620;
+--sh: 0 2px 15px rgba(0, 0, 0, .38);
+}
+/* أسطح مشتركة إضافية تحمل ألواناً فاتحة صريحة → تُغمَّق عبر المحدِّد الغامق */
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .kpi,
+:root[data-theme="dark"] .tb,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .st td { background-color: var(--surface); color: var(--text); border-color: var(--border); }
+:root[data-theme="dark"] .st tbody tr:nth-child(even) { background-color: var(--surface-2); }
+:root[data-theme="dark"] .st tbody tr:hover { background-color: var(--row-hover); }
+:root[data-theme="dark"] .c-tl { color: var(--text-strong); }
+:root[data-theme="dark"] .fg input,
+:root[data-theme="dark"] .fg select,
+:root[data-theme="dark"] .fg textarea,
+:root[data-theme="dark"] input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea { background-color: var(--input-bg) !important; color: var(--text) !important; border-color: var(--border) !important; }
 
 /* ══════════════════════════════════════════════════════════════════════
    🎨 هوية «جسر» — تسري على صفحات الموارد البشرية فقط
@@ -307,7 +358,7 @@ color: #fff;
 body {
 font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
 background: var(--li);
-color: #333;
+color: var(--text);
 direction: rtl;
 font-variant-numeric: tabular-nums;
 }
