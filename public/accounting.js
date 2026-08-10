@@ -16564,6 +16564,8 @@ window.unpostSInv = async function (key) {
 
 // ── حذف فاتورة (مسودة) ─────────────────
 window.deleteSInv = async function (key) {
+    // 🔐 صلاحية حذف فواتير المبيعات (وصل صلاحية ميتة — المرحلة 1)
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can('delete_sales_invoice'))) { toast('🚫 لا تملك صلاحية حذف فواتير المبيعات', 'er'); return; }
     const inv = window.salesInvoices?.[key]; if (!inv) return;
     if (inv.status !== 'draft') { toast('⚠️ لا يمكن حذف فاتورة مرحّلة من هنا — استخدم زر 🗑️🔓', 'er'); return; }
     if (!await cf2(`هل تريد حذف الفاتورة ${esc(inv.number)} نهائياً؟`)) return;
@@ -20962,6 +20964,8 @@ window.updateMovTotal = function () {
 };
 
 window.saveInvMovement = async function () {
+    // 🔐 صلاحية إنشاء حركات المخزون (وصل صلاحية ميتة — المرحلة 1)
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can('create_inv_movement'))) { toast('🚫 لا تملك صلاحية إنشاء حركات المخزون', 'er'); return; }
     const itemKey = $('mInvMovItem').value;
     if (!itemKey) { toast('⚠️ يجب اختيار صنف', 'er'); return; }
     const qty = parseFloat($('mInvMovQty').value) || 0;
@@ -21015,6 +21019,8 @@ window.saveInvMovement = async function () {
 };
 
 window.deleteInvMovement = async function (key) {
+    // 🔐 صلاحية حذف حركات المخزون (وصل صلاحية ميتة — المرحلة 1)
+    if (myP?.role !== 'admin' && !(typeof can === 'function' && can('delete_inv_movement'))) { toast('🚫 لا تملك صلاحية حذف حركات المخزون', 'er'); return; }
     const m = window.inventoryMovements?.[key]; if (!m) return;
     if (m.transferGroupId) {
         if (!await cf2(`هذه الحركة جزء من تحويل مخزني (${esc(m.number)})\nسيتم حذف الحركتين المرتبطتين (الصادر والوارد) معاً. هل تريد المتابعة؟`)) return;
