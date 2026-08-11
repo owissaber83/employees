@@ -200,6 +200,45 @@ max-width: 100%;
 --hr-sf4: #f0f5fa;
 --hr-sf5: #eef2f6;
 --hr-sf-ok: #eafaf1;
+
+/* ══ رموز قسم المشاريع (project-detail.js) ══════════════════════════════
+   القيم هنا هي ألوان القسم الأصلية بالضبط — لا فرق بصري عن السابق.
+   تُمكّن لاحقاً تغميق القسم بإعادة تعريفها تحت :root[data-theme="dark"]
+   دون لمس أي ملف JS.
+   ⚠️ استُثني عمداً (لا تحوّلها):
+     • أربع نوافذ طباعة (window.open + document.write) — مستندات مستقلة
+       لا ترث متغيّرات CSS، فالتحويل يُخرجها بلا ألوان.
+     • إعداد Chart.js — يرسم على canvas، و var() لا تُحلّ فيه. */
+
+/* الهوية */
+--pd-pri: #1a3a5c;
+--pd-pri2: #2d6a9f;
+--pd-blue: #2980b9;
+
+/* الحالات */
+--pd-ok: #27ae60;
+--pd-ok-d: #1e8449;
+--pd-danger: #c0392b;
+--pd-danger2: #e74c3c;
+--pd-warn: #e67e22;
+--pd-acc: #16a085;
+--pd-alt: #8e44ad;
+--pd-alt-d: #5b2c6f;
+
+/* الحدود */
+--pd-bd: #d0d7e0;
+--pd-bd2: #e0e8f0;
+--pd-bd3: #e6ebf0;
+
+/* السطوح */
+--pd-sf1: #f8fafc;
+--pd-sf2: #eef3f8;
+--pd-sf3: #f0f5fa;
+--pd-sf-ok: #eafaf1;
+--pd-sf-danger: #fdecea;
+--pd-sf-warn: #fef5e7;
+--pd-sf-warn2: #fef9e7;
+--pd-sf-alt: #f4ecf7;
 }
 
 /* ══ الوضع الغامق [مرحلة 1]: يعيد تعريف رموز السمة فقط ══
