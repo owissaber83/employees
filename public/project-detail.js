@@ -10,6 +10,27 @@
 //   window.projectMilestones (مراحل المشروع — تبويب الجدول الزمني)
 //   db, ref, push, update, remove, R, $, toast, fmt, cf2, ov, cov
 
+// ── 🧰 مساعدات مشتركة ───────────────────────────────────────────────────────
+// أُضيفت لإزالة تكرار ميكانيكي واسع: `parseFloat(x) || 0` كانت مكتوبة 149 مرة،
+// ونمط الجمع 56 مرة. الدوال هنا **مطابقة دلالياً** لما استبدلته — لا تغيير سلوك.
+
+// رقم آمن من أي مدخل (نص/undefined/null/NaN) → صفر. مطابق لـ parseFloat(x) || 0
+function pdNum(v) { return parseFloat(v) || 0; }
+
+// مجموع حقل رقمي عبر مصفوفة/كائن. يقبل اسم حقل أو دالة استخراج.
+//   pdSum(rows, 'amount')          ≡ rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0)
+//   pdSum(rows, r => r.qty*r.rate)
+function pdSum(list, pick) {
+    const arr = Array.isArray(list) ? list : Object.values(list || {});
+    const get = typeof pick === 'function' ? pick : (r => r && r[pick]);
+    return arr.reduce((s, r) => s + pdNum(get(r)), 0);
+}
+
+// ملاحظة: بطاقات المؤشّرات (`kpi`) وخلايا الجداول (`cell`) مُعرَّفة محلياً في
+// 4 مواضع بتواقيع **وأشكال مختلفة فعلاً** (إحداها تُنتج <td> والأخريات <div>،
+// بأنصاف أقطار 10px/12px وأحجام خط 20px/21px). توحيدها يغيّر الشكل المعروض،
+// فتُرك عمداً — التوحيد قرار تصميمي لا تنظيف ميكانيكي.
+
 // ── State ──────────────────────────────────────────────────────────────────
 window._pd = { projectId: (() => { try { return localStorage.getItem('pd_pid') || null; } catch (e) { return null; } })(), tab: 'overview', billingPage: 1, billView: 'table', docsSubTab: 'docs' };
 // حفظ/استعادة المشروع المختار عبر التحديث (F5)
@@ -22,7 +43,7 @@ function pdNetApprovedCOs(projectId, asOfDate) {
         ? Object.values(window.projectBOQ[projectId]) : [];
     const fromBOQ = boqItems
         .filter(it => it.section && it.section.startsWith('VO'))
-        .reduce((s, it) => s + (parseFloat(it.unitPrice) || 0) * (parseFloat(it.quantity) || 0), 0);
+        .reduce((s, it) => s + (pdNum(it.unitPrice)) * (pdNum(it.quantity)), 0);
 
     // المصدر 2: سجلات projectChangeOrders المعتمدة (من تاب العقد والبنود)
     const cos = window.projectChangeOrders?.[projectId] || {};
@@ -30,7 +51,7 @@ function pdNetApprovedCOs(projectId, asOfDate) {
         .filter(co => co.status === 'approved'
                    && (!asOfDate || (co.date || '') <= asOfDate))
         .reduce((s, co) => {
-            const amt = parseFloat(co.amount) || 0;
+            const amt = pdNum(co.amount);
             return s + (co.type === 'deduction' ? -amt : amt);
         }, 0);
 
@@ -106,31 +127,31 @@ window.renderProjectDetail = function () {
 
     // ── KPI حسابات ──
     const boqItems = window.projectBOQ?.[projectId] ? Object.values(window.projectBOQ[projectId]) : [];
-    const boqTotal = boqItems.reduce((s, it) => s + (parseFloat(it.unitPrice) || 0) * (parseFloat(it.quantity) || 0), 0);
+    const boqTotal = boqItems.reduce((s, it) => s + (pdNum(it.unitPrice)) * (pdNum(it.quantity)), 0);
     const contractValueBase = parseFloat(p.contractValue || p.budget || 0);
     const coNetAll = pdNetApprovedCOs(projectId);
     const contractValue = contractValueBase + coNetAll;   // المعدّلة (شاملة أوامر التغيير)
 
     const billings = Object.values(window.progressBillings || {}).filter(b => b.projectId === projectId && b.status !== 'cancelled');
-    const billedTotal = billings.reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+    const billedTotal = pdSum(billings, 'currentAmount');
     // ✅ المستخلصات التي تحوّلت إلى فاتورة معتمدة ومرحَّلة فعليًا (محصَّلة/قيد التحصيل) — بدون ضريبة (نفس أساس قيمة العقد)
     const collectedCertTotal = billings.filter(b => pdIsBillingCollected(b))
-        .reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+        .reduce((s, b) => s + (pdNum(b.currentAmount)), 0);
     // 📑 المستخلصات التي لم تتحوّل بعد إلى فاتورة معتمدة ومرحَّلة (مستحقة) — تشمل المسوّدات والفواتير غير المرحَّلة، بدون ضريبة
     const dueCertTotal = billings.filter(b => !pdIsBillingCollected(b))
-        .reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+        .reduce((s, b) => s + (pdNum(b.currentAmount)), 0);
     // إجمالي المستخلصات = المحصَّل + المستحق (كلاهما الآن بنفس أساس currentAmount بدون ضريبة، فيطابق billedTotal)
     const totalCertValue = billedTotal;
 
     const matCost = Object.values(window.matPurchases || {}).filter(pu => pu.projectId === projectId || (pu.project && pu.project.id === projectId))
-        .reduce((s, pu) => s + (parseFloat(pu.purchasedQty) || 0) * (parseFloat(pu.purchasedUnitPrice) || 0), 0);
+        .reduce((s, pu) => s + (pdNum(pu.purchasedQty)) * (pdNum(pu.purchasedUnitPrice)), 0);
     const directExp = Object.values((window.projectExpenses || {})[projectId] || {})
-        .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+        .reduce((s, e) => s + (pdNum(e.amount)), 0);
     const totalExp = matCost + directExp;
 
     // PMC — تكاليف المشاريع الشهرية لهذا المشروع
     const pmcRecords = Object.values(window.projectMonthlyCosts || {}).filter(c => c.projectId === projectId);
-    const pmcTotal = pmcRecords.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+    const pmcTotal = pdSum(pmcRecords, 'amount');
 
     // التكاليف غير المباشرة المخصصة لهذا المشروع (تراكمي السنة الحالية)
     const currentYear = new Date().getFullYear().toString();
@@ -353,39 +374,39 @@ function pdRenderOverview(pid) {
     // ── الموقف المالي الصافي للمشروع ──
     const allInv = Object.entries(window.salesInvoices || {}).filter(([, inv]) => inv.projectId === pid && inv.status !== 'cancelled');
     const collectedBeforeTax = allInv.reduce((s, [, inv]) => {
-        const grand = parseFloat(inv.grandTotal) || 0;
-        const paid = parseFloat(inv.paidAmount) || 0;
+        const grand = pdNum(inv.grandTotal);
+        const paid = pdNum(inv.paidAmount);
         if (grand <= 0) return s;
-        const beforeVAT = parseFloat(inv.netBeforeTax) || (grand - (parseFloat(inv.vatTotal) || 0));
+        const beforeVAT = parseFloat(inv.netBeforeTax) || (grand - (pdNum(inv.vatTotal)));
         return s + beforeVAT * (paid / grand);
     }, 0);
 
     const billings = Object.values(window.progressBillings || {}).filter(b => b.projectId === pid && b.status !== 'cancelled');
     const billingInvoiceKeys = new Set(billings.filter(b => pdIsBillingCollected(b)).map(b => b.salesInvoiceKey));
     const dueUninvoiced = billings.filter(b => !pdIsBillingCollected(b))
-        .reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+        .reduce((s, b) => s + (pdNum(b.currentAmount)), 0);
     const dueUnpaidInvoiced = allInv.filter(([k]) => billingInvoiceKeys.has(k)).reduce((s, [, inv]) => {
-        const grand = parseFloat(inv.grandTotal) || 0;
-        const paid = parseFloat(inv.paidAmount) || 0;
+        const grand = pdNum(inv.grandTotal);
+        const paid = pdNum(inv.paidAmount);
         const pending = grand - paid;
         if (grand <= 0 || pending <= 0) return s;
-        const beforeVAT = parseFloat(inv.netBeforeTax) || (grand - (parseFloat(inv.vatTotal) || 0));
+        const beforeVAT = parseFloat(inv.netBeforeTax) || (grand - (pdNum(inv.vatTotal)));
         return s + beforeVAT * (pending / grand);
     }, 0);
     const outstandingDue = dueUninvoiced + dueUnpaidInvoiced;
     const grossTotal = collectedBeforeTax + outstandingDue;
 
     const matCost = Object.values(window.matPurchases || {}).filter(pu => pu.projectId === pid || (pu.project && pu.project.id === pid))
-        .reduce((s, pu) => s + (parseFloat(pu.purchasedQty) || 0) * (parseFloat(pu.purchasedUnitPrice) || 0), 0);
-    const directExp = Object.values((window.projectExpenses || {})[pid] || {}).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+        .reduce((s, pu) => s + (pdNum(pu.purchasedQty)) * (pdNum(pu.purchasedUnitPrice)), 0);
+    const directExp = Object.values((window.projectExpenses || {})[pid] || {}).reduce((s, e) => s + (pdNum(e.amount)), 0);
     const totalExp = matCost + directExp;
-    const pmcTotal = Object.values(window.projectMonthlyCosts || {}).filter(c => c.projectId === pid).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-    const otherDeductions = parseFloat(p.otherDeductions) || 0;
+    const pmcTotal = Object.values(window.projectMonthlyCosts || {}).filter(c => c.projectId === pid).reduce((s, c) => s + (pdNum(c.amount)), 0);
+    const otherDeductions = pdNum(p.otherDeductions);
     const netResult = grossTotal - pmcTotal - totalExp - otherDeductions;
 
     // ── الربح الفعلي الحالي (إيرادات المستخلصات المعتمدة مقابل التكاليف الفعلية) ──
     const approvedRevenue = billings.filter(b => ['approved', 'paid'].includes(b.status))
-        .reduce((s, b) => s + (parseFloat(b.netAmount) || parseFloat(b.currentAmount) || 0), 0);
+        .reduce((s, b) => s + (parseFloat(b.netAmount) || pdNum(b.currentAmount)), 0);
     const totalCosts = pmcTotal + totalExp;
     const actualProfitLoss = approvedRevenue - totalCosts;
 
@@ -604,7 +625,7 @@ function pdBuildActualProfitChart(approvedRevenue, totalCosts) {
 }
 
 window.pdUpdateOtherDeductions = async function (pid, value) {
-    const v = parseFloat(value) || 0;
+    const v = pdNum(value);
     try {
         await update(ref(db, `ledger/projects/${pid}`), { otherDeductions: v });
         toast('تم تحديث الخصومات الأخرى ✓', 'ok');
@@ -643,26 +664,26 @@ function pdRenderContract(pid) {
     const pane = document.getElementById('pd-tab-contract'); if (!pane) return;
 
     const boqEntries = window.projectBOQ?.[pid] ? Object.entries(window.projectBOQ[pid]) : [];
-    const boqTotal = boqEntries.reduce((s, [, it]) => s + (parseFloat(it.unitPrice) || 0) * (parseFloat(it.quantity) || 0), 0);
+    const boqTotal = boqEntries.reduce((s, [, it]) => s + (pdNum(it.unitPrice)) * (pdNum(it.quantity)), 0);
     const contractValueBase = parseFloat(p.contractValue || p.budget || 0);
 
     // ── أوامر التغيير (Change Orders / Variations) — تعدّل قيمة العقد بعد التوقيع ──
     const coEntries = window.projectChangeOrders?.[pid] ? Object.entries(window.projectChangeOrders[pid]) : [];
     const approvedCOs = coEntries.filter(([, co]) => co.status === 'approved');
-    const coNetApproved = approvedCOs.reduce((s, [, co]) => s + (co.type === 'deduction' ? -1 : 1) * (parseFloat(co.amount) || 0), 0);
+    const coNetApproved = approvedCOs.reduce((s, [, co]) => s + (co.type === 'deduction' ? -1 : 1) * (pdNum(co.amount)), 0);
     const contractValue = contractValueBase;            // الأصلية (للمقارنات والملاحظات)
     const adjustedContractValue = contractValueBase + coNetApproved; // المعدّلة (للحسابات)
 
     // مجموع نسب البنود من قيمة العقد (تلقائية أو يدوية) — مفيد للتحقق من أنها تجمع لـ 100%
     const totalContractPct = boqEntries.reduce((s, [, it]) => {
-        const total = (parseFloat(it.unitPrice) || 0) * (parseFloat(it.quantity) || 0);
+        const total = (pdNum(it.unitPrice)) * (pdNum(it.quantity));
         const isManual = it.manualPct !== undefined && it.manualPct !== null && it.manualPct !== '';
-        const p2 = isManual ? (parseFloat(it.manualPct) || 0) : (contractValue > 0 ? (total / contractValue) * 100 : 0);
+        const p2 = isManual ? (pdNum(it.manualPct)) : (contractValue > 0 ? (total / contractValue) * 100 : 0);
         return s + p2;
     }, 0);
 
     const paymentEntries = window.projectPaymentSchedule?.[pid] ? Object.entries(window.projectPaymentSchedule[pid]) : [];
-    const pctTotal = paymentEntries.reduce((s, [, pay]) => s + (parseFloat(pay.percentage) || 0), 0);
+    const pctTotal = paymentEntries.reduce((s, [, pay]) => s + (pdNum(pay.percentage)), 0);
     const coStatusM = {
         draft:     { label: 'مسودة',            bg: '#f4ecf7', color: '#5b2c6f' },
         submitted: { label: 'مُقدَّم للاعتماد',  bg: '#fff3cd', color: '#664d03' },
@@ -675,7 +696,7 @@ function pdRenderContract(pid) {
         .forEach(b => (b.items || []).forEach(bi => {
             const bk = bi.boqItemKey;
             if (!bk) return;
-            billedByBOQ[bk] = (billedByBOQ[bk] || 0) + (parseFloat(bi.currentAmount) || 0);
+            billedByBOQ[bk] = (billedByBOQ[bk] || 0) + (pdNum(bi.currentAmount));
         }));
 
     pane.innerHTML = `
@@ -717,7 +738,7 @@ function pdRenderContract(pid) {
                 .sort((a, b) => (b[1].createdAt || '').localeCompare(a[1].createdAt || ''))
                 .map(([ck, co], i) => {
                 const sm = coStatusM[co.status] || coStatusM.draft;
-                const signedAmount = (co.type === 'deduction' ? -1 : 1) * (parseFloat(co.amount) || 0);
+                const signedAmount = (co.type === 'deduction' ? -1 : 1) * (pdNum(co.amount));
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
                     <td style="font-weight:700;color:#2d6a9f">${esc(co.number || '-')}</td>
@@ -776,12 +797,12 @@ function pdRenderContract(pid) {
             </tr></thead>
             <tbody>
             ${boqEntries.map(([bk, it], i) => {
-                const total = (parseFloat(it.unitPrice) || 0) * (parseFloat(it.quantity) || 0);
+                const total = (pdNum(it.unitPrice)) * (pdNum(it.quantity));
                 const billed = billedByBOQ[bk] || 0;
                 const remaining = total - billed;
                 const pct = total > 0 ? Math.round((billed / total) * 100) : 0;
                 const isManualPct = it.manualPct !== undefined && it.manualPct !== null && it.manualPct !== '';
-                const contractPct = isManualPct ? parseFloat(it.manualPct) || 0 : (adjustedContractValue > 0 ? (total / adjustedContractValue) * 100 : 0);
+                const contractPct = isManualPct ? pdNum(it.manualPct) : (adjustedContractValue > 0 ? (total / adjustedContractValue) * 100 : 0);
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
                     <td style="font-weight:700;color:#2d6a9f">${esc(it.number || '-')}</td>
@@ -843,7 +864,7 @@ function pdRenderContract(pid) {
             </tr></thead>
             <tbody>
             ${paymentEntries.map(([pk, pay], i) => {
-                const pct = parseFloat(pay.percentage) || 0;
+                const pct = pdNum(pay.percentage);
                 const amount = adjustedContractValue * (pct / 100);
                 return `<tr>
                     <td style="color:#888;font-weight:700">${i + 1}</td>
@@ -982,7 +1003,7 @@ window.pdSaveBOQ = async function (pid) {
     const price = parseFloat(document.getElementById('pd-boq-price')?.value) || 0;
     if (!desc) { toast('أدخل وصف البند', 'er'); return; }
     // النسبة من قيمة العقد: إن أُدخلت يدوياً تُحفظ كقيمة ثابتة، وإلا يُحذف الحقل ليُحسب تلقائياً (الإجمالي ÷ قيمة العقد)
-    const data = { number: no, description: desc, unit, quantity: qty, unitPrice: price, manualPct: pctRaw === '' ? null : (parseFloat(pctRaw) || 0), updatedAt: new Date().toISOString() };
+    const data = { number: no, description: desc, unit, quantity: qty, unitPrice: price, manualPct: pctRaw === '' ? null : (pdNum(pctRaw)), updatedAt: new Date().toISOString() };
     const itemKey = document.getElementById('pd-boq-key')?.value;
     try {
         if (itemKey) {
@@ -1192,8 +1213,8 @@ function pdRenderBillings(pid) {
         });
 
     const activeBills = bills.filter(([, b]) => b.status !== 'cancelled');
-    const billedTotal = activeBills.reduce((s, [, b]) => s + (parseFloat(b.currentAmount) || 0), 0);
-    const paidTotal   = activeBills.filter(([, b]) => b.status === 'paid').reduce((s, [, b]) => s + (parseFloat(b.currentAmount) || 0), 0);
+    const billedTotal = activeBills.reduce((s, [, b]) => s + (pdNum(b.currentAmount)), 0);
+    const paidTotal   = activeBills.filter(([, b]) => b.status === 'paid').reduce((s, [, b]) => s + (pdNum(b.currentAmount)), 0);
     const pct = contractValue > 0 ? Math.min(100, (billedTotal / contractValue) * 100) : 0;
 
     const hasBoq = window.projectBOQ?.[pid] && Object.keys(window.projectBOQ[pid]).length > 0;
@@ -1363,9 +1384,9 @@ function pdBillingSummaryTable(filtered) {
     const rows = [...filtered].sort((a, b) => (b[1].billingDate || b[1].date || '').localeCompare(a[1].billingDate || a[1].date || ''));
 
     const active = rows.filter(([, b]) => b.status !== 'cancelled');
-    const sumCur = active.reduce((s, [, b]) => s + (parseFloat(b.currentAmount) || 0), 0);
-    const sumRet = active.reduce((s, [, b]) => s + (parseFloat(b.retentionAmount) || 0), 0);
-    const sumNet = active.reduce((s, [, b]) => s + (parseFloat(b.netAmount) || 0), 0);
+    const sumCur = active.reduce((s, [, b]) => s + (pdNum(b.currentAmount)), 0);
+    const sumRet = active.reduce((s, [, b]) => s + (pdNum(b.retentionAmount)), 0);
+    const sumNet = active.reduce((s, [, b]) => s + (pdNum(b.netAmount)), 0);
 
     return `
     <div class="card">
@@ -1431,10 +1452,10 @@ window.pdPrintProjectBillings = function (pid) {
 
     const bills = pdGetBillingsForExport(pid);
     const active = bills.filter(([, b]) => b.status !== 'cancelled');
-    const sumCur = active.reduce((s, [, b]) => s + (parseFloat(b.currentAmount) || 0), 0);
-    const sumRet = active.reduce((s, [, b]) => s + (parseFloat(b.retentionAmount) || 0), 0);
-    const sumNet = active.reduce((s, [, b]) => s + (parseFloat(b.netAmount) || 0), 0);
-    const f = v => (parseFloat(v) || 0).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sumCur = active.reduce((s, [, b]) => s + (pdNum(b.currentAmount)), 0);
+    const sumRet = active.reduce((s, [, b]) => s + (pdNum(b.retentionAmount)), 0);
+    const sumNet = active.reduce((s, [, b]) => s + (pdNum(b.netAmount)), 0);
+    const f = v => (pdNum(v)).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const tRows = bills.map(([, b], i) => {
         const inv = b.salesInvoiceKey ? (window.salesInvoices || {})[b.salesInvoiceKey] : null;
@@ -1550,11 +1571,11 @@ window.pdExportProjectBillingsExcel = function (pid) {
             'التاريخ': b.billingDate || b.date || '',
             'الفترة من': b.fromDate || '',
             'الفترة إلى': b.toDate || '',
-            'قيمة الأعمال الحالية': parseFloat(b.currentAmount) || 0,
-            'التراكمي': parseFloat(b.cumulativeAmount) || 0,
-            'الاحتفاظ': parseFloat(b.retentionAmount) || 0,
-            'الضريبة': parseFloat(b.vatAmount) || 0,
-            'صافي المستحق': parseFloat(b.netAmount) || 0,
+            'قيمة الأعمال الحالية': pdNum(b.currentAmount),
+            'التراكمي': pdNum(b.cumulativeAmount),
+            'الاحتفاظ': pdNum(b.retentionAmount),
+            'الضريبة': pdNum(b.vatAmount),
+            'صافي المستحق': pdNum(b.netAmount),
             'الحالة': PD_BILL_STATUS_LABELS[b.status] || b.status || '',
             'الفاتورة': inv ? (inv.number || 'فاتورة') : 'لم تُفوتر',
             'موقف التحصيل': inv ? (collected ? 'محصَّل' : 'فاتورة مسودة') : 'مستحق',
@@ -1566,11 +1587,11 @@ window.pdExportProjectBillingsExcel = function (pid) {
     const active = bills.filter(([, b]) => b.status !== 'cancelled');
     rows.push({
         '#': '', 'رقم المستخلص': 'الإجمالي (بدون الملغى)', 'التاريخ': '', 'الفترة من': '', 'الفترة إلى': '',
-        'قيمة الأعمال الحالية': active.reduce((s, [, b]) => s + (parseFloat(b.currentAmount) || 0), 0),
+        'قيمة الأعمال الحالية': active.reduce((s, [, b]) => s + (pdNum(b.currentAmount)), 0),
         'التراكمي': '',
-        'الاحتفاظ': active.reduce((s, [, b]) => s + (parseFloat(b.retentionAmount) || 0), 0),
-        'الضريبة': active.reduce((s, [, b]) => s + (parseFloat(b.vatAmount) || 0), 0),
-        'صافي المستحق': active.reduce((s, [, b]) => s + (parseFloat(b.netAmount) || 0), 0),
+        'الاحتفاظ': active.reduce((s, [, b]) => s + (pdNum(b.retentionAmount)), 0),
+        'الضريبة': active.reduce((s, [, b]) => s + (pdNum(b.vatAmount)), 0),
+        'صافي المستحق': active.reduce((s, [, b]) => s + (pdNum(b.netAmount)), 0),
         'الحالة': '', 'الفاتورة': '', 'موقف التحصيل': '', 'العميل': ''
     });
 
@@ -1602,7 +1623,7 @@ window.pdShowBillingListPage = function (pid, filterType) {
         .filter(([, b]) => b.projectId === pid && b.status !== 'cancelled' && pdIsBillingCollected(b) === isCollected)
         .sort((a, b) => (b[1].billingDate || b[1].date || '').localeCompare(a[1].billingDate || a[1].date || ''));
 
-    const total = list.reduce((s, [, b]) => s + (parseFloat(b.currentAmount) || 0), 0);
+    const total = list.reduce((s, [, b]) => s + (pdNum(b.currentAmount)), 0);
     const statusesPresent = [...new Set(list.map(([, b]) => b.status))];
 
     pg.innerHTML = `
@@ -1644,7 +1665,7 @@ window.pdShowBillingListPage = function (pid, filterType) {
             ${list.map(([bk, b]) => {
                 const sLabel = statusLabels[b.status] || b.status || '';
                 const searchKey = [b.billingNo, b.contractRef, b.billingDate, b.fromDate, b.toDate, sLabel].filter(Boolean).join(' ').toLowerCase();
-                return `<div class="pd-bill-list-card" data-search="${searchKey.replace(/"/g, '')}" data-status="${b.status || ''}" data-amount="${parseFloat(b.currentAmount) || 0}" data-date="${b.billingDate || b.date || ''}">${typeof renderBillingCard === 'function' ? renderBillingCard(bk, b) : ''}</div>`;
+                return `<div class="pd-bill-list-card" data-search="${searchKey.replace(/"/g, '')}" data-status="${b.status || ''}" data-amount="${pdNum(b.currentAmount)}" data-date="${b.billingDate || b.date || ''}">${typeof renderBillingCard === 'function' ? renderBillingCard(bk, b) : ''}</div>`;
             }).join('')}
            </div>`}
     `;
@@ -1665,8 +1686,8 @@ window.pdFilterBillingListCards = function () {
     });
     cards.sort((a, b) => {
         if (sortMode === 'date-asc') return (a.dataset.date || '').localeCompare(b.dataset.date || '');
-        if (sortMode === 'amount-asc') return (parseFloat(a.dataset.amount) || 0) - (parseFloat(b.dataset.amount) || 0);
-        if (sortMode === 'amount-desc') return (parseFloat(b.dataset.amount) || 0) - (parseFloat(a.dataset.amount) || 0);
+        if (sortMode === 'amount-asc') return (pdNum(a.dataset.amount)) - (pdNum(b.dataset.amount));
+        if (sortMode === 'amount-desc') return (pdNum(b.dataset.amount)) - (pdNum(a.dataset.amount));
         return (b.dataset.date || '').localeCompare(a.dataset.date || '');
     });
     cards.forEach(el => container.appendChild(el));
@@ -1699,8 +1720,8 @@ window.pdOpenNewBilling = function (pid) {
 function pdInvStatusInfo(inv) {
     if (inv.status === 'draft')     return { label: 'مسودة', bg: '#f4ecf7', color: '#5b2c6f' };
     if (inv.status === 'cancelled') return { label: 'ملغاة', bg: '#fdecea', color: '#7b1c1c' };
-    const grand = parseFloat(inv.grandTotal) || 0;
-    const paid  = parseFloat(inv.paidAmount) || 0;
+    const grand = pdNum(inv.grandTotal);
+    const paid  = pdNum(inv.paidAmount);
     if (grand > 0 && paid >= grand - 0.01) return { label: 'مسددة',        bg: '#eafaf1', color: '#1e8449' };
     if (paid > 0)                          return { label: 'مسددة جزئياً', bg: '#fef5e7', color: '#b9770e' };
     return { label: 'غير مسددة', bg: '#fdedec', color: '#c0392b' };
@@ -1743,23 +1764,23 @@ function pdRenderProjectInvoices(pid) {
         .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
 
     const contractValue = pdAdjustedContract(pid);  // شاملة أوامر التغيير المعتمدة
-    const totalAmount  = allInv.reduce((s, [, inv]) => s + (parseFloat(inv.grandTotal) || 0), 0);
-    const totalPaid    = allInv.reduce((s, [, inv]) => s + (parseFloat(inv.paidAmount) || 0), 0);
+    const totalAmount  = allInv.reduce((s, [, inv]) => s + (pdNum(inv.grandTotal)), 0);
+    const totalPaid    = allInv.reduce((s, [, inv]) => s + (pdNum(inv.paidAmount)), 0);
     const totalPending = totalAmount - totalPaid;
 
     // 💵 المحصَّل قبل الضريبة — نسبة المبلغ المحصَّل من كل فاتورة محسوبة على القيمة قبل الضريبة
     const collectedBeforeTax = allInv.reduce((s, [, inv]) => {
-        const grand = parseFloat(inv.grandTotal) || 0;
-        const paid = parseFloat(inv.paidAmount) || 0;
+        const grand = pdNum(inv.grandTotal);
+        const paid = pdNum(inv.paidAmount);
         if (grand <= 0) return s;
-        const beforeVAT = parseFloat(inv.netBeforeTax) || (grand - (parseFloat(inv.vatTotal) || 0));
+        const beforeVAT = parseFloat(inv.netBeforeTax) || (grand - (pdNum(inv.vatTotal)));
         return s + beforeVAT * (paid / grand);
     }, 0);
 
     // 📑 مستخلصات لم تتحوّل بعد إلى فاتورة معتمدة ومرحَّلة (تشمل غير المفوترة والمسودات وغير المرحَّلة)
     const dueBillings = Object.values(window.progressBillings || {})
         .filter(b => b.projectId === pid && b.status !== 'cancelled' && !pdIsBillingCollected(b));
-    const dueBillingsTotal = dueBillings.reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
+    const dueBillingsTotal = pdSum(dueBillings, 'currentAmount');
 
     // ⚖️ باقي قيمة العقد بعد خصم الفواتير الصادرة للعميل
     // قيمة العقد المسجّلة بالمشروع "قبل الضريبة" (نفس أساس BOQ)، بينما إجمالي الفواتير "شامل الضريبة" (grandTotal)؛
@@ -1823,7 +1844,7 @@ function pdRenderProjectInvoices(pid) {
             <tbody>
             ${allInv.map(([k, inv], i) => {
                 const st = pdInvStatusInfo(inv);
-                const pending = (parseFloat(inv.grandTotal)||0) - (parseFloat(inv.paidAmount)||0);
+                const pending = (pdNum(inv.grandTotal)) - (pdNum(inv.paidAmount));
                 const isBilling = !!inv.billingKey;
                 return `<tr>
                     <td style="color:#888">${i+1}</td>
@@ -1940,16 +1961,16 @@ window.pdPrintProjectInvoices = function (pid, cols, widths, title) {
         .filter(([, inv]) => inv.projectId === pid && inv.status !== 'cancelled')
         .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
 
-    const totalAmount  = allInv.reduce((s, [, inv]) => s + (parseFloat(inv.grandTotal) || 0), 0);
-    const totalPaid    = allInv.reduce((s, [, inv]) => s + (parseFloat(inv.paidAmount) || 0), 0);
+    const totalAmount  = allInv.reduce((s, [, inv]) => s + (pdNum(inv.grandTotal)), 0);
+    const totalPaid    = allInv.reduce((s, [, inv]) => s + (pdNum(inv.paidAmount)), 0);
     const totalPending = totalAmount - totalPaid;
 
     const headCells = '<th>#</th>' + PD_INV_PRINT_COLS.filter(c => has(c.id)).map(c => `<th${c.id === 'subject' ? ' class="subj-col"' : ''}>${esc(c.label)}</th>`).join('');
 
     const tRows = allInv.map(([k, inv], i) => {
-        const pending = (parseFloat(inv.grandTotal)||0) - (parseFloat(inv.paidAmount)||0);
+        const pending = (pdNum(inv.grandTotal)) - (pdNum(inv.paidAmount));
         const st = pdInvStatusInfo(inv);
-        const f = v => (parseFloat(v)||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const f = v => (pdNum(v)).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
         const cells = {
             number:  `<td>${inv.number||'—'} ${inv.billingKey?'<span class="badge">مستخلص</span>':''}</td>`,
             date:    `<td>${inv.date||'—'}</td>`,
@@ -1966,7 +1987,7 @@ window.pdPrintProjectInvoices = function (pid, cols, widths, title) {
         </tr>`;
     }).join('');
 
-    const f2 = v => (parseFloat(v)||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const f2 = v => (pdNum(v)).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
 
     // صف الإجمالي: خلية التسمية تمتد على # والأعمدة الوصفية المختارة، ثم خلايا المجاميع للأعمدة الرقمية المختارة
     const labelSpan = 1 + ['number', 'date', 'due', 'subject'].filter(has).length;
@@ -2061,7 +2082,7 @@ window.pdExportProjectInvoicesExcel = function (pid) {
     if (!allInv.length) { toast('لا توجد فواتير للتصدير', 'er'); return; }
 
     const rows = allInv.map(([, inv], i) => {
-        const pending = (parseFloat(inv.grandTotal)||0) - (parseFloat(inv.paidAmount)||0);
+        const pending = (pdNum(inv.grandTotal)) - (pdNum(inv.paidAmount));
         return {
             '#': i + 1,
             'رقم الفاتورة': inv.number || '',
@@ -2069,8 +2090,8 @@ window.pdExportProjectInvoicesExcel = function (pid) {
             'التاريخ': inv.date || '',
             'تاريخ الاستحقاق': inv.dueDate || '',
             'الموضوع': inv.subject || '',
-            'قيمة الفاتورة': parseFloat(inv.grandTotal) || 0,
-            'المدفوع': parseFloat(inv.paidAmount) || 0,
+            'قيمة الفاتورة': pdNum(inv.grandTotal),
+            'المدفوع': pdNum(inv.paidAmount),
             'المتبقي': pending,
             'الحالة': pdInvStatusInfo(inv).label,
             'العميل': customer ? customer.nameAr : (inv.customerName || ''),
@@ -2078,8 +2099,8 @@ window.pdExportProjectInvoicesExcel = function (pid) {
     });
 
     // صف الإجمالي
-    const totalAmount  = allInv.reduce((s,[,i]) => s + (parseFloat(i.grandTotal)||0), 0);
-    const totalPaid    = allInv.reduce((s,[,i]) => s + (parseFloat(i.paidAmount)||0), 0);
+    const totalAmount  = allInv.reduce((s,[,i]) => s + (pdNum(i.grandTotal)), 0);
+    const totalPaid    = allInv.reduce((s,[,i]) => s + (pdNum(i.paidAmount)), 0);
     rows.push({ '#': '', 'رقم الفاتورة': 'الإجمالي', 'النوع': '', 'التاريخ': '', 'تاريخ الاستحقاق': '', 'الموضوع': '',
         'قيمة الفاتورة': totalAmount, 'المدفوع': totalPaid, 'المتبقي': totalAmount - totalPaid, 'الحالة': '', 'العميل': '' });
 
@@ -2098,14 +2119,14 @@ function pdRenderExpenses(pid) {
 
     const directExp = Object.entries((window.projectExpenses || {})[pid] || {})
         .sort((a, b) => new Date(b[1].date || 0) - new Date(a[1].date || 0));
-    const totalDirect = directExp.reduce((s, [, e]) => s + (parseFloat(e.amount) || 0), 0);
+    const totalDirect = directExp.reduce((s, [, e]) => s + (pdNum(e.amount)), 0);
 
     const matCosts = Object.values(window.matPurchases || {}).filter(pu => pu.projectId === pid || (pu.project && pu.project.id === pid));
-    const totalMat = matCosts.reduce((s, pu) => s + (parseFloat(pu.purchasedQty) || 0) * (parseFloat(pu.purchasedUnitPrice) || 0), 0);
+    const totalMat = matCosts.reduce((s, pu) => s + (pdNum(pu.purchasedQty)) * (pdNum(pu.purchasedUnitPrice)), 0);
 
     const catMap = { materials: '🧱 مواد', labor: '👷 عمالة', equipment: '🚜 معدات', services: '🔧 خدمات', transport: '🚛 نقل', other: '📦 أخرى' };
     const catTotals = {};
-    directExp.forEach(([, e]) => { catTotals[e.category] = (catTotals[e.category] || 0) + (parseFloat(e.amount) || 0); });
+    directExp.forEach(([, e]) => { catTotals[e.category] = (catTotals[e.category] || 0) + (pdNum(e.amount)); });
 
     // التكاليف غير المباشرة المخصصة للمشروع
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -2145,15 +2166,15 @@ function pdRenderExpenses(pid) {
             ${indCostEntries.map(([, c]) => {
                 const pct = parseFloat((c.allocations || {})[pid]) || 0;
                 const indCatM = { depreciation:'📉 إهلاك', rent:'🏢 إيجارات', salaries:'👔 رواتب إدارية', utilities:'⚡ كهرباء ومياه', insurance:'🛡️ تأمين', other:'📦 أخرى' };
-                const monthlyBase = (parseFloat(c.annualAmount) || 0) / 12;
+                const monthlyBase = (pdNum(c.annualAmount)) / 12;
                 const overridedMonthly = typeof window.icProjectMonthlyShare === 'function'
-                    ? (() => { const ovr = (c.monthlyOverrides || {})[currentMonth]; return ovr !== undefined ? parseFloat(ovr)||0 : monthlyBase; })()
+                    ? (() => { const ovr = (c.monthlyOverrides || {})[currentMonth]; return ovr !== undefined ? pdNum(ovr) : monthlyBase; })()
                     : monthlyBase;
                 const projMonthShare  = overridedMonthly * (pct / 100);
                 const projAnnualShare = totalIndAnnual > 0
                     ? typeof window.icProjectAnnualShare === 'function' ? (() => {
-                        let s = 0; for (let m=1;m<=12;m++) { const mk=`${currentYear}-${String(m).padStart(2,'0')}`; const ov=(c.monthlyOverrides||{})[mk]; const base=ov!==undefined?parseFloat(ov)||0:(parseFloat(c.annualAmount)||0)/12; s+=base*(pct/100); } return s; })() : (parseFloat(c.annualAmount)||0)*(pct/100)/100
-                    : (parseFloat(c.annualAmount)||0)*(pct/100)/100;
+                        let s = 0; for (let m=1;m<=12;m++) { const mk=`${currentYear}-${String(m).padStart(2,'0')}`; const ov=(c.monthlyOverrides||{})[mk]; const base=ov!==undefined?pdNum(ov):(pdNum(c.annualAmount))/12; s+=base*(pct/100); } return s; })() : (pdNum(c.annualAmount))*(pct/100)/100
+                    : (pdNum(c.annualAmount))*(pct/100)/100;
                 return `<tr>
                     <td style="font-weight:700;color:#1a3a5c">${c.name||'-'}</td>
                     <td><span style="font-size:11px;background:#f4ecf7;color:#5b2c6f;padding:2px 8px;border-radius:8px">${indCatM[c.category]||c.category||'-'}</span></td>
@@ -2210,7 +2231,7 @@ function pdRenderExpenses(pid) {
             <thead><tr><th>#</th><th>التاريخ</th><th>المادة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
             <tbody>
             ${matCosts.map((pu, i) => {
-                const total = (parseFloat(pu.purchasedQty) || 0) * (parseFloat(pu.purchasedUnitPrice) || 0);
+                const total = (pdNum(pu.purchasedQty)) * (pdNum(pu.purchasedUnitPrice));
                 return `<tr>
                     <td style="color:#888">${i + 1}</td>
                     <td>${pu.purchaseDate || pu.createdAt?.substring(0, 10) || '-'}</td>
@@ -2275,12 +2296,12 @@ function pdRenderSuppliers(pid) {
                 invoiceDate: l.date || je.date || '-',
                 materialName: l.description || '-',
                 qty: '', unit: '',
-                grandTotal: parseFloat(l.debit) || parseFloat(l.credit) || 0
+                grandTotal: parseFloat(l.debit) || pdNum(l.credit)
             });
         });
     });
 
-    const total = invs.reduce((s, [, inv]) => s + (parseFloat(inv.grandTotal) || 0), 0) + jrnRows.reduce((s, r) => s + r.grandTotal, 0);
+    const total = invs.reduce((s, [, inv]) => s + (pdNum(inv.grandTotal)), 0) + jrnRows.reduce((s, r) => s + r.grandTotal, 0);
     const supplierIds = new Set(invs.map(([, inv]) => inv.supplierId));
     jrnRows.forEach(r => supplierIds.add(r.supplierId));
     const supplierCount = supplierIds.size;
@@ -2292,7 +2313,7 @@ function pdRenderSuppliers(pid) {
         const cat = mat.category || 'other';
         if (!catGroups[cat]) catGroups[cat] = { count: 0, total: 0, invs: [] };
         catGroups[cat].count++;
-        catGroups[cat].total += parseFloat(inv.grandTotal) || 0;
+        catGroups[cat].total += pdNum(inv.grandTotal);
         catGroups[cat].invs.push({
             supplierName: inv.supplierName || '-', invoiceNumber: inv.invoiceNumber || '-',
             invoiceDate: inv.invoiceDate || '-', materialName: inv.materialName || '-',
@@ -2313,7 +2334,7 @@ function pdRenderSuppliers(pid) {
         const sid = inv.supplierId || '-';
         if (!supGroups[sid]) supGroups[sid] = { name: inv.supplierName || 'مورد غير معروف', count: 0, total: 0, cats: new Set() };
         supGroups[sid].count++;
-        supGroups[sid].total += parseFloat(inv.grandTotal) || 0;
+        supGroups[sid].total += pdNum(inv.grandTotal);
         const mat = (window.materials || {})[inv.materialId] || {};
         supGroups[sid].cats.add(mat.category || 'other');
     });
@@ -2484,13 +2505,13 @@ function pdRenderPayroll(pid) {
         .filter(([, pr]) => pr.projectId === pid || allProjEmpIds.has(pr.employeeId))
         .sort((a, b) => (b[1].month || '').localeCompare(a[1].month || ''));
 
-    const totalPaid = projPayrolls.filter(([, pr]) => pr.status === 'paid').reduce((s, [, pr]) => s + (parseFloat(pr.netSalary) || 0), 0);
-    const totalPending = projPayrolls.filter(([, pr]) => pr.status !== 'paid').reduce((s, [, pr]) => s + (parseFloat(pr.netSalary) || 0), 0);
+    const totalPaid = projPayrolls.filter(([, pr]) => pr.status === 'paid').reduce((s, [, pr]) => s + (pdNum(pr.netSalary)), 0);
+    const totalPending = projPayrolls.filter(([, pr]) => pr.status !== 'paid').reduce((s, [, pr]) => s + (pdNum(pr.netSalary)), 0);
 
     const empSalaryMap = {};
     projPayrolls.forEach(([, pr]) => {
         if (!empSalaryMap[pr.employeeId]) empSalaryMap[pr.employeeId] = 0;
-        empSalaryMap[pr.employeeId] += parseFloat(pr.netSalary) || 0;
+        empSalaryMap[pr.employeeId] += pdNum(pr.netSalary);
     });
 
     pane.innerHTML = `
@@ -2944,15 +2965,18 @@ function pdMtgReadActions() {
     });
     return arr;
 }
+// تحديث قائمة الإجراءات/العروض في مكانها — كان هذا السطر منسوخاً حرفياً 3 مرات لكلٍّ منهما
+function pdMtgRefreshActions() { const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml(); }
+function pdBidRefreshList() { const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml(); }
 window.pdMtgAddAction = function () {
     window._pdMtgActions = pdMtgReadActions();
     window._pdMtgActions.push({ text: '', owner: '', dueDate: '', done: false });
-    const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml();
+    pdMtgRefreshActions();
 };
 window.pdMtgDelAction = function (i) {
     window._pdMtgActions = pdMtgReadActions();
     window._pdMtgActions.splice(i, 1);
-    const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml();
+    pdMtgRefreshActions();
 };
 
 function pdMtgFormHtml(pid) {
@@ -2999,7 +3023,7 @@ window.pdOpenMtgForm = function (pid, key = null) {
     document.getElementById('mtg-discussion').value = r?.discussion || '';
     document.getElementById('mtg-status').value = r?.status || 'open';
     window._pdMtgActions = Array.isArray(r?.actions) ? r.actions.map(a => ({ ...a })) : [];
-    const box = document.getElementById('pd-mtg-actions'); if (box) box.innerHTML = pdMtgActionRowsHtml();
+    pdMtgRefreshActions();
     form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
@@ -3147,12 +3171,12 @@ function pdBidReadRows() {
 window.pdBidAddRow = function () {
     window._pdBids = pdBidReadRows();
     window._pdBids.push({ bidder: '', amount: '', date: '', selected: false });
-    const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml();
+    pdBidRefreshList();
 };
 window.pdBidDelRow = function (i) {
     window._pdBids = pdBidReadRows();
     window._pdBids.splice(i, 1);
-    const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml();
+    pdBidRefreshList();
 };
 
 function pdBidFormHtml(pid) {
@@ -3197,7 +3221,7 @@ window.pdOpenBidForm = function (pid, key = null) {
     document.getElementById('bid-status').value = r?.status || 'open';
     document.getElementById('bid-scope').value = r?.scope || '';
     window._pdBids = Array.isArray(r?.bids) ? r.bids.map(b => ({ ...b })) : [];
-    const box = document.getElementById('pd-bid-bids'); if (box) box.innerHTML = pdBidRowsHtml();
+    pdBidRefreshList();
     form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
@@ -4002,12 +4026,12 @@ function pdRenderSubcontracts(pid) {
     const nameOf = c => c.subName || subs[c.subId]?.name || subs[c.subId]?.nameAr || 'مقاول';
     let tAdj = 0, tCert = 0, tRet = 0, tNet = 0;
     contracts.forEach(([, c]) => {
-        const coNet = (c.changeOrders || []).reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
+        const coNet = (c.changeOrders || []).reduce((s, x) => s + (pdNum(x.amount)), 0);
         const certs = c.certificates || [];
-        tAdj += (parseFloat(c.contractValue) || 0) + coNet;
-        tCert += certs.reduce((s, x) => s + (parseFloat(x.periodValue) || 0), 0);
-        tRet += certs.reduce((s, x) => s + (parseFloat(x.retentionAmt) || 0), 0);
-        tNet += certs.reduce((s, x) => s + (parseFloat(x.netPayable) || 0), 0);
+        tAdj += (pdNum(c.contractValue)) + coNet;
+        tCert += pdSum(certs, 'periodValue');
+        tRet += pdSum(certs, 'retentionAmt');
+        tNet += pdSum(certs, 'netPayable');
     });
     pane.innerHTML = `
     <div class="card">
@@ -4020,12 +4044,12 @@ function pdRenderSubcontracts(pid) {
         <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
         ${contracts.map(([k, c]) => {
         const [sl, sc, sbg] = PD_SUBC_STATUS[c.status] || PD_SUBC_STATUS.active;
-        const coNet = (c.changeOrders || []).reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
-        const adj = (parseFloat(c.contractValue) || 0) + coNet;
+        const coNet = (c.changeOrders || []).reduce((s, x) => s + (pdNum(x.amount)), 0);
+        const adj = (pdNum(c.contractValue)) + coNet;
         const certs = Array.isArray(c.certificates) ? c.certificates : [];
-        const certd = certs.reduce((s, x) => s + (parseFloat(x.periodValue) || 0), 0);
-        const ret = certs.reduce((s, x) => s + (parseFloat(x.retentionAmt) || 0), 0);
-        const net = certs.reduce((s, x) => s + (parseFloat(x.netPayable) || 0), 0);
+        const certd = pdSum(certs, 'periodValue');
+        const ret = pdSum(certs, 'retentionAmt');
+        const net = pdSum(certs, 'netPayable');
         const pct = adj ? Math.min(100, Math.round(certd / adj * 100)) : 0;
         return `<div style="background:#fff;border:1px solid #e6ebf0;border-radius:12px;padding:16px;border-right:4px solid ${sc}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
@@ -4040,7 +4064,7 @@ function pdRenderSubcontracts(pid) {
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin-top:12px">
-                    ${pdSubcMini('قيمة العقد', fmt(parseFloat(c.contractValue) || 0))}
+                    ${pdSubcMini('قيمة العقد', fmt(pdNum(c.contractValue)))}
                     ${coNet ? pdSubcMini('أوامر التغيير', (coNet >= 0 ? '+' : '') + fmt(coNet), coNet >= 0 ? '#0e6655' : '#c0392b') : ''}
                     ${pdSubcMini('القيمة المعدّلة', fmt(adj), '#1a3a5c')}
                     ${pdSubcMini('المعتمد', fmt(certd), '#e67e22')}
@@ -4048,16 +4072,16 @@ function pdRenderSubcontracts(pid) {
                     ${pdSubcMini('صافي مستحق', fmt(net), '#27ae60')}
                     ${pdSubcMini('المتبقي', fmt(adj - certd), '#555')}
                 </div>
-                <div style="margin-top:10px"><div style="background:#e8f0f7;border-radius:20px;height:8px;overflow:hidden"><div style="width:${pct}%;background:${pct > 90 ? '#e74c3c' : '#27ae60'};height:100%"></div></div><div style="font-size:11px;color:#888;margin-top:3px">الإنجاز المالي: ${pct}% (${fmt(certd)} من ${fmt(adj)}) · نسبة الضمان ${c.retentionPct ?? 10}%${c.advanceAmount ? ` · دفعة مقدمة ${fmt(parseFloat(c.advanceAmount) || 0)}` : ''}</div></div>
+                <div style="margin-top:10px"><div style="background:#e8f0f7;border-radius:20px;height:8px;overflow:hidden"><div style="width:${pct}%;background:${pct > 90 ? '#e74c3c' : '#27ae60'};height:100%"></div></div><div style="font-size:11px;color:#888;margin-top:3px">الإنجاز المالي: ${pct}% (${fmt(certd)} من ${fmt(adj)}) · نسبة الضمان ${c.retentionPct ?? 10}%${c.advanceAmount ? ` · دفعة مقدمة ${fmt(pdNum(c.advanceAmount))}` : ''}</div></div>
                 ${certs.length ? `<div style="margin-top:12px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px">
                     <thead><tr style="background:#f4f7fb;color:#555"><th style="padding:6px;text-align:right">المستخلص</th><th style="padding:6px">التاريخ</th><th style="padding:6px;text-align:left">قيمة الأعمال</th><th style="padding:6px;text-align:left">الضمان</th><th style="padding:6px;text-align:left">استرداد الدفعة</th><th style="padding:6px;text-align:left">الصافي</th><th style="padding:6px">الحالة</th><th style="padding:6px"></th></tr></thead>
                     <tbody>${certs.map((ct, ci) => { const [cl, cc] = PD_CERT_STATUS[ct.status] || PD_CERT_STATUS.submitted; return `<tr style="border-top:1px solid #eee">
                         <td style="padding:6px;font-weight:700;color:#1a3a5c">${ct.no || ('IPC-' + (ci + 1))}</td>
                         <td style="padding:6px;text-align:center;color:#666">${ct.date || ''}</td>
-                        <td style="padding:6px;text-align:left">${fmt(parseFloat(ct.periodValue) || 0)}</td>
-                        <td style="padding:6px;text-align:left;color:#8e44ad">(${fmt(parseFloat(ct.retentionAmt) || 0)})</td>
-                        <td style="padding:6px;text-align:left;color:#c0392b">${ct.advanceRecovery ? '(' + fmt(parseFloat(ct.advanceRecovery) || 0) + ')' : '-'}</td>
-                        <td style="padding:6px;text-align:left;font-weight:800;color:#27ae60">${fmt(parseFloat(ct.netPayable) || 0)}</td>
+                        <td style="padding:6px;text-align:left">${fmt(pdNum(ct.periodValue))}</td>
+                        <td style="padding:6px;text-align:left;color:#8e44ad">(${fmt(pdNum(ct.retentionAmt))})</td>
+                        <td style="padding:6px;text-align:left;color:#c0392b">${ct.advanceRecovery ? '(' + fmt(pdNum(ct.advanceRecovery)) + ')' : '-'}</td>
+                        <td style="padding:6px;text-align:left;font-weight:800;color:#27ae60">${fmt(pdNum(ct.netPayable))}</td>
                         <td style="padding:6px;text-align:center"><span style="color:${cc};font-weight:700;font-size:11px">${cl}</span></td>
                         <td style="padding:6px;text-align:center;white-space:nowrap"><button class="btn b-b" style="padding:2px 6px;font-size:10px" onclick="pdOpenCertForm('${pid}','${k}',${ci})">✏️</button> <button class="btn b-r" style="padding:2px 6px;font-size:10px" onclick="pdDeleteCert('${pid}','${k}',${ci})">🗑️</button></td>
                     </tr>`; }).join('')}</tbody></table></div>` : ''}
@@ -4128,7 +4152,7 @@ window.pdSaveSubc = async function (pid) {
     if (!scope) { toast('أدخل نطاق العمل', 'er'); return; }
     if (!subId && !subName) { toast('اختر مقاول الباطن أو أدخل اسماً', 'er'); return; }
     if (!contractValue) { toast('أدخل قيمة العقد', 'er'); return; }
-    const changeOrders = (window._pdSubcCO || []).filter(x => x.desc || x.amount).map(x => ({ desc: (x.desc || '').trim(), amount: parseFloat(x.amount) || 0, date: x.date || '' }));
+    const changeOrders = (window._pdSubcCO || []).filter(x => x.desc || x.amount).map(x => ({ desc: (x.desc || '').trim(), amount: pdNum(x.amount), date: x.date || '' }));
     const data = {
         subId, subName, scope, contractValue,
         retentionPct: parseFloat(document.getElementById('subc-ret')?.value) || 0,
@@ -4285,14 +4309,14 @@ function pdRenderCashflow(pid) {
     const pane = document.getElementById('pd-tab-cashflow'); if (!pane) return;
     const p = (window.projects || {})[pid]; if (!p) { pane.innerHTML = '<div class="card"><div class="empty"><div class="ei">💧</div><p>المشروع غير موجود</p></div></div>'; return; }
     const today = new Date().toISOString().slice(0, 10);
-    const plannedTotal = (typeof pdAdjustedContract === 'function' ? pdAdjustedContract(pid) : (parseFloat(p.contractValue) || 0));
+    const plannedTotal = (typeof pdAdjustedContract === 'function' ? pdAdjustedContract(pid) : (pdNum(p.contractValue)));
 
     // مصادر مؤرّخة: إيراد (مستخلصات العميل) · تكلفة (فواتير موردين + مستخلصات باطن)
     const inflow = [];   // {date, amount}
-    Object.values(window.progressBillings || {}).forEach(b => { if (b.projectId === pid && b.status !== 'cancelled') inflow.push({ date: (b.billingDate || b.date || '').slice(0, 10), amount: parseFloat(b.currentAmount) || 0 }); });
+    Object.values(window.progressBillings || {}).forEach(b => { if (b.projectId === pid && b.status !== 'cancelled') inflow.push({ date: (b.billingDate || b.date || '').slice(0, 10), amount: pdNum(b.currentAmount) }); });
     const outflow = [];
-    Object.values(window.supplierInvoices || {}).forEach(inv => { if (inv.projectId === pid) outflow.push({ date: (inv.invoiceDate || inv.date || '').slice(0, 10), amount: parseFloat(inv.totalAmount) || parseFloat(inv.grandTotal) || 0 }); });
-    Object.values((window.subcontracts || {})[pid] || {}).forEach(c => { (c.certificates || []).forEach(ct => outflow.push({ date: (ct.date || '').slice(0, 10), amount: parseFloat(ct.periodValue) || 0 })); });
+    Object.values(window.supplierInvoices || {}).forEach(inv => { if (inv.projectId === pid) outflow.push({ date: (inv.invoiceDate || inv.date || '').slice(0, 10), amount: parseFloat(inv.totalAmount) || pdNum(inv.grandTotal) }); });
+    Object.values((window.subcontracts || {})[pid] || {}).forEach(c => { (c.certificates || []).forEach(ct => outflow.push({ date: (ct.date || '').slice(0, 10), amount: pdNum(ct.periodValue) })); });
 
     const allDates = [...inflow, ...outflow].map(x => x.date).filter(Boolean);
     let startYM = (p.startDate || '').slice(0, 7) || (allDates.length ? allDates.slice().sort()[0].slice(0, 7) : today.slice(0, 7));
@@ -4649,14 +4673,14 @@ function pdRenderTasks(pid) {
     const cpm = window.pdComputeCPM(pid);
     // ⏱️ الساعات الفعلية لكل مهمة من التايم شيت
     const actualByTask = {};
-    Object.values(window.timesheets || {}).forEach(ts => { if (ts.projectId === pid && ts.taskKey) actualByTask[ts.taskKey] = (actualByTask[ts.taskKey] || 0) + (parseFloat(ts.hours) || 0); });
+    Object.values(window.timesheets || {}).forEach(ts => { if (ts.projectId === pid && ts.taskKey) actualByTask[ts.taskKey] = (actualByTask[ts.taskKey] || 0) + (pdNum(ts.hours)); });
     const taskCard = ([tk, t]) => {
         const [plLabel, plColor] = PD_TASK_PRIORITY[t.priority] || PD_TASK_PRIORITY.normal;
         const assignee = (window.emp || {})[t.assigneeId];
         const overdue = t.dueDate && t.dueDate < today && t.status !== 'done';
         const isCrit = cpm.tasks[tk] && cpm.tasks[tk].critical && t.status !== 'done';
         const depCount = (t.deps || []).filter(d => ((window.projectTasks || {})[pid] || {})[d]).length;
-        const est = parseFloat(t.estHours) || 0, act = actualByTask[tk] || 0;
+        const est = pdNum(t.estHours), act = actualByTask[tk] || 0;
         const effChip = (est > 0 || act > 0) ? `<span title="ساعات فعلية / مقدّرة" style="background:${est > 0 && act > est ? '#fdebd0' : '#eef3fb'};color:${est > 0 && act > est ? '#b9530e' : '#2980b9'};padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">⏱️ ${act.toFixed(act % 1 ? 1 : 0)}${est > 0 ? '/' + est : ''} س${est > 0 && act > est ? ' ⚠️' : ''}</span>` : '';
         const chk = Array.isArray(t.checklist) ? t.checklist : [];
         const chkDone = chk.filter(x => x.done).length;
@@ -4684,7 +4708,7 @@ function pdRenderTasks(pid) {
         </div>`;
     };
 
-    const totalEst = tasks.reduce((s, [, t]) => s + (parseFloat(t.estHours) || 0), 0);
+    const totalEst = tasks.reduce((s, [, t]) => s + (pdNum(t.estHours)), 0);
     const totalAct = Object.values(actualByTask).reduce((s, h) => s + h, 0);
     const effPct = totalEst > 0 ? Math.round(totalAct / totalEst * 100) : 0;
     pane.innerHTML = `
@@ -4970,7 +4994,7 @@ function pdGanttUp() {
 }
 window.pdGanttDown = function (e, pid, tk, origStart, origDue, origRightPx) {
     e.preventDefault();
-    window._gdrag = { pid, tk, startX: e.clientX, moved: false, days: 0, origStart, origDue, origRightPx: parseFloat(origRightPx) || 0, bar: e.currentTarget };
+    window._gdrag = { pid, tk, startX: e.clientX, moved: false, days: 0, origStart, origDue, origRightPx: pdNum(origRightPx), bar: e.currentTarget };
     document.addEventListener('mousemove', pdGanttMove);
     document.addEventListener('mouseup', pdGanttUp);
 };
@@ -5033,7 +5057,7 @@ window.pdSaveTasksAsTemplate = async function (pid) {
         const st = t.startDate || anchor;
         const offsetStart = Math.max(0, Math.round((new Date(st) - new Date(anchor)) / 86400000));
         const durationDays = (t.startDate && t.dueDate) ? Math.max(1, Math.round((new Date(t.dueDate) - new Date(t.startDate)) / 86400000) + 1) : 1;
-        return { title: t.title || '', desc: t.desc || '', priority: t.priority || 'normal', estHours: parseFloat(t.estHours) || 0, offsetStart, durationDays, deps: (t.deps || []).map(d => keyToIdx[d]).filter(x => x != null) };
+        return { title: t.title || '', desc: t.desc || '', priority: t.priority || 'normal', estHours: pdNum(t.estHours), offsetStart, durationDays, deps: (t.deps || []).map(d => keyToIdx[d]).filter(x => x != null) };
     });
     try {
         await push(window.R.projTemplates, { name: name.trim(), createdAt: new Date().toISOString(), createdBy: (window.curU && window.curU.uid) || '', taskCount: tasks.length, tasks });
@@ -5330,7 +5354,7 @@ window.pdOpenExecSummary = function (pid) {
     const _wkStart = new Date(_now.getTime() - ((_now.getDay() + 1) % 7) * _MS);
     const weeks = [];
     for (let i = 7; i >= 0; i--) { const ws = new Date(_wkStart.getTime() - i * 7 * _MS); weeks.push({ ws, we: ws.getTime() + 7 * _MS, hours: 0 }); }
-    Object.values(window.timesheets || {}).forEach(t => { if (t.projectId !== pid || !t.date) return; const d = new Date(t.date).getTime(); const wk = weeks.find(w => d >= w.ws.getTime() && d < w.we); if (wk) wk.hours += parseFloat(t.hours) || 0; });
+    Object.values(window.timesheets || {}).forEach(t => { if (t.projectId !== pid || !t.date) return; const d = new Date(t.date).getTime(); const wk = weeks.find(w => d >= w.ws.getTime() && d < w.we); if (wk) wk.hours += pdNum(t.hours); });
     const _maxH = Math.max(1, ...weeks.map(w => w.hours));
     const _totalH = weeks.reduce((s, w) => s + w.hours, 0);
 
@@ -5860,7 +5884,7 @@ window.pdSaveSiteReport = async function (pid) {
     const visitors = document.getElementById('pd-rep-visitors')?.value.trim() || '';
     const photos = (document.getElementById('pd-rep-photos')?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
     const labor = (window._pdSr.labor || []).filter(x => x.trade || x.count).map(x => ({ trade: (x.trade || '').trim(), count: parseInt(x.count) || 0 }));
-    const equipment = (window._pdSr.equip || []).filter(x => x.name).map(x => ({ name: (x.name || '').trim(), count: parseInt(x.count) || 0, hours: parseFloat(x.hours) || 0 }));
+    const equipment = (window._pdSr.equip || []).filter(x => x.name).map(x => ({ name: (x.name || '').trim(), count: parseInt(x.count) || 0, hours: pdNum(x.hours) }));
     const materials = (window._pdSr.mat || []).filter(x => x.material).map(x => ({ material: (x.material || '').trim(), qty: x.qty || '', unit: (x.unit || '').trim() }));
     const manpower = labor.reduce((s, x) => s + (x.count || 0), 0);
     if (!date) { toast('اختر التاريخ', 'er'); return; }
@@ -5914,7 +5938,7 @@ function pdRenderPMC(pid) {
         .filter(([, c]) => c.projectId === pid)
         .sort(([, a], [, b]) => (b.date || b.month || '').localeCompare(a.date || a.month || ''));
 
-    const f = n => (parseFloat(n) || 0).toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const f = n => (pdNum(n)).toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const getCatInfo = cat => (typeof getPMCCategoryInfo === 'function')
         ? getPMCCategoryInfo(cat)
         : { ar: cat || '—', color: '#888', bg: '#f0f5fa' };
@@ -5932,14 +5956,14 @@ function pdRenderPMC(pid) {
     }
 
     // ── حسابات ──
-    const grandTotal = records.reduce((s, [, c]) => s + (parseFloat(c.amount) || 0), 0);
+    const grandTotal = records.reduce((s, [, c]) => s + (pdNum(c.amount)), 0);
 
     // تجميع حسب الشهر
     const byMonth = {};
     records.forEach(([, c]) => {
         const m = c.month || (c.date ? c.date.slice(0, 7) : 'غير محدد');
         if (!byMonth[m]) byMonth[m] = { total: 0, count: 0 };
-        byMonth[m].total += parseFloat(c.amount) || 0;
+        byMonth[m].total += pdNum(c.amount);
         byMonth[m].count++;
     });
     const months = Object.entries(byMonth).sort(([a], [b]) => b.localeCompare(a));
@@ -5949,9 +5973,9 @@ function pdRenderPMC(pid) {
     records.forEach(([, c]) => {
         const k = c.level1 || '(بدون تصنيف)';
         if (!byL1[k]) byL1[k] = { total: 0, count: 0, cats: {} };
-        byL1[k].total += parseFloat(c.amount) || 0;
+        byL1[k].total += pdNum(c.amount);
         byL1[k].count++;
-        byL1[k].cats[c.category] = (byL1[k].cats[c.category] || 0) + (parseFloat(c.amount) || 0);
+        byL1[k].cats[c.category] = (byL1[k].cats[c.category] || 0) + (pdNum(c.amount));
     });
     const l1Entries = Object.entries(byL1).sort(([, a], [, b]) => b.total - a.total);
 
@@ -6107,10 +6131,10 @@ function pdRenderTimeline(pid) {
     const delayedCount = list.filter(([, m]) => pdMsIsDelayed(m, todayStr)).length;
     const inProgCount = list.filter(([, m]) => m.status === 'inprogress').length;
     // الإنجاز المرجح: Σ(الوزن × نسبة الإنجاز) ÷ Σ الأوزان — إن لم تُحدد أوزان تُحتسب بالتساوي
-    const totalWeight = list.reduce((s, [, m]) => s + (parseFloat(m.weight) || 0), 0);
+    const totalWeight = list.reduce((s, [, m]) => s + (pdNum(m.weight)), 0);
     const weightedProgress = list.length === 0 ? 0 : totalWeight > 0
-        ? list.reduce((s, [, m]) => s + (parseFloat(m.weight) || 0) * (parseFloat(m.progress) || 0), 0) / totalWeight
-        : list.reduce((s, [, m]) => s + (parseFloat(m.progress) || 0), 0) / list.length;
+        ? list.reduce((s, [, m]) => s + (pdNum(m.weight)) * (pdNum(m.progress)), 0) / totalWeight
+        : list.reduce((s, [, m]) => s + (pdNum(m.progress)), 0) / list.length;
 
     // ── مدى المخطط الزمني: من أقدم تاريخ إلى أحدث تاريخ (مع مدة المشروع) ──
     const allDates = [];
@@ -6166,7 +6190,7 @@ function pdRenderTimeline(pid) {
         ${list.map(([mk, m]) => {
             const delayed = pdMsIsDelayed(m, todayStr);
             const [sl, sbg, scl] = PD_MS_STATUS[m.status] || PD_MS_STATUS.planned;
-            const prog = Math.min(100, Math.max(0, parseFloat(m.progress) || 0));
+            const prog = Math.min(100, Math.max(0, pdNum(m.progress)));
             return `<div style="background:white;border:1px solid ${delayed ? '#e74c3c66' : '#e3eaf2'};border-radius:10px;padding:12px 14px;border-right:4px solid ${delayed ? '#e74c3c' : scl}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
                     <div style="flex:1;min-width:200px">
@@ -6463,13 +6487,13 @@ function pdBaselinesPanel(pid, curBac, p) {
             <thead><tr style="background:#1a3a5c;color:#fff"><th style="padding:8px">النشط</th><th style="padding:8px;text-align:right">الاسم</th><th style="padding:8px">التاريخ</th><th style="padding:8px;text-align:left">الميزانية (BAC)</th><th style="padding:8px;text-align:left">Δ الميزانية</th><th style="padding:8px">نهاية مخططة</th><th style="padding:8px;text-align:left">انزياح النهاية</th><th style="padding:8px"></th></tr></thead>
             <tbody>${entries.map(([k, b]) => {
         const isAct = active && active.key === k;
-        const dBac = Math.round(curBac - (parseFloat(b.bac) || 0));
+        const dBac = Math.round(curBac - (pdNum(b.bac)));
         const drift = dayDiff(b.plannedEnd, curEnd);
         return `<tr style="border-top:1px solid #eee;background:${isAct ? '#eef6ff' : '#fff'}">
                 <td style="padding:7px;text-align:center">${k === '_legacy' ? '✅' : `<input type="radio" name="pdBl_${pid}" ${isAct ? 'checked' : ''} onchange="pdSetActiveBaseline('${pid}','${k}')" style="width:16px;height:16px;cursor:pointer">`}</td>
                 <td style="padding:7px;font-weight:700;color:#1a3a5c">${esc(b.name || 'خط الأساس')}${isAct ? ' <span style="font-size:10px;color:#2980b9">(نشط)</span>' : ''}</td>
                 <td style="padding:7px;text-align:center;color:#666">${b.date || '—'}</td>
-                <td style="padding:7px;text-align:left">${fmt(parseFloat(b.bac) || 0)}</td>
+                <td style="padding:7px;text-align:left">${fmt(pdNum(b.bac))}</td>
                 <td style="padding:7px;text-align:left;font-weight:700;color:${dBac > 0 ? '#c0392b' : dBac < 0 ? '#1e8449' : '#888'}">${dBac > 0 ? '+' : ''}${fmt(dBac)}</td>
                 <td style="padding:7px;text-align:center;color:#666">${b.plannedEnd || '—'}</td>
                 <td style="padding:7px;text-align:left;font-weight:700;color:${drift > 0 ? '#c0392b' : drift < 0 ? '#1e8449' : '#888'}">${drift == null ? '—' : (drift > 0 ? '+' + drift + ' يوم' : drift < 0 ? drift + ' يوم' : 'بلا انزياح')}</td>
@@ -6526,12 +6550,12 @@ window.pdDeleteBaseline = function (pid, key) {
 window.pdClientPortal = function (pid) {
     const p = (window.projects || {})[pid]; if (!p) { toast('المشروع غير موجود', 'er'); return; }
     const f = v => fmt(Math.round(v || 0));
-    const contractValue = (typeof pdAdjustedContract === 'function') ? pdAdjustedContract(pid) : (parseFloat(p.contractValue) || 0);
+    const contractValue = (typeof pdAdjustedContract === 'function') ? pdAdjustedContract(pid) : (pdNum(p.contractValue));
     const progress = Math.round((typeof window.calcProjectProgress === 'function') ? window.calcProjectProgress(pid) : 0);
     const bills = Object.values(window.progressBillings || {}).filter(b => b.projectId === pid && b.status !== 'cancelled');
-    const billed = bills.reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
-    const paid = bills.filter(b => b.status === 'paid').reduce((s, b) => s + (parseFloat(b.currentAmount) || 0), 0);
-    const retention = bills.reduce((s, b) => s + (parseFloat(b.retentionAmount) || 0), 0);
+    const billed = pdSum(bills, 'currentAmount');
+    const paid = bills.filter(b => b.status === 'paid').reduce((s, b) => s + (pdNum(b.currentAmount)), 0);
+    const retention = pdSum(bills, 'retentionAmount');
     const remaining = Math.max(0, contractValue - billed);
     let timePct = 0, daysLeft = null;
     if (p.startDate && p.endDate) {
