@@ -679,6 +679,7 @@ const PRESETS = {
 // ── State ─────────────────────────────────
 let sup = {}, tr = {}, us = {}, emp = {}, attendance = {}, payrolls = {}, loans = {}, leaves = {}, performance = {}, perfSettings = { excellent: 15, vgood: 8, good: 3, weak: 0 }, departments = {}, quotations = {}, purchaseOrders = {}, goodsReceipts = {}, supplierInvoices = {};
 let cfg = { companyAr: 'بنيان للمقاولات', companyEn: 'Bunyan', currency: 'SAR', phone: '', email: '', address: '', reg: '', vat: '' };
+window.cfg = cfg;   // متاح فوراً بالقيم الافتراضية؛ يُعاد إسناده عند وصول إعدادات الشركة (المتغيّر يُستبدل لا يُعدَّل)
 window.gbrCfg = cfg; // 🌍 بيانات الشركة متاحة لـ accounting.js (تُحدَّث في مستمع R.cfg)
 let curU = null, myP = null;
 let charts = {};
@@ -2171,7 +2172,7 @@ function getNavIdForPage(pg) {
         employees: 'em', departments: 'dp', projects: 'pr',
         attendance: 'at', attsettings: 'atset', payroll: 'pr2', loans: 'ln',
         leaves: 'lv', permissions: 'perm', performance: 'pf', docalerts: 'da',
-        hrdashboard: 'hrd', hrguide: 'hrg',
+        hrdashboard: 'hrd',   // hrguide مُعرَّف أدناه مع بقية الأدلة (كان مكرراً بنفس القيمة)
         prjdashboard: 'prd', prjreports: 'prr', projectcosts: 'pmc', indirectcosts: 'indc',
         accdashboard: 'accd', chartofaccounts: 'coa', costcenters: 'cc',
         journalentries: 'jrn', recurringjournals: 'recjrn', revrecognition: 'revrec', fxrevaluation: 'fxrev', cashforecast: 'cashfc', amortization: 'amz', empexpenses: 'eexp', generalledger: 'gl', trialbalance: 'tb', finstatements: 'fs',
@@ -3090,7 +3091,7 @@ function startListeners() {
         } catch (e) { console.warn('Migration skipped:', e.message) }
     })();
 
-    onValue(R.cfg, sn => { if (sn.exists()) { cfg = { ...cfg, ...sn.val() }; window.gbrCfg = cfg; if (cfg.gosi) window.gosiRates = { ...GOSI_DEFAULTS, ...cfg.gosi }; loadCfgUI(); if (typeof renderBackupStatus === 'function') renderBackupStatus(); if ($('pg-dashboard')?.classList.contains('act') && typeof renderDashboardAlerts === 'function') renderDashboardAlerts(); } });
+    onValue(R.cfg, sn => { if (sn.exists()) { cfg = { ...cfg, ...sn.val() }; window.gbrCfg = cfg; window.cfg = cfg;  /* 🌐 الاسم المجرّد أيضاً: 32 موضعاً في accounting.js/project-detail.js تستخدم `typeof cfg !== 'undefined' && cfg.X` — وكان الحارس كاذباً دائماً فتسقط بيانات الشركة (الاسم/الرقم الضريبي/الهاتف/العنوان) لقيم مكتوبة يدوياً في الفواتير المطبوعة وZATCA. اكتشفه ESLint. */ if (cfg.gosi) window.gosiRates = { ...GOSI_DEFAULTS, ...cfg.gosi }; loadCfgUI(); if (typeof renderBackupStatus === 'function') renderBackupStatus(); if ($('pg-dashboard')?.classList.contains('act') && typeof renderDashboardAlerts === 'function') renderDashboardAlerts(); } });
     onValue(R.sup, sn => {
         sup = sn.exists() ? sn.val() : {};
         window.sup = sup;
@@ -5190,7 +5191,8 @@ window.updProfile = async function () {
 window.clearAll = function () {
     if (myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
     cf2('حذف جميع البيانات نهائيًا؟ لا يمكن التراجع!', async () => {
-        try { await set(ref(db, 'ledger'), { settings: cfg, suppliers: {}, transactions: {}, users }); toast('تم الحذف ✓', 'ok') }
+        // ملاحظة: كان `users` (اسم غير معرّف) فينفجر السطر قبل تنفيذ أي شيء — الاسم الصحيح `us`
+        try { await set(ref(db, 'ledger'), { settings: cfg, suppliers: {}, transactions: {}, users: us }); toast('تم الحذف ✓', 'ok') }
         catch (e) { toast('خطأ: ' + e.message, 'er') }
     });
 };
@@ -5321,7 +5323,8 @@ window.doImport = function (e) {
     fr.onload = async ev => {
         try {
             const p = JSON.parse(ev.target.result); if (!p.suppliers || !p.transactions) throw new Error('بيانات غير صالحة');
-            await set(ref(db, 'ledger'), { settings: p.settings || cfg, suppliers: p.suppliers, transactions: p.transactions, users });
+            // ملاحظة: كان `users` (اسم غير معرّف) فيفشل الاستيراد دائماً قبل أي كتابة — الاسم الصحيح `us`
+            await set(ref(db, 'ledger'), { settings: p.settings || cfg, suppliers: p.suppliers, transactions: p.transactions, users: us });
             toast('تم الاستيراد ✓', 'ok')
         }
         catch (err) { toast('خطأ: ' + err.message, 'er') }
@@ -5799,6 +5802,8 @@ window.genPDF = async function () {
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 // ── Helper: compute all employee financial figures ──
+// 🌐 مُعرَّضة عالمياً: app.js وحدة ES فتصريحاتها ليست عامة.
+//    يستدعيها project-detail.js — كان typeof يُخفي غيابها
 function empFinance(e) {
     const sal = parseFloat(e.salary) || 0;
     const house = parseFloat(e.houseAllow) || 0;
@@ -9385,6 +9390,8 @@ window.openPayslip = function (payrollKey, empKey) {
 };
 
 // تنسيق اسم الشهر
+// 🌐 مُعرَّضة عالمياً: app.js وحدة ES فتصريحاتها ليست عامة.
+//    يستدعيها analytics.js — وكانت تنفجر هناك (?.() لا تحمي من متغيّر غير مصرَّح)
 function formatMonthLabel(m) {
     if (!m) return '-';
     const [y, mo] = m.split('-');
@@ -22931,6 +22938,8 @@ window.geofenceAddCurrent = async function () {
 window.geofenceDelete = function (id) { cf2('حذف هذا الموقع من النطاق المسموح؟', async () => { try { await set(ref(db, 'ledger/geofence/fences/' + id), null); toast('🗑️ حُذف الموقع', 'ok'); } catch (e) { toast('خطأ: ' + e.message, 'er'); } }); };
 
 // 🙋 سياق الموظف الحالي — يعمل لدور «موظف» (عبر myData/empKey) ولبقية الأدوار (عبر سجل الموظف)
+// 🌐 مُعرَّضة عالمياً: app.js وحدة ES فتصريحاتها ليست عامة.
+//    تستدعيها hr-suite.js و hr-requests.js — كان typeof يُخفي غيابها فتُعطَّل الميزة بصمت
 function myEmpContext() {
     if (myP?.role === 'employee') {
         const md = window.myData;
@@ -30970,3 +30979,9 @@ window.runAssetImport = async function() {
     $('ovAssetImport').classList.remove('show');
     toast(`✅ تم استيراد ${ok} أصل`, 's', 6000);
 };
+
+
+// 🌐 جسر الوحدة → السكربتات الكلاسيكية (اكتشفها ESLint: no-undef)
+window.formatMonthLabel = formatMonthLabel;
+window.myEmpContext = myEmpContext;
+window.empFinance = empFinance;

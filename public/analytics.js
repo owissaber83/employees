@@ -2281,7 +2281,10 @@ window.asRevokeShare = async function(key) {
     try {
         await window.update(window.ref(window.db, `ledger/savedAnalytics/${key}`), { isShared: false, shareToken: '' });
         toast('✅ تم إلغاء المشاركة', 'ok');
-        asShowSavedReports();
+        // كانت asShowSavedReports() — دالة غير موجودة، فتنفجر داخل try بعد نجاح
+        // الإلغاء فتُظهر «خطأ» على عملية ناجحة. النمط المتّبع في asDeleteReport:
+        if (window._asAllReports?.[key]) { window._asAllReports[key].isShared = false; window._asAllReports[key].shareToken = ''; }
+        if (typeof asRpApplyFilters === 'function') asRpApplyFilters();
     } catch(e) { toast('❌ خطأ', 'er'); }
 };
 

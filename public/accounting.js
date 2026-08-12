@@ -3716,7 +3716,7 @@ window.deleteRecJrn = async function (key) {
 async function generateRecJrnForMonth(key, ym) {
     const t = (window.recurringJournals || {})[key]; if (!t) return null;
     if ((t.generated || {})[ym]) return null; // مُولّد مسبقاً
-    if (typeof isPeriodLocked === 'function' && isPeriodLocked(ym + '-' + String(t.dayOfMonth || 1).padStart(2, '0'))) {
+    if (typeof pcIsLocked === 'function' && pcIsLocked(ym + '-' + String(t.dayOfMonth || 1).padStart(2, '0'))) {
         toast(`⚠️ الفترة ${ym} مقفلة — تم تخطّي "${t.name}"`, 'wn', 6000); return null;
     }
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system';
@@ -6717,7 +6717,7 @@ window.submitReverseJrn = async function () {
     if (entry.reversedByKey) { toast('⚠️ معكوس بالفعل', 'er'); return; }
     const date = document.getElementById('revJrnDate')?.value || new Date().toISOString().slice(0, 10);
     const reason = (document.getElementById('revJrnReason')?.value || '').trim();
-    if (typeof isPeriodLocked === 'function' && isPeriodLocked(date)) { toast('🔒 الفترة مقفلة في هذا التاريخ — اختر تاريخاً آخر', 'er'); return; }
+    if (typeof pcIsLocked === 'function' && pcIsLocked(date)) { toast('🔒 الفترة مقفلة في هذا التاريخ — اختر تاريخاً آخر', 'er'); return; }
     const userId = (typeof curU !== 'undefined' && curU?.uid) || 'system'; const now = new Date().toISOString();
     const lines = (entry.lines || []).map(l => ({ accountCode: l.accountCode, accountName: l.accountName, description: 'عكس: ' + (l.description || ''), date: '', costCenter: l.costCenter || '', projectId: l.projectId || '', debit: parseFloat(l.credit) || 0, credit: parseFloat(l.debit) || 0 }));
     const totalDebit = Math.round(lines.reduce((s, l) => s + l.debit, 0) * 100) / 100;
@@ -29135,7 +29135,7 @@ function closingAuto() {
         if (j.status === 'posted' && Math.abs(td - tc) >= 0.01) unbalanced++;
     });
     let locked = null;
-    try { if (typeof isPeriodLocked === 'function') locked = isPeriodLocked(window._closingState.type === 'year' ? (p + '-12-31') : (p + '-15')); } catch (e) { locked = null; }
+    try { if (typeof pcIsLocked === 'function') locked = pcIsLocked(window._closingState.type === 'year' ? (p + '-12-31') : (p + '-15')); } catch (e) { locked = null; }
     return { drafts, unbalanced, locked };
 }
 window.closingSetType = function (t) { window._closingState.type = t; window._closingState.period = (t === 'year') ? String(new Date().getFullYear()) : new Date().toISOString().slice(0, 7); renderClosing(); };
