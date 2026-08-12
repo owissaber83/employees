@@ -22305,15 +22305,22 @@ function fillBulkScopeSelect(activeEmps) {
             if (e.projectId) projs.set(e.projectId, e.projectName || (window.projects || {})[e.projectId]?.name || e.projectId);
         } else if (e.dept) depts.add(e.dept);
     });
+    // التمييز في نصّ الخيار لا في <optgroup>: أداة البحث (SSel) تُسطّح الخيارات
+    // وتقرأ o.text فقط، فتضيع عناوين المجموعات. البادئة تحفظ المعنى بعد التسطيح.
     const dOpts = [...depts].sort((a, b) => a.localeCompare(b, 'ar'))
-        .map(d => `<option value="d:${esc(d)}">${esc(d)}</option>`).join('');
+        .map(d => `<option value="d:${esc(d)}">🏢 ${esc(d)}</option>`).join('');
     const pOpts = [...projs.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ar'))
-        .map(([id, nm]) => `<option value="p:${esc(id)}">${esc(nm)}</option>`).join('');
-    sel.innerHTML = '<option value="">🏢 كل الجهات</option>'
-        + (dOpts ? `<optgroup label="🏢 الإدارات">${dOpts}</optgroup>` : '')
-        + (pOpts ? `<optgroup label="🏗️ المشاريع (المواقع)">${pOpts}</optgroup>` : '');
+        .map(([id, nm]) => `<option value="p:${esc(id)}">🏗️ ${esc(nm)}</option>`).join('');
+    sel.innerHTML = '<option value="">🏢 كل الجهات</option>' + dOpts + pOpts;
     // أعِد الاختيار السابق إن كان ما زال موجوداً (تحديث القائمة لا يُلغي الفلتر)
     if (cur && sel.querySelector(`option[value="${CSS.escape(cur)}"]`)) sel.value = cur;
+    // 🔍 قائمة منسدلة بها بحث — دائماً (data-ss="1") لا عند تجاوز عتبة العدد،
+    // فعدد المشاريع والإدارات ينمو مع الوقت.
+    if (typeof ssEnhance === 'function') {
+        sel.setAttribute('data-ss', '1');
+        ssEnhance('atBulkScope', '🔍 ابحث عن مشروع أو إدارة...');
+        if (typeof ssRefresh === 'function') ssRefresh('atBulkScope');
+    }
 }
 
 // 🔍 فلترة قائمة التحضير: نص حرّ + جهة (مشروع/إدارة) معاً.

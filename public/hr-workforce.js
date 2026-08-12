@@ -38,6 +38,12 @@ function wfModal(id, title, bodyHtml, footerHtml, titleCol) {
         <div style="display:flex;gap:8px;margin-top:16px">${footerHtml}<button class="btn" style="background:var(--hr-sf1)" onclick="wfClose('${id}')">إلغاء</button></div>
     </div>`;
     document.body.appendChild(d);
+    // 🔍 كل قائمة منسدلة في نوافذ هذه الوحدة تصير قابلة للبحث — قوائم الموظفين
+    // والمشاريع تنمو مع الوقت. data-ss="1" يفرض البحث بلا انتظار عتبة العدد.
+    if (typeof ssAutoEnhance === 'function') {
+        d.querySelectorAll('select').forEach(s => s.setAttribute('data-ss', '1'));
+        ssAutoEnhance(d);
+    }
 }
 window.wfClose = function (id) { const d = document.getElementById(id); if (d) d.remove(); };
 
