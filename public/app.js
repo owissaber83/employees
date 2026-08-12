@@ -16605,9 +16605,13 @@ function calcProjectActualCosts(projectKey) {
         materialsInvoiced: 0, // المواد التي صدرت لها فواتير
         materialsPaid: 0,    // المدفوع للموردين
         labor: 0,            // العمالة (من الرواتب)
-        equipment: parseFloat(p.equipCost) || 0,
-        subcontractors: parseFloat(p.subcontractors) || 0,
-        indirect: parseFloat(p.indirectCost) || 0,
+        // ⚠️ هذه الحقول **ميزانية تقديرية** لا تكلفة فعلية — الواجهة تسمّيها
+        //    «تقسيم التكلفة المستهدفة». احتسابها هنا كان يخلط PV بـ AC فيُفسد
+        //    كل مؤشّرات EVM ويُنقص «صافي الربح المتوقع» بمبالغ لم تُصرف بعد.
+        //    التكلفة الفعلية تُجمَع أدناه من المشتريات والرواتب والمصروفات فقط.
+        equipment: 0,
+        subcontractors: 0,
+        indirect: 0,
         otherExpenses: 0,    // مصاريف أخرى (من Transactions)
         total: 0,
         // إجماليات إضافية للتحليل
@@ -16758,11 +16762,15 @@ function calcProjectBudget(projectKey) {
         subcontractors: parseFloat(p.subcontractors) || 0,
         indirect: parseFloat(p.indirectCost) || 0,
         profitMargin: parseFloat(p.profitMargin) || 0,
-        totalBudget: (parseFloat(p.matBudgetEstimate) || 0) +
+        // ⚠️ كانت تقرأ equipmentCost و subcontractorsCost — والمحفوظ equipCost و
+        //    subcontractors، فيسقط بندان من الميزانية بصمت.
+        //    والأولوية الآن لـ totalEstimatedCost المحسوب وقت الحفظ (يشمل الاحتياطي).
+        totalBudget: (parseFloat(p.totalEstimatedCost) || 0) || (
+            (parseFloat(p.matBudgetEstimate) || 0) +
             (parseFloat(p.laborCost) || 0) +
-            (parseFloat(p.equipmentCost) || 0) +
-            (parseFloat(p.subcontractorsCost) || 0) +
-            (parseFloat(p.indirectCost) || 0)
+            (parseFloat(p.equipCost) || 0) +
+            (parseFloat(p.subcontractors) || 0) +
+            (parseFloat(p.indirectCost) || 0))
     };
 }
 
@@ -16804,6 +16812,17 @@ window.renderProjectsDashboard = function () {
 };
 
 // ── 🚦 صحة المحفظة (Portfolio Health) — مؤشرات EVM وإشارات الصحة لكل مشروع ──────
+// ══ 📐 EVM — القيمة المكتسبة وفق PMBOK ══════════════════════════════════
+// المصطلحات القياسية (نفسها في Primavera / MS Project / Deltek):
+//   BAC = ميزانية الإنجاز   · EV = القيمة المكتسبة = BAC × نسبة الإنجاز
+//   PV  = القيمة المخطّطة   · AC = التكلفة الفعلية
+//   CPI = EV/AC   SPI = EV/PV   CV = EV−AC   SV = EV−PV
+//   EAC = BAC/CPI (تقدير التكلفة عند الإنجاز)   VAC = BAC−EAC
+//   TCPI = (BAC−EV)/(BAC−AC)  كفاءة مطلوبة لإنهاء المشروع ضمن الميزانية
+//
+// ⚠️ قاعدة أساسية: بلا BAC لا وجود لـ EVM. المؤشّرات تصبح **غير محسوبة**
+//    (null) لا صفراً — فصفر يعني «فاشل» بينما الحقيقة «لا بيانات».
+//    هذا كان يصِم كل مشروع بلا ميزانية بأنه «متعثّر».
 window.projectHealth = function (pid) {
     const p = (projects || {})[pid] || {};
     const bac = (calcProjectBudget(pid) || {}).totalBudget || 0;
@@ -16812,27 +16831,66 @@ window.projectHealth = function (pid) {
     const base = (typeof pdActiveBaseline === 'function') ? pdActiveBaseline(pid) : ((window.projectBaselines || {})[pid] || null);
     const ps = (base && base.plannedStart) || p.startDate || '';
     const pe = (base && base.plannedEnd) || p.endDate || '';
-    let plannedPct = 0;
-    if (ps && pe) { const s = new Date(ps).getTime(), e = new Date(pe).getTime(), n = Date.now(); if (e > s) plannedPct = Math.max(0, Math.min(1, (n - s) / (e - s))); }
-    const EV = bac * pct, PV = bac * plannedPct;
-    const CPI = ac > 0 ? EV / ac : null;
-    const SPI = PV > 0 ? EV / PV : null;
-    const worst = Math.min(CPI == null ? 1 : CPI, SPI == null ? 1 : SPI);
-    let level, color, label;
-    if (worst >= 0.95) { level = 3; color = '#27ae60'; label = '🟢 سليم'; }
-    else if (worst >= 0.85) { level = 2; color = '#e67e22'; label = '🟡 يحتاج انتباه'; }
-    else { level = 1; color = '#c0392b'; label = '🔴 متعثّر'; }
-    return { bac, ac, EV, PV, pct, plannedPct, CPI, SPI, level, color, label, contractValue: getProjectContractValue(pid) };
+    let plannedPct = 0, hasSchedule = false;
+    if (ps && pe) {
+        const st = new Date(ps).getTime(), en = new Date(pe).getTime(), now = Date.now();
+        if (en > st) { plannedPct = Math.max(0, Math.min(1, (now - st) / (en - st))); hasSchedule = true; }
+    }
+
+    const hasBudget = bac > 0;
+    const EV = hasBudget ? bac * pct : 0;
+    const PV = hasBudget && hasSchedule ? bac * plannedPct : 0;
+
+    const CPI = (hasBudget && ac > 0) ? EV / ac : null;
+    const SPI = (hasBudget && PV > 0) ? EV / PV : null;
+    const CV = hasBudget ? EV - ac : null;                       // انحراف التكلفة
+    const SV = (hasBudget && hasSchedule) ? EV - PV : null;      // انحراف الجدول
+    const EAC = (CPI && CPI > 0) ? bac / CPI : null;             // التكلفة المتوقعة عند الإنجاز
+    const VAC = EAC != null ? bac - EAC : null;                  // الفائض/العجز المتوقع
+    const TCPI = (hasBudget && (bac - ac) > 0) ? (bac - EV) / (bac - ac) : null;
+
+    // التصنيف: يعتمد على المؤشّرات المحسوبة فقط. بلا أيٍّ منها → «غير مُقيَّم»
+    // بدل «متعثّر» — الغياب ليس فشلاً.
+    const idxs = [CPI, SPI].filter(v => v != null);
+    let level, color, label, reason;
+    if (!idxs.length) {
+        level = 0; color = '#8a97a5'; label = '⚪ غير مُقيَّم';
+        reason = !hasBudget ? 'لا ميزانية تقديرية — املأ «تقسيم التكلفة المستهدفة» في ملف المشروع'
+            : (ac <= 0 ? 'لا تكاليف فعلية مسجّلة بعد' : 'لا جدول زمني مخطّط');
+    } else {
+        const worst = Math.min(...idxs);
+        if (worst >= 0.95) { level = 3; color = '#27ae60'; label = '🟢 سليم'; }
+        else if (worst >= 0.85) { level = 2; color = '#e67e22'; label = '🟡 يحتاج انتباه'; }
+        else { level = 1; color = '#c0392b'; label = '🔴 متعثّر'; }
+        // سبب صريح: أيّ مؤشّر أنزل التصنيف؟ (كان الحكم مبهماً بلا تفسير)
+        const bad = [];
+        if (CPI != null && CPI < 0.95) bad.push(`تجاوز في التكلفة (CPI ${CPI.toFixed(2)})`);
+        if (SPI != null && SPI < 0.95) bad.push(`تأخّر عن الجدول (SPI ${SPI.toFixed(2)})`);
+        reason = bad.join(' · ') || 'ضمن الميزانية والجدول';
+    }
+
+    return {
+        bac, ac, EV, PV, pct, plannedPct, hasBudget, hasSchedule,
+        CPI, SPI, CV, SV, EAC, VAC, TCPI,
+        level, color, label, reason,
+        contractValue: getProjectContractValue(pid)
+    };
 };
+
 window.renderPortfolioHealth = function () {
     const pg = $('pg-prjhealth'); if (!pg) return;
     const active = Object.entries(projects || {}).filter(([, p]) => ['active', 'awarded', 'planning'].includes(p.status));
     const rows = active.map(([k, p]) => { let h = null; try { h = window.projectHealth(k); } catch (e) { console.warn('projectHealth failed for', k, e); } return { k, name: p.name || p.nameAr || k, status: p.status, h }; }).filter(r => r.h);
     let sEV = 0, sAC = 0, sPV = 0, sContract = 0, nG = 0, nY = 0, nR = 0;
-    rows.forEach(r => { sEV += r.h.EV; sAC += r.h.ac; sPV += r.h.PV; sContract += r.h.contractValue; if (r.h.level === 3) nG++; else if (r.h.level === 2) nY++; else nR++; });
+    let nU = 0;   // غير مُقيَّم (بلا ميزانية/جدول) — لا يُحسب متعثّراً
+    rows.forEach(r => { sEV += r.h.EV; sAC += r.h.ac; sPV += r.h.PV; sContract += r.h.contractValue;
+        if (r.h.level === 3) nG++; else if (r.h.level === 2) nY++; else if (r.h.level === 1) nR++; else nU++; });
     const pCPI = sAC > 0 ? sEV / sAC : null, pSPI = sPV > 0 ? sEV / sPV : null;
     rows.sort((a, b) => (a.h.level - b.h.level) || (b.h.contractValue - a.h.contractValue));
     const idx = v => v == null ? '—' : v.toFixed(2);
+    const money = v => v == null ? '—' : (v < 0 ? '−' : '') + fmt(Math.abs(v));
+    // الانحراف موجب = لصالحك (تحت الميزانية / متقدّم)، سالب = ضدك
+    const varColor = v => v == null ? '#888' : v >= 0 ? '#27ae60' : '#c0392b';
     const idxColor = v => v == null ? '#888' : v >= 0.95 ? '#27ae60' : v >= 0.85 ? '#e67e22' : '#c0392b';
     const kpi = (icon, label, val, col) => `<div style="background:#fff;border-radius:12px;padding:14px 18px;flex:1;min-width:150px;border-top:3px solid ${col};box-shadow:0 1px 4px rgba(0,0,0,.05)"><div style="font-size:12px;color:#888">${icon} ${label}</div><div style="font-size:22px;font-weight:800;color:${col};margin-top:4px">${val}</div></div>`;
     pg.innerHTML = `
@@ -16844,6 +16902,7 @@ window.renderPortfolioHealth = function () {
             ${kpi('🟢', 'سليمة', nG, '#27ae60')}
             ${kpi('🟡', 'تحتاج انتباه', nY, '#e67e22')}
             ${kpi('🔴', 'متعثّرة', nR, nR ? '#c0392b' : '#95a5a6')}
+            ${nU ? kpi('⚪', 'غير مُقيَّمة', nU, '#8a97a5') : ''}
             ${kpi('📊', 'CPI المحفظة', idx(pCPI), idxColor(pCPI))}
             ${kpi('📅', 'SPI المحفظة', idx(pSPI), idxColor(pSPI))}
         </div>
@@ -16852,18 +16911,21 @@ window.renderPortfolioHealth = function () {
             <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:760px">
                 <thead><tr style="background:#1a3a5c;color:#fff">
-                    <th style="padding:9px;text-align:right">الصحة</th><th style="text-align:right">المشروع</th><th>الإنجاز</th><th style="text-align:left">قيمة العقد</th><th style="text-align:left">التكلفة الفعلية</th><th>CPI</th><th>SPI</th><th></th>
-                </tr></thead>
+                    <th style="padding:9px;text-align:right">الصحة</th><th style="text-align:right">المشروع</th><th>الإنجاز</th><th>قيمة العقد</th><th>الميزانية (BAC)</th><th>التكلفة الفعلية</th><th title="انحراف التكلفة = EV−AC">CV</th><th title="انحراف الجدول = EV−PV">SV</th><th title="أداء التكلفة">CPI</th><th title="أداء الجدول">SPI</th><th title="التكلفة المتوقعة عند الإنجاز">EAC</th></tr></thead>
                 <tbody>${rows.length ? rows.map(r => `<tr style="border-bottom:1px solid #f0f0f0;background:${r.h.level === 1 ? '#fff5f5' : '#fff'}">
                     <td style="padding:8px 9px;white-space:nowrap"><span style="color:${r.h.color};font-weight:800">${esc(r.h.label)}</span></td>
-                    <td style="font-weight:700;color:#1a3a5c">${(r.name || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>
+                    <td style="font-weight:700;color:#1a3a5c">${(r.name || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}<div style="font-size:10.5px;font-weight:600;color:#8a97a5;margin-top:2px">${esc(r.h.reason || '')}</div></td>
                     <td style="text-align:center;white-space:nowrap"><div style="display:inline-block;width:60px;background:#eef1f5;border-radius:5px;height:8px;overflow:hidden;vertical-align:middle"><div style="width:${Math.round(r.h.pct * 100)}%;height:100%;background:#2d6a9f"></div></div> ${Math.round(r.h.pct * 100)}%</td>
                     <td style="text-align:left;font-weight:600">${fmt(r.h.contractValue)}</td>
+                    <td style="text-align:left;${r.h.hasBudget ? '' : 'color:#c0392b;font-weight:700'}">${r.h.hasBudget ? fmt(r.h.bac) : '⚠️ غير محدّدة'}</td>
                     <td style="text-align:left">${fmt(r.h.ac)}</td>
+                    <td style="text-align:left;font-weight:700;color:${varColor(r.h.CV)}">${money(r.h.CV)}</td>
+                    <td style="text-align:left;font-weight:700;color:${varColor(r.h.SV)}">${money(r.h.SV)}</td>
                     <td style="text-align:center;font-weight:800;color:${idxColor(r.h.CPI)}">${idx(r.h.CPI)}</td>
                     <td style="text-align:center;font-weight:800;color:${idxColor(r.h.SPI)}">${idx(r.h.SPI)}</td>
+                    <td style="text-align:left;font-weight:700">${money(r.h.EAC)}</td>
                     <td style="text-align:left;white-space:nowrap"><button class="btn b-b" style="padding:4px 10px;font-size:11px" onclick="nav('projects');setTimeout(()=>window.openProjectDetail&&window.openProjectDetail('${r.k}'),200)">📂 ملف</button></td>
-                </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:#999;padding:24px">لا توجد مشاريع نشطة</td></tr>`}</tbody>
+                </tr>`).join('') : `<tr><td colspan="12" style="text-align:center;color:#999;padding:24px">لا توجد مشاريع نشطة</td></tr>`}</tbody>
             </table>
             </div>
         </div>`;
