@@ -1067,7 +1067,7 @@ window.renderProgramIndex = function () {
     pg.innerHTML = `
         <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff">
             <div style="font-size:20px;font-weight:900">🗂️ فهرس البرنامج</div>
-            <div style="font-size:12.5px;opacity:.92;margin-top:5px">كل أقسام النظام أمامك — انقر أي قسم للانتقال إليه مباشرة. يعرض ما تملك صلاحية الوصول إليه فقط، ويتحدّث تلقائياً مع أي تغيير في القوائم.</div>
+            <div style="font-size:12.5px;opacity:.92;margin-top:5px">كل أقسام النظام أمامك — انقر أي قسم للانتقال إليه. الأقسام التي لا تملك صلاحيتها تظهر مقفلة 🔒 وتُنبّهك برسالة عند النقر. يتحدّث تلقائياً مع أي تغيير في الصلاحيات.</div>
             <input id="idxSearch" type="text" value="${(window._idxQ || '').replace(/"/g, '&quot;')}" oninput="searchProgramIndex(this.value)" placeholder="🔍 ابحث عن قسم..." style="margin-top:12px;width:100%;max-width:440px;padding:10px 14px;border:none;border-radius:9px;font-family:inherit;font-size:13px">
         </div>
         <div id="idxBody"></div>`;
@@ -1080,7 +1080,6 @@ window.paintProgramIndex = function () {
     const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     const q = (window._idxQ || '').trim().toLowerCase();
     const chip = (it) => {
-        if (it.style && it.style.display === 'none') return '';                 // مخفي بالصلاحية
         const icon = (it.querySelector('.ic') && it.querySelector('.ic').textContent) || '📄';
         const ls = Array.from(it.querySelectorAll('span')).find(s => !s.classList.contains('ic') && !s.classList.contains('sb-badge') && s.textContent.trim());
         const label = (ls ? ls.textContent : it.textContent || '').trim();
@@ -1088,6 +1087,12 @@ window.paintProgramIndex = function () {
         if (q && !label.toLowerCase().includes(q)) return '';
         const oc = it.getAttribute('onclick') || '';
         const m = oc.match(/nav\(\s*'([^']+)'/);
+        const pgId = m ? m[1] : null;
+        // 🔐 قسم بلا صلاحية: يظهر مقفلاً (باهت + 🔒) وعند النقر رسالة واضحة — بدل إخفائه
+        const locked = pgId && typeof canAccessPage === 'function' && !canAccessPage(pgId);
+        if (locked) {
+            return `<div onclick="toast('🚫 ليس لديك صلاحية لعرض هذا القسم','er')" title="${esc(label)} — مقفل (لا صلاحية)" style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:not-allowed;background:#f6f7f9;border:1px dashed #dfe4ea;font-size:13px;color:#9aa5b1;opacity:.8"><span style="font-size:16px;filter:grayscale(1);opacity:.6">${esc(icon)}</span><span>${esc(label)}</span><span style="margin-inline-start:auto;font-size:12px">🔒</span></div>`;
+        }
         // الأفضل: انقر بند القائمة الحقيقي بمعرّفه — يُنفّذ سلوكه الكامل (ضبط الحالة مثل عرض الأرصدة + التنقّل + تمييز القائمة)
         const action = it.id ? `document.getElementById('${it.id}').click()` : (m ? `bcNav('${m[1]}')` : oc.replace(/"/g, '&quot;'));
         return `<div onclick="${action}" title="${esc(label)}" style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:pointer;background:#fff;border:1px solid #eef2f6;font-size:13px;color:#1a3a5c" onmouseover="this.style.background='#eef5fb';this.style.borderColor='#c9dcec'" onmouseout="this.style.background='#fff';this.style.borderColor='#eef2f6'"><span style="font-size:16px">${esc(icon)}</span><span>${esc(label)}</span></div>`;
@@ -2613,8 +2618,9 @@ const HR_SECTION_PAGES = new Set([
     'probation', 'goals', 'training', 'surveys', 'selfservice', 'hrdashboard', 'hrguide'
 ]);
 
-window.nav = function (pg, el) {
-    const pm = {
+// 🔐 مصدر الحقيقة الوحيد: الصفحة → الصلاحية المطلوبة (يستخدمه nav() وفهرس البرنامج معاً)
+window.PAGE_ADMIN_ONLY = new Set(['users', 'perms', 'onboarding']);
+window.PAGE_PERM = {
         // ── عام / لوحات ──
         dashboard: 'view_dashboard', execdashboard: 'view_exec_dashboard', statement: 'view_statement', settings: 'view_settings', pdfexport: 'pdf_export',
         // ── الموردون والمشتريات ──
@@ -2648,10 +2654,22 @@ window.nav = function (pg, el) {
         // ── المخزون والمخازن ──
         inventory: 'view_inventory', inventorymovements: 'view_inventory', inventoryreports: 'view_inventory', warehouses: 'view_warehouses',
         // ── الأصول الثابتة ──
-        assets: 'view_accounting', assetdashboard: 'view_accounting', assetdetail: 'view_accounting'
-    };
-    if ((pg === 'users' || pg === 'perms' || pg === 'onboarding') && myP?.role !== 'admin') { toast('للمدير فقط', 'er'); return }
-    const p = pm[pg]; if (p && !can(p)) { toast('ليس لديك صلاحية', 'er'); return }
+        assets: 'view_accounting', assetdashboard: 'view_accounting', assetdetail: 'view_accounting',
+        // ── المشتريات والموردون (بعضها «أيٌّ من» صلاحيتين) ──
+        suppliers_catalog: 'manage_suppliers_catalog', quotations: 'manage_quotations', grn: 'receive_goods', invoices: 'match_invoice',
+        matrequests: ['request_material', 'approve_material_request'], purchaseorders: ['create_purchase_order', 'approve_purchase_order']
+};
+// هل يملك المستخدم صلاحية فتح صفحة؟ المدير يتجاوز؛ صفحات المدير-فقط محجوبة؛ القيمة نص واحد أو مصفوفة «أيٌّ منها»
+window.canAccessPage = function (pg) {
+    if (typeof myP !== 'undefined' && myP?.role === 'admin') return true;
+    if (window.PAGE_ADMIN_ONLY.has(pg)) return false;
+    const need = window.PAGE_PERM[pg];
+    if (!need) return true;                                   // صفحة غير مقيّدة (أدلّة/خدمة ذاتية/مهام…)
+    const arr = Array.isArray(need) ? need : [need];
+    return arr.some(p => (typeof can === 'function' && can(p)));
+};
+window.nav = function (pg, el) {
+    if (!canAccessPage(pg)) { toast('🚫 ليس لديك صلاحية لعرض هذا القسم', 'er'); return }
     // 🧩 حارس الباقة: امنع فتح صفحة تابعة لوحدة غير مُفعّلة في باقة العميل
     if (typeof isPageModuleEnabled === 'function' && !isPageModuleEnabled(pg)) { toast('هذا القسم غير مُفعّل في باقتك — تواصل مع مزوّد الخدمة', 'er'); return }
 
