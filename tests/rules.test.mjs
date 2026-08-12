@@ -452,6 +452,17 @@ await test('الدور يبقى السقف: HR بخريطة صلاحيات لا 
 await test('المدير يكتب على جذر المجموعة (استعادة نسخة احتياطية)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/receipts'), { r9: { amount: 1 } })));
 await test('محاسب لا يكتب على جذر المجموعة', assertFails(set(ref(db.acctCanDel, 'tenants/A/ledger/receipts'), { hack: { amount: 1 } })));
 
+
+console.log('\n⚠️ سجل المخاطر [RISK]:');
+await test('مدير مشروع يسجّل خطراً', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/projectRisks/p1/r1'), { title: 'تأخّر توريد', probability: 4, impact: 5 })));
+await test('مدير يقرأ سجل المخاطر', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/projectRisks/p1'))));
+await test('محاسب يقرأ (غير موظف/مشاهد)', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/projectRisks/p1'))));
+await test('محاسب لا يكتب خطراً (ليس من فريق المشروع)', assertFails(set(ref(db.acctA, 'tenants/A/ledger/projectRisks/p1/r2'), { title: 'x' })));
+await test('موظف HR لا يكتب خطراً', assertFails(set(ref(db.hrA, 'tenants/A/ledger/projectRisks/p1/r3'), { title: 'x' })));
+await test('مشاهد لا يقرأ سجل المخاطر', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/projectRisks/p1'))));
+await test('عزل: مدير مشروع A لا يكتب مخاطر في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/projectRisks/p1/hack'), { title: 'x' })));
+await test('اشتراك منتهٍ يمنع تسجيل خطر', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/projectRisks/p1/x'), { title: 'x' })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);

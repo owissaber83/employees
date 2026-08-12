@@ -253,6 +253,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('payroll',   '💵 الرواتب')}
         ${pdTabBtn('rfis',      `📨 طلبات المعلومات${(() => { const n = Object.values((window.rfis || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('punch',     `🔧 قوائم النواقص${(() => { const n = Object.values((window.punchItems || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('risks',     `⚠️ المخاطر${(() => { const n = Object.values((window.projectRisks || {})[projectId] || {}).filter(r => (r.status || 'open') !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('qhse',      `🦺 الجودة والسلامة${(() => { const n = Object.values((window.qhse || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('submittals',`📋 المستندات الفنية${(() => { const n = Object.values((window.submittals || {})[projectId] || {}).filter(r => !['approved', 'approved_noted'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('correspondence',`📮 المراسلات${(() => { const n = Object.values((window.correspondence || {})[projectId] || {}).filter(r => r.status === 'open').length; return n ? ` (${n})` : ''; })()}`)}
@@ -282,6 +283,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-payroll"   class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-rfis"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-risks"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
@@ -349,6 +351,7 @@ function pdRenderTab(tab) {
     if (tab === 'payroll')   pdRenderPayroll(pid);
     if (tab === 'rfis')      pdRenderRFIs(pid);
     if (tab === 'punch')     pdRenderPunch(pid);
+    if (tab === 'risks')     pdRenderRisks(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
@@ -6649,4 +6652,210 @@ window.pdClientPortal = function (pid) {
     const w = window.open('', '_blank');
     if (!w) { toast('⚠️ يرجى السماح بالنوافذ المنبثقة لعرض بوابة العميل', 'er'); return; }
     w.document.write(html); w.document.close();
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   ⚠️  سجل المخاطر (Risk Register) — وفق PMBOK                             ║
+// ║   الفرق عن «قوائم النواقص» و«الجودة والسلامة»: تلك تعالج ما **وقع**،      ║
+// ║   وهذا يعالج ما **قد يقع** — إدارة استباقية لا تصحيحية.                   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const PR_CATEGORIES = {
+    technical: '⚙️ فنية',
+    schedule: '📅 جدول زمني',
+    cost: '💰 تكلفة',
+    external: '🌍 خارجية (طقس/موردون/جهات)',
+    contractual: '📜 تعاقدية',
+    safety: '🦺 سلامة',
+    resource: '👷 موارد وعمالة'
+};
+// استراتيجيات الاستجابة للتهديدات (PMBOK): تجنّب · تخفيف · نقل · قبول
+const PR_RESPONSES = {
+    avoid: '🚫 تجنّب — إزالة السبب',
+    mitigate: '🛡️ تخفيف — تقليل الاحتمال أو الأثر',
+    transfer: '🔄 نقل — تأمين/عقد باطن',
+    accept: '✅ قبول — خطة طوارئ'
+};
+const PR_STATUS = {
+    open: { l: '🔴 مفتوح', c: 'var(--pd-danger)' },
+    mitigating: { l: '🟠 قيد المعالجة', c: 'var(--pd-warn)' },
+    closed: { l: '✅ مُغلق', c: 'var(--pd-ok)' },
+    occurred: { l: '⚡ وقع فعلاً', c: 'var(--pd-alt)' }
+};
+const PR_SCALE = { 1: 'نادر جداً', 2: 'نادر', 3: 'محتمل', 4: 'مرجّح', 5: 'شبه مؤكّد' };
+const PR_IMPACT = { 1: 'ضئيل', 2: 'طفيف', 3: 'متوسط', 4: 'كبير', 5: 'جسيم' };
+
+// درجة الخطر = الاحتمال × الأثر (1..25) — التصنيف القياسي في مصفوفة 5×5
+function prScore(r) { return (pdNum(r.probability) || 0) * (pdNum(r.impact) || 0); }
+function prBand(score) {
+    if (score >= 15) return { l: 'حرج', c: '#c0392b', bg: '#fdecea' };
+    if (score >= 8) return { l: 'عالٍ', c: '#e67e22', bg: '#fef5e7' };
+    if (score >= 4) return { l: 'متوسط', c: '#b9770e', bg: '#fef9e7' };
+    return { l: 'منخفض', c: '#1e8449', bg: '#eafaf1' };
+}
+function prAll(pid) { return Object.entries((window.projectRisks || {})[pid] || {}).map(([k, r]) => ({ k, ...r })); }
+
+function pdRenderRisks(pid) {
+    const pane = document.getElementById('pd-tab-risks'); if (!pane) return;
+    const rows = prAll(pid).sort((a, b) => prScore(b) - prScore(a));
+    const openRows = rows.filter(r => (r.status || 'open') !== 'closed');
+    const critical = openRows.filter(r => prScore(r) >= 15).length;
+    const high = openRows.filter(r => { const s = prScore(r); return s >= 8 && s < 15; }).length;
+    const occurred = rows.filter(r => r.status === 'occurred').length;
+    // التعرّض المالي المتوقّع = Σ (الأثر المالي × الاحتمال/5) — مقياس شائع في إدارة المخاطر
+    const exposure = openRows.reduce((s, r) => s + pdNum(r.costImpact) * ((pdNum(r.probability) || 0) / 5), 0);
+
+    const kpi = (ic, lb, vl, col) => `<div style="flex:1;min-width:135px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
+        <div style="font-size:11.5px;color:var(--pd-bd)">${ic} ${lb}</div>
+        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div></div>`;
+
+    pane.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('🔴', 'مخاطر حرجة', critical, 'var(--pd-danger)')}
+        ${kpi('🟠', 'مخاطر عالية', high, 'var(--pd-warn)')}
+        ${kpi('📋', 'إجمالي المفتوحة', openRows.length, 'var(--pd-pri2)')}
+        ${kpi('⚡', 'وقعت فعلاً', occurred, 'var(--pd-alt)')}
+        ${kpi('💰', 'التعرّض المالي المتوقّع', fmt(exposure), 'var(--pd-danger)')}
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div style="font-weight:800;color:var(--pd-pri)">⚠️ سجل المخاطر</div>
+            <button class="btn b-p" onclick="prOpenForm('${pid}')">➕ تسجيل خطر</button>
+        </div>
+        <div class="hr-info" style="margin-top:10px;font-size:12px">
+            درجة الخطر = <b>الاحتمال × الأثر</b> (1–25). الاستجابة وفق PMBOK: تجنّب · تخفيف · نقل · قبول.
+            التعرّض المالي = الأثر بالريال × (الاحتمال ÷ 5).
+        </div>
+    </div>
+
+    <div id="pd-risk-form" style="display:none"></div>
+
+    ${prMatrixHtml(openRows)}
+
+    <div class="card">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">الخطر</th><th>الفئة</th><th style="text-align:center">الاحتمال</th>
+                <th style="text-align:center">الأثر</th><th style="text-align:center">الدرجة</th>
+                <th>الاستجابة</th><th>المالك</th><th style="text-align:center">الحالة</th><th></th>
+            </tr></thead>
+            <tbody>${rows.length ? rows.map(r => {
+        const sc = prScore(r), bd = prBand(sc);
+        const st = PR_STATUS[r.status || 'open'] || PR_STATUS.open;
+        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
+                    <td style="padding:8px 9px">
+                        <div style="font-weight:700;color:var(--pd-pri)">${esc(r.title || '—')}</div>
+                        ${r.plan ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:2px">🛡️ ${esc(r.plan)}</div>` : ''}
+                    </td>
+                    <td style="font-size:11.5px">${esc(PR_CATEGORIES[r.category] || '—')}</td>
+                    <td style="text-align:center">${pdNum(r.probability) || '—'}</td>
+                    <td style="text-align:center">${pdNum(r.impact) || '—'}</td>
+                    <td style="text-align:center"><span style="background:${bd.bg};color:${bd.c};font-weight:900;border-radius:8px;padding:3px 9px">${sc} · ${bd.l}</span></td>
+                    <td style="font-size:11.5px">${esc((PR_RESPONSES[r.response] || '').split('—')[0] || '—')}</td>
+                    <td style="font-size:11.5px">${esc(r.owner || '—')}</td>
+                    <td style="text-align:center"><span style="color:${st.c};font-weight:700;font-size:11px">${st.l}</span></td>
+                    <td style="text-align:left;white-space:nowrap">
+                        <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="prOpenForm('${pid}','${r.k}')">✏️</button>
+                        <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="prDelete('${pid}','${r.k}')">🗑️</button>
+                    </td>
+                </tr>`;
+    }).join('') : '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:26px">لا مخاطر مسجّلة — ابدأ بتسجيل ما قد يهدّد المشروع قبل وقوعه</td></tr>'}</tbody>
+        </table>
+    </div>`;
+}
+
+// مصفوفة المخاطر 5×5 — العرض المعياري في أدوات إدارة المشاريع
+function prMatrixHtml(rows) {
+    const cell = (pRow, iCol) => {
+        const hits = rows.filter(r => pdNum(r.probability) === pRow && pdNum(r.impact) === iCol);
+        const bd = prBand(pRow * iCol);
+        return `<td title="احتمال ${PR_SCALE[pRow]} × أثر ${PR_IMPACT[iCol]} = ${pRow * iCol}"
+            style="background:${bd.bg};color:${bd.c};text-align:center;padding:8px 4px;font-weight:800;border:1px solid #fff;min-width:42px">
+            ${hits.length ? hits.length : '<span style="opacity:.28">·</span>'}</td>`;
+    };
+    let body = '';
+    for (let p = 5; p >= 1; p--) {
+        body += `<tr><th style="font-size:10.5px;font-weight:700;color:#667;padding:4px 8px;text-align:right;white-space:nowrap">${p} · ${PR_SCALE[p]}</th>`;
+        for (let i = 1; i <= 5; i++) body += cell(p, i);
+        body += '</tr>';
+    }
+    return `<div class="card" style="margin-bottom:14px">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">🎯 مصفوفة المخاطر (الاحتمال × الأثر)</div>
+        <table style="border-collapse:collapse;font-size:11.5px">
+            <tbody>${body}
+            <tr><th></th>${[1, 2, 3, 4, 5].map(i => `<th style="font-size:10px;color:#667;font-weight:700;padding:5px 2px">${i}<div style="font-weight:400">${PR_IMPACT[i]}</div></th>`).join('')}</tr>
+            </tbody>
+        </table>
+        <div style="font-size:10.5px;color:#8a97a5;margin-top:7px">الصفوف = الاحتمال · الأعمدة = الأثر · الرقم = عدد المخاطر المفتوحة في تلك الخانة</div>
+    </div>`;
+}
+
+window.prOpenForm = function (pid, key) {
+    const box = document.getElementById('pd-risk-form'); if (!box) return;
+    const r = key ? (prAll(pid).find(x => x.k === key) || {}) : {};
+    const opt = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${typeof v === 'string' ? v : v.l}</option>`).join('');
+    const num = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${k}" ${String(sel) === k ? 'selected' : ''}>${k} — ${v}</option>`).join('');
+    box.style.display = '';
+    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-warn)">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:12px">${key ? '✏️ تعديل خطر' : '➕ تسجيل خطر جديد'}</div>
+        <input type="hidden" id="pr-key" value="${key || ''}">
+        <div class="form-grid sm">
+            <div class="fg" style="grid-column:1/-1"><label>عنوان الخطر *</label>
+                <input id="pr-title" value="${esc(r.title || '')}" placeholder="مثال: تأخّر توريد الحديد من المورد الرئيسي"></div>
+            <div class="fg"><label>الفئة</label><select id="pr-cat">${opt(PR_CATEGORIES, r.category)}</select></div>
+            <div class="fg"><label>الاحتمال (1–5)</label><select id="pr-prob">${num(PR_SCALE, r.probability || 3)}</select></div>
+            <div class="fg"><label>الأثر (1–5)</label><select id="pr-imp">${num(PR_IMPACT, r.impact || 3)}</select></div>
+            <div class="fg"><label>الأثر المالي المقدَّر (ريال)</label><input type="number" id="pr-cost" value="${pdNum(r.costImpact) || ''}" min="0" step="0.01"></div>
+            <div class="fg"><label>الاستجابة</label><select id="pr-resp">${opt(PR_RESPONSES, r.response || 'mitigate')}</select></div>
+            <div class="fg"><label>المالك (المسؤول)</label><input id="pr-owner" value="${esc(r.owner || '')}" placeholder="اسم المسؤول"></div>
+            <div class="fg"><label>تاريخ المراجعة</label><input type="date" id="pr-due" value="${esc(r.dueDate || '')}"></div>
+            <div class="fg"><label>الحالة</label><select id="pr-status">${opt(PR_STATUS, r.status || 'open')}</select></div>
+            <div class="fg" style="grid-column:1/-1"><label>خطة الاستجابة</label>
+                <textarea id="pr-plan" rows="2" placeholder="ما الإجراء الوقائي؟">${esc(r.plan || '')}</textarea></div>
+        </div>
+        <div class="card-actions">
+            <button class="btn b-p" onclick="prSave('${pid}')">💾 حفظ</button>
+            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-risk-form').style.display='none'">إلغاء</button>
+        </div>
+    </div>`;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.prSave = async function (pid) {
+    const g = id => document.getElementById(id);
+    const title = (g('pr-title')?.value || '').trim();
+    if (!title) { toast('عنوان الخطر مطلوب', 'er'); return; }
+    const key = g('pr-key')?.value || '';
+    const data = {
+        title,
+        category: g('pr-cat')?.value || 'technical',
+        probability: parseInt(g('pr-prob')?.value) || 3,
+        impact: parseInt(g('pr-imp')?.value) || 3,
+        costImpact: Math.max(0, pdNum(g('pr-cost')?.value)),   // لا أثر مالي سالب
+        response: g('pr-resp')?.value || 'mitigate',
+        owner: (g('pr-owner')?.value || '').trim(),
+        dueDate: g('pr-due')?.value || '',
+        status: g('pr-status')?.value || 'open',
+        plan: (g('pr-plan')?.value || '').trim(),
+        updatedAt: new Date().toISOString()
+    };
+    data.score = data.probability * data.impact;   // محفوظ للفرز والتقارير
+    try {
+        if (key) await update(ref(db, `ledger/projectRisks/${pid}/${key}`), data);
+        else { data.createdAt = new Date().toISOString(); await push(ref(db, `ledger/projectRisks/${pid}`), data); }
+        if (typeof logAudit === 'function') logAudit(key ? 'update' : 'create', 'المشاريع', `${key ? 'تعديل' : 'تسجيل'} خطر: ${title}`);
+        toast('✅ حُفظ الخطر', 'ok');
+        const box = document.getElementById('pd-risk-form'); if (box) box.style.display = 'none';
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+window.prDelete = function (pid, key) {
+    const r = prAll(pid).find(x => x.k === key);
+    cf2(`حذف الخطر "${r?.title || ''}"؟`, async () => {
+        try {
+            await remove(ref(db, `ledger/projectRisks/${pid}/${key}`));
+            if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف خطر: ${r?.title || key}`);
+            toast('🗑️ حُذف', 'ok');
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
 };

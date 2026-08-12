@@ -301,6 +301,8 @@ function buildRefs() {
     projTemplates: ref(db, 'ledger/projectTemplates'), // 📋 قوالب المشاريع { key:{ name, taskCount, tasks:[{title,desc,priority,estHours,offsetStart,durationDays,deps:[idx]}] } }
     rfis: ref(db, 'ledger/rfis'),              // 📨 طلبات المعلومات { projectId: { key:{ number, subject, discipline, priority, status, submittedTo, dueDate, question, answer, answeredBy, answeredDate } } }
     punchItems: ref(db, 'ledger/punchItems'),  // 🔧 قوائم النواقص { projectId: { key:{ number, title, location, trade, priority, status, assignee, dueDate, description, photoUrl, closedDate } } }
+    projectRisks: ref(db, 'ledger/projectRisks'), // ⚠️ سجل المخاطر (PMBOK): { projectId: { key:{ title, category, probability 1-5, impact 1-5,
+                                               //    score=P×I, owner, response:'avoid'|'mitigate'|'transfer'|'accept', plan, status, dueDate } } }
     qhse: ref(db, 'ledger/qhse'),              // 🦺 الجودة والسلامة { projectId: { key:{ kind:'inspection'|'observation'|'incident', number, title, ... } } }
     submittals: ref(db, 'ledger/submittals'),  // 📋 المستندات الفنية { projectId: { key:{ number, title, subType, discipline, status, revision, specSection, submittedTo, submittedDate, dueDate, reviewer, returnedDate, reviewNotes, fileUrl } } }
     subcontracts: ref(db, 'ledger/subcontracts'), // 🤝 عقود الباطن على مستوى المشروع { projectId: { key:{ subId, subName, scope, contractValue, retentionPct, advanceAmount, startDate, endDate, status, changeOrders:[{desc,amount,date}], certificates:[{no,date,periodValue,retentionAmt,advanceRecovery,netPayable,status,notes}] } } }
@@ -3732,6 +3734,10 @@ function startListeners() {
     onValue(R.punchItems, sn => {
         window.punchItems = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'punch' && typeof pdRenderTab === 'function') pdRenderTab('punch');
+    });
+    onValue(R.projectRisks, sn => {
+        window.projectRisks = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'risks' && typeof pdRenderTab === 'function') pdRenderTab('risks');
     });
     onValue(R.qhse, sn => {
         window.qhse = sn.exists() ? sn.val() : {};
