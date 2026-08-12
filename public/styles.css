@@ -956,6 +956,12 @@ font-size: 13px;
 font-weight: 500
 }
 
+/* ⭐ نجمة المفضّلة: مخفية حتى المرور على العنصر — لا تُشوّش القائمة في السكون.
+   المفضّل فعلاً يبقى ظاهراً دائماً (تُضبط شفافيته في paintFavStars). */
+.sb-it .fav-star { transition: opacity .15s }
+.sb-it:hover .fav-star { opacity: .8 !important }
+.sb-it .fav-star:hover { transform: scale(1.25) }
+
 .sb-it:hover {
 background: rgba(255, 255, 255, .1);
 color: white

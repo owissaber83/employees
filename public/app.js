@@ -1086,6 +1086,155 @@ window.maybeShowOnboarding = function () {
     } catch (e) { }
 };
 
+// ══ ⭐ المفضّلة في القائمة الجانبية ══════════════════════════════════════
+// المشكلة: 148 عنصراً في 11 مجموعة و13 قسماً — إيجاد الصفحة المتكررة يحتاج
+// تنقّلاً في مستويين كل مرة. الحل: مجموعة ثابتة أعلى القائمة يختارها المستخدم.
+//
+// التخزين معزول في favGet/favSet: اليوم localStorage (لكل جهاز، صفر كلفة)،
+// وتحويله إلى ledger/users/{uid}/favorites (يتزامن بين الأجهزة) يمسّ هاتين
+// الدالتين فقط — ويتطلب قاعدة أمان تسمح للمستخدم بالكتابة على فرعه.
+const FAV_KEY = 'gbrFavNav';
+const FAV_COLLAPSED_KEY = 'gbrFavCollapsed';   // حالة الطيّ تُحفظ فتبقى بين الجلسات
+
+function favGet() {
+    try { const v = JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+}
+function favSet(ids) {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(ids.slice(0, 12))); } catch (e) { }
+}
+
+function favIsCollapsed() { try { return localStorage.getItem(FAV_COLLAPSED_KEY) === '1'; } catch (e) { return false; } }
+
+// طيّ المفضّلة — مستقل عن أكورديون المجموعات عمداً: المفضّلة مرجع دائم،
+// فلا يجوز أن يُغلقها فتحُ مجموعة أخرى كما يحدث لبقية المجموعات.
+window.favToggleCollapse = function () {
+    const now = !favIsCollapsed();
+    try { localStorage.setItem(FAV_COLLAPSED_KEY, now ? '1' : '0'); } catch (e) { }
+    applyFavCollapse();
+};
+function applyFavCollapse() {
+    const box = $('favNav'), caret = $('favCaret');
+    if (!box) return;
+    const c = favIsCollapsed();
+    // لا يُظهر الجسم إن لم تكن هناك مفضّلة أصلاً (renderFavNav يحكم ذلك)
+    if (box.dataset.hasItems === '1') box.style.display = c ? 'none' : '';
+    if (caret) caret.style.transform = c ? 'rotate(-90deg)' : '';
+}
+
+// يقرأ الأيقونة والعنوان من عنصر القائمة الأصلي (مصدر واحد — لا تكرار نصوص)
+function favReadItem(el) {
+    const ic = el.querySelector('.ic')?.textContent || '📄';
+    const lbl = Array.from(el.querySelectorAll('span'))
+        .find(sp => !sp.classList.contains('ic') && !sp.classList.contains('sb-badge'));
+    return { ic, label: (lbl ? lbl.textContent : el.textContent || '').trim() };
+}
+
+window.favToggle = function (id, ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }   // لا يُبحر عند النقر على النجمة
+    const ids = favGet();
+    const i = ids.indexOf(id);
+    if (i >= 0) ids.splice(i, 1); else ids.push(id);
+    favSet(ids);
+    renderFavNav();
+    paintFavStars();
+    // إن كان الفهرس مفتوحاً، حدّث بطاقاته فوراً (مصدر واحد، عرضان)
+    if ($('pg-index')?.classList.contains('act') && typeof paintProgramIndex === 'function') paintProgramIndex();
+};
+
+// يبني مجموعة المفضّلة. يتخطّى ما هو مخفي بالصلاحيات — فلا يظهر للمستخدم
+// عنصر لا يملكه أصلاً.
+window.renderFavNav = function () {
+    const box = $('favNav'), sec = $('favSec');
+    if (!box || !sec) return;
+    const ids = favGet().filter(id => {
+        const el = document.getElementById(id);
+        return el && el.style.display !== 'none';
+    });
+    if (!ids.length) { box.style.display = 'none'; sec.style.display = 'none'; box.dataset.hasItems = '0'; box.innerHTML = ''; return; }
+    box.dataset.hasItems = '1';
+    sec.style.display = '';
+    box.style.display = favIsCollapsed() ? 'none' : '';
+    box.innerHTML = ids.map(id => {
+        const el = document.getElementById(id);
+        const { ic, label } = favReadItem(el);
+        return `<div class="sb-it" data-fav-for="${id}" onclick="favGo('${id}')" title="${esc(label)}">
+            <span class="ic">${ic}</span><span>${esc(label)}</span>
+            <span onclick="favToggle('${id}',event)" title="إزالة من المفضّلة"
+                  style="margin-inline-start:auto;cursor:pointer;font-size:12px;opacity:.85">⭐</span>
+        </div>`;
+    }).join('');
+};
+
+// بطاقات المفضّلة لصفحة الفهرس — أكبر من عناصر القائمة وأوضح، بلوحة انطلاق
+// وزرّ إزالة على كل بطاقة. تُبنى من نفس المصدر (عناصر القائمة) فلا تكرار.
+window.favCardsHtml = function () {
+    const ids = favGet().filter(id => {
+        const el = document.getElementById(id);
+        return el && el.style.display !== 'none';
+    });
+    if (!ids.length) {
+        return `<div class="card" style="margin-bottom:22px;background:linear-gradient(135deg,#fffdf5,#fff);border:1.5px dashed #e8d9a8">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="font-size:26px">⭐</div>
+                <div>
+                    <div style="font-weight:900;color:#8a6100;font-size:14px">لا مفضّلة بعد</div>
+                    <div style="font-size:12px;color:#8a97a5;margin-top:3px">مرّر على أي قسم في القائمة الجانبية واضغط ☆ — فيظهر هنا وأعلى القائمة.</div>
+                </div>
+            </div>
+        </div>`;
+    }
+    const cards = ids.map(id => {
+        const el = document.getElementById(id);
+        const { ic, label } = favReadItem(el);
+        return `<div style="position:relative;flex:1 1 190px;min-width:170px;max-width:260px">
+            <div onclick="favGo('${id}')" title="${esc(label)}"
+                 style="cursor:pointer;background:#fff;border:1.5px solid #e6ebf0;border-radius:14px;padding:16px 14px;text-align:center;
+                        box-shadow:0 2px 8px rgba(20,40,70,.06);transition:all .15s"
+                 onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(20,40,70,.12)';this.style.borderColor='#f0c419'"
+                 onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(20,40,70,.06)';this.style.borderColor='#e6ebf0'">
+                <div style="font-size:30px;line-height:1.2">${ic}</div>
+                <div style="font-size:12.5px;font-weight:800;color:#1a3a5c;margin-top:7px;line-height:1.5">${esc(label)}</div>
+            </div>
+            <span onclick="favToggle('${id}',event);paintProgramIndex()" title="إزالة من المفضّلة"
+                  style="position:absolute;top:6px;inset-inline-start:6px;cursor:pointer;font-size:13px;opacity:.75">⭐</span>
+        </div>`;
+    }).join('');
+    return `<div style="margin-bottom:22px">
+        <div style="font-size:15px;font-weight:900;color:#8a6100;margin-bottom:10px">⭐ المفضّلة <span style="font-size:11.5px;font-weight:700;color:#8a97a5">— ${ids.length} قسم · انقر النجمة للإزالة</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px">${cards}</div>
+    </div>`;
+};
+
+// النقر على مفضّل ينقر العنصر الأصلي — فيُحتفظ بكل سلوكه (فتح مجموعته،
+// إبراز النشط، حرّاس الصلاحية) بلا تكرار منطق التنقّل.
+window.favGo = function (id) {
+    const el = document.getElementById(id);
+    if (el) el.click();
+};
+
+// يرسم نجمة على كل عنصر قائمة (تظهر عند المرور، ومملوءة إن كان مفضّلاً)
+window.paintFavStars = function () {
+    const favs = favGet();
+    document.querySelectorAll('.sb-nav .sb-it[id^="n-"]').forEach(el => {
+        if (el.closest('#favNav')) return;                 // لا نجمة على النسخة المفضّلة
+        let st = el.querySelector('.fav-star');
+        if (!st) {
+            st = document.createElement('span');
+            st.className = 'fav-star';
+            st.onclick = e => favToggle(el.id, e);
+            el.appendChild(st);
+        }
+        const on = favs.includes(el.id);
+        st.textContent = on ? '⭐' : '☆';
+        st.title = on ? 'إزالة من المفضّلة' : 'إضافة إلى المفضّلة';
+        st.style.cssText = 'margin-inline-start:auto;cursor:pointer;font-size:12px;line-height:1;' +
+            (on ? 'opacity:.95' : 'opacity:0');            // غير المفضّل يظهر عند المرور فقط (CSS)
+    });
+};
+
+function initFavNav() { renderFavNav(); paintFavStars(); applyFavCollapse(); }
+
 // ══ 🗂️ فهرس البرنامج — مشتق تلقائياً من القائمة الجانبية (نفس الترتيب · يتحدّث تلقائياً · يحترم الصلاحيات) ══
 window._idxQ = '';
 window.renderProgramIndex = function () {
@@ -1138,7 +1287,9 @@ window.paintProgramIndex = function () {
         else if (ch.classList.contains('sb-it')) { if (!cur) cur = { title: 'الأقسام', color: '#1a3a5c', html: '' }; const c = chip(ch); if (c) cur.html += `<div style="flex:1 1 230px;min-width:230px">${c}</div>`; }
     });
     flush();
-    body.innerHTML = out || `<div class="card" style="padding:30px;text-align:center;color:#888">لا أقسام مطابقة للبحث</div>`;
+    // ⭐ بطاقات المفضّلة أعلى الفهرس — لوحة انطلاق سريعة قبل القائمة الكاملة.
+    //    لا تظهر أثناء البحث (البحث يريد نتائج لا اختصارات).
+    body.innerHTML = (q ? '' : favCardsHtml()) + (out || `<div class="card" style="padding:30px;text-align:center;color:#888">لا أقسام مطابقة للبحث</div>`);
 };
 
 function getBillingApprovalLink(billingKey) {
@@ -2191,6 +2342,9 @@ function initApp() {
         handlePayrollHashRoute();
         if (typeof maybeSendDailyTaxEmail === 'function') maybeSendDailyTaxEmail();
     }, 2500);
+
+    // ⭐ ابنِ المفضّلة بعد ضبط الظهور حسب الصلاحيات (تتخطّى المخفيّ)
+    if (typeof initFavNav === 'function') initFavNav();
 }
 
 // 🗺️ خريطة page → nav button id (لاستعادة آخر صفحة)
