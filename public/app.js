@@ -376,6 +376,29 @@ function watch(reference, handler) {
 window.watch = watch;
 
 // ── Permissions ───────────────────────────
+// ══ 🏷️ هوية المنتج — مصدر واحد ══════════════════════════════════════════
+// كل نصّ يذكر اسم البرنامج يقرأ من هنا. غيّر القيمة مرة واحدة فتتغيّر في
+// الواجهة والتقارير المطبوعة وعنوان التبويب.
+// ⚠️ لا تخلطه باسم **الشركة المستخدِمة** (cfg.companyAr) — ذاك من الإعدادات.
+// ⚠️ ولا تغيّر معرّف ملف النسخ الاحتياطي 'GBR-Ledger-Backup': مفتاح صيغة
+//    بيانات لا نصّ معروض؛ تغييره يمنع استرجاع النسخ القديمة.
+const APP_NAME = 'بنيان';
+const APP_TAGLINE = 'منصّة إدارة المقاولات';
+const APP_BRAND = APP_NAME + ' — ' + APP_TAGLINE;   // للعناوين الطويلة
+window.APP_NAME = APP_NAME; window.APP_TAGLINE = APP_TAGLINE; window.APP_BRAND = APP_BRAND;
+
+// يطبّق الاسم على العناصر الساكنة في index.html عند الإقلاع.
+// النصّ الساكن يبقى في HTML كاحتياط (فلا وميض ولا فراغ إن تعطّل JS).
+function applyAppBranding() {
+    try {
+        document.title = APP_BRAND;
+        document.querySelectorAll('[data-app-name]').forEach(el => { el.textContent = APP_NAME; });
+        document.querySelectorAll('[data-app-tagline]').forEach(el => { el.textContent = APP_TAGLINE; });
+    } catch (e) { }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyAppBranding);
+else applyAppBranding();
+
 const PG = [
     {
         t: '📋 كشف الحساب', p: [
@@ -678,7 +701,10 @@ const PRESETS = {
 
 // ── State ─────────────────────────────────
 let sup = {}, tr = {}, us = {}, emp = {}, attendance = {}, payrolls = {}, loans = {}, leaves = {}, performance = {}, perfSettings = { excellent: 15, vgood: 8, good: 3, weak: 0 }, departments = {}, quotations = {}, purchaseOrders = {}, goodsReceipts = {}, supplierInvoices = {};
-let cfg = { companyAr: 'بنيان للمقاولات', companyEn: 'Bunyan', currency: 'SAR', phone: '', email: '', address: '', reg: '', vat: '' };
+// ⚠️ companyAr/companyEn يبدآن **فارغين** عمداً: قيمة افتراضية تبدو اسم شركة
+// حقيقياً تكون صادقة منطقياً فتبتلع كل احتياطات `||` وتُخفي أن الإعدادات لم
+// تُملأ — فتُطبع الفواتير باسم شركة أخرى دون أن ينتبه أحد. الفراغ يُظهر النقص.
+let cfg = { companyAr: '', companyEn: '', currency: 'SAR', phone: '', email: '', address: '', reg: '', vat: '' };
 window.cfg = cfg;   // متاح فوراً بالقيم الافتراضية؛ يُعاد إسناده عند وصول إعدادات الشركة (المتغيّر يُستبدل لا يُعدَّل)
 window.gbrCfg = cfg; // 🌍 بيانات الشركة متاحة لـ accounting.js (تُحدَّث في مستمع R.cfg)
 let curU = null, myP = null;

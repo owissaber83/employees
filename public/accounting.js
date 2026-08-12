@@ -16646,7 +16646,7 @@ window.openInvItemLabel = function (key) {
     const codeVal = (it.barcode || it.code || key).toString();
     const payload = `ITEM|${esc(it.code || '')}|${it.barcode || ''}|${esc(it.nameAr || '')}`;
     const qrImg = (typeof zatcaQRDataURL === 'function') ? zatcaQRDataURL(payload) : '';
-    const company = (window.cfg?.companyAr) || (typeof cfg !== 'undefined' && cfg.companyAr) || 'بنيان للمقاولات';
+    const company = (window.cfg?.companyAr) || (typeof cfg !== 'undefined' && cfg.companyAr) || 'شركة جي بي آر للمقاولات';
     const esc = s => String(s || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
     const label = `<div id="invLabelPrintable" style="border:2px solid #1a3a5c;border-radius:10px;padding:16px;display:inline-block;min-width:240px;text-align:center;font-family:'Tajawal',Arial,'Segoe UI',sans-serif">
         <div style="font-weight:800;font-size:15px;color:#1a3a5c">${esc(it.nameAr)}</div>
@@ -16818,6 +16818,9 @@ window.viewSInv = function (key, proforma) {
             <div>✍️ المحاسب</div>
             <div>✍️ المدير المالي</div>
             <div>🏢 ختم الشركة</div>
+        </div>
+        <div style="margin-top:14px;padding-top:8px;border-top:1px solid #eef2f6;text-align:center;font-size:8.5px;color:#aab4bf;font-weight:400;letter-spacing:.2px">
+            ${window.APP_NAME || 'بنيان'}
         </div>
     </div>
     </body></html>`;
