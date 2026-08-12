@@ -14646,24 +14646,7 @@ function renderSInvRow(key, inv, idx) {
             ${(Array.isArray(inv.attachments) && inv.attachments.length) ? `<div style="margin-top:3px;font-size:9px;color:#2d6a9f;font-weight:700">📎 ${inv.attachments.length}</div>` : ''}
         </td>
         <td style="padding:8px;text-align:center">
-            <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap">
-                ${inv.needsApproval && sinvIsMgr() ? `<button class="btn" onclick="approveSInv('${key}')" style="background:#16a34a;color:white;padding:3px 8px;font-size:10px;border:1px solid #0e6b2e" title="اعتماد وترحيل">✅ اعتماد</button>` : ''}
-                <button class="btn" onclick="viewSInv('${key}')" style="background:#16a085;color:white;padding:3px 8px;font-size:10px" title="عرض/طباعة">👁️</button>
-                <button class="btn" onclick="sendSInvShare('${key}')" style="background:#25d366;color:white;padding:3px 8px;font-size:10px" title="إرسال للعميل (واتساب/بريد)">📲</button>
-                ${inv.journalEntryKey ? `<button class="btn" onclick="viewJrnEntry('${inv.journalEntryKey}')" style="background:#5d6d7e;color:white;padding:3px 8px;font-size:10px" title="عرض القيد المحاسبي ${esc(inv.journalEntryNumber || '')}">📒</button>` : ''}
-                ${(inv.status === 'posted' && !inv.fullyCredited && (sinvDue(inv) - (parseFloat(inv.paidAmount) || 0)) > 0.01) ? `<button class="btn" onclick="openReceiptForInvoice('${key}')" style="background:#0e6655;color:white;padding:3px 8px;font-size:10px" title="تسجيل سداد — سند قبض بالمتبقي ${fmt(Math.round((sinvDue(inv) - (parseFloat(inv.paidAmount) || 0)) * 100) / 100)}">💰</button>` : ''}
-                ${inv.status === 'draft' ? `<button class="btn" onclick="viewSInvProforma('${key}')" style="background:#f0c419;color:#5b4708;padding:3px 8px;font-size:10px" title="طباعة عرض سعر / فاتورة مبدئية">📄</button>` : ''}
-                ${canCreate ? `<button class="btn" onclick="copySInv('${key}')" style="background:#566573;color:white;padding:3px 8px;font-size:10px" title="نسخ إلى فاتورة جديدة">📋</button>` : ''}
-                ${canCreate ? `<button class="btn" onclick="saveInvoiceAsRecurring('${key}')" style="background:#1f618d;color:white;padding:3px 8px;font-size:10px" title="حفظ كقالب دوري">🔁</button>` : ''}
-                ${(inv.status === 'posted' && !inv.fullyCredited && canCreate) ? `<button class="btn" onclick="openCreditNote('${key}')" style="background:#e67e22;color:white;padding:3px 8px;font-size:10px" title="إصدار إشعار دائن / مرتجع">↩️🧾</button>` : ''}
-                ${inv.fullyCredited ? `<span style="background:#fdebd0;color:#b9770e;padding:3px 7px;border-radius:5px;font-size:9px;font-weight:700" title="أُلغيت بإشعار دائن">↩️ دائن كامل</span>` : (inv.creditedAmount > 0 ? `<span style="background:#fef5e7;color:#b9770e;padding:3px 7px;border-radius:5px;font-size:9px;font-weight:700" title="مرتجع جزئي ${fmt(inv.creditedAmount)}">↩️ جزئي</span>` : '')}
-                ${canEdit ? `<button class="btn" onclick="editSInv('${key}')" style="background:#2d6a9f;color:white;padding:3px 8px;font-size:10px" title="تعديل">✏️</button>` : ''}
-                ${canEditPosted ? `<button class="btn" onclick="editPostedSInv('${key}')" style="background:#8e44ad;color:white;padding:3px 8px;font-size:10px;border:1px solid #5b2c6f" title="تعديل فاتورة مرحّلة (المدير المالي)">🔓✏️</button>` : ''}
-                ${canEditPosted ? `<button class="btn" onclick="unpostSInv('${key}')" style="background:#d35400;color:white;padding:3px 8px;font-size:10px;border:1px solid #a04000" title="التراجع عن الترحيل وتحويلها لمسودة">↩️📝</button>` : ''}
-                ${canPost ? `<button class="btn" onclick="postSInv('${key}')" style="background:#27ae60;color:white;padding:3px 8px;font-size:10px" title="ترحيل (إنشاء قيد)">✅</button>` : ''}
-                ${canDelete ? `<button class="btn" onclick="deleteSInv('${key}')" style="background:#c0392b;color:white;padding:3px 8px;font-size:10px" title="حذف مسودة">🗑️</button>` : ''}
-                ${canDeletePosted ? `<button class="btn" onclick="deletePostedSInv('${key}')" style="background:#7b241c;color:white;padding:3px 8px;font-size:10px;border:1.5px solid #c0392b" title="حذف فاتورة مرحّلة (مع عكس القيد)">🗑️🔓</button>` : ''}
-            </div>
+                ${rowMenuBtn(`siRowMenu(this,'${key}')`)}
         </td>
     </tr>`;
 }
@@ -15097,6 +15080,119 @@ window.moveSInvLine = function (idx, dir) {
     if (target < 0 || target >= lines.length) return;
     [lines[idx], lines[target]] = [lines[target], lines[idx]];
     renderSInvLines();
+};
+
+// ── إجراءات صفّ فاتورة المبيعات (تُبنى عند فتح القائمة، فتعكس الحالة اللحظية) ──
+// نفس شروط الصلاحيات التي كانت تحكم إظهار كل أيقونة — لم تتغيّر، تغيّر عرضها فقط.
+window.siRowMenu = function (btn, key) {
+    const inv = (window.salesInvoices || {})[key]; if (!inv) return;
+    const canFn = (typeof can === 'function') ? can : () => true;
+    const isAdmin = (typeof myP !== 'undefined' && myP?.role === 'admin');
+    const isFinanceMgr = (typeof myP !== 'undefined' && myP?.role === 'finance_manager');
+    const canCreate = isAdmin || canFn('create_sales_invoice');
+    const canEdit = inv.status === 'draft' && (isAdmin || canFn('create_sales_invoice'));
+    const canEditPosted = inv.status === 'posted' && (isAdmin || isFinanceMgr || canFn('edit_posted_sales_invoice'));
+    const canPost = inv.status === 'draft' && (isAdmin || canFn('post_sales_invoice'));
+    const canDelete = inv.status === 'draft' && (isAdmin || canFn('delete_sales_invoice'));
+    const canDeletePosted = inv.status === 'posted' && (isAdmin || isFinanceMgr);
+    const unpaid = (typeof sinvDue === 'function') ? (sinvDue(inv) - (parseFloat(inv.paidAmount) || 0)) > 0.01 : false;
+    const isMgr = (typeof sinvIsMgr === 'function') && sinvIsMgr();
+
+    const A = [];
+    if (inv.needsApproval && isMgr) A.push({ ic: '✅', label: 'اعتماد الفاتورة', run: () => approveSInv(key) });
+    A.push({ ic: '👁️', label: 'عرض / طباعة', run: () => viewSInv(key) });
+    A.push({ ic: '📤', label: 'إرسال للعميل (واتساب)', run: () => sendSInvShare(key) });
+    if (inv.status === 'draft') A.push({ ic: '📄', label: 'عرض سعر / فاتورة مبدئية', run: () => viewSInvProforma(key) });
+    if (inv.journalEntryKey) A.push({ ic: '📒', label: 'عرض القيد المحاسبي', run: () => viewJrnEntry(inv.journalEntryKey) });
+    if (inv.status === 'posted' && !inv.fullyCredited && unpaid) A.push({ ic: '💵', label: 'تسجيل سند قبض', run: () => openReceiptForInvoice(key) });
+
+    if (canCreate) A.push({ sep: 1 });
+    if (canCreate) A.push({ ic: '📋', label: 'نسخ إلى فاتورة جديدة', run: () => copySInv(key) });
+    if (canCreate) A.push({ ic: '🔄', label: 'حفظ كفاتورة متكررة', run: () => saveInvoiceAsRecurring(key) });
+    if (inv.status === 'posted' && !inv.fullyCredited && canCreate) A.push({ ic: '↩️', label: 'إشعار دائن (إلغاء جزئي/كلي)', run: () => openCreditNote(key) });
+
+    if (canEdit || canPost || canEditPosted) A.push({ sep: 1 });
+    if (canEdit) A.push({ ic: '✏️', label: 'تعديل', run: () => editSInv(key) });
+    if (canPost) A.push({ ic: '✅', label: 'ترحيل (إنشاء القيد)', run: () => postSInv(key) });
+    if (canEditPosted) A.push({ ic: '🔓', label: 'تعديل فاتورة مرحّلة', run: () => editPostedSInv(key) });
+    if (canEditPosted) A.push({ ic: '⏪', label: 'إلغاء الترحيل', run: () => unpostSInv(key) });
+
+    if (canDelete || canDeletePosted) A.push({ sep: 1 });
+    if (canDelete) A.push({ ic: '🗑️', label: 'حذف المسودة', danger: 1, run: () => deleteSInv(key) });
+    if (canDeletePosted) A.push({ ic: '🗑️', label: 'حذف فاتورة مرحّلة', danger: 1, run: () => deletePostedSInv(key) });
+
+    RowMenu.open(btn, A);
+};
+
+// ╔════════════ مكوّن قائمة إجراءات الصف (RowMenu ⋮) — قابل لإعادة الاستخدام ════════════╗
+// ║  يستبدل صفّاً من 16 أيقونة بزرّ واحد ⋮ يفتح قائمة مسمّاة.                              ║
+// ║  الاستخدام:  RowMenu.open(btnEl, [{ic,label,run,color,danger,sep}])                    ║
+// ║  اللوحة موضوعة position:fixed على <body> كي لا يقصّها overflow الجدول.                 ║
+// ╚══════════════════════════════════════════════════════════════════════════════════════╝
+(function () {
+    if (window.RowMenu) return;
+    let panel = null, onDoc = null;
+
+    function build() {
+        panel = document.createElement('div');
+        panel.id = 'rowMenuPanel';
+        panel.style.cssText = 'position:fixed;z-index:9500;display:none;background:#fff;border:1px solid #dde4ed;' +
+            'border-radius:10px;box-shadow:0 10px 34px rgba(20,40,70,.20);padding:5px;min-width:210px;max-height:70vh;' +
+            'overflow:auto;font-family:inherit;direction:rtl';
+        document.body.appendChild(panel);
+    }
+
+    function close() {
+        if (panel) panel.style.display = 'none';
+        if (onDoc) { document.removeEventListener('mousedown', onDoc, true); document.removeEventListener('keydown', onKey, true); onDoc = null; }
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+
+    window.RowMenu = {
+        close,
+        open(triggerEl, items) {
+            if (!panel) build();
+            const list = (items || []).filter(Boolean);
+            if (!list.length) return;
+
+            panel.innerHTML = list.map((it, i) => it.sep
+                ? '<div style="height:1px;background:#eef2f6;margin:4px 6px"></div>'
+                : `<button type="button" data-i="${i}" style="display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;
+                     cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;text-align:right;padding:8px 10px;border-radius:7px;
+                     color:${it.danger ? '#c0392b' : '#22303f'}"
+                     onmouseover="this.style.background='${it.danger ? '#fdecea' : '#f2f6fa'}'" onmouseout="this.style.background='none'">
+                     <span style="font-size:15px;width:20px;text-align:center">${it.ic || '•'}</span><span>${it.label}</span>
+                   </button>`).join('');
+
+            panel.querySelectorAll('button[data-i]').forEach(b => {
+                b.onclick = () => { const it = list[+b.dataset.i]; close(); if (it && typeof it.run === 'function') it.run(); };
+            });
+
+            // موضع اللوحة: تحت الزرّ، وتُقلب لأعلى إن ضاق الأسفل، ولا تخرج عن الشاشة أفقياً
+            panel.style.display = 'block';
+            const r = triggerEl.getBoundingClientRect();
+            const ph = panel.offsetHeight, pw = panel.offsetWidth;
+            const below = window.innerHeight - r.bottom - 8;
+            const top = (below < ph && r.top > below) ? Math.max(6, r.top - ph - 6) : r.bottom + 6;
+            panel.style.top = top + 'px';
+            panel.style.left = Math.max(6, Math.min(r.right - pw, window.innerWidth - pw - 8)) + 'px';
+
+            onDoc = ev => { if (!panel.contains(ev.target) && ev.target !== triggerEl) close(); };
+            setTimeout(() => {
+                document.addEventListener('mousedown', onDoc, true);
+                document.addEventListener('keydown', onKey, true);
+            }, 0);
+        }
+    };
+    // أغلق القائمة عند التمرير أو تغيير حجم النافذة (موضعها ثابت فلا يتبع المحتوى)
+    window.addEventListener('scroll', () => window.RowMenu && window.RowMenu.close(), true);
+    window.addEventListener('resize', () => window.RowMenu && window.RowMenu.close());
+})();
+
+// زرّ الثلاث نقاط الموحّد
+window.rowMenuBtn = function (onclickExpr, title) {
+    return `<button class="btn" onclick="${onclickExpr}" title="${title || 'إجراءات'}"
+        style="background:#eef2f6;color:#33404d;padding:4px 10px;font-size:15px;line-height:1;font-weight:900;border-radius:7px">⋮</button>`;
 };
 
 // ╔════════════ مكوّن قائمة منسدلة قابلة للبحث (SSel) — قابل لإعادة الاستخدام ════════════╗
