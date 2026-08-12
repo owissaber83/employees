@@ -16390,10 +16390,12 @@ window.openSalesAnalytics = function () {
     document.getElementById('taskEditorOverlay')?.remove();
     const ov = document.createElement('div'); ov.id = 'taskEditorOverlay';
     ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9992;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px';
-    const kpi = (l, v, c) => `<div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border-bottom:3px solid ${c}"><div style="font-size:11px;color:#666">${l}</div><div style="font-size:18px;font-weight:900;color:${c}">${v}</div></div>`;
+    // data-sa-kpi يحمل عنوان المؤشّر — تقرأه الطباعة من العنصر المعروض نفسه،
+    // فلا يختلف المطبوع عن الشاشة ولا يُعاد حساب أي رقم مرتين.
+    const kpi = (l, v, c) => `<div style="background:#fff;border-radius:10px;padding:12px;text-align:center;border-bottom:3px solid ${c}"><div style="font-size:11px;color:#666">${l}</div><div data-sa-kpi="${l}" style="font-size:18px;font-weight:900;color:${c}">${v}</div></div>`;
     ov.innerHTML = `<div style="background:#f4f7f6;border-radius:14px;max-width:860px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">📈 تحليلات المبيعات</div><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div>
-        <div style="padding:16px;max-height:78vh;overflow:auto">
+        <div style="background:linear-gradient(135deg,#1a3a5c,#2d6a9f);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:900">📈 تحليلات المبيعات</div><div style="display:flex;gap:8px;align-items:center"><button onclick="printSalesAnalytics()" title="طباعة التقرير" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:5px 12px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">🖨️ طباعة</button><button onclick="document.getElementById('taskEditorOverlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:7px;cursor:pointer">✖</button></div></div>
+        <div id="saPrintBody" style="padding:16px;max-height:78vh;overflow:auto">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px">
                 ${kpi('إجمالي المبيعات', fmt(totalSales), '#2d6a9f')}${kpi('الضريبة', fmt(totalVat), '#8e44ad')}${kpi('المحصّل', fmt(totalPaid), '#16a085')}${kpi('المتبقي', fmt(totalSales - totalPaid), '#c0392b')}${kpi('عدد الفواتير', invs.length, '#1a3a5c')}
             </div>
@@ -16407,6 +16409,78 @@ window.openSalesAnalytics = function () {
     document.body.appendChild(ov);
     setTimeout(drawSalesAnalyticsCharts, 60);
 };
+// 🖨️ طباعة تقرير تحليلات المبيعات
+// ⚠️ الرسوم على <canvas>: نسخ عناصرها إلى نافذة الطباعة يُخرج مربعات فارغة،
+//    لأن محتوى canvas بكسلات لا HTML. الحل: toDataURL() لتحويل كل رسم إلى صورة.
+//    ولنفس السبب لا تُستعمل متغيّرات CSS هنا — المستند مستقل لا يرث الأنماط.
+window.printSalesAnalytics = function () {
+    const body = document.getElementById('saPrintBody');
+    if (!body) { toast('افتح التحليلات أولاً', 'er'); return; }
+    const co = (window.cfg?.companyAr) || (typeof cfg !== 'undefined' && cfg.companyAr) || 'شركة جي بي آر للمقاولات';
+
+    // استنساخ محتوى النافذة كما هو — التقرير المطبوع يجب أن يطابق الشاشة.
+    const clone = body.cloneNode(true);
+
+    // ⚠️ <canvas> لا يُنسخ محتواه مع العنصر (بكسلات لا HTML) — يخرج فارغاً.
+    //    نستبدل كل واحد بصورة بأبعاده **المعروضة** كي لا يتغيّر التخطيط.
+    const srcCanvases = body.querySelectorAll('canvas');
+    const dstCanvases = clone.querySelectorAll('canvas');
+    srcCanvases.forEach((c, i) => {
+        const dst = dstCanvases[i]; if (!dst) return;
+        const box = c.getBoundingClientRect();
+        let url = '';
+        try {
+            // خلفية بيضاء: canvas شفاف افتراضياً فيخرج داكناً في بعض الطابعات
+            const t = document.createElement('canvas');
+            t.width = c.width; t.height = c.height;
+            const x = t.getContext('2d');
+            x.fillStyle = '#fff'; x.fillRect(0, 0, t.width, t.height); x.drawImage(c, 0, 0);
+            url = t.toDataURL('image/png');
+        } catch (e) { }
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.cssText = `width:${Math.round(box.width)}px;max-width:100%;height:auto;display:block`;
+        dst.replaceWith(img);
+    });
+
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تحليلات المبيعات — ${esc(co)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 10mm }
+  * { box-sizing: border-box }
+  body { font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif; color:#22303f; direction:rtl;
+         margin:0 auto; padding:14px; max-width:900px; background:#fff }
+  /* صنف .card المستخدم داخل النافذة — نعيد تعريفه هنا لأن المستند مستقل */
+  .card { background:#fff; border-radius:12px; border:1px solid #e6ebf0; box-shadow:none }
+  .hd { display:flex; justify-content:space-between; align-items:flex-start;
+        border-bottom:3px solid #1a3a5c; padding-bottom:9px; margin-bottom:12px }
+  .co { font-size:18px; font-weight:900; color:#1a3a5c }
+  .ttl { font-size:14px; font-weight:800; margin-top:2px }
+  .meta { font-size:11px; color:#667; text-align:left; line-height:1.8 }
+  .ft { margin-top:14px; padding-top:7px; border-top:1px solid #eef2f6;
+        text-align:center; font-size:8.5px; color:#aab4bf }
+  img { break-inside: avoid; page-break-inside: avoid }
+  .card { break-inside: avoid; page-break-inside: avoid }
+  @media print { body { max-width:none; padding:6mm } .noprint { display:none } }
+</style></head><body>
+  <div class="hd">
+    <div><div class="co">🏗️ ${esc(co)}</div><div class="ttl">📈 تقرير تحليلات المبيعات</div></div>
+    <div class="meta">📅 ${new Date().toLocaleDateString('en-CA')}<br>🕐 ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</div>
+  </div>
+  ${clone.innerHTML}
+  <div class="ft">${window.APP_NAME || 'بنيان'}</div>
+  <div class="noprint" style="text-align:center;margin-top:16px">
+    <button onclick="window.print()" style="background:#1a3a5c;color:#fff;border:0;padding:9px 26px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit">🖨️ طباعة / حفظ PDF</button>
+  </div>
+</body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { toast('السماح بالنوافذ المنبثقة مطلوب للطباعة', 'er'); return; }
+    w.document.write(html); w.document.close();
+};
+
 window._saCharts = window._saCharts || {};
 function drawSalesAnalyticsCharts() {
     if (!window.Chart) return; Object.values(window._saCharts).forEach(c => { try { c.destroy(); } catch (e) { } }); window._saCharts = {};
