@@ -22276,7 +22276,7 @@ function fillBulkEmpsList() {
     }
     activeEmps.sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
     container.innerHTML = activeEmps.map(([k, e]) => `
-        <label data-emp-row="1" data-search="${esc(((e.name || '') + ' ' + (e.job || '') + ' ' + (e.dept || '')).toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:6px;border:1px solid #e0e8f0;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'">
+        <label data-emp-row="1" data-scope="${esc(e.affiliationType === 'project' ? 'p:' + (e.projectId || '') : (e.dept ? 'd:' + e.dept : ''))}" data-search="${esc(((e.name || '') + ' ' + (e.job || '') + ' ' + (e.dept || '') + ' ' + (e.projectName || '')).toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:6px;border:1px solid #e0e8f0;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'">
             <input type="checkbox" data-emp-id="${k}" data-emp-name="${(e.name||'').replace(/"/g,'&quot;')}" class="bulk-emp-cb" onchange="updateBulkSelectedCount()" style="width:16px;height:16px;cursor:pointer">
             <div style="flex:1;min-width:0;overflow:hidden">
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name || '-')}</div>
@@ -22286,18 +22286,48 @@ function fillBulkEmpsList() {
     `).join('');
     // أعِد تطبيق البحث القائم حتى لا تُلغى الفلترة عند تحديث قائمة الموظفين
     const q = $('atBulkSearch')?.value || '';
-    if (q.trim()) atFilterBulkEmps(q); else updateBulkSelectedCount();
+    fillBulkScopeSelect(activeEmps);
+    if (($('atBulkSearch')?.value || '').trim() || ($('atBulkScope')?.value || '')) atFilterBulkEmps();
+    else updateBulkSelectedCount();
 }
 
 // 🔍 بحث داخل قائمة التحضير — يُخفي غير المطابق ولا يلغي تحديده،
 // فلا يضيع اختيارك السابق كلما غيّرت نصّ البحث.
-window.atFilterBulkEmps = function (q) {
+// يملأ قائمة «الجهة» من انتماءات الموظفين المعروضين فعلاً.
+// الموظف ينتمي **إمّا** لإدارة **أو** لمشروع (affiliationType)، فلا معنى
+// لقائمتين منفصلتين — قائمة واحدة بمجموعتين تعكس النموذج كما هو.
+function fillBulkScopeSelect(activeEmps) {
+    const sel = $('atBulkScope'); if (!sel) return;
+    const cur = sel.value;
+    const depts = new Set(), projs = new Map();
+    activeEmps.forEach(([, e]) => {
+        if (e.affiliationType === 'project') {
+            if (e.projectId) projs.set(e.projectId, e.projectName || (window.projects || {})[e.projectId]?.name || e.projectId);
+        } else if (e.dept) depts.add(e.dept);
+    });
+    const dOpts = [...depts].sort((a, b) => a.localeCompare(b, 'ar'))
+        .map(d => `<option value="d:${esc(d)}">${esc(d)}</option>`).join('');
+    const pOpts = [...projs.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ar'))
+        .map(([id, nm]) => `<option value="p:${esc(id)}">${esc(nm)}</option>`).join('');
+    sel.innerHTML = '<option value="">🏢 كل الجهات</option>'
+        + (dOpts ? `<optgroup label="🏢 الإدارات">${dOpts}</optgroup>` : '')
+        + (pOpts ? `<optgroup label="🏗️ المشاريع (المواقع)">${pOpts}</optgroup>` : '');
+    // أعِد الاختيار السابق إن كان ما زال موجوداً (تحديث القائمة لا يُلغي الفلتر)
+    if (cur && sel.querySelector(`option[value="${CSS.escape(cur)}"]`)) sel.value = cur;
+}
+
+// 🔍 فلترة قائمة التحضير: نص حرّ + جهة (مشروع/إدارة) معاً.
+// تُخفي غير المطابق ولا تلغي تحديده، فلا يضيع اختيارك عند تغيير الفلتر.
+window.atFilterBulkEmps = function () {
     const container = $('atBulkEmpsList'); if (!container) return;
-    const term = (q || '').trim().toLowerCase();
+    const term = ($('atBulkSearch')?.value || '').trim().toLowerCase();
+    const scope = $('atBulkScope')?.value || '';
     const rows = container.querySelectorAll('[data-emp-row]');
     let shown = 0;
     rows.forEach(r => {
-        const hit = !term || (r.getAttribute('data-search') || '').includes(term);
+        const okText = !term || (r.getAttribute('data-search') || '').includes(term);
+        const okScope = !scope || (r.getAttribute('data-scope') || '') === scope;
+        const hit = okText && okScope;
         r.style.display = hit ? '' : 'none';
         if (hit) shown++;
     });
@@ -22305,7 +22335,7 @@ window.atFilterBulkEmps = function (q) {
     if (info) {
         const hiddenSel = [...container.querySelectorAll('.bulk-emp-cb:checked')]
             .filter(cb => cb.closest('[data-emp-row]')?.style.display === 'none').length;
-        info.textContent = term
+        info.textContent = (term || scope)
             ? `عُرض ${shown} من ${rows.length}${hiddenSel ? ` · ${hiddenSel} محدد مخفي` : ''}`
             : '';
     }

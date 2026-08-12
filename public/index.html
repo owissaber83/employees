@@ -1436,7 +1436,12 @@
                         </div>
                         <div style="margin-top:16px">
                             <label style="font-size:13px;font-weight:700;color:#1a3a5c;display:block;margin-bottom:8px">اختر الموظفين *</label>
-                            <input type="text" id="atBulkSearch" oninput="atFilterBulkEmps(this.value)" placeholder="🔍 ابحث بالاسم أو الوظيفة أو الإدارة..." style="width:100%;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                                <input type="text" id="atBulkSearch" oninput="atFilterBulkEmps()" placeholder="🔍 ابحث بالاسم أو الوظيفة..." style="flex:2;min-width:200px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box">
+                                <select id="atBulkScope" onchange="atFilterBulkEmps()" title="اعرض موظفي مشروع أو إدارة بعينها" style="flex:1;min-width:190px;padding:8px 12px;border:1.5px solid #d0d7e0;border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box">
+                                    <option value="">🏢 كل الجهات</option>
+                                </select>
+                            </div>
                             <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
                                 <button class="btn b-b" style="padding:5px 12px;font-size:11px" onclick="bulkSelectAllEmps(true)">✅ تحديد الكل</button>
                                 <button class="btn b-gr" style="padding:5px 12px;font-size:11px" onclick="bulkSelectAllEmps(false)">❌ إلغاء التحديد</button>
@@ -19961,7 +19966,7 @@
     </script>
 
     <!-- 💻 المنطق في ملف منفصل -->
-    <script type="module" src="app.js?v=20260809-prjfix"></script>
+    <script type="module" src="app.js?v=20260812-scope1"></script>
 
     <!-- 💰 وحدة المحاسبة (defer = ينتظر app.js المُحمَّل كـ module) -->
     <script defer src="accounting.js?v=20260809-hr3"></script>
