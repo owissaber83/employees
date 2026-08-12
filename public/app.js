@@ -22267,6 +22267,42 @@ function initAttendanceAdminCard() {
 }
 
 // ── التحضير الشهري الجماعي ─────────────────
+
+// 📅 أيام العمل في شهر ما بعد استثناء العطلة الأسبوعية والإجازات الرسمية.
+// مصدر واحد يستخدمه التنفيذ (doBulkMonthlyAttendance) والعرض (شارات
+// «محضّر مسبقاً») — فلا يعد المستخدمُ يوماً ويُنفّذ النظام آخر.
+function atMonthWorkDays(month, skipMode) {
+    const out = { dates: [], holidaySkipped: 0 };
+    if (!month) return out;
+    const [y, m] = month.split('-').map(Number);
+    if (!y || !m) return out;
+    const lastDay = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= lastDay; d++) {
+        const dow = new Date(y, m - 1, d).getDay();   // 0=الأحد … 5=الجمعة 6=السبت
+        let skip = false;
+        if (skipMode === 'fri_sat' && (dow === 5 || dow === 6)) skip = true;
+        else if (skipMode === 'fri' && dow === 5) skip = true;
+        else if (skipMode === 'sat_sun' && (dow === 6 || dow === 0)) skip = true;
+        const ds = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        if (!skip && typeof isHoliday === 'function' && isHoliday(ds)) { skip = true; out.holidaySkipped++; }
+        if (!skip) out.dates.push(ds);
+    }
+    return out;
+}
+
+// تغطية موظف في شهر: كم يوم عمل مطلوب له فعلاً وكم منها محضَّر.
+// «المطلوب» يستثني أيام إجازاته المعتمدة — تماماً كما يفعل التنفيذ، وإلا
+// ظهر من هو في إجازة «محضّراً جزئياً» أبداً ولا يكتمل.
+function atEmpCoverage(empId, dates) {
+    const empLeaves = Object.values(window.leaves || {}).filter(lv => lv.empKey === empId && lv.status === 'approved');
+    const onLeave = ds => empLeaves.some(lv => ds >= lv.from && ds <= lv.to);
+    const need = dates.filter(ds => !onLeave(ds));
+    const haveSet = new Set(Object.values(window.attendance || {})
+        .filter(a => a.employeeId === empId).map(a => a.date));
+    const have = need.filter(ds => haveSet.has(ds)).length;
+    return { need: need.length, have, full: need.length > 0 && have >= need.length };
+}
+
 function fillBulkEmpsList() {
     const container = $('atBulkEmpsList'); if (!container) return;
     const activeEmps = Object.entries(emp).filter(([, e]) => e.status !== 'inactive');
@@ -22275,21 +22311,49 @@ function fillBulkEmpsList() {
         return;
     }
     activeEmps.sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
-    container.innerHTML = activeEmps.map(([k, e]) => `
-        <label data-emp-row="1" data-scope="${esc(e.affiliationType === 'project' ? 'p:' + (e.projectId || '') : (e.dept ? 'd:' + e.dept : ''))}" data-search="${esc(((e.name || '') + ' ' + (e.job || '') + ' ' + (e.dept || '') + ' ' + (e.projectName || '')).toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border-radius:6px;border:1px solid #e0e8f0;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'">
-            <input type="checkbox" data-emp-id="${k}" data-emp-name="${(e.name||'').replace(/"/g,'&quot;')}" class="bulk-emp-cb" onchange="updateBulkSelectedCount()" style="width:16px;height:16px;cursor:pointer">
+
+    // 📅 تغطية الشهر المختار: من حُضِّر بالكامل يُعطَّل، ومن حُضِّر جزئياً يُوسَم.
+    // الحساب من المصدر نفسه الذي ينفّذه doBulkMonthlyAttendance.
+    const month = $('atBulkMonth')?.value || '';
+    const skipMode = $('atBulkSkipWeekend')?.value || 'fri_sat';
+    const { dates } = atMonthWorkDays(month, skipMode);
+    let fullCount = 0;
+
+    container.innerHTML = activeEmps.map(([k, e]) => {
+        const cov = dates.length ? atEmpCoverage(k, dates) : { need: 0, have: 0, full: false };
+        if (cov.full) fullCount++;
+        const badge = !dates.length ? ''
+            : cov.full
+                ? `<span title="لا حاجة لإعادة التحضير" style="font-size:10px;font-weight:800;color:var(--hr-ok-d);background:var(--hr-sf-ok);border-radius:8px;padding:2px 7px;white-space:nowrap">✅ محضّر (${cov.have})</span>`
+                : cov.have > 0
+                    ? `<span title="سيُكمَل الناقص فقط" style="font-size:10px;font-weight:800;color:var(--hr-warn-d);background:var(--hr-sf4);border-radius:8px;padding:2px 7px;white-space:nowrap">◐ ${cov.have}/${cov.need}</span>`
+                    : '';
+        return `
+        <label data-emp-row="1" ${cov.full ? 'data-prepared="1"' : ''} data-scope="${esc(e.affiliationType === 'project' ? 'p:' + (e.projectId || '') : (e.dept ? 'd:' + e.dept : ''))}" data-search="${esc(((e.name || '') + ' ' + (e.job || '') + ' ' + (e.dept || '') + ' ' + (e.projectName || '')).toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${cov.full ? '#f6f8fa' : 'white'};border-radius:6px;border:1px solid #e0e8f0;cursor:${cov.full ? 'not-allowed' : 'pointer'};opacity:${cov.full ? '.62' : '1'};transition:all .15s" ${cov.full ? '' : `onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='#e0e8f0'"`}>
+            <input type="checkbox" data-emp-id="${k}" data-emp-name="${(e.name||'').replace(/"/g,'&quot;')}" class="bulk-emp-cb" ${cov.full ? 'disabled' : ''} onchange="updateBulkSelectedCount()" style="width:16px;height:16px;cursor:${cov.full ? 'not-allowed' : 'pointer'}">
             <div style="flex:1;min-width:0;overflow:hidden">
                 <div style="font-size:13px;font-weight:700;color:#1a3a5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name || '-')}</div>
                 <div style="font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.job || ''}${e.dept ? ' · ' + e.dept : ''}</div>
             </div>
-        </label>
-    `).join('');
+            ${badge}
+        </label>`;
+    }).join('');
+
+    // ملخّص أعلى القائمة: كم موظفاً لا يحتاج تحضيراً لهذا الشهر
+    const note = $('atBulkPreparedNote');
+    if (note) note.innerHTML = (dates.length && fullCount)
+        ? `✅ <b>${fullCount}</b> موظف محضَّر بالكامل لهذا الشهر — مُعطَّل ولا يُحدَّد.`
+        : '';
     // أعِد تطبيق البحث القائم حتى لا تُلغى الفلترة عند تحديث قائمة الموظفين
     const q = $('atBulkSearch')?.value || '';
     fillBulkScopeSelect(activeEmps);
     if (($('atBulkSearch')?.value || '').trim() || ($('atBulkScope')?.value || '')) atFilterBulkEmps();
     else updateBulkSelectedCount();
 }
+
+// تُستدعى من onchange في index.html (الشهر/نمط العطلة). app.js وحدة ES،
+// فدوالّها ليست عامة — والمعالجات المكتوبة في HTML تُنفَّذ في النطاق العام.
+window.fillBulkEmpsList = fillBulkEmpsList;
 
 // 🔍 بحث داخل قائمة التحضير — يُخفي غير المطابق ولا يلغي تحديده،
 // فلا يضيع اختيارك السابق كلما غيّرت نصّ البحث.
@@ -22458,8 +22522,10 @@ window.updateBulkSelectedCount = function () {
 };
 
 window.bulkSelectAllEmps = function (selectAll) {
-    // يعمل على المعروض فقط أثناء البحث — لا يُحدِّد موظفين لا يراهم المستخدم
+    // يعمل على المعروض فقط أثناء البحث — لا يُحدِّد موظفين لا يراهم المستخدم،
+    // ولا يلمس المحضَّرين بالكامل (معطَّلون لهذا الشهر).
     document.querySelectorAll('.bulk-emp-cb').forEach(cb => {
+        if (cb.disabled) return;
         if (cb.closest('[data-emp-row]')?.style.display === 'none') return;
         cb.checked = selectAll;
     });
@@ -22477,23 +22543,9 @@ window.doBulkMonthlyAttendance = async function () {
     const selected = Array.from(document.querySelectorAll('.bulk-emp-cb:checked'));
     if (!selected.length) { status.textContent = '⚠️ اختر موظفاً واحداً على الأقل'; return }
 
-    // حساب أيام الشهر
-    const [y, m] = month.split('-').map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    const dates = [];
-    let holidaySkipped = 0;   // أيام استُثنيت لأنها إجازات رسمية — نُظهرها في التأكيد
-    for (let d = 1; d <= lastDay; d++) {
-        const dt = new Date(y, m - 1, d);
-        const dow = dt.getDay(); // 0=Sun, 5=Fri, 6=Sat
-        let skip = false;
-        if (skipMode === 'fri_sat' && (dow === 5 || dow === 6)) skip = true;
-        else if (skipMode === 'fri' && dow === 5) skip = true;
-        else if (skipMode === 'sat_sun' && (dow === 6 || dow === 0)) skip = true;
-        const ds = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        // 🎉 لا تُحضِّر أحداً في إجازة رسمية (عيد/وطني/تأسيس) — تدخل الرواتب وتقارير التكلفة
-        if (!skip && isHoliday(ds)) { skip = true; holidaySkipped++; }
-        if (!skip) dates.push(ds);
-    }
+    // حساب أيام الشهر — من المصدر المشترك نفسه الذي تعتمده شارات «محضّر مسبقاً»،
+    // فلا يختلف ما يراه المستخدم عمّا يُنفَّذ فعلاً.
+    const { dates, holidaySkipped } = atMonthWorkDays(month, skipMode);
 
     // تأكيد
     const totalOps = selected.length * dates.length;
