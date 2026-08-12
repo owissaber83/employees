@@ -3,10 +3,15 @@
     "firebase": "^12.13.0"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^4.0.1"
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "eslint": "^10.8.1",
+    "globals": "^17.10.0"
   },
   "scripts": {
     "deploy": "firebase deploy --only hosting",
-    "test:rules": "firebase emulators:exec --only database --project demo-gbr-rules \"node tests/rules.test.mjs\""
+    "test:rules": "firebase emulators:exec --only database --project demo-gbr-rules \"node tests/rules.test.mjs\"",
+    "lint": "eslint . --quiet",
+    "lint:all": "eslint .",
+    "lint:globals": "node scripts/gen-eslint-globals.mjs"
   }
 }
