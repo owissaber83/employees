@@ -14,6 +14,20 @@
         ".write": "auth != null && ((!data.exists() && newData.exists() && (auth.uid === $uid || root.child('tenants').child(newData.child('tenantId').val()).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('operators').child(auth.uid).val() === true)) || (!newData.exists() && data.exists() && (root.child('tenants').child(data.child('tenantId').val()).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('operators').child(auth.uid).val() === true)))"
       }
     },
+    "portalSnapshots": {
+      "$token": {
+        ".read": "true",
+        ".write": "auth != null && ( ( !data.exists() && newData.exists() && root.child('tenants').child(newData.child('tid').val()).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child(newData.child('tid').val()).child('ledger/users').child(auth.uid).child('active').val() !== false ) || ( data.exists() && root.child('tenants').child(data.child('tid').val()).child('ledger/users').child(auth.uid).exists() ) )"
+      }
+    },
+    "portalResponses": {
+      "$token": {
+        ".read": "auth != null && root.child('portalSnapshots').child($token).child('tid').val() !== null && root.child('tenants').child(root.child('portalSnapshots').child($token).child('tid').val()).child('ledger/users').child(auth.uid).exists()",
+        "$rid": {
+          ".write": "!data.exists() && newData.exists() && root.child('portalSnapshots').child($token).exists() && root.child('portalSnapshots').child($token).child('revoked').val() !== true && newData.hasChildren(['billId','action','by','at']) && (newData.child('action').val() === 'approve' || newData.child('action').val() === 'reject' || newData.child('action').val() === 'note') && newData.child('by').isString() && newData.child('by').val().length <= 80 && newData.child('billId').isString() && newData.child('billId').val().length <= 200 && (!newData.child('note').exists() || newData.child('note').val().length <= 1000)"
+        }
+      }
+    },
     "tenants": {
       ".read": "auth != null && root.child('operators').child(auth.uid).val() === true",
       "$tid": {

@@ -260,6 +260,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('photos',    `📷 الصور${(() => { const n = Object.keys((window.projectPhotos || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('markup',    `✏️ تأشير المخططات${(() => { const n = Object.keys((window.projectMarkups || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('meetings',  `📝 الاجتماعات والمحاضر${(() => { const n = Object.values((window.meetings || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('portal',    `🔗 بوابة العميل${(window.projects || {})[projectId]?.portalToken ? ' 🟢' : ''}`)}
         ${pdTabBtn('tenders',   `📢 المناقصات${(() => { const n = Object.values((window.tenders || {})[projectId] || {}).filter(r => ['open', 'evaluating'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
         ${pdTabBtn('docs',      '📁 المستندات والتقارير')}
@@ -290,6 +291,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-photos"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-markup"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-meetings"  class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-portal"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-tenders"   class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-docs"      class="pd-tab-pane" style="display:none"></div>
@@ -358,6 +360,7 @@ function pdRenderTab(tab) {
     if (tab === 'photos')    pdRenderPhotos(pid);
     if (tab === 'markup' && typeof pdRenderMarkupTab === 'function') pdRenderMarkupTab(pid);
     if (tab === 'meetings')  pdRenderMeetings(pid);
+    if (tab === 'portal')    pdRenderPortalMgr(pid);
     if (tab === 'tenders')   pdRenderTenders(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
     if (tab === 'docs')      pdRenderDocsAndReports(pid);
@@ -5030,6 +5033,85 @@ window.pdRunWhatIf = function (pid) {
         </div>` : ''}
     </div>`;
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// ║  🔗 بوابة العميل — توليد رابط + لقطة عامة + صندوق ردود (اعتماد استشاري)      ║
+// ══════════════════════════════════════════════════════════════════════════
+function pdGenToken() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+window.pdGenPortalLink = async function (pid) {
+    const p = (window.projects || {})[pid]; if (!p) return;
+    const token = p.portalToken || pdGenToken();
+    const billings = {};
+    Object.entries(window.progressBillings || {}).forEach(([k, b]) => {
+        if (b.projectId === pid && ['submitted', 'approved', 'paid'].includes(b.status)) {
+            billings[k] = { no: b.billingNo || 0, date: b.billingDate || '', current: pdNum(b.currentAmount), net: pdNum(b.netAmount), retention: pdNum(b.retentionAmount), status: b.status };
+        }
+    });
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', clientName: p.clientName || p.client || '', company: window.currentTenantName || 'الشركة', party: 'client', createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, billings };
+    try {
+        await set(_rawRef(db, 'portalSnapshots/' + token), snap);
+        await update(ref(db, 'ledger/projects/' + pid), { portalToken: token, portalUpdatedAt: Date.now() });
+        if (window.projects[pid]) window.projects[pid].portalToken = token;
+        toast('✅ تم إنشاء/تحديث رابط البوابة (' + Object.keys(billings).length + ' مستخلص)', 'ok');
+        pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر إنشاء الرابط: ' + (e.message || e), 'er'); }
+};
+window.pdRevokePortalLink = async function (pid) {
+    const p = (window.projects || {})[pid]; const token = p && p.portalToken; if (!token) return;
+    if (!await cf2('إلغاء رابط البوابة؟ لن يعود العميل قادراً على فتحه.')) return;
+    try {
+        await update(_rawRef(db, 'portalSnapshots/' + token), { revoked: true });
+        await update(ref(db, 'ledger/projects/' + pid), { portalToken: null });
+        if (window.projects[pid]) delete window.projects[pid].portalToken;
+        toast('تم إلغاء الرابط', 'ok'); pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر الإلغاء', 'er'); }
+};
+window.pdCopyPortal = function (url) { navigator.clipboard.writeText(url).then(() => toast('✅ نُسخ الرابط', 'ok')).catch(() => toast('انسخه يدوياً: ' + url, 'ok')); };
+function pdRenderPortalMgr(pid) {
+    const pane = document.getElementById('pd-tab-portal'); if (!pane) return;
+    const p = (window.projects || {})[pid] || {};
+    const token = p.portalToken;
+    const url = token ? (location.origin + location.pathname + '#portal=' + token) : '';
+    const head = `<div class="card" style="margin-bottom:14px;border-right:4px solid var(--pd-pri)">
+        <div class="c-tl">🔗 بوابة العميل — اطّلاع واعتماد استشاري</div>
+        <p style="font-size:12.5px;color:#777;margin:6px 0 0;line-height:1.85">شارك مع العميل رابطاً آمناً يعرض <b>مستخلصات المشروع</b> ليطّلع عليها ويعتمدها أو يضيف ملاحظة — <b>دون تسجيل دخول ودون وصول لبياناتك</b>. تصل ردوده هنا (استشارية)، وتعتمدها أنت داخلياً من صفحة المستخلصات.</p>
+    </div>`;
+    if (!token) {
+        pane.innerHTML = head + `<div class="card" style="text-align:center;padding:26px">
+            <div style="font-size:40px">🔗</div>
+            <p style="color:#666;font-size:13px;margin:8px 0 14px">لا يوجد رابط بعد. أنشئ رابطاً يتضمّن المستخلصات المُرسَلة والمعتمدة لهذا المشروع.</p>
+            <button class="btn b-g" onclick="pdGenPortalLink('${pid}')">➕ إنشاء رابط البوابة</button>
+        </div>`;
+        return;
+    }
+    pane.innerHTML = head + `
+    <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--pd-bd);border-radius:8px;font-size:12px;direction:ltr;text-align:left">
+            <button class="btn b-b" onclick="pdCopyPortal('${url}')">📋 نسخ</button>
+            <a class="btn" href="https://wa.me/?text=${encodeURIComponent('رابط اعتماد مستخلصات مشروع ' + (p.name || '') + ':\n' + url)}" target="_blank" style="background:#25d366;color:#fff;text-decoration:none">💬 واتساب</a>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn" onclick="pdGenPortalLink('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="تحديث اللقطة بأحدث المستخلصات">🔄 تحديث اللقطة</button>
+            <button class="btn" onclick="pdRevokePortalLink('${pid}')" style="background:var(--pd-sf-danger);color:var(--pd-danger)">🚫 إلغاء الرابط</button>
+        </div>
+    </div>
+    <div class="card"><div class="c-tl" style="font-size:14px">📥 صندوق ردود العميل</div><div id="pd-portal-inbox" style="margin-top:10px;color:#888;font-size:12.5px">⏳ جارِ التحميل…</div></div>`;
+    get(_rawRef(db, 'portalResponses/' + token)).then(sn => {
+        const box = document.getElementById('pd-portal-inbox'); if (!box) return;
+        if (!sn.exists()) { box.innerHTML = '<div style="text-align:center;padding:14px;color:#999">لا ردود بعد — بانتظار اطّلاع العميل</div>'; return; }
+        const rows = Object.values(sn.val()).sort((a, b) => (b.at || 0) - (a.at || 0));
+        const bmap = window.progressBillings || {};
+        const actLabel = a => a === 'approve' ? ['✅ اعتماد', 'var(--pd-ok)', 'var(--pd-sf-ok)'] : a === 'reject' ? ['❌ رفض', 'var(--pd-danger)', 'var(--pd-sf-danger)'] : ['📝 ملاحظة', 'var(--pd-blue)', '#eef3fb'];
+        box.innerHTML = rows.map(r => { const [lb, c, bg] = actLabel(r.action); const b = bmap[r.billId]; return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-bottom:8px;background:${bg}">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.by || 'عميل')} — <span style="color:${c}">${lb}</span></div>
+                <div style="font-size:10.5px;color:#999">${r.at ? new Date(r.at).toLocaleString('ar') : ''}</div>
+            </div>
+            <div style="font-size:11.5px;color:#666;margin-top:4px">على: مستخلص رقم ${b ? (b.billingNo || '—') : '—'}${r.note ? ` · «${esc(r.note)}»` : ''}</div>
+        </div>`; }).join('');
+    }).catch(() => { const box = document.getElementById('pd-portal-inbox'); if (box) box.innerHTML = '<div style="color:var(--pd-danger)">تعذّر تحميل الردود</div>'; });
+}
 
 // ── عرض جانت لمهام المشروع ─────────────────
 function pdRenderTasksGantt(pid, tasks, today) {

@@ -63,6 +63,10 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   // المستأجر منتهي الاشتراك
   await set(ref(db, 'tenants/EXP/meta'), { createdBy: 'adminE', accessUntil: PAST });
   await set(ref(db, 'tenants/EXP/ledger/users/adminE'), { role: 'admin', active: true });
+  // [PORTAL] لقطة بوابة عميل (مستأجر A) + لقطة ملغاة + ردّ موجود (لاختبار الإلحاق فقط)
+  await set(ref(db, 'portalSnapshots/TOK1'), { tid: 'A', projectId: 'p1', projectName: 'مشروع', revoked: false, billings: { b1: { no: 1, net: 1000, status: 'submitted' } } });
+  await set(ref(db, 'portalSnapshots/TOKREV'), { tid: 'A', projectId: 'p1', revoked: true });
+  await set(ref(db, 'portalResponses/TOK1/seedR'), { billId: 'b1', action: 'note', by: 'عميل', at: 100 });
 });
 
 // ── سياقات المستخدمين ──────────────────────────────────────────────────────
@@ -462,6 +466,26 @@ await test('موظف HR لا يكتب خطراً', assertFails(set(ref(db.hrA, '
 await test('مشاهد لا يقرأ سجل المخاطر', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/projectRisks/p1'))));
 await test('عزل: مدير مشروع A لا يكتب مخاطر في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/projectRisks/p1/hack'), { title: 'x' })));
 await test('اشتراك منتهٍ يمنع تسجيل خطر', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/projectRisks/p1/x'), { title: 'x' })));
+
+console.log('\n🔗 بوابة العميل/المقاول [PORTAL] — لقطة عامة بالرمز + ردود إلحاقية معزولة (اعتماد استشاري):');
+// قراءة اللقطة عامة (بلا حساب) لمن يملك الرمز — هذا هو أساس الوصول الخارجي
+await test('زائر (بلا حساب) يقرأ لقطة البوابة بالرمز', assertSucceeds(get(ref(db.unauth, 'portalSnapshots/TOK1'))));
+// زائر يُلحق ردّاً صالحاً على لقطة سارية
+await test('زائر يُلحق ردّ اعتماد صالحاً', assertSucceeds(set(ref(db.unauth, 'portalResponses/TOK1/r1'), { billId: 'b1', action: 'approve', by: 'العميل', at: Date.now() })));
+// تصلّب: زائر لا يُنشئ/يزوّر لقطة بوابة
+await test('زائر لا يُنشئ لقطة بوابة (تزوير)', assertFails(set(ref(db.unauth, 'portalSnapshots/HACK'), { tid: 'A', projectId: 'p1' })));
+// تحقّق الشكل: إجراء غير مسموح / حقول ناقصة
+await test('زائر لا يُلحق ردّاً بإجراء غير مسموح', assertFails(set(ref(db.unauth, 'portalResponses/TOK1/rbad'), { billId: 'b1', action: 'delete_all', by: 'x', at: 1 })));
+await test('زائر لا يُلحق ردّاً ناقص الحقول', assertFails(set(ref(db.unauth, 'portalResponses/TOK1/rmiss'), { action: 'approve' })));
+// لقطة ملغاة لا تقبل ردوداً
+await test('لا ردّ على لقطة ملغاة (revoked)', assertFails(set(ref(db.unauth, 'portalResponses/TOKREV/r'), { billId: 'b1', action: 'approve', by: 'x', at: 1 })));
+// إلحاق فقط — لا تعديل ردّ موجود
+await test('لا تعديل ردّ موجود (إلحاق فقط)', assertFails(set(ref(db.unauth, 'portalResponses/TOK1/seedR'), { billId: 'b1', action: 'reject', by: 'مزوّر', at: 2 })));
+// صندوق الردود: المالك (عضو المستأجر) يقرأ، والغريب لا
+await test('عضو A يقرأ صندوق ردود بوابته', assertSucceeds(get(ref(db.adminA, 'portalResponses/TOK1'))));
+await test('غريب لا يقرأ ردود بوابة A', assertFails(get(ref(db.stranger, 'portalResponses/TOK1'))));
+// إنشاء اللقطة: عضو المستأجر فقط
+await test('عضو A يُنشئ لقطة بوابة لمستأجره', assertSucceeds(set(ref(db.adminA, 'portalSnapshots/TOKA2'), { tid: 'A', projectId: 'p1', revoked: false })));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);

@@ -1398,8 +1398,99 @@ function showScr(n) {
     $('APP').style.display = n === 'app' ? 'block' : 'none';
     if ($('OPS')) $('OPS').style.display = n === 'ops' ? 'flex' : 'none';
     if ($('LOCK')) $('LOCK').style.display = n === 'lock' ? 'flex' : 'none';
+    if ($('PORTAL')) $('PORTAL').style.display = n === 'portal' ? 'block' : 'none';
 }
 window.showScr = showScr; // يُستخدم في روابط شاشتي الدخول/التسجيل
+
+// ══ 🔗 بوابة العميل/المقاول الخارجية (اطّلاع + اعتماد استشاري — تعمل بلا تسجيل دخول) ══
+// تقرأ لقطة عامة portalSnapshots/{token} (الرمز هو السر)، وتُلحق الردود في
+// portalResponses/{token} — لا تمسّ بيانات المستأجر الحيّة إطلاقاً.
+function portalErrHtml(msg) {
+    return `<div style="max-width:520px;margin:60px auto;background:#fff;border-radius:16px;padding:42px 28px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.08)">
+        <div style="font-size:52px">🔒</div>
+        <h2 style="color:#1a3a5c;margin:14px 0 8px;font-size:20px">${msg}</h2>
+        <p style="color:#888;font-size:14px;line-height:1.8">تواصل مع الجهة التي أرسلت لك الرابط للحصول على رابط صالح.</p>
+    </div>`;
+}
+async function bootClientPortal(token) {
+    const box = document.getElementById('PORTAL');
+    showScr('portal');
+    if (box) box.innerHTML = `<div style="text-align:center;padding:80px 20px;color:#5a6b7d;font-size:15px">⏳ جارِ تحميل البوابة…</div>`;
+    try {
+        const sn = await get(_rawRef(db, 'portalSnapshots/' + token));
+        if (!sn.exists()) { if (box) box.innerHTML = portalErrHtml('الرابط غير موجود أو غير صالح'); return; }
+        const d = sn.val();
+        if (d.revoked) { if (box) box.innerHTML = portalErrHtml('تمّ إلغاء هذا الرابط'); return; }
+        if (d.expiresAt && d.expiresAt < Date.now()) { if (box) box.innerHTML = portalErrHtml('انتهت صلاحية هذا الرابط'); return; }
+        window.__portalData = { token, d, name: '', done: {} };
+        renderClientPortal();
+    } catch (e) { if (box) box.innerHTML = portalErrHtml('تعذّر تحميل البوابة — تحقّق من الاتصال'); }
+}
+function renderClientPortal() {
+    const box = document.getElementById('PORTAL'); if (!box) return;
+    const { d, name, done } = window.__portalData;
+    const partyLabel = d.party === 'sub' ? 'مقاول الباطن' : 'العميل';
+    const bills = Object.entries(d.billings || {}).sort((a, b) => (a[1].no || 0) - (b[1].no || 0));
+    const money = v => (Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+    const stBadge = s => { const m = ({ submitted: ['🔍 مُرسَل للاعتماد', '#b0730c', '#fdf3e3'], approved: ['✅ معتمد', '#1a8049', '#e7f6ee'], draft: ['📝 مسودة', '#888', '#f0f0f0'], paid: ['💵 مدفوع', '#1a8049', '#e7f6ee'] })[s] || ['—', '#888', '#eee']; return `<span style="background:${m[2]};color:${m[1]};padding:3px 10px;border-radius:7px;font-size:11px;font-weight:800">${m[0]}</span>`; };
+    const billCard = ([id, b]) => {
+        const responded = done[id];
+        return `<div style="background:#fff;border:1px solid #e3e9ef;border-radius:13px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+                <div><div style="font-size:15px;font-weight:900;color:#1a3a5c">📑 مستخلص رقم ${b.no || '—'}</div><div style="font-size:11px;color:#888;margin-top:2px">${b.date || ''}</div></div>
+                ${stBadge(b.status)}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin-top:12px">
+                <div style="background:#f5f7f9;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">قيمة المستخلص</div><div style="font-size:15px;font-weight:800;color:#2d6a9f">${money(b.current)} ﷼</div></div>
+                ${b.retention ? `<div style="background:#f5f7f9;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">محتجز الضمان</div><div style="font-size:15px;font-weight:800;color:#b0730c">${money(b.retention)} ﷼</div></div>` : ''}
+                <div style="background:#eafaf1;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">صافي المستحق</div><div style="font-size:15px;font-weight:900;color:#1a8049">${money(b.net)} ﷼</div></div>
+            </div>
+            ${responded
+                ? `<div style="margin-top:12px;background:#e7f6ee;border:1px solid #b6e2c8;border-radius:8px;padding:10px;text-align:center;font-size:12.5px;color:#1a8049;font-weight:700">✅ تمّ إرسال ردّك (${responded}) — شكراً لك</div>`
+                : `<div style="display:flex;gap:8px;margin-top:13px;flex-wrap:wrap">
+                    <button onclick="portalRespond('${id}','approve')" style="flex:1;min-width:90px;background:#1a8049;color:#fff;border:none;border-radius:8px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">✅ اعتماد</button>
+                    <button onclick="portalRespond('${id}','reject')" style="flex:1;min-width:90px;background:#fbe9e7;color:#c0392b;border:1px solid #f0bcb5;border-radius:8px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">❌ رفض</button>
+                    <button onclick="portalRespond('${id}','note')" style="background:#eef3fb;color:#2d6a9f;border:1px solid #cfe0f0;border-radius:8px;padding:11px 15px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">📝 ملاحظة</button>
+                </div>`}
+        </div>`;
+    };
+    box.innerHTML = `
+    <div style="min-height:100vh;background:linear-gradient(180deg,#1a3a5c 0,#2d6a9f 180px,#eef2f6 360px)">
+      <div style="max-width:720px;margin:0 auto;padding:28px 16px 60px">
+        <div style="text-align:center;color:#fff;margin-bottom:22px">
+            <div style="font-size:12px;opacity:.82;letter-spacing:1px">بوابة اطّلاع واعتماد — ${partyLabel}</div>
+            <h1 style="font-size:24px;font-weight:900;margin:8px 0 4px">${esc(d.company || 'الشركة')}</h1>
+            <div style="font-size:14px;opacity:.93">📁 ${esc(d.projectName || 'المشروع')}${d.clientName ? ' — ' + esc(d.clientName) : ''}</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div style="font-size:12.5px;color:#555;flex:1;min-width:180px">👋 مرحباً، راجع العناصر التالية واعتمدها أو أضف ملاحظتك. اكتب اسمك ليُوثَّق ردّك:</div>
+            <input id="portalName" value="${(name || '').replace(/"/g, '&quot;')}" oninput="window.__portalData.name=this.value" placeholder="اسمك" style="padding:9px 12px;border:1px solid #cdd8e2;border-radius:8px;font-family:inherit;font-size:13px;min-width:160px">
+        </div>
+        ${bills.length ? bills.map(billCard).join('') : '<div style="background:#fff;border-radius:12px;padding:34px;text-align:center;color:#888">لا عناصر للمراجعة حالياً</div>'}
+        <div style="text-align:center;margin-top:24px;font-size:11px;color:#9aa5b1;line-height:1.9">🔒 رابط خاص وآمن — ردودك تصل مباشرة لإدارة المشروع.<br>مدعوم بمنصّة «بُنيان» لإدارة المقاولات</div>
+      </div>
+    </div>`;
+}
+window.portalRespond = async function (billId, action) {
+    const pd = window.__portalData; if (!pd) return;
+    const name = (pd.name || '').trim();
+    if (!name) { const el = document.getElementById('portalName'); if (el) { el.style.borderColor = '#c0392b'; el.focus(); } alert('من فضلك اكتب اسمك أولاً'); return; }
+    let note = '';
+    if (action === 'reject' || action === 'note') {
+        note = prompt(action === 'reject' ? 'سبب الرفض (اختياري):' : 'اكتب ملاحظتك:') || '';
+        if (action === 'note' && !note.trim()) return;
+    }
+    try {
+        await push(_rawRef(db, 'portalResponses/' + pd.token), { billId, action, note: String(note).slice(0, 1000), by: name.slice(0, 80), at: Date.now() });
+        pd.done[billId] = action === 'approve' ? 'اعتماد' : action === 'reject' ? 'رفض' : 'ملاحظة';
+        renderClientPortal();
+    } catch (e) { alert('تعذّر إرسال ردّك — تحقّق من الاتصال وأعد المحاولة'); }
+};
+// تشغيل مسار البوابة إن حَمَل الرابط ‎#portal=token‎ (قبل تدفّق الدخول)
+(function () {
+    const m = (location.hash || '').match(/[#&]portal=([A-Za-z0-9_-]{6,})/);
+    if (m) { window.__portalMode = true; bootClientPortal(m[1]); }
+})();
 
 // 💳 [SUB] حالة اشتراك الشركة — تجربة ضمنية (TRIAL_DAYS) من تاريخ الإنشاء، أو اشتراك يحدّده المالك
 const TRIAL_DAYS = 14;
@@ -1988,6 +2079,7 @@ window.lockScreen = lockScreen;   // 🔒 للقفل اليدوي عند ترك 
 window.startIdleGuard = startIdleGuard; window.stopIdleGuard = stopIdleGuard;
 
 onAuthStateChanged(auth, async fbU => {
+    if (window.__portalMode) return; // 🔗 وضع البوابة الخارجية يتجاوز تدفّق الدخول
     if (fbU) {
         // 🚧 أثناء تسجيل شركة جديدة نؤجّل المعالجة حتى تُكتب بيانات المستأجر
         if (window.__registering) return;
