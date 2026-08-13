@@ -244,6 +244,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('billings',  '📑 المستخلصات')}
         ${pdTabBtn('evm',       '📐 الأداء (EVM)')}
         ${pdTabBtn('cvr',       `⚖️ تسوية القيمة والتكلفة`)}
+        ${pdTabBtn('bonds',     `🛡️ الضمانات والمحتجزات`)}
         ${pdTabBtn('cashflow',  '💧 التدفق النقدي')}
         ${pdTabBtn('invoices',  '🧾 فواتير المبيعات')}
         ${pdTabBtn('expenses',  '💸 المصروفات')}
@@ -286,6 +287,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-risks"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-cvr"       class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-bonds"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
@@ -355,6 +357,7 @@ function pdRenderTab(tab) {
     if (tab === 'punch')     pdRenderPunch(pid);
     if (tab === 'risks')     pdRenderRisks(pid);
     if (tab === 'cvr')       pdRenderCVR(pid);
+    if (tab === 'bonds')     pdRenderBonds(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
@@ -7022,6 +7025,124 @@ function pdRenderCVR(pid) {
                 <th style="text-align:center">الإنجاز</th>
             </tr></thead>
             <tbody>${boqHtml}</tbody>
+        </table>
+    </div>`;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   🛡️  الضمانات والمحتجزات — على مستوى المشروع                            ║
+// ║   البيانات موجودة أصلاً في «الخزينة والضمانات» (guarantees · retentions)  ║
+// ║   لكنها على مستوى الشركة، وكلاهما يحمل projectId. الفجوة كانت **عرضاً**  ║
+// ║   لا بيانات — فمدير المشروع لا يرى التزامات مشروعه ولا مستحقّاته.        ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+function pdDaysTo(d) {
+    if (!d) return null;
+    const t = new Date(d + 'T00:00:00').getTime();
+    if (isNaN(t)) return null;
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    return Math.round((t - now.getTime()) / 86400000);
+}
+
+function pdRenderBonds(pid) {
+    const pane = document.getElementById('pd-tab-bonds'); if (!pane) return;
+    // ⚠️ الخزينة تخزّن بياناتها في window._tre لا في window.guarantees،
+    //    ومستمعوها لا يُسجَّلون إلا بفتح صفحة «الخزينة والضمانات».
+    //    نستدعي treEnsureListeners() كي يعمل التبويب دون زيارتها أولاً.
+    if (typeof treEnsureListeners === 'function' && !window._treListenersDone) {
+        try { treEnsureListeners(); } catch (e) { }
+    }
+    const tre = window._tre || {};
+    const gs = Object.entries(tre.guarantees || {}).map(([k, g]) => ({ k, ...g })).filter(g => g.projectId === pid);
+    const rs = Object.entries(tre.retentions || {}).map(([k, r]) => ({ k, ...r })).filter(r => r.projectId === pid);
+
+    // المحتجزات: من العميل = مستحقّ لنا · لمقاول باطن = التزام علينا
+    const isOurs = r => !String(r.kind || '').includes('باطن');
+    const held = rs.filter(r => r.status !== 'مُفرج عنه');
+    const dueUs = pdSum(held.filter(isOurs), 'amount');
+    const owedBySub = pdSum(held.filter(r => !isOurs(r)), 'amount');
+    const releasedUs = pdSum(rs.filter(r => isOurs(r) && r.status === 'مُفرج عنه'), 'amount');
+
+    const gActive = gs.filter(g => (g.status || '') !== 'منتهٍ' && (g.status || '') !== 'مُفرج عنه');
+    const gTotal = pdSum(gActive, 'amount');
+    const gSoon = gActive.filter(g => { const d = pdDaysTo(g.expiryDate); return d != null && d <= 30; }).length;
+    const rSoon = held.filter(r => { const d = pdDaysTo(r.releaseDate); return d != null && d <= 30 && d >= 0; }).length;
+
+    const money = v => fmt(pdNum(v));
+    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
+        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
+        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
+        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
+
+    // شارة الاستحقاق: متأخّر / قريب / بعيد
+    const dueBadge = (d, lateTxt, soonTxt) => {
+        if (d == null) return '<span style="color:#8a97a5">—</span>';
+        if (d < 0) return `<span style="background:var(--pd-sf-danger);color:var(--pd-danger);border-radius:8px;padding:2px 8px;font-weight:800;white-space:nowrap">${lateTxt} ${Math.abs(d)} يوم</span>`;
+        if (d <= 30) return `<span style="background:var(--pd-sf-warn);color:var(--pd-warn);border-radius:8px;padding:2px 8px;font-weight:800;white-space:nowrap">${soonTxt} ${d} يوم</span>`;
+        return `<span style="color:#7a8896">خلال ${d} يوم</span>`;
+    };
+
+    const gRows = gs.length ? gs.sort((a, b) => (a.expiryDate || '').localeCompare(b.expiryDate || '')).map(g => {
+        const d = pdDaysTo(g.expiryDate);
+        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
+            <td style="padding:8px 9px;font-weight:700;color:var(--pd-pri)">${esc(g.type || g.refNo || '—')}</td>
+            <td style="font-size:11.5px">${esc(g.bank || '—')}</td>
+            <td style="text-align:left;font-weight:700">${money(g.amount)}</td>
+            <td style="font-size:11.5px">${esc(g.expiryDate || '—')}</td>
+            <td style="text-align:center">${dueBadge(d, '⚠️ منتهٍ منذ', '⏳ ينتهي خلال')}</td>
+            <td style="font-size:11.5px">${esc(g.status || '—')}</td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:22px">لا خطابات ضمان لهذا المشروع — تُسجَّل من «الخزينة والضمانات»</td></tr>`;
+
+    const rRows = rs.length ? rs.sort((a, b) => (a.releaseDate || '').localeCompare(b.releaseDate || '')).map(r => {
+        const d = pdDaysTo(r.releaseDate);
+        const ours = isOurs(r);
+        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
+            <td style="padding:8px 9px">
+                <span style="background:${ours ? 'var(--pd-sf-ok)' : 'var(--pd-sf-warn)'};color:${ours ? 'var(--pd-ok-d)' : 'var(--pd-warn-d)'};border-radius:8px;padding:2px 8px;font-size:10.5px;font-weight:800;white-space:nowrap">${ours ? '📥 مستحقّ لنا' : '📤 علينا'}</span>
+            </td>
+            <td style="font-size:11.5px">${esc(r.party || '—')}</td>
+            <td style="font-size:11.5px">${esc(r.billingRef || '—')}</td>
+            <td style="text-align:left;font-weight:700">${money(r.amount)}</td>
+            <td style="text-align:center;font-size:11.5px">${r.pct ? pdNum(r.pct) + '%' : '—'}</td>
+            <td style="font-size:11.5px">${esc(r.releaseDate || '—')}</td>
+            <td style="text-align:center">${r.status === 'مُفرج عنه' ? '<span style="color:var(--pd-ok);font-weight:700">✅ مُفرج</span>' : dueBadge(d, '⚠️ تأخّر', '⏳ خلال')}</td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="7" style="text-align:center;color:#aaa;padding:22px">لا محتجزات مسجّلة — تُسجَّل من «الخزينة والضمانات»</td></tr>`;
+
+    pane.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('📥', 'محتجز مستحقّ لنا', money(dueUs), 'var(--pd-acc)', 'لم يُفرَج عنه بعد')}
+        ${kpi('📤', 'محتجز علينا للباطن', money(owedBySub), 'var(--pd-warn)', 'التزام مستقبلي')}
+        ${kpi('✅', 'أُفرج عنه لنا', money(releasedUs), 'var(--pd-ok)', 'محصَّل')}
+        ${kpi('🛡️', 'ضمانات قائمة', money(gTotal), 'var(--pd-pri2)', `${gActive.length} خطاب`)}
+        ${(gSoon || rSoon) ? kpi('⏰', 'يستحقّ خلال 30 يوم', (gSoon + rSoon), 'var(--pd-danger)', `${gSoon} ضمان · ${rSoon} محتجز`) : ''}
+    </div>
+
+    <div class="hr-info" style="margin-bottom:14px;font-size:12.5px">
+        💡 تُدار هذه السجلات من صفحة <b>«الخزينة والضمانات»</b> — وهذا التبويب يعرض ما يخصّ هذا المشروع وحده.
+        المحتجز «مستحقّ لنا» مال محبوس لدى العميل يُفرَج عنه بعد التسليم وفترة الضمان.
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">🔒 محتجزات الضمان</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">الاتجاه</th><th>الجهة</th><th>المرجع</th>
+                <th style="text-align:left">المبلغ</th><th style="text-align:center">النسبة</th>
+                <th>تاريخ الإفراج</th><th style="text-align:center">الحالة</th>
+            </tr></thead>
+            <tbody>${rRows}</tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">🛡️ خطابات الضمان</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">النوع</th><th>البنك</th><th style="text-align:left">المبلغ</th>
+                <th>الانتهاء</th><th style="text-align:center">التنبيه</th><th>الحالة</th>
+            </tr></thead>
+            <tbody>${gRows}</tbody>
         </table>
     </div>`;
 }

@@ -32864,7 +32864,11 @@ function treEnsureListeners() {
     window._treListenersDone = true;
     try {
         ['guarantees', 'cheques', 'retentions'].forEach(key => {
-            onValue(R[key], sn => { window._tre[key] = sn.val() || {}; if ($('pg-treasury')?.classList.contains('act')) renderTreasury(); });
+            onValue(R[key], sn => { window._tre[key] = sn.val() || {};
+                if ($('pg-treasury')?.classList.contains('act')) renderTreasury();
+                // تبويب «الضمانات والمحتجزات» في ملف المشروع يقرأ من _tre نفسه
+                if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'bonds' && typeof pdRenderTab === 'function') pdRenderTab('bonds');
+            });
         });
     } catch (e) { console.warn('treasury listeners failed', e); }
 }
