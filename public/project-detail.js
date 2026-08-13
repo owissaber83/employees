@@ -6590,6 +6590,8 @@ function pdRenderEVM(pid) {
         </div>
     </div>
 
+    ${pdEvmForecast({ bac, EV, ac, CPI, SPI, EAC, plannedStart, plannedEnd, pct })}
+
     <div class="card" style="margin:0;background:${CV >= 0 && SV >= 0 ? 'var(--pd-sf-ok)' : '#fdf0ec'};border-right:4px solid ${CV >= 0 && SV >= 0 ? good : bad}">
         <div style="font-size:13px;line-height:1.9;color:#333">
             <strong>الخلاصة:</strong>
@@ -6597,6 +6599,63 @@ function pdRenderEVM(pid) {
             و<strong style="color:${schedColor}">${schedMsg}</strong> من حيث الجدول الزمني.
             ${EAC != null ? `المتوقع أن تبلغ التكلفة النهائية نحو <strong>${f(EAC)} ريال</strong> مقابل ميزانية <strong>${f(bac)} ريال</strong> (${VAC >= 0 ? 'وفر متوقّع' : 'تجاوز متوقّع'} ${f(Math.abs(VAC))} ريال).` : ''}
         </div>
+    </div>`;
+}
+
+// ── 🔮 التوقّعات التنبؤية (Forecast & Risk) — تبني على مؤشرات EVM ─────────────
+// تحليل أمامي: تاريخ الإنجاز المتوقّع (من SPI)، نطاق EAC (متفائل/مرجّح/متشائم)،
+// TCPI (الكفاءة اللازمة للباقي)، ومؤشرات مخاطر التجاوز/التأخّر. قراءة فقط.
+function pdEvmForecast(o) {
+    const { bac, EV, ac, CPI, SPI, EAC, plannedStart, plannedEnd, pct } = o;
+    const f = v => fmt(Math.round(v || 0));
+    const good = 'var(--pd-ok)', bad = 'var(--pd-danger)', warnc = 'var(--pd-warn)', neu = 'var(--pd-pri2)';
+    if (!(pct > 0) || CPI == null || !(bac > 0)) {
+        return `<div class="card" style="margin:0 0 14px;border-right:4px solid ${neu}">
+            <div class="c-tl" style="font-size:14px">🔮 التوقّعات التنبؤية</div>
+            <div style="font-size:12.5px;color:#888;margin-top:8px;line-height:1.85">تحتاج <b>ميزانية وتقدّم فعلي وتكلفة فعلية</b> لحساب التوقّعات — سجّل تقدّم المشروع وتكاليفه لتظهر التكلفة النهائية المتوقّعة وتاريخ الإنجاز واحتمالات التجاوز.</div>
+        </div>`;
+    }
+    const eacOpt = ac + (bac - EV);
+    const eacLikely = (CPI > 0) ? bac / CPI : null;
+    const eacPess = (CPI > 0 && SPI > 0) ? ac + (bac - EV) / (CPI * SPI) : null;
+    const remBudget = bac - ac;
+    const tcpi = remBudget > 0 ? (bac - EV) / remBudget : null;
+    const tcpiUnreal = (tcpi != null && CPI > 0 && tcpi > CPI * 1.1);
+    let finishDate = null, delayDays = null;
+    if (plannedStart && plannedEnd && SPI && SPI > 0) {
+        const s = new Date(plannedStart), e = new Date(plannedEnd);
+        const planDur = Math.round((e - s) / 86400000);
+        if (planDur > 0) {
+            const fcDur = Math.round(planDur / SPI);
+            const fd = new Date(s); fd.setDate(fd.getDate() + fcDur);
+            finishDate = fd.toISOString().slice(0, 10); delayDays = fcDur - planDur;
+        }
+    }
+    const costRisk = CPI >= 1 ? ['منخفض', good] : CPI >= 0.9 ? ['متوسط', warnc] : ['عالٍ', bad];
+    const schedRisk = SPI == null ? ['—', neu] : SPI >= 1 ? ['منخفض', good] : SPI >= 0.9 ? ['متوسط', warnc] : ['عالٍ', bad];
+
+    const fc = (label, val, color, hint) => `<div style="flex:1;min-width:150px;background:var(--pd-sf1);border-radius:10px;padding:12px 14px;border-right:3px solid ${color}"><div style="font-size:10.5px;color:#777">${label}</div><div style="font-size:18px;font-weight:900;color:${color};margin-top:3px">${val}</div>${hint ? `<div style="font-size:10px;color:#999;margin-top:2px">${hint}</div>` : ''}</div>`;
+    const pill = (lb, arr) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px"><span style="color:#777">${lb}:</span><span style="background:color-mix(in srgb, ${arr[1]} 14%, transparent);color:${arr[1]};padding:2px 11px;border-radius:99px;font-weight:800">${arr[0]}</span></span>`;
+    const scen = (label, val, color) => val == null ? '' : `<div style="background:color-mix(in srgb, ${color} 9%, transparent);border:1px solid color-mix(in srgb, ${color} 35%, transparent);border-radius:10px;padding:11px;text-align:center"><div style="font-size:11px;color:${color};font-weight:800">${label}</div><div style="font-size:15px;font-weight:900;color:var(--pd-pri);margin:3px 0;font-variant-numeric:tabular-nums">${f(val)}</div><div style="font-size:9.5px;color:${val <= bac ? good : bad}">${val <= bac ? 'وفر ' : 'تجاوز '}${f(Math.abs(bac - val))}</div></div>`;
+
+    return `<div class="card" style="margin:0 0 14px;border-right:4px solid var(--pd-blue)">
+        <div class="c-tl" style="font-size:14px">🔮 التوقّعات التنبؤية <span style="font-size:11px;color:#999;font-weight:400">— تحليل أمامي مبني على CPI/SPI</span></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            ${fc('📅 تاريخ الإنجاز المتوقّع', finishDate || '—', delayDays == null ? neu : delayDays > 0 ? bad : good, finishDate ? (delayDays > 0 ? `تأخّر ${delayDays} يوم عن المخطط` : delayDays < 0 ? `أبكر ${-delayDays} يوم` : 'في الموعد') : 'يلزم تواريخ/خط أساس')}
+            ${fc('🎯 الكفاءة المطلوبة (TCPI)', tcpi == null ? '—' : tcpi.toFixed(2), tcpi == null ? neu : tcpiUnreal ? bad : good, tcpi == null ? 'الميزانية استُنفدت' : tcpiUnreal ? `أعلى من أدائك (CPI ${CPI.toFixed(2)}) — صعب` : 'ضمن المتناول')}
+            ${fc('💰 التكلفة النهائية المرجّحة', eacLikely == null ? '—' : f(eacLikely) + ' ريال', eacLikely != null && eacLikely <= bac ? good : bad, 'مقابل ميزانية ' + f(bac))}
+        </div>
+        <div style="margin-top:14px">
+            <div style="font-size:11.5px;color:#666;font-weight:700;margin-bottom:8px">📊 نطاق التكلفة النهائية المتوقّعة (EAC)</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                ${scen('🟢 متفائل', eacOpt, good)}${scen('🔵 مرجّح', eacLikely, 'var(--pd-blue)')}${scen('🔴 متشائم', eacPess, bad)}
+            </div>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--pd-bd)">
+            ${pill('⚠️ مخاطر تجاوز التكلفة', costRisk)}
+            ${pill('⏳ مخاطر التأخّر', schedRisk)}
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:10px;line-height:1.75">💡 <b>متفائل</b>: الباقي بالكفاءة المخططة · <b>مرجّح</b>: بكفاءة التكلفة الحالية (BAC÷CPI) · <b>متشائم</b>: بكفاءة التكلفة×الجدول. <b>TCPI</b> = الكفاءة اللازمة للعمل المتبقّي لإنهاء المشروع ضمن الميزانية.</div>
     </div>`;
 }
 
