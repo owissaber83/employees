@@ -246,6 +246,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('cvr',       `⚖️ تسوية القيمة والتكلفة`)}
         ${pdTabBtn('bonds',     `🛡️ الضمانات والمحتجزات`)}
         ${pdTabBtn('diary',     `📔 يومية الموقع`)}
+        ${pdTabBtn('eot',       `⏳ تمديد المدة والغرامة`)}
         ${pdTabBtn('cashflow',  '💧 التدفق النقدي')}
         ${pdTabBtn('invoices',  '🧾 فواتير المبيعات')}
         ${pdTabBtn('expenses',  '💸 المصروفات')}
@@ -290,6 +291,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-cvr"       class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-bonds"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-diary"     class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-eot"       class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
@@ -361,6 +363,7 @@ function pdRenderTab(tab) {
     if (tab === 'cvr')       pdRenderCVR(pid);
     if (tab === 'bonds')     pdRenderBonds(pid);
     if (tab === 'diary')     pdRenderDiary(pid);
+    if (tab === 'eot')       pdRenderEOT(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
@@ -5053,7 +5056,14 @@ window.pdApplyDrag = async function (pid, key, newStart, newDue) {
 };
 
 // ── 📋 قوالب المشاريع: حفظ مهام مشروع كقالب وإعادة استخدامه ───────────────────
-const pdAddDays = (d, n) => new Date(new Date(d).getTime() + n * 86400000).toISOString().slice(0, 10);
+// ⚠️ من المكوّنات المحلية لا toISOString: الأخيرة تحوّل إلى UTC فتُزيح اليوم
+//    للخلف في التوقيتات المتقدّمة على UTC (الرياض +3).
+const pdAddDays = (d, n) => {
+    if (!d) return null;
+    const x = new Date(String(d) + 'T00:00:00'); if (isNaN(x.getTime())) return null;
+    x.setDate(x.getDate() + (parseInt(n) || 0));
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+};
 window.pdSaveTasksAsTemplate = async function (pid) {
     const tasksObj = (window.projectTasks || {})[pid] || {};
     const entries = Object.entries(tasksObj);
@@ -7372,6 +7382,223 @@ window.sdDelete = function (pid, key) {
         try {
             await remove(ref(db, `ledger/siteDiary/${pid}/${key}`));
             if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف يومية موقع: ${r?.date || key}`);
+            toast('🗑️ حُذفت', 'ok');
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   ⏳  تمديد المدة (EOT) وغرامة التأخير (LD)                               ║
+// ║   السلسلة التعاقدية: يومية الموقع (الدليل) ← مطالبة تمديد ← قرار المالك   ║
+// ║   ← تاريخ انتهاء معدَّل ← احتساب الغرامة على ما تجاوزه فقط.               ║
+// ║   بلا تمديد معتمد تُحتسب الغرامة من التاريخ الأصلي — وهذا ما يجعل         ║
+// ║   المطالبة المبكرة أهم من الاعتراض المتأخر.                               ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const EOT_STATUS = {
+    draft: { l: '📝 مسوّدة', c: 'var(--pd-bd)' },
+    submitted: { l: '📤 مقدَّمة', c: 'var(--pd-pri2)' },
+    approved: { l: '✅ معتمدة', c: 'var(--pd-ok)' },
+    partial: { l: '🟡 معتمدة جزئياً', c: 'var(--pd-warn)' },
+    rejected: { l: '❌ مرفوضة', c: 'var(--pd-danger)' }
+};
+function eotAll(pid) { return Object.entries((window.eotClaims || {})[pid] || {}).map(([k, r]) => ({ k, ...r })); }
+
+function pdRenderEOT(pid) {
+    const pane = document.getElementById('pd-tab-eot'); if (!pane) return;
+    const p = (window.projects || {})[pid] || {};
+    const claims = eotAll(pid).sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
+    const contractValue = (typeof getProjectContractValue === 'function') ? getProjectContractValue(pid) : pdNum(p.contractValue);
+
+    // أيام التمديد المعتمدة فقط (المعتمدة كلياً أو جزئياً)
+    const approvedDays = claims.filter(c => ['approved', 'partial'].includes(c.status))
+        .reduce((s, c) => s + pdNum(c.daysApproved), 0);
+    const pendingDays = claims.filter(c => ['draft', 'submitted'].includes(c.status))
+        .reduce((s, c) => s + pdNum(c.daysClaimed), 0);
+
+    const origEnd = p.endDate || '';
+    const revisedEnd = pdAddDays(origEnd, approvedDays) || origEnd;
+    const daysLate = revisedEnd ? -(pdDaysTo(revisedEnd)) : null;   // موجب = تأخّر
+
+    // إعدادات الغرامة — تُحفظ على سجل المشروع (النموذج الكبير لا يحويها)
+    const ldPerDayPct = p.ldPerDayPct != null ? pdNum(p.ldPerDayPct) : 0.1;   // ‰ شائع: 0.1% يومياً
+    const ldCapPct = p.ldCapPct != null ? pdNum(p.ldCapPct) : 10;             // سقف شائع: 10%
+    const ldPerDay = contractValue * (ldPerDayPct / 100);
+    const ldCap = contractValue * (ldCapPct / 100);
+    const ldRaw = daysLate > 0 ? daysLate * ldPerDay : 0;
+    const ldDue = Math.min(ldRaw, ldCap);
+    const capped = ldRaw > ldCap;
+
+    // دليل من يومية الموقع: الساعات المؤهَّلة للمطالبة ولم تُقدَّم بعد
+    const CLAIMABLE = ['weather', 'client', 'design', 'permit'];
+    const diaryHours = sdAll(pid).reduce((s, r) => s + pdSum((r.delays || []).filter(d => CLAIMABLE.includes(d.cause)), 'hours'), 0);
+    const diaryDays = diaryHours / 8;
+
+    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
+        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
+        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
+        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
+
+    const rowsHtml = claims.length ? claims.map(c => {
+        const st = EOT_STATUS[c.status || 'draft'] || EOT_STATUS.draft;
+        const def = (typeof SD_DELAY !== 'undefined' && SD_DELAY[c.cause]) || null;
+        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
+            <td style="padding:8px 9px;font-weight:700;color:var(--pd-pri)">${esc(c.claimNo || '—')}</td>
+            <td style="font-size:11.5px">${esc(def ? def.l : (c.cause || '—'))}</td>
+            <td style="font-size:11.5px">${esc(c.submittedDate || '—')}</td>
+            <td style="text-align:center;font-weight:700">${pdNum(c.daysClaimed) || '—'}</td>
+            <td style="text-align:center;font-weight:800;color:${pdNum(c.daysApproved) ? 'var(--pd-ok)' : 'var(--pd-bd)'}">${pdNum(c.daysApproved) || '—'}</td>
+            <td style="text-align:center"><span style="color:${st.c};font-weight:700;font-size:11px">${st.l}</span></td>
+            <td style="font-size:11px;max-width:200px">${esc((c.notes || '').slice(0, 60))}</td>
+            <td style="text-align:left;white-space:nowrap">
+                <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="eotOpenForm('${pid}','${c.k}')">✏️</button>
+                <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="eotDelete('${pid}','${c.k}')">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="8" style="text-align:center;color:#aaa;padding:26px">لا مطالبات مسجّلة</td></tr>`;
+
+    pane.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('📅', 'الانتهاء الأصلي', esc(origEnd || '—'), 'var(--pd-bd)')}
+        ${kpi('✅', 'تمديد معتمد', approvedDays + ' يوم', 'var(--pd-ok)', pendingDays ? `${pendingDays} يوم قيد المطالبة` : '')}
+        ${kpi('🎯', 'الانتهاء المعدَّل', esc(revisedEnd || '—'), 'var(--pd-pri2)', approvedDays ? `+${approvedDays} يوم` : 'بلا تمديد')}
+        ${kpi(daysLate > 0 ? '🔴' : '🟢', daysLate > 0 ? 'تأخّر عن المعدَّل' : 'ضمن المدة',
+        daysLate == null ? '—' : (daysLate > 0 ? daysLate + ' يوم' : Math.abs(daysLate) + ' يوم متبقٍ'),
+        daysLate > 0 ? 'var(--pd-danger)' : 'var(--pd-ok)')}
+        ${kpi('💸', 'الغرامة المحتملة', fmt(ldDue), ldDue > 0 ? 'var(--pd-danger)' : 'var(--pd-ok)',
+        ldDue > 0 ? (capped ? `⚠️ بلغت السقف ${ldCapPct}%` : `${ldPerDayPct}% يومياً`) : 'لا غرامة')}
+    </div>
+
+    ${diaryDays > 0 ? `<div class="card" style="margin-bottom:14px;background:var(--pd-sf-warn);border:1.5px solid #f0d68a">
+        <div style="font-weight:800;color:#8a6100">📔 دليل متاح من يومية الموقع</div>
+        <div style="font-size:12.5px;color:#8a6100;margin-top:5px">
+            مسجَّل <b>${diaryHours} ساعة</b> تعطّل من أسباب مؤهَّلة للتمديد (طقس · مالك · تصميم · تصاريح)
+            — ما يعادل <b>${diaryDays.toFixed(1)} يوم عمل</b>. استخدمها سنداً لمطالبتك.
+        </div></div>` : ''}
+
+    <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div style="font-weight:800;color:var(--pd-pri)">⏳ مطالبات تمديد المدة</div>
+            <div style="display:flex;gap:8px">
+                <button class="btn" style="background:var(--pd-sf1)" onclick="eotOpenSettings('${pid}')">⚙️ إعدادات الغرامة</button>
+                <button class="btn b-p" onclick="eotOpenForm('${pid}')">➕ مطالبة جديدة</button>
+            </div>
+        </div>
+        <div class="hr-info" style="margin-top:10px;font-size:12px">
+            الغرامة تُحتسب على ما تجاوز <b>تاريخ الانتهاء المعدَّل</b> لا الأصلي — فكل يوم تمديد معتمد يوفّر
+            <b>${fmt(ldPerDay)}</b> ريال. لذلك المطالبة المبكرة المسنَدة بيومية الموقع أهم من الاعتراض المتأخر.
+        </div>
+    </div>
+
+    <div id="pd-eot-form" style="display:none"></div>
+
+    <div class="card">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">رقم المطالبة</th><th>السبب</th><th>تاريخ التقديم</th>
+                <th style="text-align:center">أيام مطلوبة</th><th style="text-align:center">أيام معتمدة</th>
+                <th style="text-align:center">الحالة</th><th>ملاحظات</th><th></th>
+            </tr></thead><tbody>${rowsHtml}</tbody>
+        </table>
+    </div>`;
+}
+
+window.eotOpenSettings = function (pid) {
+    const p = (window.projects || {})[pid] || {};
+    const box = document.getElementById('pd-eot-form'); if (!box) return;
+    box.style.display = '';
+    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-alt)">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">⚙️ إعدادات غرامة التأخير</div>
+        <div class="hr-info" style="margin-bottom:12px;font-size:12px">
+            الشائع في عقود المقاولات السعودية: <b>0.1% من قيمة العقد يومياً</b> بسقف <b>10%</b>.
+            راجع بنود عقدك — القيم تختلف.
+        </div>
+        <div class="form-grid sm">
+            <div class="fg"><label>الغرامة اليومية (% من قيمة العقد)</label>
+                <input type="number" id="eot-rate" step="0.01" min="0" value="${p.ldPerDayPct != null ? pdNum(p.ldPerDayPct) : 0.1}"></div>
+            <div class="fg"><label>السقف الأقصى (% من قيمة العقد)</label>
+                <input type="number" id="eot-cap" step="0.1" min="0" value="${p.ldCapPct != null ? pdNum(p.ldCapPct) : 10}"></div>
+        </div>
+        <div class="card-actions">
+            <button class="btn b-p" onclick="eotSaveSettings('${pid}')">💾 حفظ</button>
+            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-eot-form').style.display='none'">إلغاء</button>
+        </div>
+    </div>`;
+};
+
+window.eotSaveSettings = async function (pid) {
+    const rate = Math.max(0, pdNum(document.getElementById('eot-rate')?.value));
+    const cap = Math.max(0, pdNum(document.getElementById('eot-cap')?.value));
+    try {
+        await update(ref(db, `ledger/projects/${pid}`), { ldPerDayPct: rate, ldCapPct: cap });
+        toast('✅ حُفظت الإعدادات', 'ok');
+        document.getElementById('pd-eot-form').style.display = 'none';
+        pdRenderEOT(pid);
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+window.eotOpenForm = function (pid, key) {
+    const box = document.getElementById('pd-eot-form'); if (!box) return;
+    const c = key ? (eotAll(pid).find(x => x.k === key) || {}) : {};
+    const causes = (typeof SD_DELAY !== 'undefined') ? SD_DELAY : { other: { l: 'أخرى' } };
+    const opt = (o, sel) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${typeof v === 'string' ? v : v.l}</option>`).join('');
+    box.style.display = '';
+    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-pri2)">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:12px">${key ? '✏️ تعديل مطالبة' : '➕ مطالبة تمديد جديدة'}</div>
+        <input type="hidden" id="eot-key" value="${key || ''}">
+        <div class="form-grid sm">
+            <div class="fg"><label>رقم المطالبة *</label><input id="eot-no" value="${esc(c.claimNo || '')}" placeholder="EOT-001"></div>
+            <div class="fg"><label>السبب</label><select id="eot-cause">${opt(causes, c.cause || 'client')}</select></div>
+            <div class="fg"><label>تاريخ التقديم</label><input type="date" id="eot-sub" value="${esc(c.submittedDate || '')}"></div>
+            <div class="fg"><label>أيام مطلوبة *</label><input type="number" id="eot-days" min="0" value="${pdNum(c.daysClaimed) || ''}"></div>
+            <div class="fg"><label>أيام معتمدة</label><input type="number" id="eot-appr" min="0" value="${pdNum(c.daysApproved) || ''}"></div>
+            <div class="fg"><label>الحالة</label><select id="eot-status">${opt(EOT_STATUS, c.status || 'draft')}</select></div>
+            <div class="fg"><label>تاريخ القرار</label><input type="date" id="eot-dec" value="${esc(c.decisionDate || '')}"></div>
+            <div class="fg" style="grid-column:1/-1"><label>ملاحظات / سند المطالبة</label>
+                <textarea id="eot-notes" rows="2" placeholder="مرجع يوميات الموقع، مراسلات، تعليمات المالك…">${esc(c.notes || '')}</textarea></div>
+        </div>
+        <div class="card-actions">
+            <button class="btn b-p" onclick="eotSave('${pid}')">💾 حفظ</button>
+            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-eot-form').style.display='none'">إلغاء</button>
+        </div>
+    </div>`;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.eotSave = async function (pid) {
+    const g = id => document.getElementById(id);
+    const claimNo = (g('eot-no')?.value || '').trim();
+    if (!claimNo) { toast('رقم المطالبة مطلوب', 'er'); return; }
+    const daysClaimed = Math.max(0, pdNum(g('eot-days')?.value));
+    let daysApproved = Math.max(0, pdNum(g('eot-appr')?.value));
+    const status = g('eot-status')?.value || 'draft';
+    // المرفوضة لا تمنح أياماً، وغير المحسومة لا تُحتسب في التاريخ المعدَّل
+    if (status === 'rejected') daysApproved = 0;
+    if (!['approved', 'partial'].includes(status)) daysApproved = daysApproved && status === 'draft' ? 0 : daysApproved;
+    if (daysApproved > daysClaimed && daysClaimed > 0) { toast('⚠️ الأيام المعتمدة تتجاوز المطلوبة', 'er'); return; }
+    const data = {
+        claimNo, cause: g('eot-cause')?.value || 'client',
+        submittedDate: g('eot-sub')?.value || '',
+        decisionDate: g('eot-dec')?.value || '',
+        daysClaimed, daysApproved, status,
+        notes: (g('eot-notes')?.value || '').trim(),
+        updatedAt: new Date().toISOString()
+    };
+    const key = g('eot-key')?.value || '';
+    try {
+        if (key) await update(ref(db, `ledger/eotClaims/${pid}/${key}`), data);
+        else { data.createdAt = new Date().toISOString(); await push(ref(db, `ledger/eotClaims/${pid}`), data); }
+        if (typeof logAudit === 'function') logAudit(key ? 'update' : 'create', 'المشاريع', `${key ? 'تعديل' : 'تسجيل'} مطالبة تمديد: ${claimNo}`);
+        toast('✅ حُفظت المطالبة', 'ok');
+        const box = document.getElementById('pd-eot-form'); if (box) box.style.display = 'none';
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+window.eotDelete = function (pid, key) {
+    const c = eotAll(pid).find(x => x.k === key);
+    cf2(`حذف المطالبة "${c?.claimNo || ''}"؟`, async () => {
+        try {
+            await remove(ref(db, `ledger/eotClaims/${pid}/${key}`));
+            if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف مطالبة تمديد: ${c?.claimNo || key}`);
             toast('🗑️ حُذفت', 'ok');
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });

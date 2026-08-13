@@ -301,6 +301,8 @@ function buildRefs() {
     projTemplates: ref(db, 'ledger/projectTemplates'), // 📋 قوالب المشاريع { key:{ name, taskCount, tasks:[{title,desc,priority,estHours,offsetStart,durationDays,deps:[idx]}] } }
     rfis: ref(db, 'ledger/rfis'),              // 📨 طلبات المعلومات { projectId: { key:{ number, subject, discipline, priority, status, submittedTo, dueDate, question, answer, answeredBy, answeredDate } } }
     punchItems: ref(db, 'ledger/punchItems'),  // 🔧 قوائم النواقص { projectId: { key:{ number, title, location, trade, priority, status, assignee, dueDate, description, photoUrl, closedDate } } }
+    eotClaims: ref(db, 'ledger/eotClaims'),   // ⏳ مطالبات تمديد المدة: { projectId: { key:{ claimNo, cause, daysClaimed,
+                                              //    daysApproved, status, submittedDate, decisionDate, notes } } }
     siteDiary: ref(db, 'ledger/siteDiary'),    // 📔 يومية الموقع: { projectId: { key:{ date, weather, temp, crews:[{trade,count}],
                                               //    equipment:[{name,hours}], workDone, delays:[{cause,hours,note}], visitors, safety } } }
     projectRisks: ref(db, 'ledger/projectRisks'), // ⚠️ سجل المخاطر (PMBOK): { projectId: { key:{ title, category, probability 1-5, impact 1-5,
@@ -3736,6 +3738,10 @@ function startListeners() {
     onValue(R.punchItems, sn => {
         window.punchItems = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'punch' && typeof pdRenderTab === 'function') pdRenderTab('punch');
+    });
+    onValue(R.eotClaims, sn => {
+        window.eotClaims = sn.exists() ? sn.val() : {};
+        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'eot' && typeof pdRenderTab === 'function') pdRenderTab('eot');
     });
     onValue(R.siteDiary, sn => {
         window.siteDiary = sn.exists() ? sn.val() : {};

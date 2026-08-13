@@ -474,6 +474,14 @@ await test('محاسب لا يسجّل يومية', assertFails(set(ref(db.acctA
 await test('مشاهد لا يقرأ اليوميات', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/siteDiary/p1'))));
 await test('عزل: مهندس A لا يكتب يومية في B', assertFails(set(ref(db.seA, 'tenants/B/ledger/siteDiary/p1/hack'), { date: 'x' })));
 
+
+console.log('\n⏳ مطالبات تمديد المدة [EOT]:');
+await test('مدير مشروع يسجّل مطالبة', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/eotClaims/p1/e1'), { claimNo: 'EOT-001', daysClaimed: 15 })));
+await test('محاسب يقرأ المطالبات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/eotClaims/p1'))));
+await test('مهندس موقع لا يسجّل مطالبة (قرار تعاقدي)', assertFails(set(ref(db.seA, 'tenants/A/ledger/eotClaims/p1/e2'), { claimNo: 'x' })));
+await test('مشاهد لا يقرأ المطالبات', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/eotClaims/p1'))));
+await test('عزل: مدير مشروع A لا يكتب مطالبة في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/eotClaims/p1/hack'), { claimNo: 'x' })));
+
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
 process.exit(fail ? 1 : 0);
