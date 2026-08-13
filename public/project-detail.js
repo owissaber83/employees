@@ -4723,6 +4723,7 @@ function pdRenderTasks(pid) {
                     <button class="btn ${taskView === 'kanban' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'kanban' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','kanban')">📋 كانبان</button>
                     <button class="btn ${taskView === 'gantt' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'gantt' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','gantt')">📅 جانت</button>
                     <button class="btn ${taskView === 'cpm' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'cpm' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','cpm')" title="تحليل المسار الحرج">📊 CPM</button>
+                    <button class="btn ${taskView === 'sched' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'sched' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','sched')" title="تسوية الموارد ومحاكاة «ماذا لو»">🧮 متقدم</button>
                 </div>
                 <button class="btn" onclick="pdApplyTemplatePicker('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="إضافة مهام من قالب جاهز">📋 من قالب</button>
                 ${tasks.length ? `<button class="btn" onclick="pdSaveTasksAsTemplate('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="حفظ مهام هذا المشروع كقالب لإعادة استخدامه">💾 حفظ كقالب</button>` : ''}
@@ -4742,7 +4743,7 @@ function pdRenderTasks(pid) {
             <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--pd-sf-danger);color:var(--pd-danger)" onclick="pdDeleteAllTasks('${pid}')">🗑️ حذف كل المهام (${tasks.length})</button>
         </div>` : ''}
     </div>
-    ${taskView === 'cpm' ? pdRenderCpmTable(pid) : taskView === 'gantt' ? pdRenderTasksGantt(pid, tasks, today) : `
+    ${taskView === 'sched' ? pdRenderAdvancedSchedule(pid) : taskView === 'cpm' ? pdRenderCpmTable(pid) : taskView === 'gantt' ? pdRenderTasksGantt(pid, tasks, today) : `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;overflow-x:auto">
         ${PD_TASK_COLS.map(([st, label, color]) => {
             const colTasks = tasks.filter(([, t]) => (t.status || 'todo') === st);
@@ -4890,6 +4891,145 @@ function pdRenderCpmTable(pid) {
         <div style="font-size:11px;color:#888;margin-top:10px;line-height:1.7">💡 ES/EF/LS/LF بالأيام من بداية المشروع (نسبي). <b>الطفو الكلي</b> = أقصى تأخير للنشاط دون تأخير المشروع؛ <b>الطفو الحر</b> = دون تأخير أي نشاط تالٍ. الأنشطة ذات الطفو الصفري تُكوّن <b>المسار الحرج</b> — أي تأخير فيها يؤخّر المشروع كاملاً.</div>
     </div>`;
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// ║  🧮 الجدولة المتقدمة — تسوية الموارد + محاكاة «ماذا لو» (تبني على CPM)       ║
+// ══════════════════════════════════════════════════════════════════════════
+function pdSchedAnchor(pid) {
+    const T = (window.projectTasks || {})[pid] || {};
+    let min = null; Object.values(T).forEach(t => { if (t.startDate && (!min || t.startDate < min)) min = t.startDate; });
+    if (min) return new Date(min);
+    const p = (window.projects || {})[pid]; return p && p.startDate ? new Date(p.startDate) : new Date();
+}
+function pdDayToDate(anchor, d) { const x = new Date(anchor); x.setDate(x.getDate() + Math.round(d)); return x.toISOString().slice(0, 10); }
+function pdPeakLoad(list, projDur) { let peak = 0; const N = Math.max(1, projDur); for (let d = 0; d < N; d++) { let c = 0; list.forEach(l => { if (l.ES <= d && d < l.EF) c++; }); if (c > peak) peak = c; } return peak; }
+
+function pdRenderAdvancedSchedule(pid) {
+    const cpm = window.pdComputeCPM(pid);
+    const T = (window.projectTasks || {})[pid] || {};
+    const allTasks = Object.entries(T);
+    const items = allTasks.filter(([tk, t]) => t.assigneeId && cpm.tasks[tk])
+        .map(([tk, t]) => ({ tk, title: t.title || '—', resId: t.assigneeId, resName: ((window.emp || {})[t.assigneeId] || {}).name || 'غير معروف', priority: t.priority, ...cpm.tasks[tk] }));
+
+    const intro = `<div class="card" style="margin-bottom:14px;border-right:4px solid var(--pd-pri)">
+        <div class="c-tl">🧮 الجدولة المتقدمة</div>
+        <p style="font-size:12.5px;color:#777;margin:6px 0 0;line-height:1.8">تحليل يبني على المسار الحرج (CPM): يكشف <b>تعارض الموارد</b> (موظف مُسنَد لمهام متزامنة)، ويقترح <b>تسوية</b> ضمن الطفو المتاح دون تأخير المشروع، ويتيح <b>محاكاة «ماذا لو»</b> لأثر تغيير مدة نشاط.</p>
+    </div>`;
+
+    if (!items.length) return intro + `<div class="card"><div class="empty"><div class="ei">👥</div>
+        <p>لا مهام <b>مُسنَدة لموظفين بتواريخ</b> لتحليل الموارد.<br>أضِف «المسؤول» و«تاريخ البدء/التسليم» في المهام لتفعيل تسوية الموارد.</p></div></div>` + pdWhatIfCard(pid, allTasks);
+
+    // تجميع حسب المورد
+    const byRes = {}; items.forEach(it => (byRes[it.resId] = byRes[it.resId] || []).push(it));
+    // كشف التعارضات (تداخل زمني لنفس المورد)
+    const conflicts = [];
+    Object.values(byRes).forEach(list => {
+        const s = [...list].sort((a, b) => a.ES - b.ES);
+        for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) {
+            const A = s[i], B = s[j];
+            if (A.ES < B.EF && B.ES < A.EF) {
+                const early = A.ES <= B.ES ? A : B, late = A.ES <= B.ES ? B : A;
+                const shift = early.EF - late.ES;
+                conflicts.push({ resName: A.resName, early, late, overlap: Math.min(A.EF, B.EF) - Math.max(A.ES, B.ES), shift, withinFloat: shift <= (late.float || 0), floatLeft: late.float || 0 });
+            }
+        }
+    });
+    const resolvable = conflicts.filter(c => c.withinFloat).length;
+    const anchor = pdSchedAnchor(pid);
+
+    const resRows = Object.values(byRes).map(list => {
+        const c = conflicts.filter(x => list.some(l => l.tk === x.early.tk) && list.some(l => l.tk === x.late.tk)).length;
+        return { name: list[0].resName, n: list.length, days: list.reduce((s, l) => s + l.duration, 0), peak: pdPeakLoad(list, cpm.projectDuration), conflicts: c };
+    }).sort((a, b) => b.conflicts - a.conflicts || b.peak - a.peak);
+
+    const kpi = (ic, lb, val, col) => `<div style="flex:1;min-width:130px;background:${col}22;border-radius:10px;padding:11px 13px;border-right:3px solid ${col}"><div style="font-size:10.5px;color:#888">${ic} ${lb}</div><div style="font-size:22px;font-weight:900;color:${col}">${val}</div></div>`;
+    const kpis = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('👥', 'موارد', Object.keys(byRes).length, 'var(--pd-blue)')}
+        ${kpi('⚡', 'تعارضات', conflicts.length, conflicts.length ? 'var(--pd-danger)' : 'var(--pd-ok)')}
+        ${kpi('✅', 'قابلة للحل ضمن الطفو', resolvable, 'var(--pd-ok)')}
+        ${kpi('🔺', 'أقصى تحميل متزامن', Math.max(...resRows.map(r => r.peak)) + ' مهام', 'var(--pd-acc)')}
+    </div>`;
+
+    const resTable = `<div class="card" style="margin-bottom:14px">
+        <div class="c-tl" style="font-size:14px">📊 تحميل الموارد</div>
+        <div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px">
+            <thead><tr style="background:var(--pd-pri);color:#fff">
+                <th style="padding:8px;text-align:right">المورد (الموظف)</th><th style="padding:8px">المهام</th><th style="padding:8px" title="مجموع أيام المهام">أيام العمل</th><th style="padding:8px" title="أقصى عدد مهام في يوم واحد">ذروة التزامن</th><th style="padding:8px">التعارضات</th>
+            </tr></thead>
+            <tbody>${resRows.map(r => `<tr style="border-top:1px solid #eef2f7;background:${r.conflicts ? '#fdf0ee' : '#fff'}">
+                <td style="padding:7px 10px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.name)}</td>
+                <td style="padding:7px;text-align:center;font-variant-numeric:tabular-nums">${r.n}</td>
+                <td style="padding:7px;text-align:center;font-variant-numeric:tabular-nums">${r.days} ي</td>
+                <td style="padding:7px;text-align:center;font-weight:800;color:${r.peak > 1 ? 'var(--pd-danger)' : 'var(--pd-ok)'}">${r.peak}${r.peak > 1 ? ' ⚠️' : ''}</td>
+                <td style="padding:7px;text-align:center;font-weight:800;color:${r.conflicts ? 'var(--pd-danger)' : 'var(--pd-ok)'}">${r.conflicts || '—'}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>
+    </div>`;
+
+    const conflictCards = conflicts.length ? `<div class="card" style="margin-bottom:14px">
+        <div class="c-tl" style="font-size:14px">⚡ التعارضات واقتراحات التسوية</div>
+        <div style="display:flex;flex-direction:column;gap:9px;margin-top:11px">
+        ${conflicts.sort((a, b) => a.withinFloat - b.withinFloat).map(c => `<div style="border:1px solid ${c.withinFloat ? 'var(--pd-bd)' : '#f0c0b8'};border-radius:9px;padding:11px 13px;background:${c.withinFloat ? 'var(--pd-sf1)' : 'var(--pd-sf-danger)'}">
+            <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(c.resName)} — تعارض ${c.overlap} يوم</div>
+            <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7"><b>${esc(c.early.title)}</b> (${pdDayToDate(anchor, c.early.ES)} ← ${pdDayToDate(anchor, c.early.EF)}) ⟷ <b>${esc(c.late.title)}</b> (${pdDayToDate(anchor, c.late.ES)} ← ${pdDayToDate(anchor, c.late.EF)})</div>
+            <div style="font-size:12px;margin-top:6px;font-weight:600;color:${c.withinFloat ? 'var(--pd-ok)' : 'var(--pd-danger)'}">${c.withinFloat
+                ? `💡 أخّر «${esc(c.late.title)}» بـ ${c.shift} يوم — ضمن طفوها (${c.floatLeft} ي) فلا يتأخّر المشروع.`
+                : `⚠️ الطفو (${c.floatLeft} ي) لا يكفي لإزالة التعارض (يلزم ${c.shift} ي) — التسوية ستمدّد المشروع ~${c.shift - c.floatLeft} يوم، أو أعِد إسناد إحدى المهمتين لمورد آخر.`}</div>
+        </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:10px;line-height:1.7">💡 الاقتراحات فردية؛ تطبيق عدّة تأخيرات قد يُنشئ تعارضات جديدة — راجع النتيجة بعد كل تعديل. إعادة الإسناد لمورد متفرّغ غالباً أسرع حلٍّ.</div>
+    </div>` : `<div class="card" style="margin-bottom:14px;text-align:center;padding:22px;color:var(--pd-ok)"><div style="font-size:30px">✅</div><div style="font-weight:700;margin-top:6px">لا تعارض موارد — الجدول متوازن</div></div>`;
+
+    return intro + kpis + resTable + conflictCards + pdWhatIfCard(pid, allTasks);
+}
+
+function pdWhatIfCard(pid, allTasks) {
+    const opts = allTasks.filter(([, t]) => t.startDate && t.dueDate).map(([tk, t]) => `<option value="${tk}">${esc(t.title || '—')}</option>`).join('');
+    return `<div class="card" style="border-right:4px solid var(--pd-blue)">
+        <div class="c-tl" style="font-size:14px">🔮 محاكاة «ماذا لو»</div>
+        <p style="font-size:12px;color:#888;margin:6px 0 12px;line-height:1.7">جرّب أثر تغيير مدة نشاط على تاريخ إنجاز المشروع والمسار الحرج — <b>دون حفظ أي تعديل</b>.</p>
+        ${!opts ? '<div style="font-size:12px;color:#b9530e">أضِف مهاماً بتواريخ بدء/تسليم لتفعيل المحاكاة.</div>' : `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div><label style="font-size:11px;color:#666">النشاط</label><br><select id="pdWiTask" style="padding:7px;border:1px solid var(--pd-bd);border-radius:7px;min-width:180px;font-family:inherit">${opts}</select></div>
+            <div><label style="font-size:11px;color:#666">تغيير المدة (يوم)</label><br><input id="pdWiDelta" type="number" value="5" style="padding:7px;border:1px solid var(--pd-bd);border-radius:7px;width:110px;font-family:inherit"></div>
+            <button class="btn b-b" onclick="pdRunWhatIf('${pid}')">▶️ احسب الأثر</button>
+        </div>
+        <div style="font-size:10.5px;color:#999;margin-top:6px">موجب = تأخير/إطالة · سالب = تسريع (سحق النشاط).</div>
+        <div id="pdWiResult" style="margin-top:12px"></div>`}
+    </div>`;
+}
+
+window.pdRunWhatIf = function (pid) {
+    const tk = document.getElementById('pdWiTask') ? document.getElementById('pdWiTask').value : '';
+    const delta = parseInt(document.getElementById('pdWiDelta') ? document.getElementById('pdWiDelta').value : '0', 10) || 0;
+    const res = document.getElementById('pdWiResult'); if (!res) return;
+    const T = (window.projectTasks || {})[pid] || {};
+    if (!T[tk] || !T[tk].startDate || !T[tk].dueDate) { res.innerHTML = '<div style="font-size:12px;color:#b9530e">اختر نشاطاً له تواريخ.</div>'; return; }
+    const base = window.pdComputeCPM(pid);
+    const clone = JSON.parse(JSON.stringify(T));
+    const t = clone[tk];
+    const start = new Date(t.startDate); const newDue = new Date(t.dueDate); newDue.setDate(newDue.getDate() + delta);
+    t.dueDate = (newDue < start ? start : newDue).toISOString().slice(0, 10);
+    const orig = window.projectTasks[pid]; window.projectTasks[pid] = clone;
+    const sim = window.pdComputeCPM(pid); window.projectTasks[pid] = orig;
+    const dProj = sim.projectDuration - base.projectDuration;
+    const anchor = pdSchedAnchor(pid);
+    const nowCrit = [], noCrit = [];
+    Object.keys(T).forEach(k => { const b = base.tasks[k], s = sim.tasks[k]; if (!b || !s) return; if (!b.critical && s.critical) nowCrit.push(T[k].title || k); if (b.critical && !s.critical) noCrit.push(T[k].title || k); });
+    const col = dProj > 0 ? 'var(--pd-danger)' : dProj < 0 ? 'var(--pd-ok)' : '#666';
+    const sign = dProj > 0 ? '+' : '';
+    res.innerHTML = `<div style="border:1px solid var(--pd-bd);border-radius:10px;overflow:hidden">
+        <div style="display:flex;flex-wrap:wrap">
+            <div style="flex:1;min-width:150px;padding:12px 14px;background:var(--pd-sf1)"><div style="font-size:10.5px;color:#888">المدة الحالية</div><div style="font-size:20px;font-weight:900;color:var(--pd-pri)">${base.projectDuration} يوم</div><div style="font-size:10.5px;color:#888">ينتهي ${pdDayToDate(anchor, base.projectDuration)}</div></div>
+            <div style="flex:1;min-width:150px;padding:12px 14px;background:${col}18"><div style="font-size:10.5px;color:#888">بعد المحاكاة</div><div style="font-size:20px;font-weight:900;color:${col}">${sim.projectDuration} يوم</div><div style="font-size:10.5px;color:#888">ينتهي ${pdDayToDate(anchor, sim.projectDuration)}</div></div>
+            <div style="flex:1;min-width:150px;padding:12px 14px;background:${col}18;display:flex;flex-direction:column;justify-content:center"><div style="font-size:10.5px;color:#888">الأثر على المشروع</div><div style="font-size:22px;font-weight:900;color:${col}">${sign}${dProj} يوم</div><div style="font-size:10.5px;color:${col}">${dProj > 0 ? 'تأخّر ⚠️' : dProj < 0 ? 'توفير ✅' : 'لا أثر — النشاط غير حرج'}</div></div>
+        </div>
+        ${(nowCrit.length || noCrit.length) ? `<div style="padding:10px 14px;border-top:1px solid var(--pd-bd);font-size:12px;line-height:1.8">
+            ${nowCrit.length ? `<div style="color:var(--pd-danger)">🔴 أصبحت حرجة: ${nowCrit.map(esc).join('، ')}</div>` : ''}
+            ${noCrit.length ? `<div style="color:var(--pd-ok)">🟢 لم تعُد حرجة: ${noCrit.map(esc).join('، ')}</div>` : ''}
+        </div>` : ''}
+    </div>`;
+};
 
 // ── عرض جانت لمهام المشروع ─────────────────
 function pdRenderTasksGantt(pid, tasks, today) {
