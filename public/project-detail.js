@@ -243,6 +243,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('tasks',     `✅ المهام${(() => { const n = Object.values((window.projectTasks || {})[projectId] || {}).filter(t => t.status !== 'done').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('billings',  '📑 المستخلصات')}
         ${pdTabBtn('evm',       '📐 الأداء (EVM)')}
+        ${pdTabBtn('cvr',       `⚖️ تسوية القيمة والتكلفة`)}
         ${pdTabBtn('cashflow',  '💧 التدفق النقدي')}
         ${pdTabBtn('invoices',  '🧾 فواتير المبيعات')}
         ${pdTabBtn('expenses',  '💸 المصروفات')}
@@ -284,6 +285,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-rfis"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-risks"     class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-cvr"       class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
@@ -352,6 +354,7 @@ function pdRenderTab(tab) {
     if (tab === 'rfis')      pdRenderRFIs(pid);
     if (tab === 'punch')     pdRenderPunch(pid);
     if (tab === 'risks')     pdRenderRisks(pid);
+    if (tab === 'cvr')       pdRenderCVR(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
@@ -6859,3 +6862,166 @@ window.prDelete = function (pid, key) {
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
 };
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   ⚖️  تسوية القيمة والتكلفة (CVR — Cost Value Reconciliation)             ║
+// ║   التقرير المحوري في برامج المقاولات (Sage 300 CRE · CMiC · Deltek).      ║
+// ║   يجيب: كم استحققتُ؟ كم كلّفني؟ **وأين** الفجوة؟                          ║
+// ║   الربح الإجمالي وحده يُخفي النزيف: قد تربح في الحفر وتنزف في الخرسانة.   ║
+// ║                                                                          ║
+// ║   مستويان — لأن البيانات تسمح بذلك ولا تسمح بأكثر:                        ║
+// ║     • القيمة: تفصيل ببنود BOQ (المستخلصات مربوطة بـ boqItemKey)          ║
+// ║     • التكلفة: تفصيل بالفئات (المصروفات مصنّفة، وغير مربوطة ببنود BOQ)   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+// القيمة المستحقّة من المستخلصات المعتمدة (بلا ضريبة — الضريبة ليست إيراداً)
+function cvrEarnedValue(pid) {
+    const bills = Object.values(window.progressBillings || {})
+        .filter(b => b.projectId === pid && ['approved', 'paid'].includes(b.status));
+    return {
+        gross: pdSum(bills, 'currentAmount'),
+        retention: pdSum(bills, 'retentionAmount'),
+        net: pdSum(bills, 'netAmount'),
+        count: bills.length
+    };
+}
+
+// القيمة المستحقّة لكل بند BOQ (من عناصر المستخلصات المرتبطة بـ boqItemKey)
+function cvrByBOQ(pid) {
+    const billed = {};
+    Object.values(window.progressBillings || {})
+        .filter(b => b.projectId === pid && ['approved', 'paid'].includes(b.status))
+        .forEach(b => (b.items || []).forEach(it => {
+            const k = it.boqItemKey; if (!k) return;
+            billed[k] = (billed[k] || 0) + pdNum(it.currentAmount);
+        }));
+    const boq = (window.projectBOQ || {})[pid] || {};
+    return Object.entries(boq).map(([k, it]) => {
+        const contract = pdNum(it.totalPrice) || (pdNum(it.qty) * pdNum(it.rate));
+        const earned = billed[k] || 0;
+        return {
+            k, desc: it.description || it.desc || '—', unit: it.unit || '',
+            contract, earned,
+            pct: contract > 0 ? (earned / contract) * 100 : 0,
+            remaining: contract - earned
+        };
+    }).sort((a, b) => b.contract - a.contract);
+}
+
+function pdRenderCVR(pid) {
+    const pane = document.getElementById('pd-tab-cvr'); if (!pane) return;
+    const p = (window.projects || {})[pid] || {};
+    const ev = cvrEarnedValue(pid);
+    const ac = (typeof calcProjectActualCosts === 'function') ? calcProjectActualCosts(pid) : {};
+    const contractValue = (typeof getProjectContractValue === 'function') ? getProjectContractValue(pid) : pdNum(p.contractValue);
+
+    // فئات التكلفة: الميزانية من نموذج المشروع، والفعلي من المشتريات/الرواتب/المصروفات
+    const cats = [
+        { k: 'materials', l: '🧱 المواد', budget: pdNum(p.matBudgetEstimate), actual: pdNum(ac.materials) },
+        { k: 'labor', l: '👷 العمالة', budget: pdNum(p.laborCost), actual: pdNum(ac.labor) },
+        { k: 'equipment', l: '🚜 المعدات', budget: pdNum(p.equipCost), actual: pdNum(ac.equipment) },
+        { k: 'subcontractors', l: '🤝 مقاولو الباطن', budget: pdNum(p.subcontractors), actual: pdNum(ac.subcontractors) },
+        { k: 'indirect', l: '🏢 غير مباشرة', budget: pdNum(p.indirectCost), actual: pdNum(ac.indirect) },
+        { k: 'otherExpenses', l: '📎 مصروفات أخرى', budget: 0, actual: pdNum(ac.otherExpenses) }
+    ];
+    const totalBudget = cats.reduce((s, c) => s + c.budget, 0);
+    const totalActual = pdNum(ac.total) || cats.reduce((s, c) => s + c.actual, 0);
+
+    // الهامش المحقّق حتى الآن = القيمة المستحقّة − التكلفة الفعلية
+    const margin = ev.gross - totalActual;
+    const marginPct = ev.gross > 0 ? (margin / ev.gross) * 100 : null;
+    // الهامش المتعاقَد عليه (الهدف)
+    const targetMargin = contractValue > 0 && totalBudget > 0 ? ((contractValue - totalBudget) / contractValue) * 100 : null;
+    // نسبة الإنجاز المالي
+    const workPct = contractValue > 0 ? (ev.gross / contractValue) * 100 : 0;
+    // التكلفة المتوقّعة عند الإنجاز (بنفس معدّل الإنفاق الحالي)
+    const forecastCost = workPct > 0 ? (totalActual / (workPct / 100)) : null;
+    const forecastMargin = forecastCost != null ? contractValue - forecastCost : null;
+
+    const money = v => v == null ? '—' : (v < 0 ? '−' : '') + fmt(Math.abs(v));
+    const pctTxt = v => v == null ? '—' : v.toFixed(1) + '%';
+    const good = v => v == null ? 'var(--pd-bd)' : v >= 0 ? 'var(--pd-ok)' : 'var(--pd-danger)';
+
+    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
+        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
+        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
+        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
+
+    // صفوف فئات التكلفة
+    const catRows = cats.map(c => {
+        const varc = c.budget - c.actual;                      // موجب = تحت الميزانية
+        const usedPct = c.budget > 0 ? (c.actual / c.budget) * 100 : null;
+        const over = c.budget > 0 && c.actual > c.budget;
+        return `<tr style="border-bottom:1px solid var(--pd-sf1);${over ? 'background:var(--pd-sf-danger)' : ''}">
+            <td style="padding:8px 9px;font-weight:700;color:var(--pd-pri)">${c.l}</td>
+            <td style="text-align:left">${c.budget ? fmt(c.budget) : '—'}</td>
+            <td style="text-align:left;font-weight:700">${fmt(c.actual)}</td>
+            <td style="text-align:left;font-weight:800;color:${good(c.budget ? varc : null)}">${c.budget ? money(varc) : '—'}</td>
+            <td style="text-align:center">${usedPct == null ? '—' : `<span style="font-weight:800;color:${usedPct > 100 ? 'var(--pd-danger)' : usedPct > 85 ? 'var(--pd-warn)' : 'var(--pd-ok)'}">${pctTxt(usedPct)}</span>`}</td>
+        </tr>`;
+    }).join('');
+
+    // صفوف بنود BOQ (جانب القيمة)
+    const boqRows = cvrByBOQ(pid);
+    const boqHtml = boqRows.length ? boqRows.map(r => `<tr style="border-bottom:1px solid var(--pd-sf1)">
+        <td style="padding:8px 9px">${esc(r.desc)}${r.unit ? ` <span style="color:#8a97a5;font-size:10.5px">(${esc(r.unit)})</span>` : ''}</td>
+        <td style="text-align:left">${fmt(r.contract)}</td>
+        <td style="text-align:left;font-weight:700;color:var(--pd-acc)">${fmt(r.earned)}</td>
+        <td style="text-align:left">${fmt(r.remaining)}</td>
+        <td style="text-align:center;white-space:nowrap">
+            <div style="display:inline-block;width:56px;background:var(--pd-sf1);border-radius:4px;height:6px;overflow:hidden;vertical-align:middle">
+                <div style="width:${Math.min(100, Math.max(0, r.pct))}%;background:var(--pd-acc);height:100%"></div></div>
+            <span style="font-size:11px;font-weight:700;margin-inline-start:5px">${r.pct.toFixed(0)}%</span>
+        </td>
+    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:#aaa;padding:22px">لا بنود BOQ — أضِفها من تبويب «العقد والبنود» ليظهر التفصيل</td></tr>`;
+
+    pane.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('📈', 'القيمة المستحقّة', fmt(ev.gross), 'var(--pd-acc)', `${ev.count} مستخلص معتمد · بلا ضريبة`)}
+        ${kpi('💸', 'التكلفة الفعلية', fmt(totalActual), 'var(--pd-warn)', 'مشتريات + رواتب + مصروفات')}
+        ${kpi(margin >= 0 ? '✅' : '🔴', margin >= 0 ? 'الهامش المحقّق' : 'العجز المحقّق', money(Math.abs(margin)), good(margin), pctTxt(marginPct) + ' من القيمة المستحقّة')}
+        ${kpi('🎯', 'الهامش المستهدف', pctTxt(targetMargin), 'var(--pd-pri2)', targetMargin == null ? 'يحتاج ميزانية تقديرية' : 'من العقد مقابل الميزانية')}
+        ${kpi('🔮', 'الهامش المتوقّع عند الإنجاز', money(forecastMargin), good(forecastMargin), forecastMargin == null ? 'يحتاج مستخلصاً واحداً' : 'بمعدّل الإنفاق الحالي')}
+    </div>
+
+    ${totalBudget <= 0 ? `<div class="card" style="margin-bottom:14px;background:var(--pd-sf-warn);border:1.5px solid #f0d68a">
+        <div style="font-weight:800;color:#8a6100">⚠️ لا ميزانية تقديرية لهذا المشروع</div>
+        <div style="font-size:12.5px;color:#8a6100;margin-top:5px">
+            المقارنة بالميزانية ونسب الاستهلاك والهامش المستهدف كلها معطّلة.
+            املأ «تقسيم التكلفة المستهدفة» من تبويب <b>العقد والبنود</b> — وهي أيضاً أساس مؤشّرات EVM.
+        </div></div>` : ''}
+
+    <div class="card" style="margin-bottom:14px">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:4px">💸 أين ذهبت التكلفة — الفعلي مقابل الميزانية</div>
+        <div style="font-size:11.5px;color:#8a97a5;margin-bottom:10px">الانحراف موجب = تحت الميزانية. الصفوف الحمراء تجاوزت ميزانيتها.</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">الفئة</th><th style="text-align:left">الميزانية</th>
+                <th style="text-align:left">الفعلي</th><th style="text-align:left">الانحراف</th>
+                <th style="text-align:center">المستهلك</th>
+            </tr></thead>
+            <tbody>${catRows}
+                <tr style="background:var(--pd-sf2);font-weight:900">
+                    <td style="padding:9px">الإجمالي</td>
+                    <td style="text-align:left">${totalBudget ? fmt(totalBudget) : '—'}</td>
+                    <td style="text-align:left">${fmt(totalActual)}</td>
+                    <td style="text-align:left;color:${good(totalBudget ? totalBudget - totalActual : null)}">${totalBudget ? money(totalBudget - totalActual) : '—'}</td>
+                    <td style="text-align:center">${totalBudget ? pctTxt((totalActual / totalBudget) * 100) : '—'}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:4px">📋 القيمة المستحقّة لكل بند</div>
+        <div style="font-size:11.5px;color:#8a97a5;margin-bottom:10px">من عناصر المستخلصات المعتمدة المرتبطة ببنود العقد.</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">البند</th><th style="text-align:left">قيمة العقد</th>
+                <th style="text-align:left">المستحقّ</th><th style="text-align:left">المتبقي</th>
+                <th style="text-align:center">الإنجاز</th>
+            </tr></thead>
+            <tbody>${boqHtml}</tbody>
+        </table>
+    </div>`;
+}
