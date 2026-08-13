@@ -245,6 +245,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('evm',       '📐 الأداء (EVM)')}
         ${pdTabBtn('cvr',       `⚖️ تسوية القيمة والتكلفة`)}
         ${pdTabBtn('bonds',     `🛡️ الضمانات والمحتجزات`)}
+        ${pdTabBtn('diary',     `📔 يومية الموقع`)}
         ${pdTabBtn('cashflow',  '💧 التدفق النقدي')}
         ${pdTabBtn('invoices',  '🧾 فواتير المبيعات')}
         ${pdTabBtn('expenses',  '💸 المصروفات')}
@@ -288,6 +289,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-risks"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-cvr"       class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-bonds"     class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-diary"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
@@ -358,6 +360,7 @@ function pdRenderTab(tab) {
     if (tab === 'risks')     pdRenderRisks(pid);
     if (tab === 'cvr')       pdRenderCVR(pid);
     if (tab === 'bonds')     pdRenderBonds(pid);
+    if (tab === 'diary')     pdRenderDiary(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
@@ -7146,3 +7149,230 @@ function pdRenderBonds(pid) {
         </table>
     </div>`;
 }
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║   📔  يومية الموقع (Daily Site Report) — أكثر تبويب استخداماً في Procore  ║
+// ║   قيمتها ليست التوثيق بل أنها **الدليل القانوني** في مطالبات تمديد المدة  ║
+// ║   (EOT): بلا يومية موقع لا تُثبت أن التأخير سببه المالك أو الطقس.         ║
+// ║   لذلك المعوّقات مُهيكَلة (سبب + ساعات ضائعة) لا نصّاً حرّاً.             ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const SD_WEATHER = { clear: '☀️ صحو', cloudy: '⛅ غائم', rain: '🌧️ ممطر', wind: '💨 رياح', dust: '🌪️ غبار', hot: '🔥 حرارة شديدة' };
+// أسباب التعطّل — التصنيف هو ما يحدّد مَن يتحمّل التأخير تعاقدياً
+const SD_DELAY = {
+    weather: { l: '🌧️ طقس', claim: 'قابل لتمديد المدة (بلا تعويض)' },
+    client: { l: '👤 المالك/الاستشاري', claim: 'قابل لتمديد المدة + تعويض' },
+    design: { l: '📐 تعديل تصميم', claim: 'قابل لتمديد المدة + تعويض' },
+    material: { l: '📦 تأخّر مواد', claim: 'على المقاول عادةً' },
+    labor: { l: '👷 نقص عمالة', claim: 'على المقاول' },
+    equipment: { l: '🚜 عطل معدات', claim: 'على المقاول' },
+    permit: { l: '📜 تصاريح/جهات', claim: 'قابل لتمديد المدة' },
+    other: { l: '📎 أخرى', claim: '—' }
+};
+function sdAll(pid) { return Object.entries((window.siteDiary || {})[pid] || {}).map(([k, r]) => ({ k, ...r })); }
+
+function pdRenderDiary(pid) {
+    const pane = document.getElementById('pd-tab-diary'); if (!pane) return;
+    const rows = sdAll(pid).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const totalCrew = rows.reduce((s, r) => s + pdSum(r.crews || [], 'count'), 0);
+    const lostHours = rows.reduce((s, r) => s + pdSum(r.delays || [], 'hours'), 0);
+    const daysWithDelay = rows.filter(r => (r.delays || []).length).length;
+    // ساعات ضائعة قابلة للمطالبة بتمديد المدة (طقس/مالك/تصميم/تصاريح)
+    const claimable = rows.reduce((s, r) => s + pdSum((r.delays || []).filter(d =>
+        ['weather', 'client', 'design', 'permit'].includes(d.cause)), 'hours'), 0);
+
+    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:145px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
+        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
+        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
+        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
+
+    const dayRows = rows.length ? rows.map(r => {
+        const crew = pdSum(r.crews || [], 'count');
+        const lost = pdSum(r.delays || [], 'hours');
+        return `<tr style="border-bottom:1px solid var(--pd-sf1);${lost ? 'background:var(--pd-sf-warn2)' : ''}">
+            <td style="padding:8px 9px;white-space:nowrap;font-weight:700;color:var(--pd-pri)">${esc(r.date || '—')}</td>
+            <td style="font-size:11.5px;white-space:nowrap">${esc(SD_WEATHER[r.weather] || '—')}${r.temp ? ` <span style="color:#8a97a5">${pdNum(r.temp)}°</span>` : ''}</td>
+            <td style="text-align:center;font-weight:700">${crew || '—'}</td>
+            <td style="text-align:center">${(r.equipment || []).length || '—'}</td>
+            <td style="font-size:11.5px;max-width:260px">${esc((r.workDone || '—').slice(0, 90))}${(r.workDone || '').length > 90 ? '…' : ''}</td>
+            <td style="text-align:center">${lost ? `<span style="background:var(--pd-sf-danger);color:var(--pd-danger);border-radius:8px;padding:2px 8px;font-weight:800;white-space:nowrap">${lost} س</span>` : '<span style="color:var(--pd-ok)">—</span>'}</td>
+            <td style="font-size:11px">${(r.delays || []).map(d => esc((SD_DELAY[d.cause] || {}).l || d.cause || '')).join('، ') || '—'}</td>
+            <td style="text-align:left;white-space:nowrap">
+                <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="sdOpenForm('${pid}','${r.k}')">✏️</button>
+                <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="sdDelete('${pid}','${r.k}')">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="8" style="text-align:center;color:#aaa;padding:26px">لا يوميات مسجّلة — سجّل يومك الأول لتبني سجلاً يُحتجّ به</td></tr>`;
+
+    // تجميع أسباب التعطّل — أساس مطالبة تمديد المدة
+    const byCause = {};
+    rows.forEach(r => (r.delays || []).forEach(d => { byCause[d.cause] = (byCause[d.cause] || 0) + pdNum(d.hours); }));
+    const causeRows = Object.entries(byCause).sort((a, b) => b[1] - a[1]).map(([c, h]) => {
+        const def = SD_DELAY[c] || { l: c, claim: '—' };
+        const claimOk = ['weather', 'client', 'design', 'permit'].includes(c);
+        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
+            <td style="padding:8px 9px;font-weight:700">${esc(def.l)}</td>
+            <td style="text-align:center;font-weight:800">${h} ساعة</td>
+            <td style="text-align:center">${(h / 8).toFixed(1)} يوم</td>
+            <td style="font-size:11.5px;color:${claimOk ? 'var(--pd-ok-d)' : 'var(--pd-danger)'}">${esc(def.claim)}</td>
+        </tr>`;
+    }).join('');
+
+    pane.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('📅', 'أيام مسجّلة', rows.length, 'var(--pd-pri2)')}
+        ${kpi('👷', 'إجمالي العمالة/يوم', totalCrew, 'var(--pd-acc)', rows.length ? `متوسط ${(totalCrew / rows.length).toFixed(1)}` : '')}
+        ${kpi('⏱️', 'ساعات ضائعة', lostHours, 'var(--pd-warn)', `${daysWithDelay} يوم بمعوّقات`)}
+        ${kpi('⚖️', 'قابل لتمديد المدة', (claimable / 8).toFixed(1) + ' يوم', 'var(--pd-danger)', `${claimable} ساعة — طقس/مالك/تصميم/تصاريح`)}
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div style="font-weight:800;color:var(--pd-pri)">📔 يومية الموقع</div>
+            <button class="btn b-p" onclick="sdOpenForm('${pid}')">➕ تسجيل يوم</button>
+        </div>
+        <div class="hr-info" style="margin-top:10px;font-size:12px">
+            المعوّقات مصنّفة بالسبب لأن التصنيف هو ما يحدّد <b>مَن يتحمّل التأخير تعاقدياً</b>:
+            الطقس والمالك والتصميم والتصاريح تُبنى عليها مطالبة تمديد المدة، وما عداها على المقاول.
+        </div>
+    </div>
+
+    <div id="pd-diary-form" style="display:none"></div>
+
+    ${causeRows ? `<div class="card" style="margin-bottom:14px">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">⚖️ تحليل أسباب التعطّل — أساس مطالبة تمديد المدة</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">السبب</th><th style="text-align:center">الساعات</th>
+                <th style="text-align:center">ما يعادل</th><th>الأثر التعاقدي</th>
+            </tr></thead><tbody>${causeRows}</tbody>
+        </table>
+    </div>` : ''}
+
+    <div class="card">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="text-align:right;background:var(--pd-sf1)">
+                <th style="padding:9px">التاريخ</th><th>الطقس</th><th style="text-align:center">العمالة</th>
+                <th style="text-align:center">معدات</th><th>الأعمال المنجزة</th>
+                <th style="text-align:center">ضائع</th><th>المعوّقات</th><th></th>
+            </tr></thead><tbody>${dayRows}</tbody>
+        </table>
+    </div>`;
+}
+
+window.sdOpenForm = function (pid, key) {
+    const box = document.getElementById('pd-diary-form'); if (!box) return;
+    const r = key ? (sdAll(pid).find(x => x.k === key) || {}) : {};
+    const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    const opt = (o, sel) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${typeof v === 'string' ? v : v.l}</option>`).join('');
+    window._sdCrews = Array.isArray(r.crews) ? r.crews.map(x => ({ ...x })) : [];
+    window._sdEquip = Array.isArray(r.equipment) ? r.equipment.map(x => ({ ...x })) : [];
+    window._sdDelays = Array.isArray(r.delays) ? r.delays.map(x => ({ ...x })) : [];
+    box.style.display = '';
+    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-pri2)">
+        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:12px">${key ? '✏️ تعديل يومية' : '➕ تسجيل يوم'}</div>
+        <input type="hidden" id="sd-key" value="${key || ''}">
+        <div class="form-grid sm">
+            <div class="fg"><label>التاريخ *</label><input type="date" id="sd-date" value="${esc(r.date || today)}"></div>
+            <div class="fg"><label>الطقس</label><select id="sd-weather">${opt(SD_WEATHER, r.weather || 'clear')}</select></div>
+            <div class="fg"><label>درجة الحرارة °م</label><input type="number" id="sd-temp" value="${r.temp != null ? pdNum(r.temp) : ''}"></div>
+            <div class="fg"><label>الزوّار</label><input id="sd-visitors" value="${esc(r.visitors || '')}" placeholder="استشاري، مالك…"></div>
+            <div class="fg" style="grid-column:1/-1"><label>الأعمال المنجزة</label>
+                <textarea id="sd-work" rows="2" placeholder="ما أُنجز اليوم">${esc(r.workDone || '')}</textarea></div>
+            <div class="fg" style="grid-column:1/-1"><label>ملاحظات السلامة</label>
+                <input id="sd-safety" value="${esc(r.safety || '')}" placeholder="حوادث/مخالفات/تعليمات"></div>
+        </div>
+
+        <div style="margin-top:14px;font-weight:800;color:var(--pd-pri);font-size:13px">👷 العمالة حسب التخصص</div>
+        <div id="sd-crews"></div>
+        <button class="btn" style="background:var(--pd-sf1);margin-top:6px;font-size:11.5px" onclick="sdAddRow('crew')">➕ تخصص</button>
+
+        <div style="margin-top:14px;font-weight:800;color:var(--pd-pri);font-size:13px">🚜 المعدات</div>
+        <div id="sd-equip"></div>
+        <button class="btn" style="background:var(--pd-sf1);margin-top:6px;font-size:11.5px" onclick="sdAddRow('equip')">➕ معدة</button>
+
+        <div style="margin-top:14px;font-weight:800;color:var(--pd-danger);font-size:13px">⏱️ المعوّقات وساعات التعطّل</div>
+        <div id="sd-delays"></div>
+        <button class="btn" style="background:var(--pd-sf-danger);color:var(--pd-danger);margin-top:6px;font-size:11.5px" onclick="sdAddRow('delay')">➕ معوّق</button>
+
+        <div class="card-actions" style="margin-top:14px">
+            <button class="btn b-p" onclick="sdSave('${pid}')">💾 حفظ</button>
+            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-diary-form').style.display='none'">إلغاء</button>
+        </div>
+    </div>`;
+    sdPaintRows();
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+function sdPaintRows() {
+    const inp = 'padding:6px 9px;border:1.5px solid var(--pd-bd);border-radius:7px;font-family:inherit;font-size:12.5px';
+    const c = document.getElementById('sd-crews');
+    if (c) c.innerHTML = (window._sdCrews || []).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+        <input value="${esc(x.trade || '')}" oninput="window._sdCrews[${i}].trade=this.value" placeholder="التخصص (نجارة، حدادة…)" style="${inp};flex:2">
+        <input type="number" min="0" value="${pdNum(x.count) || ''}" oninput="window._sdCrews[${i}].count=this.value" placeholder="العدد" style="${inp};flex:1">
+        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="sdDelRow('crew',${i})">🗑️</button></div>`).join('');
+    const e = document.getElementById('sd-equip');
+    if (e) e.innerHTML = (window._sdEquip || []).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+        <input value="${esc(x.name || '')}" oninput="window._sdEquip[${i}].name=this.value" placeholder="المعدة (حفارة، رافعة…)" style="${inp};flex:2">
+        <input type="number" min="0" step="0.5" value="${pdNum(x.hours) || ''}" oninput="window._sdEquip[${i}].hours=this.value" placeholder="ساعات" style="${inp};flex:1">
+        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="sdDelRow('equip',${i})">🗑️</button></div>`).join('');
+    const d = document.getElementById('sd-delays');
+    if (d) d.innerHTML = (window._sdDelays || []).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+        <select oninput="window._sdDelays[${i}].cause=this.value" onchange="window._sdDelays[${i}].cause=this.value" style="${inp};flex:1.4;min-width:150px">
+            ${Object.entries(SD_DELAY).map(([k, v]) => `<option value="${k}" ${x.cause === k ? 'selected' : ''}>${v.l}</option>`).join('')}
+        </select>
+        <input type="number" min="0" step="0.5" value="${pdNum(x.hours) || ''}" oninput="window._sdDelays[${i}].hours=this.value" placeholder="ساعات" style="${inp};flex:.7;min-width:80px">
+        <input value="${esc(x.note || '')}" oninput="window._sdDelays[${i}].note=this.value" placeholder="التفصيل (يُحتجّ به لاحقاً)" style="${inp};flex:2;min-width:160px">
+        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="sdDelRow('delay',${i})">🗑️</button></div>`).join('');
+}
+window.sdAddRow = function (kind) {
+    if (kind === 'crew') (window._sdCrews = window._sdCrews || []).push({ trade: '', count: '' });
+    else if (kind === 'equip') (window._sdEquip = window._sdEquip || []).push({ name: '', hours: '' });
+    else (window._sdDelays = window._sdDelays || []).push({ cause: 'weather', hours: '', note: '' });
+    sdPaintRows();
+};
+window.sdDelRow = function (kind, i) {
+    const arr = kind === 'crew' ? window._sdCrews : kind === 'equip' ? window._sdEquip : window._sdDelays;
+    if (arr) arr.splice(i, 1);
+    sdPaintRows();
+};
+
+window.sdSave = async function (pid) {
+    const g = id => document.getElementById(id);
+    const date = g('sd-date')?.value || '';
+    if (!date) { toast('التاريخ مطلوب', 'er'); return; }
+    const clean = (arr, keys) => (arr || [])
+        .map(x => { const o = {}; keys.forEach(k => { o[k] = k === 'count' || k === 'hours' ? Math.max(0, pdNum(x[k])) : (x[k] || ''); }); return o; })
+        .filter(x => keys.some(k => x[k] !== '' && x[k] !== 0));
+    const data = {
+        date,
+        weather: g('sd-weather')?.value || 'clear',
+        temp: g('sd-temp')?.value === '' ? null : pdNum(g('sd-temp')?.value),
+        visitors: (g('sd-visitors')?.value || '').trim(),
+        workDone: (g('sd-work')?.value || '').trim(),
+        safety: (g('sd-safety')?.value || '').trim(),
+        crews: clean(window._sdCrews, ['trade', 'count']),
+        equipment: clean(window._sdEquip, ['name', 'hours']),
+        delays: clean(window._sdDelays, ['cause', 'hours', 'note']),
+        updatedAt: new Date().toISOString()
+    };
+    const key = g('sd-key')?.value || '';
+    try {
+        if (key) await update(ref(db, `ledger/siteDiary/${pid}/${key}`), data);
+        else { data.createdAt = new Date().toISOString(); await push(ref(db, `ledger/siteDiary/${pid}`), data); }
+        if (typeof logAudit === 'function') logAudit(key ? 'update' : 'create', 'المشاريع', `${key ? 'تعديل' : 'تسجيل'} يومية موقع: ${date}`);
+        toast('✅ حُفظت اليومية', 'ok');
+        const box = document.getElementById('pd-diary-form'); if (box) box.style.display = 'none';
+    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+};
+
+window.sdDelete = function (pid, key) {
+    const r = sdAll(pid).find(x => x.k === key);
+    cf2(`حذف يومية ${r?.date || ''}؟\n\nاليوميات دليل تعاقدي — الحذف يُضعف أي مطالبة لاحقة.`, async () => {
+        try {
+            await remove(ref(db, `ledger/siteDiary/${pid}/${key}`));
+            if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف يومية موقع: ${r?.date || key}`);
+            toast('🗑️ حُذفت', 'ok');
+        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
+    });
+};

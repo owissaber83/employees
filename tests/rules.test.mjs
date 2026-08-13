@@ -24,6 +24,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
   await set(ref(db, 'tenants/A/ledger/users/pmA'), { role: 'project_manager', active: true });
+  await set(ref(db, 'tenants/A/ledger/users/seA'), { role: 'site_engineer', active: true });   // [DIARY] مهندس موقع
   // 🔐 [PERM] مستخدمون لاختبار إنفاذ permsMap — مُرحَّل بلا صلاحية حذف، ومُرحَّل بها، وقديم بلا خريطة
   await set(ref(db, 'tenants/A/ledger/users/acctNoDel'), { role: 'accountant', active: true,
     permissions: ['create_journal_entry'], permsMap: { create_journal_entry: true } });
@@ -72,6 +73,7 @@ const db = {
   acctA: testEnv.authenticatedContext('acctA').database(),
   viewerA: testEnv.authenticatedContext('viewerA').database(),
   pmA: testEnv.authenticatedContext('pmA').database(),
+  seA: testEnv.authenticatedContext('seA').database(),                 // [DIARY] مهندس موقع
   acctNoDel: testEnv.authenticatedContext('acctNoDel').database(),     // [PERM] مُرحَّل بلا صلاحية حذف
   acctCanDel: testEnv.authenticatedContext('acctCanDel').database(),   // [PERM] مُرحَّل بصلاحية حذف
   acctLegacy: testEnv.authenticatedContext('acctLegacy').database(),   // [PERM] قديم بلا permsMap               // مدير مشروع (غير محاسبي)
@@ -462,6 +464,15 @@ await test('موظف HR لا يكتب خطراً', assertFails(set(ref(db.hrA, '
 await test('مشاهد لا يقرأ سجل المخاطر', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/projectRisks/p1'))));
 await test('عزل: مدير مشروع A لا يكتب مخاطر في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/projectRisks/p1/hack'), { title: 'x' })));
 await test('اشتراك منتهٍ يمنع تسجيل خطر', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/projectRisks/p1/x'), { title: 'x' })));
+
+
+console.log('\n📔 يومية الموقع [DIARY]:');
+await test('مهندس موقع يسجّل يومية', assertSucceeds(set(ref(db.seA, 'tenants/A/ledger/siteDiary/p1/d1'), { date: '2026-08-12', workDone: 'صبّة' })));
+await test('مدير مشروع يسجّل يومية', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/siteDiary/p1/d2'), { date: '2026-08-13' })));
+await test('محاسب يقرأ اليوميات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/siteDiary/p1'))));
+await test('محاسب لا يسجّل يومية', assertFails(set(ref(db.acctA, 'tenants/A/ledger/siteDiary/p1/d3'), { date: 'x' })));
+await test('مشاهد لا يقرأ اليوميات', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/siteDiary/p1'))));
+await test('عزل: مهندس A لا يكتب يومية في B', assertFails(set(ref(db.seA, 'tenants/B/ledger/siteDiary/p1/hack'), { date: 'x' })));
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
