@@ -28,6 +28,9 @@ jobs:
       - name: Lint — أخطاء حقيقية فقط (بوابة)
         run: npm run lint
 
+      - name: اختبارات الحسابات المالية (Node — سريعة)
+        run: npm run test:calc
+
       - name: إعداد Java (لمحاكي Firebase — يتطلّب firebase-tools ‏JDK 21+)
         uses: actions/setup-java@v5
         with:

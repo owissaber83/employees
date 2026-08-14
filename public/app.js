@@ -95,6 +95,7 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get, runTransaction as _rawRunTransaction } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
+import { calcBillingTotals } from "./calc.js"; // 🧮 محرك الحسابات النقيّة (مُختبَر آلياً — tests/calc.test.mjs)
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
 import { getStorage, ref as _sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
 // تعطيل مؤقت: Firebase Storage يتطلب الترقية لخطة Blaze — مركز المستندات يعتمد حالياً على روابط خارجية
@@ -27719,18 +27720,7 @@ function billingPctFromSchedule(projectId, items) {
     return pct;
 }
 
-function calcBillingTotals({ currentAmount, retentionPct, advancePct, advRecoveryPct, otherDeductions, vatPct }) {
-    const subtotal = (currentAmount || 0);
-    const advanceAmount = subtotal * ((advancePct || 0) / 100);
-    const vatAmount = subtotal * ((vatPct || 0) / 100);
-    const totalAfterVAT = subtotal + vatAmount;
-    const retentionAmount = subtotal * ((retentionPct || 0) / 100);
-    const advRecoveryAmount = subtotal * ((advRecoveryPct || 0) / 100);
-    // [إصلاح ازدواج الخصم] لا نخصم advanceAmount من صافي المستخلص: الدفعة المقدمة تُقبض مرة واحدة عند
-    // التوقيع (تُسجَّل كالتزام/دفعة عميل مستقلة)، وتُسترَدّ تدريجياً عبر advRecovery المخصوم من كل مستخلص فقط.
-    const netAmount = totalAfterVAT - retentionAmount - (otherDeductions || 0) - advRecoveryAmount;
-    return { retentionAmount, advanceAmount, advRecoveryAmount, beforeVAT: subtotal, vatAmount, netAmount, totalAfterVAT };
-}
+// 🧮 calcBillingTotals — نُقلت إلى public/calc.js (محرك الحسابات النقيّة المُختبَر) وتُستورَد أعلاه.
 
 window.updateBillingItemRow = function (idx) {
     const billingKey = document.getElementById('billItemsTable')?.dataset.billingKey;
