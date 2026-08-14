@@ -1454,6 +1454,17 @@ function renderClientPortal() {
                 </div>`}
         </div>`;
     };
+    const rfis = Object.entries(d.rfis || {});
+    const rfiCard = ([id, r]) => {
+        const responded = done[id];
+        return `<div style="background:#fff;border:1px solid #e3e9ef;border-radius:13px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+            <div><div style="font-size:14px;font-weight:900;color:#1a3a5c">📨 استفسار ${r.no ? '#' + r.no : ''}${r.subject ? ' — ' + esc(r.subject) : ''}</div>${r.discipline ? `<div style="font-size:11px;color:#888;margin-top:2px">${esc(r.discipline)}</div>` : ''}</div>
+            ${r.question ? `<div style="background:#f5f7f9;border-radius:8px;padding:11px;margin-top:10px;font-size:12.5px;color:#444;line-height:1.8">❓ ${esc(r.question)}</div>` : ''}
+            ${responded
+                ? `<div style="margin-top:12px;background:#e7f6ee;border:1px solid #b6e2c8;border-radius:8px;padding:10px;text-align:center;font-size:12.5px;color:#1a8049;font-weight:700">✅ تمّ إرسال إجابتك — شكراً لك</div>`
+                : `<div style="margin-top:12px"><button onclick="portalRespond('${id}','answer')" style="width:100%;background:#2d6a9f;color:#fff;border:none;border-radius:8px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">✍️ إجابة الاستفسار</button></div>`}
+        </div>`;
+    };
     box.innerHTML = `
     <div style="min-height:100vh;background:linear-gradient(180deg,#1a3a5c 0,#2d6a9f 180px,#eef2f6 360px)">
       <div style="max-width:720px;margin:0 auto;padding:28px 16px 60px">
@@ -1466,7 +1477,9 @@ function renderClientPortal() {
             <div style="font-size:12.5px;color:#555;flex:1;min-width:180px">👋 مرحباً، راجع العناصر التالية واعتمدها أو أضف ملاحظتك. اكتب اسمك ليُوثَّق ردّك:</div>
             <input id="portalName" value="${(name || '').replace(/"/g, '&quot;')}" oninput="window.__portalData.name=this.value" placeholder="اسمك" style="padding:9px 12px;border:1px solid #cdd8e2;border-radius:8px;font-family:inherit;font-size:13px;min-width:160px">
         </div>
-        ${bills.length ? bills.map(billCard).join('') : '<div style="background:#fff;border-radius:12px;padding:34px;text-align:center;color:#888">لا عناصر للمراجعة حالياً</div>'}
+        ${bills.length ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin:4px 2px 10px">📑 المستخلصات</div>${bills.map(billCard).join('')}` : ''}
+        ${rfis.length ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin:16px 2px 10px">📨 طلبات المعلومات (RFIs)</div>${rfis.map(rfiCard).join('')}` : ''}
+        ${(!bills.length && !rfis.length) ? '<div style="background:#fff;border-radius:12px;padding:34px;text-align:center;color:#888">لا عناصر للمراجعة حالياً</div>' : ''}
         <div style="text-align:center;margin-top:24px;font-size:11px;color:#9aa5b1;line-height:1.9">🔒 رابط خاص وآمن — ردودك تصل مباشرة لإدارة المشروع.<br>مدعوم بمنصّة «بُنيان» لإدارة المقاولات</div>
       </div>
     </div>`;
@@ -1479,10 +1492,13 @@ window.portalRespond = async function (billId, action) {
     if (action === 'reject' || action === 'note') {
         note = prompt(action === 'reject' ? 'سبب الرفض (اختياري):' : 'اكتب ملاحظتك:') || '';
         if (action === 'note' && !note.trim()) return;
+    } else if (action === 'answer') {
+        note = prompt('اكتب إجابتك عن الاستفسار:') || '';
+        if (!note.trim()) return;
     }
     try {
         await push(_rawRef(db, 'portalResponses/' + pd.token), { billId, action, note: String(note).slice(0, 1000), by: name.slice(0, 80), at: Date.now() });
-        pd.done[billId] = action === 'approve' ? 'اعتماد' : action === 'reject' ? 'رفض' : 'ملاحظة';
+        pd.done[billId] = action === 'approve' ? 'اعتماد' : action === 'reject' ? 'رفض' : action === 'answer' ? 'إجابة' : 'ملاحظة';
         renderClientPortal();
     } catch (e) { alert('تعذّر إرسال ردّك — تحقّق من الاتصال وأعد المحاولة'); }
 };

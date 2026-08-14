@@ -5047,12 +5047,19 @@ window.pdGenPortalLink = async function (pid) {
             billings[k] = { no: b.billingNo || 0, date: b.billingDate || '', current: pdNum(b.currentAmount), net: pdNum(b.netAmount), retention: pdNum(b.retentionAmount), status: b.status };
         }
     });
-    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', clientName: p.clientName || p.client || '', company: window.currentTenantName || 'الشركة', party: 'client', createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, billings };
+    // RFIs المفتوحة الموجّهة للعميل — ليطّلع ويجيب عن بُعد
+    const rfis = {};
+    Object.entries((window.rfis || {})[pid] || {}).forEach(([k, r]) => {
+        if ((r.status || 'open') === 'open') {
+            rfis[k] = { no: r.number || '', subject: r.subject || '', question: r.question || '', discipline: r.discipline || '', status: r.status || 'open' };
+        }
+    });
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', clientName: p.clientName || p.client || '', company: window.currentTenantName || 'الشركة', party: 'client', createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, billings, rfis };
     try {
         await set(_rawRef(db, 'portalSnapshots/' + token), snap);
         await update(ref(db, 'ledger/projects/' + pid), { portalToken: token, portalUpdatedAt: Date.now() });
         if (window.projects[pid]) window.projects[pid].portalToken = token;
-        toast('✅ تم إنشاء/تحديث رابط البوابة (' + Object.keys(billings).length + ' مستخلص)', 'ok');
+        toast('✅ تم إنشاء/تحديث الرابط (' + Object.keys(billings).length + ' مستخلص · ' + Object.keys(rfis).length + ' RFI)', 'ok');
         pdRenderPortalMgr(pid);
     } catch (e) { toast('❌ تعذّر إنشاء الرابط: ' + (e.message || e), 'er'); }
 };
@@ -5102,13 +5109,20 @@ function pdRenderPortalMgr(pid) {
         if (!sn.exists()) { box.innerHTML = '<div style="text-align:center;padding:14px;color:#999">لا ردود بعد — بانتظار اطّلاع العميل</div>'; return; }
         const rows = Object.values(sn.val()).sort((a, b) => (b.at || 0) - (a.at || 0));
         const bmap = window.progressBillings || {};
-        const actLabel = a => a === 'approve' ? ['✅ اعتماد', 'var(--pd-ok)', 'var(--pd-sf-ok)'] : a === 'reject' ? ['❌ رفض', 'var(--pd-danger)', 'var(--pd-sf-danger)'] : ['📝 ملاحظة', 'var(--pd-blue)', '#eef3fb'];
-        box.innerHTML = rows.map(r => { const [lb, c, bg] = actLabel(r.action); const b = bmap[r.billId]; return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-bottom:8px;background:${bg}">
+        const actLabel = a => a === 'approve' ? ['✅ اعتماد', 'var(--pd-ok)', 'var(--pd-sf-ok)'] : a === 'reject' ? ['❌ رفض', 'var(--pd-danger)', 'var(--pd-sf-danger)'] : a === 'answer' ? ['✍️ إجابة', 'var(--pd-blue)', '#eef3fb'] : ['📝 ملاحظة', 'var(--pd-blue)', '#eef3fb'];
+        const rmap = (window.rfis || {})[pid] || {};
+        box.innerHTML = rows.map(r => {
+            const [lb, c, bg] = actLabel(r.action);
+            const b = bmap[r.billId], rfi = rmap[r.billId];
+            const onWhat = b ? `مستخلص رقم ${b.billingNo || '—'}` : rfi ? `استفسار: ${esc(rfi.subject || rfi.number || '')}` : 'عنصر';
+            const jump = b ? `<button class="btn" onclick="nav('progressbillings');setTimeout(function(){ if(typeof openBillingDetail==='function') openBillingDetail('${r.billId}'); },350)" style="padding:3px 11px;font-size:11px;background:var(--pd-sf3);border:1px solid var(--pd-bd)" title="افتح المستخلص لاعتماده داخلياً">↗️ فتح للاعتماد</button>` : '';
+            return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-bottom:8px;background:${bg}">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
                 <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.by || 'عميل')} — <span style="color:${c}">${lb}</span></div>
                 <div style="font-size:10.5px;color:#999">${r.at ? new Date(r.at).toLocaleString('ar') : ''}</div>
             </div>
-            <div style="font-size:11.5px;color:#666;margin-top:4px">على: مستخلص رقم ${b ? (b.billingNo || '—') : '—'}${r.note ? ` · «${esc(r.note)}»` : ''}</div>
+            <div style="font-size:11.5px;color:#666;margin-top:4px">على: ${onWhat}${r.note ? ` · «${esc(r.note)}»` : ''}</div>
+            ${jump ? `<div style="margin-top:7px">${jump}</div>` : ''}
         </div>`; }).join('');
     }).catch(() => { const box = document.getElementById('pd-portal-inbox'); if (box) box.innerHTML = '<div style="color:var(--pd-danger)">تعذّر تحميل الردود</div>'; });
 }

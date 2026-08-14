@@ -472,6 +472,7 @@ console.log('\n🔗 بوابة العميل/المقاول [PORTAL] — لقطة
 await test('زائر (بلا حساب) يقرأ لقطة البوابة بالرمز', assertSucceeds(get(ref(db.unauth, 'portalSnapshots/TOK1'))));
 // زائر يُلحق ردّاً صالحاً على لقطة سارية
 await test('زائر يُلحق ردّ اعتماد صالحاً', assertSucceeds(set(ref(db.unauth, 'portalResponses/TOK1/r1'), { billId: 'b1', action: 'approve', by: 'العميل', at: Date.now() })));
+await test('زائر يُلحق إجابة RFI صالحة (answer)', assertSucceeds(set(ref(db.unauth, 'portalResponses/TOK1/rans'), { billId: 'rfi1', action: 'answer', note: 'الجواب: يُعتمد التصميم المقترح', by: 'العميل', at: Date.now() })));
 // تصلّب: زائر لا يُنشئ/يزوّر لقطة بوابة
 await test('زائر لا يُنشئ لقطة بوابة (تزوير)', assertFails(set(ref(db.unauth, 'portalSnapshots/HACK'), { tid: 'A', projectId: 'p1' })));
 // تحقّق الشكل: إجراء غير مسموح / حقول ناقصة

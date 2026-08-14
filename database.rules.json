@@ -24,7 +24,7 @@
       "$token": {
         ".read": "auth != null && root.child('portalSnapshots').child($token).child('tid').val() !== null && root.child('tenants').child(root.child('portalSnapshots').child($token).child('tid').val()).child('ledger/users').child(auth.uid).exists()",
         "$rid": {
-          ".write": "!data.exists() && newData.exists() && root.child('portalSnapshots').child($token).exists() && root.child('portalSnapshots').child($token).child('revoked').val() !== true && newData.hasChildren(['billId','action','by','at']) && (newData.child('action').val() === 'approve' || newData.child('action').val() === 'reject' || newData.child('action').val() === 'note') && newData.child('by').isString() && newData.child('by').val().length <= 80 && newData.child('billId').isString() && newData.child('billId').val().length <= 200 && (!newData.child('note').exists() || newData.child('note').val().length <= 1000)"
+          ".write": "!data.exists() && newData.exists() && root.child('portalSnapshots').child($token).exists() && root.child('portalSnapshots').child($token).child('revoked').val() !== true && newData.hasChildren(['billId','action','by','at']) && (newData.child('action').val() === 'approve' || newData.child('action').val() === 'reject' || newData.child('action').val() === 'note' || newData.child('action').val() === 'answer') && newData.child('by').isString() && newData.child('by').val().length <= 80 && newData.child('billId').isString() && newData.child('billId').val().length <= 200 && (!newData.child('note').exists() || newData.child('note').val().length <= 1000)"
         }
       }
     },
