@@ -1,0 +1,41 @@
+# بوابة الجودة — Lint (أخطاء حقيقية) + اختبارات قواعد الأمان على كل push/PR.
+# الهدف: منع دمج كود مكسور أو قاعدة أمان مكسورة (يعالج فجوة «القواعد تُختبر يدوياً»).
+name: CI — الجودة والاختبارات
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    name: Lint + اختبارات قواعد الأمان
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: إعداد Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: تثبيت التبعيات
+        run: npm ci
+
+      - name: تحديث قائمة العوالم (window globals)
+        run: npm run lint:globals
+
+      - name: Lint — أخطاء حقيقية فقط (بوابة)
+        run: npm run lint
+
+      - name: إعداد Java (لمحاكي Firebase)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: تثبيت Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: اختبارات قواعد الأمان (RTDB emulator)
+        run: npm run test:rules
