@@ -3876,50 +3876,44 @@ function startListeners() {
         updatePrjTasksBadge();
     });
     // 📨 طلبات المعلومات (RFIs) و 🔧 قوائم النواقص (Punch Lists)
-    onValue(R.rfis, sn => {
-        window.rfis = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'rfis' && typeof pdRenderTab === 'function') pdRenderTab('rfis');
-    });
-    onValue(R.punchItems, sn => {
-        window.punchItems = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'punch' && typeof pdRenderTab === 'function') pdRenderTab('punch');
-    });
+    // 🗂️ [C-1 توسّع] مجموعات التعاون (rfis/submittals/punchItems/qhse/correspondence/
+    // meetings/projectPhotos) لم تعُد تُحمَّل لكل المشاريع عند الدخول — تُحمَّل لكل مشروع
+    // عند فتحه عبر pdLoadProjectCollab (أدناه). قرّاؤها في ملف المشروع فقط (تحقّق: 0 قراءة في app.js).
     onValue(R.projectRisks, sn => {
         window.projectRisks = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'risks' && typeof pdRenderTab === 'function') pdRenderTab('risks');
-    });
-    onValue(R.qhse, sn => {
-        window.qhse = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'qhse' && typeof pdRenderTab === 'function') pdRenderTab('qhse');
-    });
-    onValue(R.submittals, sn => {
-        window.submittals = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'submittals' && typeof pdRenderTab === 'function') pdRenderTab('submittals');
     });
     watch(R.subcontracts, sn => {
         window.subcontracts = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'subcontracts' && typeof pdRenderTab === 'function') pdRenderTab('subcontracts');
     });
-    onValue(R.correspondence, sn => {
-        window.correspondence = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'correspondence' && typeof pdRenderTab === 'function') pdRenderTab('correspondence');
-    });
-    onValue(R.projectPhotos, sn => {
-        window.projectPhotos = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'photos' && typeof pdRenderTab === 'function') pdRenderTab('photos');
-    });
     watch(R.projectMarkups, sn => {
         window.projectMarkups = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'markup' && typeof pdRenderTab === 'function') pdRenderTab('markup');
-    });
-    onValue(R.meetings, sn => {
-        window.meetings = sn.exists() ? sn.val() : {};
-        if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'meetings' && typeof pdRenderTab === 'function') pdRenderTab('meetings');
     });
     onValue(R.tenders, sn => {
         window.tenders = sn.exists() ? sn.val() : {};
         if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'tenders' && typeof pdRenderTab === 'function') pdRenderTab('tenders');
     });
+    // 🗂️ محمّل التعاون لكل مشروع — يُستدعى من renderProjectDetail عند فتح أي مشروع (كل مسارات الفتح)
+    window._pdCollabProject = null;
+    window._pdCollabUnsub = [];
+    window.pdLoadProjectCollab = function (projectId) {
+        if (!projectId || window._pdCollabProject === projectId) return;   // نفس المشروع محمّل
+        window._pdCollabUnsub.forEach(u => { try { u(); } catch (_) { } });  // فصل مستمعات المشروع السابق
+        window._pdCollabUnsub = [];
+        window._pdCollabProject = projectId;
+        let t;
+        const reRender = () => { clearTimeout(t); t = setTimeout(() => { if (window._pd?.projectId === projectId && $('pg-projectdetail')?.classList.contains('act') && typeof renderProjectDetail === 'function') renderProjectDetail(); }, 60); };
+        ['rfis', 'submittals', 'punchItems', 'qhse', 'correspondence', 'meetings', 'projectPhotos'].forEach(name => {
+            const unsub = onValue(ref(db, 'ledger/' + name + '/' + projectId), sn => {
+                window[name] = window[name] || {};
+                window[name][projectId] = sn.exists() ? sn.val() : {};
+                reRender();
+            }, () => { });   // منع القراءة يتدرّج بأمان
+            window._pdCollabUnsub.push(unsub);
+        });
+    };
     // 📜 سجل نشاط المشروع
     onValue(R.pact, sn => {
         window.projectActivityLog = sn.exists() ? sn.val() : {};

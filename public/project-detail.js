@@ -115,6 +115,7 @@ window.renderProjectDetail = function () {
     if (!pg || !pg.classList.contains('act')) return;
     const projectId = window._pd.projectId;
     if (!projectId) { pg.innerHTML = '<div class="empty"><div class="ei">📁</div><p>لم يتم اختيار مشروع</p></div>'; return; }
+    if (window.pdLoadProjectCollab) window.pdLoadProjectCollab(projectId);   // 🗂️ [C-1] تحميل تعاون هذا المشروع لكل-مشروع (حارس داخلي يمنع التكرار)
     const p = (window.projects || {})[projectId];
     if (!p) {
         // البيانات قد لا تكون وصلت بعد عند التحديث (F5) — أظهر حالة تحميل بدل "غير موجود"
