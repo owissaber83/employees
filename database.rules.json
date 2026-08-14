@@ -54,6 +54,7 @@
             }
           },
           "auditLog": {
+            ".indexOn": ["at"],
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin'",
             "$entryId": {
               ".write": "auth != null && !data.exists() && ((root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false) || root.child('operators').child(auth.uid).val() === true)"

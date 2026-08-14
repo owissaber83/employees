@@ -93,7 +93,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile as fbUpP, updatePassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get, runTransaction as _rawRunTransaction } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+import { getDatabase, ref as _rawRef, set as _rawSet, push, remove as _rawRemove, update as _rawUpdate, onValue, get, runTransaction as _rawRunTransaction, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
 import { calcBillingTotals } from "./calc.js"; // 🧮 محرك الحسابات النقيّة (مُختبَر آلياً — tests/calc.test.mjs)
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js";
@@ -3619,10 +3619,23 @@ function startListeners() {
         if ($('pg-yearclosing')?.classList.contains('act') && typeof renderYearClosing === 'function') renderYearClosing();
         if (typeof updateFYIndicator === 'function') updateFYIndicator();
     });
-    onValue(R.auditLog, sn => {
+    // ⚡ [C-1 توسّع] سجل التدقيق ينمو بلا حدّ → نُحمّل آخر AUDIT_RECENT حدثاً فقط (طلب فوري)
+    // بدل المجموعة الكاملة. «تحميل السجل الكامل» متاح عند الطلب في العارض (loadFullAuditLog).
+    onValue(query(R.auditLog, orderByChild('at'), limitToLast(2000)), sn => {
         window.auditLog = sn.exists() ? sn.val() : {};
+        window.__auditBounded = true;
         if ($('pg-auditlog')?.classList.contains('act') && typeof renderAuditLog === 'function') renderAuditLog();
     });
+    // تحميل كامل سجل التدقيق عند الطلب (طلب واحد get، لا مستمع دائم) — للتدقيق الشامل/فترات قديمة
+    window.loadFullAuditLog = async function () {
+        try {
+            const sn = await get(R.auditLog);
+            window.auditLog = sn.exists() ? sn.val() : {};
+            window.__auditBounded = false;
+            if (typeof renderAuditLog === 'function') renderAuditLog();
+            if (typeof toast === 'function') toast('📜 حُمّل السجل الكامل', 'ok');
+        } catch (e) { if (typeof toast === 'function') toast('تعذّر تحميل السجل الكامل', 'er'); }
+    };
     onValue(R.fsBudgets, sn => {
         window.fsBudgets = sn.exists() ? sn.val() : {};
         if ($('pg-finstatements')?.classList.contains('act') && typeof renderFinancialStatements === 'function') renderFinancialStatements();

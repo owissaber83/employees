@@ -30789,6 +30789,9 @@ window.renderAuditLog = function () {
     <div class="card" style="background:linear-gradient(135deg,#374151,#1f2937);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:14px">
         <h2 style="margin:0;display:flex;align-items:center;gap:8px">🕵️ سجل التدقيق الشامل</h2>
         <div style="opacity:.9;margin-top:4px;font-size:13px">سجل كامل بالعمليات الحساسة في النظام: من قام بها، متى، وتفاصيلها</div>
+        ${window.__auditBounded
+            ? `<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px"><span>⚡ يُعرض <b>آخر 2000 حدث</b> (الأحدث) للأداء. لعرض فترة أقدم:</span><button onclick="loadFullAuditLog()" style="background:#fff;color:#1f2937;border:none;border-radius:7px;padding:5px 12px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit">📜 تحميل السجل الكامل</button></div>`
+            : `<div style="margin-top:8px;font-size:11.5px;opacity:.78">📜 السجل الكامل محمّل</div>`}
     </div>`;
 
     html += `<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
