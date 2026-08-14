@@ -5074,11 +5074,56 @@ window.pdRevokePortalLink = async function (pid) {
     } catch (e) { toast('❌ تعذّر الإلغاء', 'er'); }
 };
 window.pdCopyPortal = function (url) { navigator.clipboard.writeText(url).then(() => toast('✅ نُسخ الرابط', 'ok')).catch(() => toast('انسخه يدوياً: ' + url, 'ok')); };
+window.pdGenSubPortalLink = async function (pid, subKey) {
+    const p = (window.projects || {})[pid]; const s = ((window.subcontracts || {})[pid] || {})[subKey];
+    if (!p || !s) return;
+    const token = s.portalToken || pdGenToken();
+    const certs = {};
+    (Array.isArray(s.certificates) ? s.certificates : []).forEach((c, i) => {
+        certs[i] = { no: c.no || (i + 1), date: c.date || '', periodValue: pdNum(c.periodValue), retentionAmt: pdNum(c.retentionAmt), advanceRecovery: pdNum(c.advanceRecovery), netPayable: pdNum(c.netPayable), status: c.status || 'submitted' };
+    });
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', company: window.currentTenantName || 'الشركة', party: 'sub', subName: s.subName || '', scope: s.scope || '', contractValue: pdNum(s.contractValue), createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, certs };
+    try {
+        await set(_rawRef(db, 'portalSnapshots/' + token), snap);
+        await update(ref(db, 'ledger/subcontracts/' + pid + '/' + subKey), { portalToken: token, portalUpdatedAt: Date.now() });
+        if (((window.subcontracts || {})[pid] || {})[subKey]) window.subcontracts[pid][subKey].portalToken = token;
+        toast('✅ رابط بوابة الباطن (' + Object.keys(certs).length + ' شهادة)', 'ok');
+        pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر: ' + (e.message || e), 'er'); }
+};
+window.pdRevokeSubPortalLink = async function (pid, subKey) {
+    const s = ((window.subcontracts || {})[pid] || {})[subKey]; const token = s && s.portalToken; if (!token) return;
+    if (!await cf2('إلغاء رابط بوابة هذا المقاول؟')) return;
+    try {
+        await update(_rawRef(db, 'portalSnapshots/' + token), { revoked: true });
+        await update(ref(db, 'ledger/subcontracts/' + pid + '/' + subKey), { portalToken: null });
+        if (((window.subcontracts || {})[pid] || {})[subKey]) delete window.subcontracts[pid][subKey].portalToken;
+        toast('تم الإلغاء', 'ok'); pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر الإلغاء', 'er'); }
+};
 function pdRenderPortalMgr(pid) {
     const pane = document.getElementById('pd-tab-portal'); if (!pane) return;
     const p = (window.projects || {})[pid] || {};
     const token = p.portalToken;
     const url = token ? (location.origin + location.pathname + '#portal=' + token) : '';
+    const subs = Object.entries((window.subcontracts || {})[pid] || {});
+    const subsHtml = `<div class="card" style="margin-top:14px"><div class="c-tl" style="font-size:14px">🤝 روابط مقاولي الباطن</div>
+        <p style="font-size:11.5px;color:#888;margin:5px 0 4px">لكل مقاول باطن رابط خاص يعرض <b>شهادات الدفع</b> الخاصة به فقط ليُقرّها أو يضيف ملاحظة.</p>
+        ${subs.length ? subs.map(([sk, s]) => {
+            const stoken = s.portalToken;
+            const surl = stoken ? (location.origin + location.pathname + '#portal=' + stoken) : '';
+            const nCerts = Array.isArray(s.certificates) ? s.certificates.length : 0;
+            return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-top:9px">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                    <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">🤝 ${esc(s.subName || 'مقاول باطن')} <span style="font-size:10.5px;color:#999;font-weight:400">(${nCerts} شهادة)</span></div>
+                    ${stoken
+                        ? `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="pdCopyPortal('${surl}')" style="padding:3px 10px;font-size:11px">📋 نسخ</button><button class="btn" onclick="pdGenSubPortalLink('${pid}','${sk}')" style="padding:3px 10px;font-size:11px;background:var(--pd-sf3);border:1px solid var(--pd-bd)">🔄 تحديث</button><button class="btn" onclick="pdRevokeSubPortalLink('${pid}','${sk}')" style="padding:3px 10px;font-size:11px;background:var(--pd-sf-danger);color:var(--pd-danger)" title="إلغاء">🚫</button></div>`
+                        : `<button class="btn b-b" onclick="pdGenSubPortalLink('${pid}','${sk}')" style="padding:4px 12px;font-size:11.5px">➕ إنشاء رابط</button>`}
+                </div>
+                ${stoken ? `<input readonly value="${surl}" onclick="this.select()" style="width:100%;margin-top:7px;padding:6px 9px;border:1px solid var(--pd-bd);border-radius:6px;font-size:11px;direction:ltr;text-align:left">` : ''}
+            </div>`;
+        }).join('') : '<div style="color:#999;font-size:12px;padding:10px;text-align:center">لا عقود باطن — أضِفها من تبويب «عقود الباطن»</div>'}
+    </div>`;
     const head = `<div class="card" style="margin-bottom:14px;border-right:4px solid var(--pd-pri)">
         <div class="c-tl">🔗 بوابة العميل — اطّلاع واعتماد استشاري</div>
         <p style="font-size:12.5px;color:#777;margin:6px 0 0;line-height:1.85">شارك مع العميل رابطاً آمناً يعرض <b>مستخلصات المشروع</b> ليطّلع عليها ويعتمدها أو يضيف ملاحظة — <b>دون تسجيل دخول ودون وصول لبياناتك</b>. تصل ردوده هنا (استشارية)، وتعتمدها أنت داخلياً من صفحة المستخلصات.</p>
@@ -5088,7 +5133,7 @@ function pdRenderPortalMgr(pid) {
             <div style="font-size:40px">🔗</div>
             <p style="color:#666;font-size:13px;margin:8px 0 14px">لا يوجد رابط بعد. أنشئ رابطاً يتضمّن المستخلصات المُرسَلة والمعتمدة لهذا المشروع.</p>
             <button class="btn b-g" onclick="pdGenPortalLink('${pid}')">➕ إنشاء رابط البوابة</button>
-        </div>`;
+        </div>` + subsHtml;
         return;
     }
     pane.innerHTML = head + `
@@ -5103,7 +5148,7 @@ function pdRenderPortalMgr(pid) {
             <button class="btn" onclick="pdRevokePortalLink('${pid}')" style="background:var(--pd-sf-danger);color:var(--pd-danger)">🚫 إلغاء الرابط</button>
         </div>
     </div>
-    <div class="card"><div class="c-tl" style="font-size:14px">📥 صندوق ردود العميل</div><div id="pd-portal-inbox" style="margin-top:10px;color:#888;font-size:12.5px">⏳ جارِ التحميل…</div></div>`;
+    <div class="card"><div class="c-tl" style="font-size:14px">📥 صندوق ردود العميل</div><div id="pd-portal-inbox" style="margin-top:10px;color:#888;font-size:12.5px">⏳ جارِ التحميل…</div></div>` + subsHtml;
     get(_rawRef(db, 'portalResponses/' + token)).then(sn => {
         const box = document.getElementById('pd-portal-inbox'); if (!box) return;
         if (!sn.exists()) { box.innerHTML = '<div style="text-align:center;padding:14px;color:#999">لا ردود بعد — بانتظار اطّلاع العميل</div>'; return; }

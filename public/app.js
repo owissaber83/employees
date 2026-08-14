@@ -1465,6 +1465,28 @@ function renderClientPortal() {
                 : `<div style="margin-top:12px"><button onclick="portalRespond('${id}','answer')" style="width:100%;background:#2d6a9f;color:#fff;border:none;border-radius:8px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">✍️ إجابة الاستفسار</button></div>`}
         </div>`;
     };
+    const certs = Object.entries(d.certs || {});
+    const certCard = ([id, c]) => {
+        const responded = done[id];
+        return `<div style="background:#fff;border:1px solid #e3e9ef;border-radius:13px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+                <div><div style="font-size:15px;font-weight:900;color:#1a3a5c">📄 شهادة دفع رقم ${c.no || '—'}</div><div style="font-size:11px;color:#888;margin-top:2px">${c.date || ''}</div></div>
+                ${stBadge(c.status)}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin-top:12px">
+                <div style="background:#f5f7f9;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">قيمة الفترة</div><div style="font-size:14px;font-weight:800;color:#2d6a9f">${money(c.periodValue)} ﷼</div></div>
+                ${c.retentionAmt ? `<div style="background:#f5f7f9;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">محتجز الضمان</div><div style="font-size:13px;font-weight:800;color:#b0730c">${money(c.retentionAmt)} ﷼</div></div>` : ''}
+                ${c.advanceRecovery ? `<div style="background:#f5f7f9;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">استرداد الدفعة</div><div style="font-size:13px;font-weight:800;color:#b0730c">${money(c.advanceRecovery)} ﷼</div></div>` : ''}
+                <div style="background:#eafaf1;border-radius:8px;padding:9px"><div style="font-size:10px;color:#888">صافي المستحق</div><div style="font-size:15px;font-weight:900;color:#1a8049">${money(c.netPayable)} ﷼</div></div>
+            </div>
+            ${responded
+                ? `<div style="margin-top:12px;background:#e7f6ee;border:1px solid #b6e2c8;border-radius:8px;padding:10px;text-align:center;font-size:12.5px;color:#1a8049;font-weight:700">✅ تمّ إرسال ردّك (${responded}) — شكراً لك</div>`
+                : `<div style="display:flex;gap:8px;margin-top:13px;flex-wrap:wrap">
+                    <button onclick="portalRespond('${id}','approve')" style="flex:1;min-width:90px;background:#1a8049;color:#fff;border:none;border-radius:8px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">✅ إقرار/اعتماد</button>
+                    <button onclick="portalRespond('${id}','note')" style="background:#eef3fb;color:#2d6a9f;border:1px solid #cfe0f0;border-radius:8px;padding:11px 15px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">📝 ملاحظة</button>
+                </div>`}
+        </div>`;
+    };
     box.innerHTML = `
     <div style="min-height:100vh;background:linear-gradient(180deg,#1a3a5c 0,#2d6a9f 180px,#eef2f6 360px)">
       <div style="max-width:720px;margin:0 auto;padding:28px 16px 60px">
@@ -1477,9 +1499,11 @@ function renderClientPortal() {
             <div style="font-size:12.5px;color:#555;flex:1;min-width:180px">👋 مرحباً، راجع العناصر التالية واعتمدها أو أضف ملاحظتك. اكتب اسمك ليُوثَّق ردّك:</div>
             <input id="portalName" value="${(name || '').replace(/"/g, '&quot;')}" oninput="window.__portalData.name=this.value" placeholder="اسمك" style="padding:9px 12px;border:1px solid #cdd8e2;border-radius:8px;font-family:inherit;font-size:13px;min-width:160px">
         </div>
+        ${d.party === 'sub' && (d.subName || d.scope) ? `<div style="background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c">🤝 ${esc(d.subName || 'عقد الباطن')}</div>${d.scope ? `<div style="font-size:12px;color:#666;margin-top:3px">${esc(d.scope)}</div>` : ''}${d.contractValue ? `<div style="font-size:11px;color:#888;margin-top:3px">قيمة العقد: ${money(d.contractValue)} ﷼</div>` : ''}</div>` : ''}
         ${bills.length ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin:4px 2px 10px">📑 المستخلصات</div>${bills.map(billCard).join('')}` : ''}
+        ${certs.length ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin:4px 2px 10px">📄 شهادات الدفع</div>${certs.map(certCard).join('')}` : ''}
         ${rfis.length ? `<div style="font-size:13px;font-weight:800;color:#1a3a5c;margin:16px 2px 10px">📨 طلبات المعلومات (RFIs)</div>${rfis.map(rfiCard).join('')}` : ''}
-        ${(!bills.length && !rfis.length) ? '<div style="background:#fff;border-radius:12px;padding:34px;text-align:center;color:#888">لا عناصر للمراجعة حالياً</div>' : ''}
+        ${(!bills.length && !rfis.length && !certs.length) ? '<div style="background:#fff;border-radius:12px;padding:34px;text-align:center;color:#888">لا عناصر للمراجعة حالياً</div>' : ''}
         <div style="text-align:center;margin-top:24px;font-size:11px;color:#9aa5b1;line-height:1.9">🔒 رابط خاص وآمن — ردودك تصل مباشرة لإدارة المشروع.<br>مدعوم بمنصّة «بُنيان» لإدارة المقاولات</div>
       </div>
     </div>`;
