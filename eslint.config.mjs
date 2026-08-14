@@ -57,8 +57,8 @@ export default [
         ],
     },
     {
-        // app.js — وحدة ES
-        files: ['public/app.js'],
+        // app.js و calc.js — وحدات ES
+        files: ['public/app.js', 'public/calc.js'],
         languageOptions: {
             ecmaVersion: 2023,
             sourceType: 'module',
@@ -69,7 +69,7 @@ export default [
     {
         // بقية ملفات public — سكربتات كلاسيكية تعتمد على عوالم app.js
         files: ['public/**/*.js'],
-        ignores: ['public/app.js'],
+        ignores: ['public/app.js', 'public/calc.js'],
         languageOptions: {
             ecmaVersion: 2023,
             sourceType: 'script',
