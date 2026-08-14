@@ -12746,6 +12746,10 @@
                                 <div style="font-size:13px;font-weight:700">🧭 المسار الكامل خطوة بخطوة</div>
                                 <div style="font-size:10px;color:#666;margin-top:2px">من إضافة المشروع حتى تقارير الإدارة</div>
                             </a>
+                            <a href="#pg-tabs" style="background:#eef5fb;border-radius:10px;padding:12px;text-decoration:none;color:#1a3a5c;border-right:3px solid #16a085" onmouseover="this.style.background='#e0e8f0'" onmouseout="this.style.background='#eef5fb'">
+                                <div style="font-size:13px;font-weight:700">📑 شرح كل جزئية (كل التبويبات)</div>
+                                <div style="font-size:10px;color:#666;margin-top:2px">30+ تبويباً بشرح دقيق للمبتدئ</div>
+                            </a>
                             <a href="#pg-overview" style="background:#f0f5fa;border-radius:10px;padding:12px;text-decoration:none;color:#1a3a5c;border-right:3px solid #2d6a9f" onmouseover="this.style.background='#e0e8f0'" onmouseout="this.style.background='#f0f5fa'">
                                 <div style="font-size:13px;font-weight:700">📋 نظرة عامة</div>
                                 <div style="font-size:10px;color:#666;margin-top:2px">ما هو قسم المشاريع</div>
@@ -13261,6 +13265,14 @@
                                 <div style="font-size:14px;font-weight:800;color:#2471a3;margin-bottom:6px">📋 القوالب + ☑️ قوائم التحقق</div>
                                 <div style="font-size:12px;color:#444;line-height:1.9">احفظ مهام مشروع كـ<strong>قالب</strong> وأعد استخدامه (تُعاد حساب التواريخ وربط التبعيات تلقائياً). وقسّم كل مهمة إلى <strong>قائمة تحقق</strong> بخطوات قابلة للتأشير مع تتبّع نسبة الإنجاز.</div>
                             </div>
+                            <div style="background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:10px;padding:14px">
+                                <div style="font-size:14px;font-weight:800;color:#2471a3;margin-bottom:6px">🧮 الجدولة المتقدمة — تسوية الموارد + «ماذا لو» <span style="font-size:10px;color:#27ae60">🆕</span></div>
+                                <div style="font-size:12px;color:#444;line-height:1.9">في تبويب المهام ← زر «🧮 متقدم». يكشف <strong>تعارض الموارد</strong> (موظف مُسنَد لمهمتين في وقت واحد) ويقترح تأخيراً <strong>ضمن الطفو</strong> دون تمديد المشروع. و<strong>محاكاة «ماذا لو»</strong>: غيّر مدة نشاط لترى فوراً أثره على تاريخ الإنجاز والمسار الحرج — دون حفظ.</div>
+                            </div>
+                            <div style="background:#f8fafc;border:1.5px solid #e0e8f0;border-radius:10px;padding:14px">
+                                <div style="font-size:14px;font-weight:800;color:#2471a3;margin-bottom:6px">🔮 التحليلات التنبؤية <span style="font-size:10px;color:#27ae60">🆕</span></div>
+                                <div style="font-size:12px;color:#444;line-height:1.9">في تبويب «الأداء (EVM)» ← بطاقة <strong>التوقّعات</strong>: <strong>تاريخ الإنجاز المتوقّع</strong> (من SPI)، <strong>نطاق التكلفة النهائية</strong> (متفائل/مرجّح/متشائم)، <strong>TCPI</strong> (الكفاءة اللازمة لإنهاء الباقي ضمن الميزانية)، ومؤشرات <strong>مخاطر التجاوز والتأخّر</strong>.</div>
+                            </div>
                         </div>
 
                         <div style="margin-top:14px;background:#fff3e0;border-right:4px solid #f39c12;border-radius:8px;padding:12px">
@@ -13296,6 +13308,80 @@
                                 <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;border-right:3px solid #1a5276">📋 ملخص شامل</div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- 📑 شرح كل تبويبات ملف المشروع -->
+                    <div class="card" id="pg-tabs" style="margin-bottom:16px">
+                        <div class="c-tl">📑 شرح كل جزئية داخل ملف المشروع (كل التبويبات)</div>
+                        <div style="background:#eef5fb;border-radius:10px;padding:14px;margin-top:12px;border-right:4px solid #2d6a9f;font-size:13px;color:#1a3a5c;line-height:1.9">
+                            <strong>كيف تفتح ملف المشروع؟</strong> القائمة الجانبية ← <strong>المشاريع</strong> ← اضغط على <strong>اسم أي مشروع</strong>. يفتح ملف يحوي كل شيء عن هذا المشروع موزّعاً على <strong>تبويبات</strong> أعلى الصفحة. فيما يلي شرح دقيق لكل تبويب — لمن لا يعرف البرنامج إطلاقاً.
+                        </div>
+
+                        <!-- المجموعة 1: الأساس والتخطيط -->
+                        <div style="font-size:15px;font-weight:900;color:#2d6a9f;margin:18px 0 10px;border-right:4px solid #2d6a9f;padding-right:10px">1️⃣ الأساس والتخطيط</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px">
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #2d6a9f"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📊 نظرة عامة</div><div style="font-size:12px;color:#555;line-height:1.85">الصفحة الأولى للمشروع: ملخّص سريع لنسبة الإنجاز، الميزانية مقابل المصروف، وأهم المؤشرات والتنبيهات. ابدأ منها لتعرف حال المشروع بنظرة واحدة.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #2d6a9f"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📄 العقد</div><div style="font-size:12px;color:#555;line-height:1.85">بيانات العقد الرسمية: قيمته، مدّته، العميل والاستشاري، شروط الدفع، نسبة <strong>محتجز الضمان</strong>، و<strong>الدفعة المقدمة</strong>. هو المرجع الذي تُبنى عليه كل حسابات المشروع.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #2d6a9f"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📋 بنود العقد (BOQ)</div><div style="font-size:12px;color:#555;line-height:1.85">جدول الكميات: كل بند بوصفه (مثل «صبّ الخرسانة») وكميته وسعر وحدته. <strong>أساس المستخلصات</strong> — تطالب العميل بنسبة إنجاز كل بند. بدونه لا فوترة دقيقة.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #2d6a9f"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">⏱️ الجدول الزمني</div><div style="font-size:12px;color:#555;line-height:1.85">الخط الزمني للمشروع ومراحله الرئيسية (Milestones): متى يبدأ كل جزء ومتى يُسلَّم — الصورة الكبرى للتوقيت.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #2d6a9f"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">✅ المهام</div><div style="font-size:12px;color:#555;line-height:1.85">تنظيم أعمال التنفيذ في 4 عروض: <strong>كانبان</strong> (بطاقات حسب الحالة)، <strong>جانت</strong> (أشرطة زمنية بالسحب)، <strong>CPM</strong> (المسار الحرج والطفو)، و<strong>متقدم</strong> (تسوية الموارد + «ماذا لو»). لكل مهمة مسؤول وتواريخ وتبعيات وقائمة تحقق.</div></div>
+                        </div>
+
+                        <!-- المجموعة 2: المال والفوترة -->
+                        <div style="font-size:15px;font-weight:900;color:#16a085;margin:20px 0 10px;border-right:4px solid #16a085;padding-right:10px">2️⃣ المال والفوترة</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px">
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📑 المستخلصات (IPC)</div><div style="font-size:12px;color:#555;line-height:1.85">فاتورتك الدورية للعميل حسب نسبة الإنجاز لكل بند. عند الاعتماد يُنشئ <strong>قيداً محاسبياً تلقائياً</strong>، يخصم محتجز الضمان، ويتتبّع التراكمي حتى 100%.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">💰 التكاليف الشهرية</div><div style="font-size:12px;color:#555;line-height:1.85">ما صرفته فعلاً على المشروع شهرياً (مواد، أجور، معدات، مقاولون...). مقارنتها بالإيراد هي التي تُظهر <strong>ربح المشروع أو خسارته</strong>.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🧾 المصروفات</div><div style="font-size:12px;color:#555;line-height:1.85">مصروفات نثرية/تشغيلية مرتبطة بالمشروع خارج التكاليف الشهرية المنظّمة (مثل مصروفات موظف على الموقع).</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📋 الفواتير</div><div style="font-size:12px;color:#555;line-height:1.85">فواتير الموردين والمشتريات المخصّصة لهذا المشروع تحديداً — لتجميع تكلفة المواد عليه.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">💵 الرواتب</div><div style="font-size:12px;color:#555;line-height:1.85">تكلفة رواتب الموظفين المخصّصة للمشروع — جزء أساسي من تكلفة العمالة الفعلية.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🤝 عقود الباطن</div><div style="font-size:12px;color:#555;line-height:1.85">عقود مقاولي الباطن: قيمة العقد، محتجز الضمان، الدفعة المقدمة، و<strong>شهادات الدفع</strong> الدورية لهم — تماماً كمستخلصاتك مع العميل، لكن أنت الطرف الدافع.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🏭 الموردون</div><div style="font-size:12px;color:#555;line-height:1.85">موردو هذا المشروع وأرصدتهم وتعاملاتهم — لمتابعة ما لهم وما عليهم.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">💧 التدفق النقدي</div><div style="font-size:12px;color:#555;line-height:1.85">متى يدخل المال (تحصيل المستخلصات) ومتى يخرج (دفعات الموردين والباطن) — لتوقّع سيولة المشروع وتجنّب العجز.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #16a085"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📐 الأداء (EVM) + 🔮 التوقّعات</div><div style="font-size:12px;color:#555;line-height:1.85">مؤشرات القيمة المكتسبة: <strong>CPI</strong> (أداء التكلفة) و<strong>SPI</strong> (أداء الجدول) وخط الأساس. وبطاقة <strong>توقّعات</strong>: تاريخ الإنجاز والتكلفة النهائية المتوقّعة ومخاطر التجاوز.</div></div>
+                        </div>
+
+                        <!-- المجموعة 3: التعاون الميداني -->
+                        <div style="font-size:15px;font-weight:900;color:#8e44ad;margin:20px 0 10px;border-right:4px solid #8e44ad;padding-right:10px">3️⃣ التعاون الميداني والتوثيق</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px">
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📨 طلبات المعلومات (RFIs)</div><div style="font-size:12px;color:#555;line-height:1.85">استفسار رسمي تُرسله للاستشاري/العميل عند غموض في المخططات أو المواصفات، بمهلة وردٍّ موثّق. يمنع الأخطاء وتوقّف العمل والنزاعات لاحقاً.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📋 المستندات الفنية (Submittals)</div><div style="font-size:12px;color:#555;line-height:1.85">اعتماد المواد ورسومات التنفيذ (Shop Drawings) والعيّنات قبل التوريد/التنفيذ، بحالات (قيد المراجعة / معتمد / معاد للتعديل). يضمن مطابقة ما يُنفَّذ للمواصفات.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🔧 قوائم النواقص (Punch)</div><div style="font-size:12px;color:#555;line-height:1.85">ملاحظات وعيوب التسليم: لكل ملاحظة وصف وموقع ومسؤول وصورة وحالة إغلاق. أساس <strong>التسليم النهائي النظيف</strong> والإفراج عن محتجز الضمان.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🦺 الجودة والسلامة (QHSE)</div><div style="font-size:12px;color:#555;line-height:1.85">سجل التفتيش والملاحظات والحوادث في الموقع — لضمان الجودة والالتزام بمعايير السلامة وتوثيق أي حادث.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📮 المراسلات</div><div style="font-size:12px;color:#555;line-height:1.85">الخطابات الرسمية الواردة والصادرة مع الأطراف (العميل/الاستشاري/الجهات) بترقيم ومرجع وتاريخ وحالة — سجلّ رسمي يحميك عند النزاع.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📝 الاجتماعات والمحاضر</div><div style="font-size:12px;color:#555;line-height:1.85">محاضر اجتماعات المشروع وبنود المتابعة: كل بند مع مسؤوله وموعده وحالة إنجازه — فلا تضيع القرارات.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📷 الصور الميدانية</div><div style="font-size:12px;color:#555;line-height:1.85">توثيق تقدّم العمل بالصور مؤرّخة ومصنّفة — دليل بصري يدعم المستخلصات ويحسم النزاعات.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">✏️ تأشير المخططات</div><div style="font-size:12px;color:#555;line-height:1.85">ارفع مخططاً وأشّر عليه (ملاحظات وأشكال ملوّنة) — تواصل مرئي سريع بدل الشرح الطويل.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">⚠️ المخاطر</div><div style="font-size:12px;color:#555;line-height:1.85">سجل المخاطر (PMBOK): لكل خطر <strong>احتمال × أثر</strong> = درجة، ومسؤول، وخطة استجابة (تجنّب/تخفيف/تحويل/قبول). يكشف المشاكل قبل وقوعها.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #8e44ad"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🎯 المناقصات</div><div style="font-size:12px;color:#555;line-height:1.85">إدارة العطاءات/المناقصات المرتبطة بالمشروع قبل الترسية — تتبّع فرص العمل الجديدة.</div></div>
+                        </div>
+
+                        <!-- المجموعة 4: التعاون الخارجي -->
+                        <div style="font-size:15px;font-weight:900;color:#e67e22;margin:20px 0 10px;border-right:4px solid #e67e22;padding-right:10px">4️⃣ التعاون الخارجي 🆕</div>
+                        <div style="background:linear-gradient(135deg,#fff8f0,#fff);border:1px solid #f5cba7;border-radius:10px;padding:15px;border-right:4px solid #e67e22">
+                            <div style="font-size:14px;font-weight:900;color:#1a3a5c;margin-bottom:6px">🔗 بوابة العميل / مقاول الباطن</div>
+                            <div style="font-size:12.5px;color:#555;line-height:1.9">
+                                أحدث ميزة: تُنشئ <strong>رابطاً آمناً</strong> يفتحه العميل أو مقاول الباطن <strong>بلا تسجيل دخول</strong> من أي متصفّح:
+                                <ul style="margin:8px 0 0;padding-right:20px;line-height:2">
+                                    <li><strong>العميل</strong> يرى المستخلصات المُرسَلة وطلبات المعلومات (RFIs) ← يعتمد / يرفض / يجيب.</li>
+                                    <li><strong>مقاول الباطن</strong> يرى شهادات الدفع الخاصة به فقط ← يُقرّها أو يضيف ملاحظة.</li>
+                                    <li>ردودهم تصل إليك في <strong>«صندوق الردود»</strong> داخل التبويب — مع 🔔 إشعار للردود الجديدة وزرّ «↗️ فتح للاعتماد».</li>
+                                    <li>🔒 لا يرون أي بيانات أخرى للمشروع — <strong>لقطة مُنقّاة فقط</strong>. وللرابط <strong>صلاحية انتهاء</strong> (افتراضياً 30 يوماً) ويمكن إلغاؤه في أي وقت.</li>
+                                </ul>
+                                <div style="margin-top:8px;font-size:11.5px;color:#7e5109;background:#fef5e7;border-radius:7px;padding:9px">📍 <strong>أين؟</strong> ملف المشروع ← تبويب «🔗 بوابة العميل» ← «إنشاء رابط» (للعميل) أو قسم «روابط مقاولي الباطن».</div>
+                            </div>
+                        </div>
+
+                        <!-- المجموعة 5: أدوات مساندة -->
+                        <div style="font-size:15px;font-weight:900;color:#607d8b;margin:20px 0 10px;border-right:4px solid #607d8b;padding-right:10px">5️⃣ أدوات مساندة</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px">
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #607d8b"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">⏱️ تسجيل الأوقات</div><div style="font-size:12px;color:#555;line-height:1.85">ساعات عمل الفريق على المشروع ومهامه ← <strong>تكلفة عمالة فعلية دقيقة</strong> تُغذّي مؤشرات EVM.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #607d8b"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📁 المستندات</div><div style="font-size:12px;color:#555;line-height:1.85">مركز حفظ روابط مستندات المشروع (العقد، التراخيص، التقارير) في مكان واحد. <em>(التخزين خارجي — تُحفظ الروابط.)</em></div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #607d8b"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">📝 الملاحظات</div><div style="font-size:12px;color:#555;line-height:1.85">ملاحظات داخلية حرّة لفريق المشروع — تذكيرات وتفاصيل لا تُنسى.</div></div>
+                            <div style="background:#fff;border:1px solid #e6edf3;border-radius:10px;padding:13px;border-right:3px solid #607d8b"><div style="font-size:13.5px;font-weight:800;color:#1a3a5c;margin-bottom:5px">🕵️ سجل النشاط</div><div style="font-size:12px;color:#555;line-height:1.85">سجلّ زمني بكل ما جرى على المشروع: من فعل ماذا ومتى — شفافية ومساءلة كاملة.</div></div>
+                        </div>
+
+                        <div style="margin-top:16px;background:#eafaf1;border:1px solid #a9dfbf;border-radius:10px;padding:13px;font-size:12.5px;color:#1e8449;line-height:1.9">💡 <strong>ليست كل التبويبات إلزامية.</strong> الأساسي للفوترة والربحية: <strong>العقد ← BOQ ← المستخلصات ← التكاليف ← الأداء</strong>. أما التعاون الميداني (RFIs، النواقص، الجودة...) فيرفع الاحترافية ويحميك عند النزاعات — استخدم منها ما يناسب حجم مشروعك.</div>
                     </div>
 
                     <!-- Common Scenarios -->
