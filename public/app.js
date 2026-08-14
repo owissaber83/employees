@@ -29197,7 +29197,7 @@ window.renderSubcontractors = function() {
         const alertFlag = s.alertThreshold && bal > +s.alertThreshold ? '<span title="تجاوز حد التنبيه" style="color:#e74c3c;margin-right:4px">🔔</span>' : '';
         return `<tr style="cursor:pointer;transition:background .15s" onmouseover="this.style.background='#fdf8e8'" onmouseout="this.style.background=''" onclick="openSubStatement('${id}')">
             <td style="text-align:center;padding:10px 8px">${i+1}</td>
-            <td style="padding:10px 8px">${alertFlag}<strong>${esc(s.name)||''}</strong>${s.projectId?`<div style="font-size:10px;color:#8e44ad">🏗️ ${esc((window.projects||[]).find(p=>p.id===s.projectId)?.name||s.projectId)}</div>`:''}${s.iban?`<div style="font-size:10px;color:#aaa;direction:ltr">${esc(s.iban)}</div>`:''}</td>
+            <td style="padding:10px 8px">${alertFlag}<strong>${esc(s.name)||''}</strong>${s.projectId?`<div style="font-size:10px;color:#8e44ad">🏗️ ${esc((window.projects||{})[s.projectId]?.name||s.projectId)}</div>`:''}${s.iban?`<div style="font-size:10px;color:#aaa;direction:ltr">${esc(s.iban)}</div>`:''}</td>
             <td style="padding:10px 8px">${esc(s.specialty)||'-'}</td>
             <td style="padding:10px 8px;text-align:center">${starsHtml}</td>
             <td style="padding:10px 8px;direction:ltr;text-align:right">${esc(s.phone)||'-'}</td>
