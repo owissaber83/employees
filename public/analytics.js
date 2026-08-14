@@ -1348,7 +1348,7 @@ function asBuildPurchaseStructure(journals, pid) {
 
 function asBuildPerformanceChart(emps) {
     const ratings = { excellent:0, vgood:0, good:0, weak:0 };
-    Object.values(window.performance||{}).forEach(p => {
+    Object.values(window.perfEvals||{}).forEach(p => {
         if (emps.some(e=>e.empKey===p.empKey) && ratings[p.rating]!==undefined) ratings[p.rating]++;
     });
     _buildChart('chart-performance','radar',{

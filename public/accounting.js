@@ -22610,9 +22610,9 @@ window.saveInvItem = async function () {
                 if (!window.inventoryItems) window.inventoryItems = {};
                 window.inventoryItems[newKey] = data;
 
-                if (ctx.invType === 'pinv') {
+                if (ctx && ctx.invType === 'pinv') {
                     onPInvLineItemChange(ctx.lineIdx, newKey);
-                } else if (ctx.invType === 'sinv') {
+                } else if (ctx && ctx.invType === 'sinv') {
                     onSInvLineItemChange(ctx.lineIdx, newKey);
                 }
             }, 150);
