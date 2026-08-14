@@ -202,6 +202,7 @@
             }
           },
           "_errorLog": {
+            ".indexOn": ["at"],
             ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('operators').child(auth.uid).val() === true)",
             "$id": {
               ".write": "auth != null && ((root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && !data.exists()) || root.child('operators').child(auth.uid).val() === true)"

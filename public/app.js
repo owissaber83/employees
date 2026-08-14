@@ -824,7 +824,8 @@ window.showErrorLog = async function () {
     document.getElementById('errLogOverlay')?.remove();
     let entries = [];
     try {
-        const snap = await get(ref(db, 'ledger/_errorLog'));
+        // ⚡ [C-1 توسّع] آخر 500 خطأ فقط (بدل كل السجل المتنامي) — العارض يعرض الأحدث
+        const snap = await get(query(ref(db, 'ledger/_errorLog'), orderByChild('at'), limitToLast(500)));
         const val = (snap && snap.val()) || {};
         entries = Object.entries(val).map(([k, v]) => ({ k, ...v })).sort((a, b) => (b.at || 0) - (a.at || 0));
     } catch (e) { toast('تعذّر تحميل سجل الأخطاء: ' + (e.message || e), 'er'); return; }
@@ -1645,7 +1646,8 @@ window.opsShowErrorLog = async function () {
     await Promise.all(Object.keys(tenants).map(async (tid) => {
         const company = (tenants[tid] && tenants[tid].meta && tenants[tid].meta.companyName) || tid;
         try {
-            const sn = await get(_rawRef(db, `tenants/${tid}/ledger/_errorLog`));
+            // ⚡ [C-1] آخر 200 خطأ لكل مستأجر (ملخّص المشغّل) بدل كل السجل
+            const sn = await get(query(_rawRef(db, `tenants/${tid}/ledger/_errorLog`), orderByChild('at'), limitToLast(200)));
             const v = (sn && sn.val()) || {};
             const arr = Object.values(v);
             perCompany[company] = arr.length;
@@ -1693,7 +1695,8 @@ window.opsOpenErrorLog = async function (tid) {
     pg.style.display = 'block';
     pg.innerHTML = '<div style="padding:40px;text-align:center;color:#888">⏳ جاري تحميل الأخطاء...</div>';
     try {
-        const sn = await get(_rawRef(db, `tenants/${tid}/ledger/_errorLog`));
+        // ⚡ [C-1] آخر 500 خطأ لهذا المستأجر بدل كل السجل المتنامي
+        const sn = await get(query(_rawRef(db, `tenants/${tid}/ledger/_errorLog`), orderByChild('at'), limitToLast(500)));
         const v = (sn && sn.val()) || {};
         st.all = Object.entries(v).map(([k, e]) => ({ k, ...e })).sort((a, b) => (b.at || 0) - (a.at || 0));
     } catch (e) { pg.innerHTML = `<div style="padding:30px;text-align:center;color:#c0392b">❌ تعذّر التحميل: ${opsErrEsc(e.message || e)}</div><div style="text-align:center"><button class="btn" onclick="opsBackToConsole()">← رجوع</button></div>`; return; }
