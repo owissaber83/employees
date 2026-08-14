@@ -5054,10 +5054,13 @@ window.pdGenPortalLink = async function (pid) {
             rfis[k] = { no: r.number || '', subject: r.subject || '', question: r.question || '', discipline: r.discipline || '', status: r.status || 'open' };
         }
     });
-    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', clientName: p.clientName || p.client || '', company: window.currentTenantName || 'الشركة', party: 'client', createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, billings, rfis };
+    const daysEl = document.getElementById('pdPortalDays');
+    const days = daysEl ? parseInt(daysEl.value, 10) : 30;
+    const expiresAt = days > 0 ? Date.now() + days * 86400000 : null;
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', clientName: p.clientName || p.client || '', company: window.currentTenantName || 'الشركة', party: 'client', createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, expiresAt, billings, rfis };
     try {
         await set(_rawRef(db, 'portalSnapshots/' + token), snap);
-        await update(ref(db, 'ledger/projects/' + pid), { portalToken: token, portalUpdatedAt: Date.now() });
+        await update(ref(db, 'ledger/projects/' + pid), { portalToken: token, portalUpdatedAt: Date.now(), portalExpiresAt: expiresAt });
         if (window.projects[pid]) window.projects[pid].portalToken = token;
         toast('✅ تم إنشاء/تحديث الرابط (' + Object.keys(billings).length + ' مستخلص · ' + Object.keys(rfis).length + ' RFI)', 'ok');
         pdRenderPortalMgr(pid);
@@ -5082,10 +5085,11 @@ window.pdGenSubPortalLink = async function (pid, subKey) {
     (Array.isArray(s.certificates) ? s.certificates : []).forEach((c, i) => {
         certs[i] = { no: c.no || (i + 1), date: c.date || '', periodValue: pdNum(c.periodValue), retentionAmt: pdNum(c.retentionAmt), advanceRecovery: pdNum(c.advanceRecovery), netPayable: pdNum(c.netPayable), status: c.status || 'submitted' };
     });
-    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', company: window.currentTenantName || 'الشركة', party: 'sub', subName: s.subName || '', scope: s.scope || '', contractValue: pdNum(s.contractValue), createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, certs };
+    const expiresAt = Date.now() + 30 * 86400000;
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', company: window.currentTenantName || 'الشركة', party: 'sub', subName: s.subName || '', scope: s.scope || '', contractValue: pdNum(s.contractValue), createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, expiresAt, certs };
     try {
         await set(_rawRef(db, 'portalSnapshots/' + token), snap);
-        await update(ref(db, 'ledger/subcontracts/' + pid + '/' + subKey), { portalToken: token, portalUpdatedAt: Date.now() });
+        await update(ref(db, 'ledger/subcontracts/' + pid + '/' + subKey), { portalToken: token, portalUpdatedAt: Date.now(), portalExpiresAt: expiresAt });
         if (((window.subcontracts || {})[pid] || {})[subKey]) window.subcontracts[pid][subKey].portalToken = token;
         toast('✅ رابط بوابة الباطن (' + Object.keys(certs).length + ' شهادة)', 'ok');
         pdRenderPortalMgr(pid);
@@ -5136,6 +5140,10 @@ function pdRenderPortalMgr(pid) {
         </div>` + subsHtml;
         return;
     }
+    const exp = p.portalExpiresAt;
+    const expiryLabel = (typeof exp === 'number')
+        ? (exp < Date.now() ? '<span style="color:var(--pd-danger);font-weight:700">⚠️ منتهٍ — حدّث الرابط لإعادة تفعيله</span>' : '<span style="color:var(--pd-ok);font-weight:700">✅ ينتهي: ' + new Date(exp).toLocaleDateString('ar') + '</span>')
+        : '<span style="color:#888">دائم</span>';
     pane.innerHTML = head + `
     <div class="card" style="margin-bottom:14px">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -5143,9 +5151,14 @@ function pdRenderPortalMgr(pid) {
             <button class="btn b-b" onclick="pdCopyPortal('${url}')">📋 نسخ</button>
             <a class="btn" href="https://wa.me/?text=${encodeURIComponent('رابط اعتماد مستخلصات مشروع ' + (p.name || '') + ':\n' + url)}" target="_blank" style="background:#25d366;color:#fff;text-decoration:none">💬 واتساب</a>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn" onclick="pdGenPortalLink('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="تحديث اللقطة بأحدث المستخلصات">🔄 تحديث اللقطة</button>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn" onclick="pdGenPortalLink('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="تحديث اللقطة بأحدث المستخلصات وإعادة ضبط الصلاحية">🔄 تحديث اللقطة</button>
             <button class="btn" onclick="pdRevokePortalLink('${pid}')" style="background:var(--pd-sf-danger);color:var(--pd-danger)">🚫 إلغاء الرابط</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;font-size:12px;color:#666;padding-top:9px;border-top:1px solid var(--pd-bd)">
+            <span>⏳ الصلاحية عند التحديث:</span>
+            <select id="pdPortalDays" style="padding:5px 8px;border:1px solid var(--pd-bd);border-radius:6px;font-family:inherit;font-size:12px"><option value="30">30 يوماً</option><option value="90">90 يوماً</option><option value="365">سنة</option><option value="0">دائم (بلا انتهاء)</option></select>
+            ${expiryLabel}
         </div>
     </div>
     <div class="card"><div class="c-tl" style="font-size:14px">📥 صندوق ردود العميل</div><div id="pd-portal-inbox" style="margin-top:10px;color:#888;font-size:12.5px">⏳ جارِ التحميل…</div></div>` + subsHtml;
@@ -5156,14 +5169,20 @@ function pdRenderPortalMgr(pid) {
         const bmap = window.progressBillings || {};
         const actLabel = a => a === 'approve' ? ['✅ اعتماد', 'var(--pd-ok)', 'var(--pd-sf-ok)'] : a === 'reject' ? ['❌ رفض', 'var(--pd-danger)', 'var(--pd-sf-danger)'] : a === 'answer' ? ['✍️ إجابة', 'var(--pd-blue)', '#eef3fb'] : ['📝 ملاحظة', 'var(--pd-blue)', '#eef3fb'];
         const rmap = (window.rfis || {})[pid] || {};
-        box.innerHTML = rows.map(r => {
+        const seenKey = 'portalSeen_' + token;
+        let lastSeen = 0; try { lastSeen = parseInt(localStorage.getItem(seenKey) || '0', 10) || 0; } catch (_) {}
+        const newCount = rows.filter(r => (r.at || 0) > lastSeen).length;
+        if (newCount) toast('🔔 ' + newCount + ' ردّ جديد من العميل', 'ok');
+        try { localStorage.setItem(seenKey, String(rows.reduce((m, r) => Math.max(m, r.at || 0), 0))); } catch (_) {}
+        const banner = newCount ? `<div style="background:#fdf3d7;border:1px solid #f0d59b;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;color:#7d6608;font-weight:700">🔔 ${newCount} ردّ جديد منذ آخر اطّلاعك</div>` : '';
+        box.innerHTML = banner + rows.map(r => {
             const [lb, c, bg] = actLabel(r.action);
             const b = bmap[r.billId], rfi = rmap[r.billId];
             const onWhat = b ? `مستخلص رقم ${b.billingNo || '—'}` : rfi ? `استفسار: ${esc(rfi.subject || rfi.number || '')}` : 'عنصر';
             const jump = b ? `<button class="btn" onclick="nav('progressbillings');setTimeout(function(){ if(typeof openBillingDetail==='function') openBillingDetail('${r.billId}'); },350)" style="padding:3px 11px;font-size:11px;background:var(--pd-sf3);border:1px solid var(--pd-bd)" title="افتح المستخلص لاعتماده داخلياً">↗️ فتح للاعتماد</button>` : '';
             return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-bottom:8px;background:${bg}">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-                <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.by || 'عميل')} — <span style="color:${c}">${lb}</span></div>
+                <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.by || 'عميل')} — <span style="color:${c}">${lb}</span>${(r.at || 0) > lastSeen ? ' <span style="background:#f39c12;color:#fff;font-size:9px;padding:1px 6px;border-radius:99px">🆕</span>' : ''}</div>
                 <div style="font-size:10.5px;color:#999">${r.at ? new Date(r.at).toLocaleString('ar') : ''}</div>
             </div>
             <div style="font-size:11.5px;color:#666;margin-top:4px">على: ${onWhat}${r.note ? ` · «${esc(r.note)}»` : ''}</div>
