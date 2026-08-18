@@ -496,6 +496,9 @@
             ${actionBar(r, locked, sum)}
         </div>`;
 
+        const lt = $('aiLinesTbl');
+        if (lt) bindResize(lt);
+
         if (typeof window.ssEnhance === 'function') {
             pg.querySelectorAll('select[data-ss="1"]').forEach(s => { try { window.ssEnhance(s); } catch (e) { /* اختياري */ } });
         }
@@ -702,54 +705,227 @@
         </div></div></div>`;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [UI-GRID] جدول البنود — أعمدة قابلة للسحب وتفضيلات تدوم
+    // ───────────────────────────────────────────────────────────────────────────
+    // أسماء بنود المقاولات طويلة بطبعها («سلك مفرد 4 مم الرياض أحمر»)، وعمودٌ
+    // ثابت العرض يقصّها فيراجع المحاسب ما لا يقرأه. الأعرض حلٌّ ناقص لأن الشاشات
+    // تختلف — فالتحكّم يُسلَّم للمستخدم ويُحفظ لديه.
+    //
+    // الأعراض تُطبَّق عبر <colgroup> مع table-layout:fixed: هذه هي الطريقة
+    // الوحيدة التي يحترم فيها المتصفح عرضاً محدّداً بدل توزيعه حسب المحتوى.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const COLS = [
+        { k: 'idx', l: '#', w: 34, fixed: true },
+        { k: 'item_name', l: 'الوصف', w: 300 },
+        { k: 'link', l: 'الربط بالصنف', w: 150, opt: true },
+        { k: 'quantity', l: 'الكمية', w: 78, n: true },
+        { k: 'unit', l: 'الوحدة', w: 78 },
+        { k: 'unit_price', l: 'سعر الوحدة', w: 96, n: true },
+        { k: 'discount', l: 'الخصم', w: 84, n: true, opt: true },
+        { k: 'taxable', l: 'الخاضع', w: 104, n: true },
+        { k: 'vat_rate', l: '%', w: 52, n: true },
+        { k: 'vat_amount', l: 'الضريبة', w: 96, n: true },
+        { k: 'total', l: 'الإجمالي', w: 108, n: true }
+    ];
+    const GRID_KEY = 'gbr_ai_lines_grid';
+
+    const Grid = {
+        prefs: null,
+        load() {
+            if (Grid.prefs) return Grid.prefs;
+            let saved = {};
+            try { saved = JSON.parse(localStorage.getItem(GRID_KEY) || '{}'); } catch (e) { /* تفضيل ثانوي */ }
+            Grid.prefs = {
+                w: saved.w || {},
+                hidden: saved.hidden || {},
+                wrap: saved.wrap !== false,      // لفّ النص الطويل — مفعّل افتراضياً
+                dense: !!saved.dense
+            };
+            return Grid.prefs;
+        },
+        save() { try { localStorage.setItem(GRID_KEY, JSON.stringify(Grid.prefs)); } catch (e) { /* تخزين ممتلئ */ } },
+        width(c) { return Grid.load().w[c.k] || c.w; },
+        visible() {
+            const h = Grid.load().hidden;
+            return COLS.filter(c => !h[c.k]);
+        },
+        reset() { Grid.prefs = { w: {}, hidden: {}, wrap: true, dense: false }; Grid.save(); }
+    };
+
+    window.aiGridReset = () => { Grid.reset(); window.aiRenderReview(); };
+    window.aiGridWrap = () => { const p = Grid.load(); p.wrap = !p.wrap; Grid.save(); window.aiRenderReview(); };
+    window.aiGridDense = () => { const p = Grid.load(); p.dense = !p.dense; Grid.save(); window.aiRenderReview(); };
+    window.aiGridToggleCol = k => { const p = Grid.load(); p.hidden[k] = !p.hidden[k]; Grid.save(); window.aiRenderReview(); };
+
+    /** سحب حدّ العمود — يعمل باتجاه RTL (السحب يساراً يوسّع). */
+    function bindResize(table) {
+        table.querySelectorAll('.ai-rz').forEach(handle => {
+            handle.addEventListener('mousedown', startDrag);
+            handle.addEventListener('dblclick', autoFit);
+        });
+
+        function startDrag(ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            const k = ev.currentTarget.dataset.col;
+            const col = table.querySelector(`col[data-col="${k}"]`);
+            if (!col) return;
+            const startX = ev.clientX;
+            const startW = parseFloat(col.style.width) || 100;
+            document.body.classList.add('ai-rz-active');
+
+            const move = e => {
+                // RTL: تقدّم المؤشّر يساراً يزيد العرض
+                const next = Math.max(40, Math.round(startW + (startX - e.clientX)));
+                col.style.width = next + 'px';
+            };
+            const up = () => {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+                document.body.classList.remove('ai-rz-active');
+                Grid.load().w[k] = parseFloat(col.style.width);
+                Grid.save();
+            };
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', up);
+        }
+
+        /** نقر مزدوج على الحدّ = ملاءمة العرض لأطول محتوى في العمود. */
+        function autoFit(ev) {
+            ev.preventDefault();
+            const k = ev.currentTarget.dataset.col;
+            const col = table.querySelector(`col[data-col="${k}"]`);
+            const idx = Array.from(table.querySelectorAll('col')).indexOf(col);
+            if (idx < 0) return;
+            let max = 60;
+            table.querySelectorAll('tr').forEach(tr => {
+                const cell = tr.children[idx];
+                if (!cell) return;
+                const probe = cell.querySelector('input, select') || cell;
+                const w = (probe.tagName === 'INPUT' ? probe.value.length * 7.5 : probe.scrollWidth) + 26;
+                if (w > max) max = w;
+            });
+            col.style.width = Math.min(520, Math.round(max)) + 'px';
+            Grid.load().w[k] = parseFloat(col.style.width);
+            Grid.save();
+        }
+    }
+
     // ── القسم 4: البنود ──────────────────────────────────────────────────────
     function sectionItems(r, locked, comp) {
         const items = AINV.toArray(r.items);
         const matches = AINV.toArray(r.itemMatches);
         const catalog = AINV.Match.systemItems();
+        const p = Grid.load();
+        const cols = Grid.visible();
+        const canEdit = !locked && CAN('edit');
+
+        // مجاميع الأعمدة — تحقّق بصري فوري أن البنود تُنتج إجمالي الفاتورة
+        const sums = { taxable: 0, vat_amount: 0, total: 0, quantity: 0, discount: 0 };
+        const computed = items.map(it => {
+            const c = AINV.computeLine(it);
+            sums.taxable += c.taxable; sums.vat_amount += c.vatAmount;
+            sums.total += c.lineTotal; sums.quantity += c.qty; sums.discount += c.discount;
+            return c;
+        });
+
+        const cell = (c, it, i, comp) => {
+            const bad = f => comp.issues.some(x => x.field === f);
+            const inp = (path, val, extra) => `<input class="ai-inp ${c.n ? 'n' : ''}" value="${esc(val == null ? '' : val)}"
+                ${locked ? 'disabled' : ''} data-path="items.${i}.${path}" onchange="aiEditField(this)"
+                onkeydown="aiGridKey(event)" ${extra || ''}>`;
+
+            switch (c.k) {
+                case 'idx': return `<td class="ai-meta ai-rownum">${i + 1}</td>`;
+                case 'item_name': return `<td class="ai-desc">${inp('item_name', it.item_name, `title="${esc(it.item_name || '')}"`)}</td>`;
+                case 'link': return `<td>
+                    <select class="ai-inp sm" ${locked ? 'disabled' : ''} onchange="aiLinkItem(${i}, this.value)">
+                        <option value="">— بلا ربط —</option>
+                        ${catalog.map(x => `<option value="${esc(x.key)}" ${(matches[i] || {}).key === x.key ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+                    </select>
+                    ${(matches[i] || {}).key ? `<span class="ai-imatch" title="${esc(AINV.Match.MATCH_AR[(matches[i] || {}).match_type] || '')}">${Math.round(((matches[i] || {}).confidence || 0) * 100)}%</span>` : ''}
+                </td>`;
+                case 'unit': return `<td>${inp('unit', it.unit)}</td>`;
+                case 'quantity': return `<td class="n">${inp('quantity', it.quantity)}</td>`;
+                case 'unit_price': return `<td class="n">${inp('unit_price', it.unit_price)}</td>`;
+                case 'discount': return `<td class="n">${inp('discount', it.discount)}</td>`;
+                case 'vat_rate': return `<td class="n">${inp('vat_rate', it.vat_rate)}</td>`;
+                case 'taxable': return `<td class="n calc ${bad('taxable_amount') ? 'ai-err-cell' : ''}"
+                    title="${bad('taxable_amount') ? 'قرأ النموذج ' + it.taxable_amount + ' — النظام يحسب ' + comp.taxable : 'محسوب بالنظام'}">
+                    ${fmt(comp.taxable)}${bad('taxable_amount') ? `<i class="ai-diff">${fmt(it.taxable_amount)}</i>` : ''}</td>`;
+                case 'vat_amount': return `<td class="n calc ${bad('vat_amount') ? 'ai-err-cell' : ''}"
+                    title="${bad('vat_amount') ? 'قرأ النموذج ' + it.vat_amount + ' — النظام يحسب ' + comp.vatAmount : 'محسوب بالنظام'}">
+                    ${fmt(comp.vatAmount)}${bad('vat_amount') ? `<i class="ai-diff">${fmt(it.vat_amount)}</i>` : ''}</td>`;
+                case 'total': return `<td class="n calc ${bad('total_amount') ? 'ai-err-cell' : ''}">
+                    <b>${fmt(comp.lineTotal)}</b>${bad('total_amount') ? `<i class="ai-diff">${fmt(it.total_amount)}</i>` : ''}</td>`;
+                default: return '<td></td>';
+            }
+        };
+
+        // ⚠️ جمع الكميات عبر وحدات مختلفة (15 لفة + 500 حبة = 515؟) رقمٌ بلا معنى
+        // يوهم بدقّة غير موجودة. لا يُجمع إلا حين تتّحد الوحدة فعلاً.
+        const units = new Set(items.map(i => String(i.unit || '').trim()).filter(Boolean));
+        const oneUnit = units.size === 1;
+        const sumOf = k => ({
+            quantity: oneUnit ? sums.quantity : null,
+            discount: sums.discount, taxable: sums.taxable,
+            vat_amount: sums.vat_amount, total: sums.total
+        })[k];
 
         return `<div class="ai-sec"><div class="ai-sec-h">📦 بنود الفاتورة <span class="badge">${items.length}</span>
             <span class="ai-meta">القيم المحسوبة بالنظام تظهر إلى جوار ما قرأه النموذج</span>
-            ${!locked && CAN('edit') ? '<span style="flex:1"></span><button class="btn b-g" onclick="aiAddLine()">➕ إضافة بند</button>' : ''}
+            <span style="flex:1"></span>
+            <div class="ai-grid-tools">
+                <button class="btn sm ${p.wrap ? 'on' : ''}" onclick="aiGridWrap()" title="لفّ أسماء البنود الطويلة على أكثر من سطر بدل قصّها">↩️ لفّ النص</button>
+                <button class="btn sm ${p.dense ? 'on' : ''}" onclick="aiGridDense()" title="صفوف أضيق لرؤية بنود أكثر">📏 مضغوط</button>
+                <div class="ai-colmenu">
+                    <button class="btn sm" onclick="this.parentNode.classList.toggle('open')" title="إظهار وإخفاء الأعمدة">🧩 الأعمدة</button>
+                    <div class="ai-colmenu-p">
+                        ${COLS.filter(c => c.opt).map(c => `<label><input type="checkbox" ${p.hidden[c.k] ? '' : 'checked'} onchange="aiGridToggleCol('${c.k}')"> ${esc(c.l)}</label>`).join('')}
+                        <button class="btn sm" onclick="aiGridReset()">↺ إعادة ضبط الأعمدة</button>
+                    </div>
+                </div>
+                ${canEdit ? `<button class="btn sm" onclick="aiBulkLines()" title="تطبيق نسبة ضريبة أو وحدة على كل البنود دفعة واحدة">⚡ تعديل جماعي</button>` : ''}
+                ${canEdit ? '<button class="btn b-g sm" onclick="aiAddLine()">➕ إضافة بند</button>' : ''}
+            </div>
         </div>
         <div class="ai-sec-b">
             ${!items.length ? '<div class="ai-note wn">لم تُستخرج بنود — أضِفها يدوياً قبل الاعتماد، فبدونها لا تُنشأ حركات مخزون ولا تفصيل تكلفة.</div>' : ''}
-            <div class="tw"><table class="ai-tbl ai-lines">
+            <div class="tw ai-grid-wrap"><table class="ai-tbl ai-lines ${p.wrap ? 'wrap' : ''} ${p.dense ? 'dense' : ''}" id="aiLinesTbl">
+                <colgroup>
+                    ${cols.map(c => `<col data-col="${c.k}" style="width:${Grid.width(c)}px">`).join('')}
+                    ${canEdit ? '<col style="width:42px">' : ''}
+                </colgroup>
                 <thead><tr>
-                    <th style="width:26px">#</th><th>الوصف</th><th>الربط بالصنف</th>
-                    <th class="n">الكمية</th><th>الوحدة</th><th class="n">سعر الوحدة</th><th class="n">الخصم</th>
-                    <th class="n">الخاضع</th><th class="n">%</th><th class="n">الضريبة</th><th class="n">الإجمالي</th>
-                    ${!locked && CAN('edit') ? '<th></th>' : ''}
+                    ${cols.map(c => `<th class="${c.n ? 'n' : ''}">${esc(c.l)}${c.fixed ? '' : `<span class="ai-rz" data-col="${c.k}" title="اسحب لتغيير العرض · انقر مرتين للملاءمة التلقائية"></span>`}</th>`).join('')}
+                    ${canEdit ? '<th></th>' : ''}
                 </tr></thead>
                 <tbody>
-                ${items.map((it, i) => {
-            const c = comp && comp.lineCount ? AINV.computeLine(it) : AINV.computeLine(it);
-            const m = matches[i] || {};
-            const bad = f => c.issues.some(x => x.field === f);
-            const cell = (path, val, cls) => `<td class="n ${cls || ''}"><input class="ai-inp n" value="${esc(val == null ? '' : val)}" ${locked ? 'disabled' : ''} data-path="items.${i}.${path}" onchange="aiEditField(this)"></td>`;
-            return `<tr>
-                        <td class="ai-meta">${i + 1}</td>
-                        <td><input class="ai-inp" value="${esc(it.item_name || '')}" ${locked ? 'disabled' : ''} data-path="items.${i}.item_name" onchange="aiEditField(this)"></td>
-                        <td>
-                            <select class="ai-inp sm" data-ss="1" ${locked ? 'disabled' : ''} onchange="aiLinkItem(${i}, this.value)">
-                                <option value="">— بلا ربط —</option>
-                                ${catalog.map(x => `<option value="${esc(x.key)}" ${m.key === x.key ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
-                            </select>
-                            ${m.key && m.match_type ? `<span class="ai-imatch" title="${esc(AINV.Match.MATCH_AR[m.match_type] || '')}">${Math.round((m.confidence || 0) * 100)}%</span>` : ''}
-                        </td>
-                        ${cell('quantity', it.quantity)}
-                        <td><input class="ai-inp sm" value="${esc(it.unit || '')}" ${locked ? 'disabled' : ''} data-path="items.${i}.unit" onchange="aiEditField(this)"></td>
-                        ${cell('unit_price', it.unit_price)}
-                        ${cell('discount', it.discount)}
-                        <td class="n ${bad('taxable_amount') ? 'ai-err-cell' : ''}" title="${bad('taxable_amount') ? 'قرأ النموذج ' + it.taxable_amount + ' — النظام يحسب ' + c.taxable : ''}">${fmt(c.taxable)}${bad('taxable_amount') ? `<i class="ai-diff">${fmt(it.taxable_amount)}</i>` : ''}</td>
-                        ${cell('vat_rate', it.vat_rate)}
-                        <td class="n ${bad('vat_amount') ? 'ai-err-cell' : ''}" title="${bad('vat_amount') ? 'قرأ النموذج ' + it.vat_amount + ' — النظام يحسب ' + c.vatAmount : ''}">${fmt(c.vatAmount)}${bad('vat_amount') ? `<i class="ai-diff">${fmt(it.vat_amount)}</i>` : ''}</td>
-                        <td class="n ${bad('total_amount') ? 'ai-err-cell' : ''}"><b>${fmt(c.lineTotal)}</b>${bad('total_amount') ? `<i class="ai-diff">${fmt(it.total_amount)}</i>` : ''}</td>
-                        ${!locked && CAN('edit') ? `<td><button class="btn b-r" onclick="aiDelLine(${i})" title="حذف البند">✕</button></td>` : ''}
-                    </tr>`;
-        }).join('')}
+                ${items.map((it, i) => `<tr>
+                    ${cols.map(c => cell(c, it, i, computed[i])).join('')}
+                    ${canEdit ? `<td class="ai-rowacts">
+                        <button class="btn b-r xs" onclick="aiDelLine(${i})" title="حذف البند">✕</button>
+                        <button class="btn xs" onclick="aiDupLine(${i})" title="تكرار البند">⧉</button>
+                        <button class="btn xs" onclick="aiMoveLine(${i},-1)" title="تحريك لأعلى" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn xs" onclick="aiMoveLine(${i},1)" title="تحريك لأسفل" ${i === items.length - 1 ? 'disabled' : ''}>▼</button>
+                    </td>` : ''}
+                </tr>`).join('')}
                 </tbody>
+                ${items.length ? `<tfoot><tr class="tot">
+                    ${cols.map(c => {
+                        if (c.k === 'idx') return '<td></td>';
+                        if (c.k === 'item_name') return `<td><b>مجموع ${items.length} بنداً</b></td>`;
+                        if (c.k === 'quantity' && !oneUnit) return `<td class="n ai-nosum" title="الوحدات مختلفة (${esc(Array.from(units).join(' · '))}) — جمع الكميات عبرها بلا معنى">—</td>`;
+                        if (c.k === 'unit' && !oneUnit) return `<td class="ai-meta">${units.size} وحدات</td>`;
+                        const v = sumOf(c.k);
+                        return v == null ? '<td></td>' : `<td class="n"><b>${fmt(v)}</b></td>`;
+                    }).join('')}
+                    ${canEdit ? '<td></td>' : ''}
+                </tr></tfoot>` : ''}
             </table></div>
+            ${items.length ? `<div class="ai-grid-hint">💡 اسحب حدّ أي عمود لتغيير عرضه · انقر الحدّ مرتين لملاءمته تلقائياً · تُحفظ الأعراض لك على هذا الجهاز
+                · <kbd>Enter</kbd> ينتقل للصف التالي في نفس العمود</div>` : ''}
         </div></div>`;
     }
 

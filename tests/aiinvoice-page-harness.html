@@ -55,15 +55,15 @@ window.onunhandledrejection = e => window.__errors.push('rejection: ' + String(e
         supplier: { name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003', commercial_registration: '1010912286', iban: 'SA0380000000608010167519' },
         customer: { name: 'شركة جي بي ار للمقاولات', vat_number: '312733987800003' },
         items: [
-            { item_name: 'توريد حجر طبيعي', quantity: 100, unit: 'متر', unit_price: 100, discount: 0, taxable_amount: 10000, vat_rate: 15, vat_amount: 1500, total_amount: 11500 },
-            { item_name: 'أعمال تركيب', quantity: 1, unit: 'مقطوعية', unit_price: 5000, discount: 0, taxable_amount: 5000, vat_rate: 15, vat_amount: 750, total_amount: 5750 }
+            { item_name: 'سلك مفرد 4 مم الرياض أحمر', quantity: 15, unit: 'لفة', unit_price: 210, discount: 0, taxable_amount: 3150, vat_rate: 15, vat_amount: 472.5, total_amount: 3622.5 },
+            { item_name: 'غطاء حديد 3/4×10 بوصة مجلفن ثقيل', quantity: 500, unit: 'حبة', unit_price: 0.9, discount: 0, taxable_amount: 450, vat_rate: 15, vat_amount: 67.5, total_amount: 517.5 }
         ],
-        totals: { subtotal: 15000, discount_total: 0, taxable_amount: 15000, vat_total: 2250, grand_total: 17250 },
+        totals: { subtotal: 3600, discount_total: 0, taxable_amount: 3600, vat_total: 540, grand_total: 4140 },
         overall_confidence: 0.95
     };
     raw.qr_code_raw = A.QR.encodeTLV({
         seller_name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003',
-        timestamp: '2026-02-03T10:00:00Z', total_with_vat: 17250, vat_amount: 2250
+        timestamp: '2026-02-03T10:00:00Z', total_with_vat: 4140, vat_amount: 540
     });
 
     function build(over, status) {
@@ -81,7 +81,7 @@ window.onunhandledrejection = e => window.__errors.push('rejection: ' + String(e
         });
     }
 
-    const broken = build({ totals: { subtotal: 15000, discount_total: 0, taxable_amount: 15000, vat_total: 2250, grand_total: 20000 } });
+    const broken = build({ totals: { subtotal: 3600, discount_total: 0, taxable_amount: 3600, vat_total: 540, grand_total: 9999 } });
     const legacy = {
         status: 'approved', uploadedAt: Date.now() - 86400000, fileName: 'old.pdf', model: 'gemini-2.5-flash',
         confidence: { overall: 92 },
@@ -128,6 +128,73 @@ window.__probeReview = function (id) {
     out.vw = window.innerWidth;
     const txt = pg.textContent;
     out.leaks = ['undefined', 'NaN', '[object Object]'].filter(t => txt.includes(t));
+    return out;
+};
+
+window.__probeGrid = function () {
+    const out = { errors: [] };
+    window.__errors.length = 0;
+    try { localStorage.removeItem('gbr_ai_lines_grid'); } catch (e) {}
+    window.AIU.current = null;
+    window.aiOpen('good');
+
+    const tbl = document.getElementById('aiLinesTbl');
+    if (!tbl) { out.threw = 'لم يُبنَ الجدول'; return out; }
+
+    out.cols = tbl.querySelectorAll('colgroup col').length;
+    out.handles = tbl.querySelectorAll('.ai-rz').length;
+    out.fixedLayout = getComputedStyle(tbl).tableLayout;
+    out.stickyHead = getComputedStyle(tbl.querySelector('thead th')).position;
+
+    // صفّ المجاميع يطابق ما يحسبه المحرك من البنود
+    const rec = window.AINV.Store.normalize('good', window.aiInvoices.good);
+    const comp = window.AINV.recompute(rec).computed;
+    const foot = tbl.querySelectorAll('tfoot td');
+    out.footCells = foot.length;
+    out.footText = Array.from(foot).map(td => td.textContent.trim()).join('|');
+    // الوحدات مختلفة (لفة · حبة) ⇒ لا يجوز إظهار مجموع كميات
+    out.noFakeQtySum = !!tbl.querySelector('tfoot td.ai-nosum');
+    out.sumsOk = out.footText.includes(window.fmt(comp.grandTotal))
+              && out.footText.includes(window.fmt(comp.vat))
+              && out.footText.includes(window.fmt(comp.taxable));
+
+    // محاكاة سحب حدّ عمود الوصف (RTL: السحب يساراً يوسّع)
+    const h = tbl.querySelector('.ai-rz[data-col="item_name"]');
+    const col = tbl.querySelector('col[data-col="item_name"]');
+    out.widthBefore = parseFloat(col.style.width);
+    h.dispatchEvent(new MouseEvent('mousedown', { clientX: 500, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 420, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    out.widthAfter = parseFloat(col.style.width);
+    out.grew = out.widthAfter > out.widthBefore;
+
+    // العرض يدوم عبر إعادة الرسم
+    try { out.persisted = JSON.parse(localStorage.getItem('gbr_ai_lines_grid')).w.item_name; } catch (e) { out.persisted = null; }
+    window.aiRenderReview();
+    const col2 = document.querySelector('#aiLinesTbl col[data-col="item_name"]');
+    out.widthAfterRerender = col2 ? parseFloat(col2.style.width) : null;
+
+    // إخفاء عمود اختياري
+    window.aiGridToggleCol('discount');
+    out.colsAfterHide = document.querySelectorAll('#aiLinesTbl colgroup col').length;
+    window.aiGridToggleCol('discount');
+
+    // تكرار بند وإعادة ترتيبه
+    const before = window.AIU.current.items.length;
+    window.aiDupLine(0);
+    out.dupWorked = window.AIU.current.items.length === before + 1;
+    const firstName = window.AIU.current.items[0].item_name;
+    window.aiMoveLine(0, 1);
+    out.moveWorked = window.AIU.current.items[1].item_name === firstName;
+
+    // تعديل جماعي: نسبة ضريبة واحدة على كل البنود
+    window.AIU.current.items.forEach(it => { it.vat_rate = 5; });
+    window.aiBulkLines();
+    document.getElementById('bulkVat').value = '15';
+    window.aiBulkApply();
+    out.bulkWorked = window.AIU.current.items.every(it => it.vat_rate === 15);
+
+    out.errors = window.__errors.slice();
     return out;
 };
 

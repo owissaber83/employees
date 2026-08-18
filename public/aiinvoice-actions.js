@@ -181,6 +181,118 @@
         revalidate(r); AIU.dirty = true; window.aiRenderReview();
     };
 
+    /** تكرار بند — أسرع من إعادة كتابته حين تختلف الفواتير في الكمية وحدها. */
+    window.aiDupLine = function (i) {
+        const r = cur(); if (!r) return;
+        r.items = AINV.toArray(r.items);
+        const src = r.items[i]; if (!src) return;
+        const copy = JSON.parse(JSON.stringify(src));
+        copy.id = 'line-' + (r.items.length + 1);
+        r.items.splice(i + 1, 0, copy);
+        r.itemMatches = AINV.toArray(r.itemMatches);
+        r.itemMatches.splice(i + 1, 0, JSON.parse(JSON.stringify(r.itemMatches[i] || {})));
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'DUPLICATED_LINE', action_ar: `تكرار البند ${i + 1}`,
+            field_name: 'items', new_value: src.item_name, source: 'user_input'
+        }));
+        revalidate(r); AIU.dirty = true; window.aiRenderReview();
+    };
+
+    /** إعادة ترتيب البنود لتطابق ترتيب الفاتورة الورقية. */
+    window.aiMoveLine = function (i, dir) {
+        const r = cur(); if (!r) return;
+        r.items = AINV.toArray(r.items);
+        const j = i + dir;
+        if (j < 0 || j >= r.items.length) return;
+        const swap = (arr) => { const t = arr[i]; arr[i] = arr[j]; arr[j] = t; };
+        swap(r.items);
+        r.itemMatches = AINV.toArray(r.itemMatches);
+        while (r.itemMatches.length < r.items.length) r.itemMatches.push({});
+        swap(r.itemMatches);
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'REORDERED_LINES', action_ar: `نقل البند ${i + 1} إلى الموضع ${j + 1}`,
+            field_name: 'items', source: 'user_input'
+        }));
+        revalidate(r); AIU.dirty = true; window.aiRenderReview();
+    };
+
+    /**
+     * تعديل جماعي على البنود.
+     * فواتير المقاولات تحمل عشرات البنود بنسبة ضريبة واحدة ووحدة واحدة؛ تصحيحها
+     * بنداً بنداً هو المكان الذي يضيع فيه الوقت الذي وفّره الاستخراج.
+     */
+    window.aiBulkLines = function () {
+        const r = cur(); if (!r) return;
+        const items = AINV.toArray(r.items);
+        if (!items.length) { toast('لا بنود لتعديلها', 'wn'); return; }
+        const units = Array.from(new Set(items.map(i => i.unit).filter(Boolean)));
+        modal('aiBulkModal', `⚡ تعديل جماعي على ${items.length} بنداً`,
+            `<p class="ai-note">يُطبَّق على كل البنود دفعةً واحدة، ويُسجَّل في أثر التدقيق كأي تعديل يدوي.
+                اترك الحقل فارغاً لتتركه دون تغيير.</p>
+             <div class="ai-grid2">
+                <div class="ai-f"><label class="ai-f-l">نسبة الضريبة لكل البنود %</label>
+                    <input class="ai-inp n" id="bulkVat" type="number" step="0.01" min="0" max="100" placeholder="مثال: 15"></div>
+                <div class="ai-f"><label class="ai-f-l">الوحدة لكل البنود</label>
+                    <input class="ai-inp" id="bulkUnit" list="bulkUnits" placeholder="${esc(units[0] || 'حبة')}">
+                    <datalist id="bulkUnits">${units.map(u => `<option value="${esc(u)}">`).join('')}</datalist></div>
+             </div>
+             <label class="ai-chk-l"><input type="checkbox" id="bulkZeroDisc"> تصفير الخصم في كل البنود</label>`,
+            `<button class="btn" onclick="aiCloseModal('aiBulkModal')">إلغاء</button>
+             <button class="btn b-g" onclick="aiBulkApply()">تطبيق على الكل</button>`);
+    };
+
+    window.aiBulkApply = function () {
+        const r = cur(); if (!r) return;
+        if (AINV.isLocked(r)) { toast('السجل مقفل', 'er'); return; }
+        const vat = ($('bulkVat').value || '').trim();
+        const unit = ($('bulkUnit').value || '').trim();
+        const zero = $('bulkZeroDisc').checked;
+        if (vat === '' && !unit && !zero) { toast('لم تحدّد أي تغيير', 'wn'); return; }
+
+        const items = AINV.toArray(r.items);
+        const changes = [];
+        items.forEach(it => {
+            if (vat !== '') { it.vat_rate = AINV.num(vat); }
+            if (unit) { it.unit = unit; }
+            if (zero) { it.discount = 0; }
+        });
+        if (vat !== '') changes.push(`نسبة الضريبة → ${vat}%`);
+        if (unit) changes.push(`الوحدة → ${unit}`);
+        if (zero) changes.push('تصفير الخصم');
+
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'BULK_EDIT_LINES', action_ar: `تعديل جماعي على ${items.length} بنداً`,
+            field_name: 'items', new_value: changes.join(' · '), source: 'user_input'
+        }));
+        revalidate(r); AIU.dirty = true;
+        window.aiCloseModal('aiBulkModal');
+        toast(`⚡ طُبِّق على ${items.length} بنداً: ${changes.join(' · ')}`, 'ok', 7000);
+        window.aiRenderReview();
+    };
+
+    /**
+     * تنقّل بلوحة المفاتيح داخل الجدول.
+     * Enter ⇒ نفس العمود في الصف التالي (نمط إدخال البيانات المتّبع في Excel).
+     * السهمان لأعلى/أسفل ⇒ الحركة نفسها دون إنهاء التحرير.
+     */
+    window.aiGridKey = function (ev) {
+        const key = ev.key;
+        if (key !== 'Enter' && key !== 'ArrowUp' && key !== 'ArrowDown') return;
+        const el = ev.target;
+        const td = el.closest('td'); const tr = el.closest('tr');
+        if (!td || !tr) return;
+        const colIdx = Array.from(tr.children).indexOf(td);
+        const dir = key === 'ArrowUp' ? -1 : 1;
+        const rows = Array.from(tr.parentNode.children);
+        const next = rows[rows.indexOf(tr) + dir];
+        if (!next) return;
+        const target = next.children[colIdx] && next.children[colIdx].querySelector('input:not([disabled])');
+        if (!target) return;
+        ev.preventDefault();
+        el.blur();                 // يُطلق onchange فيُحفظ التعديل قبل الانتقال
+        target.focus(); target.select();
+    };
+
     window.aiDismissDup = function () {
         const r = cur(); if (!r) return;
         r.duplicate_dismissed = true;

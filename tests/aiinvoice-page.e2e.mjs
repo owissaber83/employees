@@ -78,6 +78,25 @@ for (const [label, width, height] of [['سطح المكتب', 1440, 900], ['لو
     ok('بلا أخطاء تشغيل عليه', v1.errors.length === 0, v1.errors.join(' | '));
     ok('وببنوده المرحَّلة', v1.lineRows === 1, 'بنود=' + v1.lineRows);
 
+    // ── جدول البنود: التحكّم في الأعمدة والتحرير ────────────────────────────
+    const gd = await page.evaluate(() => globalThis.__probeGrid());
+    ok('الجدول يُبنى بأعمدة محدّدة العرض', gd.cols >= 10, 'أعمدة=' + gd.cols);
+    ok('وبتخطيط ثابت يحترم العرض', gd.fixedLayout === 'fixed', gd.fixedLayout);
+    ok('ومقابض سحب على الحدود', gd.handles >= 9, 'مقابض=' + gd.handles);
+    // الترويسة الثابتة تُعطَّل عمداً دون 760px — على شاشة ضيّقة تلتهم الارتفاع
+    ok(width > 760 ? 'والترويسة ثابتة عند التمرير' : 'والترويسة تعود عادية على الجوال',
+        width > 760 ? gd.stickyHead === 'sticky' : gd.stickyHead === 'static', gd.stickyHead);
+    ok('صفّ المجاميع يطابق حساب المحرك', gd.sumsOk === true, gd.footText);
+    ok('ولا يجمع كميات بوحدات مختلفة', gd.noFakeQtySum === true, gd.footText);
+    ok('سحب الحدّ يوسّع العمود', gd.grew === true, `${gd.widthBefore} → ${gd.widthAfter}`);
+    ok('والعرض يُحفظ على الجهاز', gd.persisted === gd.widthAfter, `محفوظ=${gd.persisted}`);
+    ok('ويدوم بعد إعادة رسم الشاشة', gd.widthAfterRerender === gd.widthAfter, `بعد=${gd.widthAfterRerender}`);
+    ok('إخفاء عمود اختياري يعمل', gd.colsAfterHide === gd.cols - 1, `${gd.cols} → ${gd.colsAfterHide}`);
+    ok('تكرار البند يعمل', gd.dupWorked === true);
+    ok('إعادة ترتيب البنود تعمل', gd.moveWorked === true);
+    ok('التعديل الجماعي يطبّق على الكل', gd.bulkWorked === true);
+    ok('بلا أخطاء تشغيل في الجدول', gd.errors.length === 0, gd.errors.join(' | '));
+
     // ── النوافذ المنبثقة ────────────────────────────────────────────────────
     const m = await page.evaluate(() => globalThis.__probeModals());
     Object.keys(m.opened).forEach(fn => ok('تُفتح النافذة: ' + fn, m.opened[fn] === true, String(m.opened[fn])));

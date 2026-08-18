@@ -1228,3 +1228,83 @@
 
 .ai-route-acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-route code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; direction: ltr; font-size: 10.5px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   [UI-GRID] جدول البنود — أعمدة قابلة للسحب · ترويسة ثابتة · صفّ مجاميع
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.ai-grid-wrap { max-height: 62vh; overflow: auto; border: 1px solid #e6edf3; border-radius: 9px; }
+
+/* table-layout:fixed شرط لاحترام المتصفح عرضاً محدّداً بدل توزيعه حسب المحتوى */
+.ai-lines { table-layout: fixed; width: max-content; min-width: 100%; }
+
+/* الترويسة تبقى مرئية في الفواتير الطويلة — وإلا فقد المراجع معنى الأعمدة */
+.ai-lines thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: #f7fafd; box-shadow: 0 1px 0 #dde7ef;
+}
+.ai-lines th { position: relative; overflow: hidden; text-overflow: ellipsis; }
+
+/* مقبض السحب على الحدّ الأمامي للعمود (يسار في RTL) */
+.ai-rz {
+    position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 9px;
+    cursor: col-resize; user-select: none; z-index: 4;
+}
+.ai-rz::after {
+    content: ''; position: absolute; inset-inline-start: 3px; top: 20%; bottom: 20%;
+    width: 2px; background: #cfdae6; border-radius: 2px; transition: background .12s;
+}
+.ai-rz:hover::after { background: var(--ai-acc, #0F7B8A); }
+body.ai-rz-active, body.ai-rz-active * { cursor: col-resize !important; user-select: none !important; }
+
+.ai-lines td { overflow: hidden; vertical-align: middle; }
+.ai-lines td .ai-inp { width: 100%; min-width: 0; }
+
+/* لفّ الأسماء الطويلة بدل قصّها — علاج «سلك مفرد 4 مم الرياض أحـ…» */
+.ai-lines.wrap td.ai-desc { white-space: normal; }
+.ai-lines.wrap td.ai-desc .ai-inp { white-space: normal; overflow-wrap: anywhere; }
+.ai-lines:not(.wrap) td.ai-desc .ai-inp { text-overflow: ellipsis; }
+
+.ai-lines.dense td, .ai-lines.dense th { padding: 2px 5px; font-size: 10.5px; }
+.ai-lines.dense .ai-inp { min-height: 22px; padding: 2px 5px; }
+
+.ai-rownum { text-align: center; color: #96a4b4; font-variant-numeric: tabular-nums; }
+
+/* صفّ المجاميع داخل الجدول: تحقّق فوري أن البنود تُنتج إجمالي الفاتورة */
+.ai-lines tfoot td {
+    position: sticky; bottom: 0; z-index: 2;
+    background: #eef4f8; border-top: 2px solid var(--ai-acc, #0F7B8A);
+    font-variant-numeric: tabular-nums;
+}
+
+.ai-rowacts { white-space: nowrap; text-align: center; }
+.ai-rowacts .btn { padding: 1px 4px; font-size: 10px; min-height: 0; line-height: 1.5; }
+.btn.xs { padding: 1px 4px; font-size: 10px; min-height: 0; }
+.btn.xs[disabled] { opacity: .3; cursor: default; }
+
+/* أدوات الجدول */
+.ai-grid-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ai-grid-tools .btn.on { background: var(--ai-acc, #0F7B8A); color: #fff; border-color: var(--ai-acc, #0F7B8A); }
+.ai-grid-hint { margin-top: 7px; font-size: 10.5px; color: #8b98a6; line-height: 1.9; }
+.ai-grid-hint kbd {
+    background: #eef3f7; border: 1px solid #d7e0e9; border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; font-size: 10px; font-family: inherit;
+}
+
+/* قائمة إظهار الأعمدة */
+.ai-colmenu { position: relative; }
+.ai-colmenu-p {
+    display: none; position: absolute; inset-inline-end: 0; top: calc(100% + 5px); z-index: 30;
+    background: #fff; border: 1px solid #dde7ef; border-radius: 9px; padding: 9px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .13); min-width: 178px;
+}
+.ai-colmenu.open .ai-colmenu-p { display: block; }
+.ai-colmenu-p label { display: flex; align-items: center; gap: 7px; padding: 4px 2px; font-size: 12px; cursor: pointer; }
+.ai-colmenu-p .btn { width: 100%; margin-top: 7px; }
+
+@media (max-width: 760px) {
+    .ai-grid-wrap { max-height: none; }
+    .ai-lines thead th, .ai-lines tfoot td { position: static; }
+}
+
+.ai-lines tfoot td.ai-nosum { color: #9aa8b6; font-weight: 600; cursor: help; }
