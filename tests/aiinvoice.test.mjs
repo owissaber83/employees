@@ -477,5 +477,48 @@ console.log('\n🔀 [14] مسار المحرك — المُعلَن هو الم�
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🧬 [15] النماذج — القائمة تشيخ، فلا تُبنى عليها ثقة');
+// ───────────────────────────────────────────────────────────────────────────────
+// سحبت Google نماذج 2.0 و1.5 وأغلقت 2.5-flash أمام الحسابات الجديدة، فتعطّلت
+// الوحدة بنموذج افتراضي ميت. الحماية: افتراضٌ حديث، وسلسلة سقوط تستبعد
+// المسحوب، وقائمة حيّة تُجلب من Google بدل الاعتماد على ذاكرة الكود.
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    eq('الافتراضي نموذج حديث', AINV.DEFAULTS.geminiModel, 'gemini-3.7-flash');
+    ok('ولا يوجد نموذج مسحوب في القائمة الافتراضية',
+        !AINV.MODELS.some(m => ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'].includes(m.id)),
+        AINV.MODELS.map(m => m.id).join(','));
+
+    const chain = AINV.fallbackChain('gemini-3.7-flash');
+    eq('سلسلة السقوط تبدأ بالمختار', chain[0], 'gemini-3.7-flash');
+    ok('ولا تحوي نموذجاً قديماً مغلقاً', !chain.includes('gemini-2.5-flash'), chain.join(','));
+    ok('وتحوي بدائل فعلية', chain.length >= 3, chain.join(','));
+
+    // نموذج اختاره المستخدم صراحةً يُجرَّب أولاً ولو كان قديماً
+    ok('النموذج القديم المختار صراحةً يُجرَّب أولاً', AINV.fallbackChain('gemini-2.5-flash')[0] === 'gemini-2.5-flash');
+
+    // القائمة الحيّة من Google تُعيد ترتيب الواقع
+    const before = AINV.MODELS.length;
+    AINV.mergeLiveModels(['gemini-3.7-flash', 'gemini-4.0-flash']);
+    const byId = Object.fromEntries(AINV.MODELS.map(m => [m.id, m]));
+    ok('نموذج جديد لم يعرفه الكود يُقبل من Google', !!byId['gemini-4.0-flash']);
+    eq('وما لم تعد Google تعرضه يُوسم مسحوباً', byId['gemini-3.6-flash'].status, 'retired');
+    ok('والمسحوب يخرج من سلسلة السقوط', !AINV.fallbackChain('gemini-3.7-flash').includes('gemini-3.6-flash'));
+    ok('ونماذج Anthropic لا تتأثر بقائمة Google', !!byId['claude-opus-5']);
+    ok('عدد النماذج معقول بعد الدمج', AINV.MODELS.length >= 3, String(before) + ' → ' + AINV.MODELS.length);
+
+    // التكلفة: نموذج مجهول السعر يعطي null لا رقماً مخترعاً
+    // نموذج يعود إلى قائمة Google لا يبقى موسوماً مسحوباً
+    AINV.mergeLiveModels(['gemini-3.7-flash', 'gemini-3.6-flash']);
+    eq('العائد إلى القائمة يُرفع عنه وسم المسحوب',
+        Object.fromEntries(AINV.MODELS.map(m => [m.id, m]))['gemini-3.6-flash'].status, 'stable');
+    ok('ويعود إلى سلسلة السقوط', AINV.fallbackChain('gemini-3.7-flash').includes('gemini-3.6-flash'));
+
+    eq('سعر نموذج معروف يُحتسب', AINV.estimateCost('gemini-3.7-flash', { input_tokens: 1e6, output_tokens: 0 }), 0.3);
+    eq('ونموذج مجهول يعطي null', AINV.estimateCost('gemini-4.0-flash', { input_tokens: 1e6, output_tokens: 0 }), null);
+    eq('وOCR المحلي بلا تكلفة', AINV.estimateCost('tesseract-ocr', { input_tokens: 999 }), 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(56)}\n  ✅ ناجح: ${pass}    ❌ فاشل: ${fail}\n${'═'.repeat(56)}`);
 process.exit(fail ? 1 : 0);

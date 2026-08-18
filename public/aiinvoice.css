@@ -1222,3 +1222,6 @@
 .ai-route-l { font-family: 'Courier New', monospace; direction: ltr; text-align: left; font-size: 12px; margin: 4px 0; }
 .ai-route .btn { margin-top: 8px; }
 .ai-note code { background: #eef3f7; padding: 1px 5px; border-radius: 4px; font-size: 10.5px; direction: ltr; }
+
+.btn.sm { padding: 3px 8px; font-size: 10.5px; min-height: 0; margin-inline-start: 6px; }
+.ai-note a { color: #2E75B6; font-weight: 700; }

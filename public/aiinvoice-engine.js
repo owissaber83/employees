@@ -74,7 +74,7 @@
         geminiKey: '',                   // مفتاح Gemini — نداء مباشر من المتصفح بلا Worker
                                          // (يُقيَّد بالنطاق في Google؛ مقايضة مقبولة لمفتاح مجاني)
         model: 'claude-opus-5',          // نموذج Anthropic حين provider=anthropic
-        geminiModel: 'gemini-2.5-flash', // نموذج Gemini حين provider=gemini
+        geminiModel: 'gemini-3.7-flash', // نموذج Gemini حين provider=gemini
         autoFallbackModels: true,        // عند نفاد حصّة نموذج → النموذج التالي المتاح
         ocrFallback: true,               // عند نفاد كل الحصص → OCR محلي مجاني (Tesseract)
         effort: 'high',
@@ -85,6 +85,7 @@
         retryCount: 2,
         timeoutMs: 120000,
         rateLimitPerMinute: 10,
+        dailyQuotaOverride: 0,           // سقف يومي يضعه المدير من AI Studio (0 = مجهول)
         allowedTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
         autoSuggestSupplier: true,
         autoSuggestItems: true,
@@ -135,7 +136,7 @@
             if ((c.provider || 'gemini') === 'gemini') {
                 return {
                     id: 'gemini_direct', legacy: false,
-                    label: 'Gemini مباشر من المتصفح — ' + (c.geminiModel || 'gemini-2.5-flash'),
+                    label: 'Gemini مباشر من المتصفح — ' + (c.geminiModel || 'gemini-3.7-flash'),
                     note: 'بلا وسيط وبلا خادم. قيّد المفتاح بالنطاق في Google Cloud Console.'
                 };
             }
@@ -353,7 +354,7 @@
                 body: JSON.stringify({
                     fileB64, mediaType,
                     provider: c.provider || 'gemini',
-                    model: (c.provider === 'anthropic') ? c.model : (c.geminiModel || 'gemini-2.5-flash'),
+                    model: (c.provider === 'anthropic') ? c.model : (c.geminiModel || 'gemini-3.7-flash'),
                     maxTokens: c.maxTokens, effort: c.effort,
                     prompt: AINV.PROMPT, schema: AINV.SCHEMA
                 }),
@@ -495,7 +496,7 @@
         const c = AINV.Config.get();
         const key = (c.geminiKey || '').trim();
         if (!key) throw new Error('لم يُضبط مفتاح Gemini في الإعدادات');
-        const model = modelOverride || c.geminiModel || 'gemini-2.5-flash';
+        const model = modelOverride || c.geminiModel || 'gemini-3.7-flash';
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), c.timeoutMs);
         onProgress && onProgress(`جارٍ الإرسال إلى ${model}…`, 0.35);
@@ -570,9 +571,7 @@
         const retries = Math.max(0, c.retryCount || 0);
         // سلسلة السقوط: النموذج المختار ثم بقية نماذج الطبقة المجانية بالترتيب.
         const chain = (c.provider === 'gemini' && c.autoFallbackModels)
-            ? [c.geminiModel || 'gemini-2.5-flash'].concat(
-                AINV.MODELS.filter(m => m.provider === 'gemini' && m.isFreeTier)
-                    .map(m => m.id).filter(id => id !== (c.geminiModel || 'gemini-2.5-flash')))
+            ? AINV.fallbackChain(c.geminiModel)
             : [null];
 
         let lastErr = null;
@@ -2253,15 +2252,90 @@
     // Google. الفائدة: يعرف المستخدم كم بقي له اليوم قبل أن يصطدم بالرفض.
     // ═══════════════════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // النماذج — القائمة الافتراضية فقط
+    // ───────────────────────────────────────────────────────────────────────────
+    // Google تسحب النماذج وتضيف غيرها باستمرار (سُحب gemini-2.0 و1.5 نهائياً،
+    // وأُغلق 2.5-flash أمام الحسابات الجديدة). لذلك هذه القائمة **بذرة** لا
+    // مرجع: زر «جلب النماذج المتاحة» في الإعدادات يستبدلها بما يراه مفتاحك
+    // فعلاً من Google. لا نُبقي نموذجاً مسحوباً في سلسلة السقوط كي لا تفشل كل
+    // محاولة بعد الأخرى بنفس السبب.
+    //
+    // الحصص اليومية للطبقة المجانية لم تعد Google تنشرها لكل نموذج — صارت
+    // مرتبطة بالحساب وتُعرض في AI Studio. لذلك dailyLimit = null (مجهول) بدل
+    // رقم مخترع: عدّاد الاستهلاك حقيقي، والسقف يضعه المدير إن عرفه.
+    // ═══════════════════════════════════════════════════════════════════════════
+    AINV.QUOTA_URL = 'https://aistudio.google.com/rate-limit';
+
     AINV.MODELS = [
-        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', dailyLimit: 250, rpmLimit: 10, isFreeTier: true, tierBadge: 'مجاني', ar: 'الأدق بين المجانية — الافتراضي الموصى به لقراءة الفواتير' },
-        { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'gemini', dailyLimit: 1000, rpmLimit: 15, isFreeTier: true, tierBadge: 'مجاني', ar: 'حصّة يومية أكبر ودقّة أقل — للدفعات الكبيرة' },
-        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', dailyLimit: 200, rpmLimit: 15, isFreeTier: true, tierBadge: 'مجاني', ar: 'الجيل السابق — احتياط' },
-        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini', dailyLimit: 50, rpmLimit: 15, isFreeTier: true, tierBadge: 'مجاني', ar: 'قديم — احتياط أخير' },
-        { id: 'claude-opus-5', name: 'Claude Opus 5', provider: 'anthropic', dailyLimit: 0, rpmLimit: 0, isFreeTier: false, tierBadge: 'مدفوع', ar: 'الأعلى دقّة — يتطلّب وسيطاً ورصيداً' },
-        { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', dailyLimit: 0, rpmLimit: 0, isFreeTier: false, tierBadge: 'مدفوع', ar: 'توازن دقّة وتكلفة' },
-        { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', dailyLimit: 0, rpmLimit: 0, isFreeTier: false, tierBadge: 'مدفوع', ar: 'الأسرع والأرخص' }
+        { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'مجاني', status: 'current', ar: 'الأحدث والأدق — الافتراضي الموصى به لقراءة الفواتير' },
+        { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'مجاني', status: 'stable', ar: 'مستقرّ — بديل قريب في الدقّة' },
+        { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'مجاني', status: 'stable', ar: 'مستقرّ — احتياط' },
+        { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'مجاني', status: 'stable', ar: 'أخفّ وأسرع ودقّة أقل — للدفعات الكبيرة' },
+        { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash-Lite', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'مجاني', status: 'stable', ar: 'خفيف — احتياط أخير' },
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'قديم', status: 'legacy', ar: '⚠️ مغلق أمام الحسابات الجديدة — لا يعمل إلا لحساب استخدمه من قبل' },
+        { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'gemini', dailyLimit: null, isFreeTier: true, tierBadge: 'قديم', status: 'legacy', ar: '⚠️ جيل سابق — استخدمه فقط إن كان حسابك يصل إليه' },
+        { id: 'claude-opus-5', name: 'Claude Opus 5', provider: 'anthropic', dailyLimit: 0, isFreeTier: false, tierBadge: 'مدفوع', status: 'current', ar: 'الأعلى دقّة — يتطلّب وسيطاً ورصيداً' },
+        { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', dailyLimit: 0, isFreeTier: false, tierBadge: 'مدفوع', status: 'current', ar: 'توازن دقّة وتكلفة' },
+        { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', dailyLimit: 0, isFreeTier: false, tierBadge: 'مدفوع', status: 'current', ar: 'الأسرع والأرخص' }
     ];
+
+    /** النماذج الصالحة لسلسلة السقوط: مجانية ومستقرّة وغير مسحوبة. */
+    AINV.fallbackChain = function (preferred) {
+        const usable = AINV.MODELS
+            .filter(m => m.provider === 'gemini' && m.status !== 'legacy' && m.status !== 'retired')
+            .map(m => m.id);
+        const first = preferred && usable.includes(preferred) ? preferred : usable[0];
+        // نموذج اختاره المستخدم صراحةً يُجرَّب أولاً ولو كان قديماً
+        const head = preferred && !usable.includes(preferred) ? [preferred] : [];
+        return head.concat([first]).concat(usable.filter(id => id !== first)).filter(Boolean);
+    };
+
+    /**
+     * يسأل Google عن النماذج المتاحة لهذا المفتاح فعلاً.
+     * هذا ما يمنع تكرار عطل «هذا النموذج لم يعد متاحاً»: القائمة تأتي من
+     * المصدر لا من ذاكرة الكود.
+     */
+    AINV.listGeminiModels = async function (key) {
+        const k = (key || AINV.Config.get().geminiKey || '').trim();
+        if (!k) throw new Error('لا يوجد مفتاح Gemini');
+        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+            headers: { 'x-goog-api-key': k }
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw geminiDirectError(res.status, body);
+
+        const EXCLUDE = /(embedding|aqa|tts|image|live|audio|robotics|computer-use|veo|lyria|deep-research)/i;
+        return (body.models || [])
+            .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+            .map(m => String(m.name || '').replace(/^models\//, ''))
+            .filter(id => /^gemini-/i.test(id) && !EXCLUDE.test(id))
+            .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
+    };
+
+    /** يدمج قائمة حيّة من Google في AINV.MODELS مع الإبقاء على الأوصاف. */
+    AINV.mergeLiveModels = function (ids) {
+        const known = {};
+        AINV.MODELS.forEach(m => { known[m.id] = m; });
+        const live = ids.map(id => {
+            const m = known[id];
+            if (!m) return {
+                id, name: id, provider: 'gemini', dailyLimit: null,
+                isFreeTier: true, tierBadge: 'مجاني', status: 'stable', ar: 'متاح لمفتاحك (من Google مباشرةً)'
+            };
+            // عاد إلى قائمة Google بعد أن وُسم مسحوباً ⇒ يُرفع الوسم
+            if (m.status === 'retired') { m.status = 'stable'; m.ar = 'متاح لمفتاحك (من Google مباشرةً)'; }
+            return m;
+        });
+        // ما لم تعد Google تعرضه = مسحوب: يبقى للعرض لكنه يخرج من سلسلة السقوط
+        const liveSet = new Set(ids);
+        AINV.MODELS.filter(m => m.provider === 'gemini' && !liveSet.has(m.id))
+            .forEach(m => { m.status = 'retired'; m.ar = '⛔ لم يعد متاحاً لمفتاحك'; });
+        const others = AINV.MODELS.filter(m => m.provider !== 'gemini');
+        const retired = AINV.MODELS.filter(m => m.provider === 'gemini' && !liveSet.has(m.id));
+        AINV.MODELS = live.concat(retired).concat(others);
+        return AINV.MODELS;
+    };
 
     const QKEY = 'gbr_ai_invoice_quota';
 
@@ -2293,34 +2367,45 @@
             AINV.Quota.write(s);
         },
 
-        /** تقرير الحصّة اليومية — يعرضه المدير. */
+        /**
+         * تقرير الحصّة اليومية.
+         * الاستهلاك مقيس فعلاً؛ أمّا السقف فلم تعد Google تنشره لكل نموذج —
+         * لذلك يبقى null (مجهول) ما لم يضعه المدير من AI Studio. عرض سقف
+         * مخترع أسوأ من عدم عرضه: يبني قراراً على رقم لا أصل له.
+         */
         report() {
             const s = AINV.Quota.read();
             const c = AINV.Config.get();
+            const override = Number(c.dailyQuotaOverride) || null;
             const now = new Date();
-            // حصص Google تتجدّد منتصف الليل بتوقيت المحيط الهادئ (UTC-8/7)
+            // حصص Google تتجدّد منتصف الليل بتوقيت المحيط الهادئ
             const resetUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 8, 0, 0));
             if (resetUtc <= now) resetUtc.setUTCDate(resetUtc.getUTCDate() + 1);
             const msLeft = resetUtc - now;
 
             const models = AINV.MODELS.map(m => {
                 const used = s.used[m.id] || 0;
-                const remaining = m.dailyLimit ? Math.max(0, m.dailyLimit - used) : null;
+                const limit = m.dailyLimit || (m.provider === 'gemini' ? override : null);
+                const remaining = limit ? Math.max(0, limit - used) : null;
                 let status = 'available';
-                if (s.exhausted[m.id]) status = 'exhausted';
-                else if (m.dailyLimit && remaining <= Math.max(3, m.dailyLimit * 0.1)) status = 'near_limit';
-                return Object.assign({}, m, { usedToday: used, remainingToday: remaining, status });
+                if (m.status === 'retired') status = 'retired';
+                else if (m.status === 'legacy') status = 'legacy';
+                else if (s.exhausted[m.id]) status = 'exhausted';
+                else if (limit && remaining <= Math.max(3, limit * 0.1)) status = 'near_limit';
+                return Object.assign({}, m, { usedToday: used, effectiveLimit: limit, remainingToday: remaining, status });
             });
 
-            const free = models.filter(m => m.isFreeTier);
+            const totalUsed = Object.values(s.used).reduce((a, b) => a + b, 0);
             return {
                 date: s.date,
                 resetTimeUtc: resetUtc.toISOString(),
                 hoursUntilReset: Math.floor(msLeft / 3600000),
                 minutesUntilReset: Math.floor((msLeft % 3600000) / 60000),
-                totalInvoicesToday: Object.values(s.used).reduce((a, b) => a + b, 0),
-                totalDailyLimit: free.reduce((a, m) => a + m.dailyLimit, 0),
-                totalRemainingToday: free.reduce((a, m) => a + (m.remainingToday || 0), 0),
+                totalInvoicesToday: totalUsed,
+                dailyLimitKnown: !!override,
+                totalDailyLimit: override,
+                totalRemainingToday: override ? Math.max(0, override - totalUsed) : null,
+                quotaUrl: AINV.QUOTA_URL,
                 activeModel: c.provider === 'anthropic' ? c.model : c.geminiModel,
                 autoFallbackEnabled: c.autoFallbackModels !== false,
                 models
@@ -2333,16 +2418,22 @@
         'claude-opus-5': { in: 5, out: 25 },
         'claude-sonnet-5': { in: 3, out: 15 },
         'claude-haiku-4-5': { in: 1, out: 5 },
-        // الطبقة المجانية = صفر فعلياً؛ نعرض سعر الطبقة المدفوعة للرقابة فقط.
+        // أسعار الطبقة المدفوعة تقريباً — الطبقة المجانية صفر فعلياً، ونعرضها
+        // للرقابة فقط. النموذج المجهول يعطي تكلفة null لا رقماً مخترعاً.
+        'gemini-3.7-flash': { in: 0.30, out: 2.50 },
+        'gemini-3.6-flash': { in: 0.30, out: 2.50 },
+        'gemini-3.5-flash': { in: 0.30, out: 2.50 },
+        'gemini-3.5-flash-lite': { in: 0.10, out: 0.40 },
+        'gemini-3.1-flash-lite': { in: 0.10, out: 0.40 },
         'gemini-2.5-flash': { in: 0.30, out: 2.50 },
         'gemini-2.5-flash-lite': { in: 0.10, out: 0.40 },
-        'gemini-2.0-flash': { in: 0.10, out: 0.40 },
-        'gemini-1.5-flash': { in: 0.075, out: 0.30 },
         'tesseract-ocr': { in: 0, out: 0 }   // OCR محلي — بلا تكلفة إطلاقاً
     };
 
+    /** @returns {number|null} null حين يكون سعر النموذج مجهولاً — لا رقم مخترع. */
     AINV.estimateCost = function (model, usage) {
-        const p = AINV.PRICING[model] || AINV.PRICING['gemini-2.5-flash'];
+        const p = AINV.PRICING[model];
+        if (!p) return null;
         const inTok = ((usage && usage.input_tokens) || 0) + ((usage && usage.cache_read_input_tokens) || 0) * 0.1;
         const outTok = (usage && usage.output_tokens) || 0;
         return Math.round(((inTok / 1e6) * p.in + (outTok / 1e6) * p.out) * 10000) / 10000;

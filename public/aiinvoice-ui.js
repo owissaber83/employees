@@ -101,7 +101,7 @@
                 ${kpi('💰', 'قيمة غير مُرحَّلة', fmt(pendingValue), '#12336B')}
             </div>` : ''}
 
-            ${ready.ok && q.totalDailyLimit ? quotaStrip(q) : ''}
+            ${ready.ok && recs.length ? quotaStrip(q) : ''}
 
             <div id="aiQueue"></div>
 
@@ -148,15 +148,17 @@
         </div>`;
     }
 
-    /** شريط الحصّة اليومية — يمنع المفاجأة بنفاد الرصيد في منتصف دفعة. */
+    /** شريط الاستهلاك اليومي — يعرض ما قِيس فعلاً، والسقف إن كان معروفاً. */
     function quotaStrip(q) {
-        const pct = q.totalDailyLimit ? Math.round((q.totalInvoicesToday / q.totalDailyLimit) * 100) : 0;
-        const color = pct >= 90 ? '#C0392B' : pct >= 70 ? '#D97706' : '#1B8A4B';
-        return `<div class="ai-quota-strip" onclick="aiQuotaPanel()" title="اضغط لتفاصيل الحصّة لكل نموذج">
+        const known = q.dailyLimitKnown && q.totalDailyLimit;
+        const pct = known ? Math.round((q.totalInvoicesToday / q.totalDailyLimit) * 100) : 0;
+        const color = !known ? '#2E75B6' : pct >= 90 ? '#C0392B' : pct >= 70 ? '#D97706' : '#1B8A4B';
+        return `<div class="ai-quota-strip" onclick="aiQuotaPanel()" title="اضغط لتفاصيل الاستهلاك لكل نموذج">
             <span class="ai-qs-ic">⚡</span>
-            <span><b>${q.totalInvoicesToday}</b> من <b>${q.totalDailyLimit}</b> فاتورة اليوم على الطبقة المجانية</span>
-            <div class="ai-qs-bar"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></div>
-            <span class="ai-meta">يتجدّد بعد ${q.hoursUntilReset}س ${q.minutesUntilReset}د</span>
+            <span><b>${q.totalInvoicesToday}</b> فاتورة اليوم${known ? ` من <b>${q.totalDailyLimit}</b>` : ''}</span>
+            ${known ? `<div class="ai-qs-bar"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></div>` : '<span style="flex:1"></span>'}
+            <span class="ai-meta">تتجدّد الحصص بعد ${q.hoursUntilReset}س ${q.minutesUntilReset}د</span>
+            ${known ? '' : '<span class="ai-pill">السقف اليومي غير معروف</span>'}
             ${q.autoFallbackEnabled ? '<span class="ai-pill ok">سقوط تلقائي بين النماذج</span>' : ''}
         </div>`;
     }

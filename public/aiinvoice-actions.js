@@ -885,10 +885,12 @@
                             <option value="gemini" ${c.provider === 'gemini' ? 'selected' : ''}>Gemini — مجاني (موصى به)</option>
                             <option value="anthropic" ${c.provider === 'anthropic' ? 'selected' : ''}>Anthropic Claude — مدفوع، يتطلّب وسيطاً</option>
                         </select></div>
-                    <div class="ai-f" id="setGemModelWrap"><label class="ai-f-l">نموذج Gemini</label>
+                    <div class="ai-f" id="setGemModelWrap"><label class="ai-f-l">نموذج Gemini
+                            <button class="btn sm" type="button" onclick="aiRefreshModels(false)" title="اسأل Google عن النماذج المتاحة لمفتاحك">↻ جلب المتاح</button></label>
                         <select class="ai-inp" id="setGeminiModel">
-                            ${gem.map(m => `<option value="${m.id}" ${c.geminiModel === m.id ? 'selected' : ''}>${esc(m.name)} — ${m.dailyLimit}/يوم</option>`).join('')}
-                        </select></div>
+                            ${gem.map(m => `<option value="${m.id}" ${c.geminiModel === m.id ? 'selected' : ''} ${m.status === 'retired' ? 'disabled' : ''}>${esc(m.name)}${m.status === 'legacy' ? ' — جيل سابق' : m.status === 'retired' ? ' — لم يعد متاحاً' : ''}</option>`).join('')}
+                        </select>
+                        <div class="ai-note">تسحب Google نماذجها دورياً. إن ظهر خطأ «هذا النموذج لم يعد متاحاً» فاضغط <b>↻ جلب المتاح</b> لتحديث القائمة من مفتاحك.</div></div>
                     <div class="ai-f" id="setAntModelWrap"><label class="ai-f-l">نموذج Claude</label>
                         <select class="ai-inp" id="setModel">
                             ${ant.map(m => `<option value="${m.id}" ${c.model === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
@@ -918,6 +920,9 @@
                         <input class="ai-inp n" id="setRetry" type="number" min="0" max="5" value="${c.retryCount}"></div>
                     <div class="ai-f"><label class="ai-f-l">المهلة (ثانية)</label>
                         <input class="ai-inp n" id="setTimeout" type="number" min="30" max="300" value="${Math.round(c.timeoutMs / 1000)}"></div>
+                    <div class="ai-f"><label class="ai-f-l">سقفك اليومي (0 = غير معروف)</label>
+                        <input class="ai-inp n" id="setQuota" type="number" min="0" value="${Number(c.dailyQuotaOverride) || 0}">
+                        <div class="ai-meta">لم تعد Google تنشره لكل نموذج — <a href="${esc(AINV.QUOTA_URL)}" target="_blank" rel="noopener">اقرأ حدّك من AI Studio ↗</a></div></div>
                 </div>
                 <label class="ai-chk-l"><input type="checkbox" id="setSaudi" ${c.enforceSaudiVAT ? 'checked' : ''}> تطبيق قواعد هيئة الزكاة والضريبة والجمارك</label>
                 <label class="ai-chk-l"><input type="checkbox" id="setQr" ${c.requireQrForZatca ? 'checked' : ''}> تنبيه عند غياب رمز QR في الفواتير المبسّطة</label>
@@ -977,6 +982,7 @@
                 maxFileMB: Math.max(1, parseInt($('setMaxMb').value) || 20),
                 retryCount: Math.max(0, parseInt($('setRetry').value) || 0),
                 timeoutMs: Math.max(30, parseInt($('setTimeout').value) || 120) * 1000,
+                dailyQuotaOverride: Math.max(0, parseInt($('setQuota').value) || 0),
                 enforceSaudiVAT: $('setSaudi').checked,
                 requireQrForZatca: $('setQr').checked,
                 blockOnArithmetic: $('setBlockMath').checked,
@@ -1011,37 +1017,73 @@
         }
     };
 
-    // ── لوحة الحصّة اليومية ──────────────────────────────────────────────────
+    // ── لوحة الاستهلاك اليومي ────────────────────────────────────────────────
     window.aiQuotaPanel = function () {
         const q = AINV.Quota.report();
+        const STAT = {
+            retired: { cls: 'er', ar: 'لم يعد متاحاً' },
+            legacy: { cls: 'wn', ar: 'جيل سابق' },
+            exhausted: { cls: 'er', ar: 'نفدت' },
+            near_limit: { cls: 'wn', ar: 'قاربت النفاد' },
+            available: { cls: 'ok', ar: 'متاح' }
+        };
         const rows = q.models.map(m => {
-            const cls = m.status === 'exhausted' ? 'er' : m.status === 'near_limit' ? 'wn' : 'ok';
-            const label = m.status === 'exhausted' ? 'نفدت' : m.status === 'near_limit' ? 'قاربت النفاد' : 'متاح';
-            const pct = m.dailyLimit ? Math.min(100, Math.round((m.usedToday / m.dailyLimit) * 100)) : 0;
+            const st = STAT[m.status] || STAT.available;
             return `<tr class="${m.id === q.activeModel ? 'act' : ''}">
                 <td><b>${esc(m.name)}</b>${m.id === q.activeModel ? ' <span class="ai-pill ok">النشط</span>' : ''}
-                    <div class="ai-meta">${esc(m.ar)}</div></td>
+                    <div class="ai-meta">${esc(m.ar)}</div>
+                    <div class="ai-meta mono">${esc(m.id)}</div></td>
                 <td><span class="ai-pill ${m.isFreeTier ? 'ok' : ''}">${esc(m.tierBadge)}</span></td>
-                <td class="n">${m.dailyLimit || '—'}</td>
                 <td class="n">${m.usedToday}</td>
+                <td class="n">${m.effectiveLimit || '—'}</td>
                 <td class="n">${m.remainingToday == null ? '—' : m.remainingToday}</td>
-                <td style="min-width:110px">${m.dailyLimit ? `<div class="ai-qs-bar sm"><i style="width:${pct}%"></i></div>` : ''}</td>
-                <td><span class="ai-pill ${cls}">${label}</span></td>
+                <td><span class="ai-pill ${st.cls}">${st.ar}</span></td>
             </tr>`;
         }).join('');
 
-        modal('aiQuotaModal', '📊 الحصّة اليومية للنماذج',
-            `<p class="ai-note">العدّ محلي على هذا المتصفح ويقارب استهلاكك اليوم؛ الحدّ الحقيقي عند مزوّد الخدمة.
-                الفائدة أن تعرف كم بقي لك قبل أن تصطدم بالرفض في منتصف دفعة.</p>
-             <div class="ai-quota-head">
-                <div><b>${q.totalInvoicesToday}</b> فاتورة اليوم من <b>${q.totalDailyLimit}</b> على الطبقة المجانية</div>
-                <div class="ai-meta">تتجدّد الحصص بعد <b>${q.hoursUntilReset}</b> ساعة و<b>${q.minutesUntilReset}</b> دقيقة</div>
+        modal('aiQuotaModal', '📊 الاستهلاك اليومي للنماذج',
+            `<div class="ai-quota-head">
+                <div><b>${q.totalInvoicesToday}</b> فاتورة عولجت اليوم من هذا المتصفح${q.dailyLimitKnown ? ` — السقف <b>${q.totalDailyLimit}</b>` : ''}</div>
+                <div class="ai-meta">تتجدّد حصص Google بعد <b>${q.hoursUntilReset}</b> ساعة و<b>${q.minutesUntilReset}</b> دقيقة</div>
                 <div class="ai-meta">السقوط التلقائي بين النماذج: <b>${q.autoFallbackEnabled ? 'مفعّل' : 'معطّل'}</b></div>
              </div>
+             ${q.dailyLimitKnown ? '' : `<div class="ai-note">
+                ℹ️ لم تعد Google تنشر سقفاً يومياً ثابتاً لكل نموذج — صار مرتبطاً بحسابك ويُعرض في AI Studio.
+                العدّاد أعلاه <b>استهلاك حقيقي مقيس</b> على هذا المتصفح، بلا سقف مفترض.
+                <a href="${esc(q.quotaUrl)}" target="_blank" rel="noopener">افتح حدودك في AI Studio ↗</a>
+                ثم ضع الرقم في الإعدادات ليظهر شريط تقدّم.</div>`}
              <div class="tw"><table class="ai-tbl sm">
-                <thead><tr><th>النموذج</th><th>الطبقة</th><th class="n">الحدّ/يوم</th><th class="n">استُهلك</th><th class="n">المتبقي</th><th>الاستهلاك</th><th>الحالة</th></tr></thead>
+                <thead><tr><th>النموذج</th><th>الطبقة</th><th class="n">استُهلك اليوم</th><th class="n">السقف</th><th class="n">المتبقي</th><th>الحالة</th></tr></thead>
                 <tbody>${rows}</tbody></table></div>`,
-            `<button class="btn" onclick="aiCloseModal('aiQuotaModal')">إغلاق</button>`, 860);
+            `<button class="btn" onclick="aiCloseModal('aiQuotaModal')">إغلاق</button>
+             <button class="btn b-b" onclick="aiRefreshModels(true)">↻ جلب النماذج المتاحة لمفتاحك</button>`, 880);
+    };
+
+    /**
+     * يسأل Google عن النماذج المتاحة لهذا المفتاح ويستبدل القائمة المحلية.
+     * هذا هو علاج عطل «هذا النموذج لم يعد متاحاً» من جذره: القائمة تأتي من
+     * المصدر لا من ذاكرة الكود، فلا تشيخ مع كل دورة إصدار من Google.
+     */
+    window.aiRefreshModels = async function (fromQuota) {
+        const key = (($('setGeminiKey') && $('setGeminiKey').value) || AINV.Config.get().geminiKey || '').trim();
+        if (!key) { toast('ضع مفتاح Gemini أولاً — القائمة تُجلب باسم مفتاحك', 'er', 8000); return; }
+        toast('⏳ جارٍ سؤال Google عن النماذج المتاحة…', 'wn');
+        try {
+            const ids = await AINV.listGeminiModels(key);
+            if (!ids.length) { toast('لم يُعِد Google أي نموذج نصّي متاح لهذا المفتاح', 'er', 8000); return; }
+            AINV.mergeLiveModels(ids);
+
+            // إن كان النموذج المحفوظ لم يعد متاحاً، انتقل إلى الأحدث المتاح
+            const cur = AINV.Config.get().geminiModel;
+            let switched = '';
+            if (!ids.includes(cur)) { switched = ids[0]; await AINV.Config.save({ geminiModel: switched }); }
+
+            toast(`✅ ${ids.length} نموذجاً متاحاً لمفتاحك` + (switched ? ` — حُوِّل إلى ${switched} لأن ${cur} لم يعد متاحاً` : ''), 'ok', 9000);
+            AINV.Audit.log('تحديث قائمة نماذج Gemini', `${ids.length} نموذجاً` + (switched ? ` · تحوّل إلى ${switched}` : ''));
+
+            if (fromQuota) { window.aiCloseModal('aiQuotaModal'); window.aiQuotaPanel(); }
+            else { window.aiCloseModal('aiSetModal'); window.aiSettings(); }
+        } catch (e) { toast('❌ ' + (e.message || e), 'er', 12000); }
     };
 
     // ── لوحة المدير: مقاييس الأداء والتكلفة ─────────────────────────────────
