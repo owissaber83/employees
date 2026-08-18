@@ -115,6 +115,7 @@ window.renderProjectDetail = function () {
     if (!pg || !pg.classList.contains('act')) return;
     const projectId = window._pd.projectId;
     if (!projectId) { pg.innerHTML = '<div class="empty"><div class="ei">📁</div><p>لم يتم اختيار مشروع</p></div>'; return; }
+    if (window.pdLoadProjectCollab) window.pdLoadProjectCollab(projectId);   // 🗂️ [C-1] تحميل تعاون هذا المشروع لكل-مشروع (حارس داخلي يمنع التكرار)
     const p = (window.projects || {})[projectId];
     if (!p) {
         // البيانات قد لا تكون وصلت بعد عند التحديث (F5) — أظهر حالة تحميل بدل "غير موجود"
@@ -243,10 +244,6 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('tasks',     `✅ المهام${(() => { const n = Object.values((window.projectTasks || {})[projectId] || {}).filter(t => t.status !== 'done').length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('billings',  '📑 المستخلصات')}
         ${pdTabBtn('evm',       '📐 الأداء (EVM)')}
-        ${pdTabBtn('cvr',       `⚖️ تسوية القيمة والتكلفة`)}
-        ${pdTabBtn('bonds',     `🛡️ الضمانات والمحتجزات`)}
-        ${pdTabBtn('diary',     `📔 يومية الموقع`)}
-        ${pdTabBtn('eot',       `⏳ تمديد المدة والغرامة`)}
         ${pdTabBtn('cashflow',  '💧 التدفق النقدي')}
         ${pdTabBtn('invoices',  '🧾 فواتير المبيعات')}
         ${pdTabBtn('expenses',  '💸 المصروفات')}
@@ -264,6 +261,7 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
         ${pdTabBtn('photos',    `📷 الصور${(() => { const n = Object.keys((window.projectPhotos || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('markup',    `✏️ تأشير المخططات${(() => { const n = Object.keys((window.projectMarkups || {})[projectId] || {}).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('meetings',  `📝 الاجتماعات والمحاضر${(() => { const n = Object.values((window.meetings || {})[projectId] || {}).filter(r => r.status !== 'closed').length; return n ? ` (${n})` : ''; })()}`)}
+        ${pdTabBtn('portal',    `🔗 بوابة العميل${(window.projects || {})[projectId]?.portalToken ? ' 🟢' : ''}`)}
         ${pdTabBtn('tenders',   `📢 المناقصات${(() => { const n = Object.values((window.tenders || {})[projectId] || {}).filter(r => ['open', 'evaluating'].includes(r.status)).length; return n ? ` (${n})` : ''; })()}`)}
         ${pdTabBtn('notes',     '📝 ملاحظات')}
         ${pdTabBtn('docs',      '📁 المستندات والتقارير')}
@@ -288,16 +286,13 @@ ${indirectCostAnnual > 0 ? kpiCard('📊', 'التكاليف غير المباش
     <div id="pd-tab-rfis"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-punch"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-risks"     class="pd-tab-pane" style="display:none"></div>
-    <div id="pd-tab-cvr"       class="pd-tab-pane" style="display:none"></div>
-    <div id="pd-tab-bonds"     class="pd-tab-pane" style="display:none"></div>
-    <div id="pd-tab-diary"     class="pd-tab-pane" style="display:none"></div>
-    <div id="pd-tab-eot"       class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-qhse"      class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-submittals" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-correspondence" class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-photos"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-markup"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-meetings"  class="pd-tab-pane" style="display:none"></div>
+    <div id="pd-tab-portal"    class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-tenders"   class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-notes"     class="pd-tab-pane" style="display:none"></div>
     <div id="pd-tab-docs"      class="pd-tab-pane" style="display:none"></div>
@@ -360,16 +355,13 @@ function pdRenderTab(tab) {
     if (tab === 'rfis')      pdRenderRFIs(pid);
     if (tab === 'punch')     pdRenderPunch(pid);
     if (tab === 'risks')     pdRenderRisks(pid);
-    if (tab === 'cvr')       pdRenderCVR(pid);
-    if (tab === 'bonds')     pdRenderBonds(pid);
-    if (tab === 'diary')     pdRenderDiary(pid);
-    if (tab === 'eot')       pdRenderEOT(pid);
     if (tab === 'qhse')      pdRenderQHSE(pid);
     if (tab === 'submittals') pdRenderSubmittals(pid);
     if (tab === 'correspondence') pdRenderCorrespondence(pid);
     if (tab === 'photos')    pdRenderPhotos(pid);
     if (tab === 'markup' && typeof pdRenderMarkupTab === 'function') pdRenderMarkupTab(pid);
     if (tab === 'meetings')  pdRenderMeetings(pid);
+    if (tab === 'portal')    pdRenderPortalMgr(pid);
     if (tab === 'tenders')   pdRenderTenders(pid);
     if (tab === 'notes')     pdRenderNotes(pid);
     if (tab === 'docs')      pdRenderDocsAndReports(pid);
@@ -4735,6 +4727,7 @@ function pdRenderTasks(pid) {
                     <button class="btn ${taskView === 'kanban' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'kanban' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','kanban')">📋 كانبان</button>
                     <button class="btn ${taskView === 'gantt' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'gantt' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','gantt')">📅 جانت</button>
                     <button class="btn ${taskView === 'cpm' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'cpm' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','cpm')" title="تحليل المسار الحرج">📊 CPM</button>
+                    <button class="btn ${taskView === 'sched' ? 'b-b' : ''}" style="padding:5px 12px;font-size:12px;${taskView !== 'sched' ? 'background:transparent;color:#666' : ''}" onclick="pdSetTaskView('${pid}','sched')" title="تسوية الموارد ومحاكاة «ماذا لو»">🧮 متقدم</button>
                 </div>
                 <button class="btn" onclick="pdApplyTemplatePicker('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="إضافة مهام من قالب جاهز">📋 من قالب</button>
                 ${tasks.length ? `<button class="btn" onclick="pdSaveTasksAsTemplate('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="حفظ مهام هذا المشروع كقالب لإعادة استخدامه">💾 حفظ كقالب</button>` : ''}
@@ -4754,7 +4747,7 @@ function pdRenderTasks(pid) {
             <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--pd-sf-danger);color:var(--pd-danger)" onclick="pdDeleteAllTasks('${pid}')">🗑️ حذف كل المهام (${tasks.length})</button>
         </div>` : ''}
     </div>
-    ${taskView === 'cpm' ? pdRenderCpmTable(pid) : taskView === 'gantt' ? pdRenderTasksGantt(pid, tasks, today) : `
+    ${taskView === 'sched' ? pdRenderAdvancedSchedule(pid) : taskView === 'cpm' ? pdRenderCpmTable(pid) : taskView === 'gantt' ? pdRenderTasksGantt(pid, tasks, today) : `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;overflow-x:auto">
         ${PD_TASK_COLS.map(([st, label, color]) => {
             const colTasks = tasks.filter(([, t]) => (t.status || 'todo') === st);
@@ -4901,6 +4894,302 @@ function pdRenderCpmTable(pid) {
         </div>
         <div style="font-size:11px;color:#888;margin-top:10px;line-height:1.7">💡 ES/EF/LS/LF بالأيام من بداية المشروع (نسبي). <b>الطفو الكلي</b> = أقصى تأخير للنشاط دون تأخير المشروع؛ <b>الطفو الحر</b> = دون تأخير أي نشاط تالٍ. الأنشطة ذات الطفو الصفري تُكوّن <b>المسار الحرج</b> — أي تأخير فيها يؤخّر المشروع كاملاً.</div>
     </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ║  🧮 الجدولة المتقدمة — تسوية الموارد + محاكاة «ماذا لو» (تبني على CPM)       ║
+// ══════════════════════════════════════════════════════════════════════════
+function pdSchedAnchor(pid) {
+    const T = (window.projectTasks || {})[pid] || {};
+    let min = null; Object.values(T).forEach(t => { if (t.startDate && (!min || t.startDate < min)) min = t.startDate; });
+    if (min) return new Date(min);
+    const p = (window.projects || {})[pid]; return p && p.startDate ? new Date(p.startDate) : new Date();
+}
+function pdDayToDate(anchor, d) { const x = new Date(anchor); x.setDate(x.getDate() + Math.round(d)); return x.toISOString().slice(0, 10); }
+function pdPeakLoad(list, projDur) { let peak = 0; const N = Math.max(1, projDur); for (let d = 0; d < N; d++) { let c = 0; list.forEach(l => { if (l.ES <= d && d < l.EF) c++; }); if (c > peak) peak = c; } return peak; }
+
+function pdRenderAdvancedSchedule(pid) {
+    const cpm = window.pdComputeCPM(pid);
+    const T = (window.projectTasks || {})[pid] || {};
+    const allTasks = Object.entries(T);
+    const items = allTasks.filter(([tk, t]) => t.assigneeId && cpm.tasks[tk])
+        .map(([tk, t]) => ({ tk, title: t.title || '—', resId: t.assigneeId, resName: ((window.emp || {})[t.assigneeId] || {}).name || 'غير معروف', priority: t.priority, ...cpm.tasks[tk] }));
+
+    const intro = `<div class="card" style="margin-bottom:14px;border-right:4px solid var(--pd-pri)">
+        <div class="c-tl">🧮 الجدولة المتقدمة</div>
+        <p style="font-size:12.5px;color:#777;margin:6px 0 0;line-height:1.8">تحليل يبني على المسار الحرج (CPM): يكشف <b>تعارض الموارد</b> (موظف مُسنَد لمهام متزامنة)، ويقترح <b>تسوية</b> ضمن الطفو المتاح دون تأخير المشروع، ويتيح <b>محاكاة «ماذا لو»</b> لأثر تغيير مدة نشاط.</p>
+    </div>`;
+
+    if (!items.length) return intro + `<div class="card"><div class="empty"><div class="ei">👥</div>
+        <p>لا مهام <b>مُسنَدة لموظفين بتواريخ</b> لتحليل الموارد.<br>أضِف «المسؤول» و«تاريخ البدء/التسليم» في المهام لتفعيل تسوية الموارد.</p></div></div>` + pdWhatIfCard(pid, allTasks);
+
+    // تجميع حسب المورد
+    const byRes = {}; items.forEach(it => (byRes[it.resId] = byRes[it.resId] || []).push(it));
+    // كشف التعارضات (تداخل زمني لنفس المورد)
+    const conflicts = [];
+    Object.values(byRes).forEach(list => {
+        const s = [...list].sort((a, b) => a.ES - b.ES);
+        for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) {
+            const A = s[i], B = s[j];
+            if (A.ES < B.EF && B.ES < A.EF) {
+                const early = A.ES <= B.ES ? A : B, late = A.ES <= B.ES ? B : A;
+                const shift = early.EF - late.ES;
+                conflicts.push({ resName: A.resName, early, late, overlap: Math.min(A.EF, B.EF) - Math.max(A.ES, B.ES), shift, withinFloat: shift <= (late.float || 0), floatLeft: late.float || 0 });
+            }
+        }
+    });
+    const resolvable = conflicts.filter(c => c.withinFloat).length;
+    const anchor = pdSchedAnchor(pid);
+
+    const resRows = Object.values(byRes).map(list => {
+        const c = conflicts.filter(x => list.some(l => l.tk === x.early.tk) && list.some(l => l.tk === x.late.tk)).length;
+        return { name: list[0].resName, n: list.length, days: list.reduce((s, l) => s + l.duration, 0), peak: pdPeakLoad(list, cpm.projectDuration), conflicts: c };
+    }).sort((a, b) => b.conflicts - a.conflicts || b.peak - a.peak);
+
+    const kpi = (ic, lb, val, col) => `<div style="flex:1;min-width:130px;background:${col}22;border-radius:10px;padding:11px 13px;border-right:3px solid ${col}"><div style="font-size:10.5px;color:#888">${ic} ${lb}</div><div style="font-size:22px;font-weight:900;color:${col}">${val}</div></div>`;
+    const kpis = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        ${kpi('👥', 'موارد', Object.keys(byRes).length, 'var(--pd-blue)')}
+        ${kpi('⚡', 'تعارضات', conflicts.length, conflicts.length ? 'var(--pd-danger)' : 'var(--pd-ok)')}
+        ${kpi('✅', 'قابلة للحل ضمن الطفو', resolvable, 'var(--pd-ok)')}
+        ${kpi('🔺', 'أقصى تحميل متزامن', Math.max(...resRows.map(r => r.peak)) + ' مهام', 'var(--pd-acc)')}
+    </div>`;
+
+    const resTable = `<div class="card" style="margin-bottom:14px">
+        <div class="c-tl" style="font-size:14px">📊 تحميل الموارد</div>
+        <div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px">
+            <thead><tr style="background:var(--pd-pri);color:#fff">
+                <th style="padding:8px;text-align:right">المورد (الموظف)</th><th style="padding:8px">المهام</th><th style="padding:8px" title="مجموع أيام المهام">أيام العمل</th><th style="padding:8px" title="أقصى عدد مهام في يوم واحد">ذروة التزامن</th><th style="padding:8px">التعارضات</th>
+            </tr></thead>
+            <tbody>${resRows.map(r => `<tr style="border-top:1px solid #eef2f7;background:${r.conflicts ? '#fdf0ee' : '#fff'}">
+                <td style="padding:7px 10px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.name)}</td>
+                <td style="padding:7px;text-align:center;font-variant-numeric:tabular-nums">${r.n}</td>
+                <td style="padding:7px;text-align:center;font-variant-numeric:tabular-nums">${r.days} ي</td>
+                <td style="padding:7px;text-align:center;font-weight:800;color:${r.peak > 1 ? 'var(--pd-danger)' : 'var(--pd-ok)'}">${r.peak}${r.peak > 1 ? ' ⚠️' : ''}</td>
+                <td style="padding:7px;text-align:center;font-weight:800;color:${r.conflicts ? 'var(--pd-danger)' : 'var(--pd-ok)'}">${r.conflicts || '—'}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>
+    </div>`;
+
+    const conflictCards = conflicts.length ? `<div class="card" style="margin-bottom:14px">
+        <div class="c-tl" style="font-size:14px">⚡ التعارضات واقتراحات التسوية</div>
+        <div style="display:flex;flex-direction:column;gap:9px;margin-top:11px">
+        ${conflicts.sort((a, b) => a.withinFloat - b.withinFloat).map(c => `<div style="border:1px solid ${c.withinFloat ? 'var(--pd-bd)' : '#f0c0b8'};border-radius:9px;padding:11px 13px;background:${c.withinFloat ? 'var(--pd-sf1)' : 'var(--pd-sf-danger)'}">
+            <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(c.resName)} — تعارض ${c.overlap} يوم</div>
+            <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7"><b>${esc(c.early.title)}</b> (${pdDayToDate(anchor, c.early.ES)} ← ${pdDayToDate(anchor, c.early.EF)}) ⟷ <b>${esc(c.late.title)}</b> (${pdDayToDate(anchor, c.late.ES)} ← ${pdDayToDate(anchor, c.late.EF)})</div>
+            <div style="font-size:12px;margin-top:6px;font-weight:600;color:${c.withinFloat ? 'var(--pd-ok)' : 'var(--pd-danger)'}">${c.withinFloat
+                ? `💡 أخّر «${esc(c.late.title)}» بـ ${c.shift} يوم — ضمن طفوها (${c.floatLeft} ي) فلا يتأخّر المشروع.`
+                : `⚠️ الطفو (${c.floatLeft} ي) لا يكفي لإزالة التعارض (يلزم ${c.shift} ي) — التسوية ستمدّد المشروع ~${c.shift - c.floatLeft} يوم، أو أعِد إسناد إحدى المهمتين لمورد آخر.`}</div>
+        </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:10px;line-height:1.7">💡 الاقتراحات فردية؛ تطبيق عدّة تأخيرات قد يُنشئ تعارضات جديدة — راجع النتيجة بعد كل تعديل. إعادة الإسناد لمورد متفرّغ غالباً أسرع حلٍّ.</div>
+    </div>` : `<div class="card" style="margin-bottom:14px;text-align:center;padding:22px;color:var(--pd-ok)"><div style="font-size:30px">✅</div><div style="font-weight:700;margin-top:6px">لا تعارض موارد — الجدول متوازن</div></div>`;
+
+    return intro + kpis + resTable + conflictCards + pdWhatIfCard(pid, allTasks);
+}
+
+function pdWhatIfCard(pid, allTasks) {
+    const opts = allTasks.filter(([, t]) => t.startDate && t.dueDate).map(([tk, t]) => `<option value="${tk}">${esc(t.title || '—')}</option>`).join('');
+    return `<div class="card" style="border-right:4px solid var(--pd-blue)">
+        <div class="c-tl" style="font-size:14px">🔮 محاكاة «ماذا لو»</div>
+        <p style="font-size:12px;color:#888;margin:6px 0 12px;line-height:1.7">جرّب أثر تغيير مدة نشاط على تاريخ إنجاز المشروع والمسار الحرج — <b>دون حفظ أي تعديل</b>.</p>
+        ${!opts ? '<div style="font-size:12px;color:#b9530e">أضِف مهاماً بتواريخ بدء/تسليم لتفعيل المحاكاة.</div>' : `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div><label style="font-size:11px;color:#666">النشاط</label><br><select id="pdWiTask" style="padding:7px;border:1px solid var(--pd-bd);border-radius:7px;min-width:180px;font-family:inherit">${opts}</select></div>
+            <div><label style="font-size:11px;color:#666">تغيير المدة (يوم)</label><br><input id="pdWiDelta" type="number" value="5" style="padding:7px;border:1px solid var(--pd-bd);border-radius:7px;width:110px;font-family:inherit"></div>
+            <button class="btn b-b" onclick="pdRunWhatIf('${pid}')">▶️ احسب الأثر</button>
+        </div>
+        <div style="font-size:10.5px;color:#999;margin-top:6px">موجب = تأخير/إطالة · سالب = تسريع (سحق النشاط).</div>
+        <div id="pdWiResult" style="margin-top:12px"></div>`}
+    </div>`;
+}
+
+window.pdRunWhatIf = function (pid) {
+    const tk = document.getElementById('pdWiTask') ? document.getElementById('pdWiTask').value : '';
+    const delta = parseInt(document.getElementById('pdWiDelta') ? document.getElementById('pdWiDelta').value : '0', 10) || 0;
+    const res = document.getElementById('pdWiResult'); if (!res) return;
+    const T = (window.projectTasks || {})[pid] || {};
+    if (!T[tk] || !T[tk].startDate || !T[tk].dueDate) { res.innerHTML = '<div style="font-size:12px;color:#b9530e">اختر نشاطاً له تواريخ.</div>'; return; }
+    const base = window.pdComputeCPM(pid);
+    const clone = JSON.parse(JSON.stringify(T));
+    const t = clone[tk];
+    const start = new Date(t.startDate); const newDue = new Date(t.dueDate); newDue.setDate(newDue.getDate() + delta);
+    t.dueDate = (newDue < start ? start : newDue).toISOString().slice(0, 10);
+    const orig = window.projectTasks[pid]; window.projectTasks[pid] = clone;
+    const sim = window.pdComputeCPM(pid); window.projectTasks[pid] = orig;
+    const dProj = sim.projectDuration - base.projectDuration;
+    const anchor = pdSchedAnchor(pid);
+    const nowCrit = [], noCrit = [];
+    Object.keys(T).forEach(k => { const b = base.tasks[k], s = sim.tasks[k]; if (!b || !s) return; if (!b.critical && s.critical) nowCrit.push(T[k].title || k); if (b.critical && !s.critical) noCrit.push(T[k].title || k); });
+    const col = dProj > 0 ? 'var(--pd-danger)' : dProj < 0 ? 'var(--pd-ok)' : '#666';
+    const sign = dProj > 0 ? '+' : '';
+    res.innerHTML = `<div style="border:1px solid var(--pd-bd);border-radius:10px;overflow:hidden">
+        <div style="display:flex;flex-wrap:wrap">
+            <div style="flex:1;min-width:150px;padding:12px 14px;background:var(--pd-sf1)"><div style="font-size:10.5px;color:#888">المدة الحالية</div><div style="font-size:20px;font-weight:900;color:var(--pd-pri)">${base.projectDuration} يوم</div><div style="font-size:10.5px;color:#888">ينتهي ${pdDayToDate(anchor, base.projectDuration)}</div></div>
+            <div style="flex:1;min-width:150px;padding:12px 14px;background:${col}18"><div style="font-size:10.5px;color:#888">بعد المحاكاة</div><div style="font-size:20px;font-weight:900;color:${col}">${sim.projectDuration} يوم</div><div style="font-size:10.5px;color:#888">ينتهي ${pdDayToDate(anchor, sim.projectDuration)}</div></div>
+            <div style="flex:1;min-width:150px;padding:12px 14px;background:${col}18;display:flex;flex-direction:column;justify-content:center"><div style="font-size:10.5px;color:#888">الأثر على المشروع</div><div style="font-size:22px;font-weight:900;color:${col}">${sign}${dProj} يوم</div><div style="font-size:10.5px;color:${col}">${dProj > 0 ? 'تأخّر ⚠️' : dProj < 0 ? 'توفير ✅' : 'لا أثر — النشاط غير حرج'}</div></div>
+        </div>
+        ${(nowCrit.length || noCrit.length) ? `<div style="padding:10px 14px;border-top:1px solid var(--pd-bd);font-size:12px;line-height:1.8">
+            ${nowCrit.length ? `<div style="color:var(--pd-danger)">🔴 أصبحت حرجة: ${nowCrit.map(esc).join('، ')}</div>` : ''}
+            ${noCrit.length ? `<div style="color:var(--pd-ok)">🟢 لم تعُد حرجة: ${noCrit.map(esc).join('، ')}</div>` : ''}
+        </div>` : ''}
+    </div>`;
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// ║  🔗 بوابة العميل — توليد رابط + لقطة عامة + صندوق ردود (اعتماد استشاري)      ║
+// ══════════════════════════════════════════════════════════════════════════
+function pdGenToken() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+window.pdGenPortalLink = async function (pid) {
+    const p = (window.projects || {})[pid]; if (!p) return;
+    const token = p.portalToken || pdGenToken();
+    const billings = {};
+    Object.entries(window.progressBillings || {}).forEach(([k, b]) => {
+        if (b.projectId === pid && ['submitted', 'approved', 'paid'].includes(b.status)) {
+            billings[k] = { no: b.billingNo || 0, date: b.billingDate || '', current: pdNum(b.currentAmount), net: pdNum(b.netAmount), retention: pdNum(b.retentionAmount), status: b.status };
+        }
+    });
+    // RFIs المفتوحة الموجّهة للعميل — ليطّلع ويجيب عن بُعد
+    const rfis = {};
+    Object.entries((window.rfis || {})[pid] || {}).forEach(([k, r]) => {
+        if ((r.status || 'open') === 'open') {
+            rfis[k] = { no: r.number || '', subject: r.subject || '', question: r.question || '', discipline: r.discipline || '', status: r.status || 'open' };
+        }
+    });
+    const daysEl = document.getElementById('pdPortalDays');
+    const days = daysEl ? parseInt(daysEl.value, 10) : 30;
+    const expiresAt = days > 0 ? Date.now() + days * 86400000 : null;
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', clientName: p.clientName || p.client || '', company: window.currentTenantName || 'الشركة', party: 'client', createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, expiresAt, billings, rfis };
+    try {
+        await set(_rawRef(db, 'portalSnapshots/' + token), snap);
+        await update(ref(db, 'ledger/projects/' + pid), { portalToken: token, portalUpdatedAt: Date.now(), portalExpiresAt: expiresAt });
+        if (window.projects[pid]) window.projects[pid].portalToken = token;
+        toast('✅ تم إنشاء/تحديث الرابط (' + Object.keys(billings).length + ' مستخلص · ' + Object.keys(rfis).length + ' RFI)', 'ok');
+        pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر إنشاء الرابط: ' + (e.message || e), 'er'); }
+};
+window.pdRevokePortalLink = async function (pid) {
+    const p = (window.projects || {})[pid]; const token = p && p.portalToken; if (!token) return;
+    if (!await cf2('إلغاء رابط البوابة؟ لن يعود العميل قادراً على فتحه.')) return;
+    try {
+        await update(_rawRef(db, 'portalSnapshots/' + token), { revoked: true });
+        await update(ref(db, 'ledger/projects/' + pid), { portalToken: null });
+        if (window.projects[pid]) delete window.projects[pid].portalToken;
+        toast('تم إلغاء الرابط', 'ok'); pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر الإلغاء', 'er'); }
+};
+window.pdCopyPortal = function (url) { navigator.clipboard.writeText(url).then(() => toast('✅ نُسخ الرابط', 'ok')).catch(() => toast('انسخه يدوياً: ' + url, 'ok')); };
+window.pdGenSubPortalLink = async function (pid, subKey) {
+    const p = (window.projects || {})[pid]; const s = ((window.subcontracts || {})[pid] || {})[subKey];
+    if (!p || !s) return;
+    const token = s.portalToken || pdGenToken();
+    const certs = {};
+    (Array.isArray(s.certificates) ? s.certificates : []).forEach((c, i) => {
+        certs[i] = { no: c.no || (i + 1), date: c.date || '', periodValue: pdNum(c.periodValue), retentionAmt: pdNum(c.retentionAmt), advanceRecovery: pdNum(c.advanceRecovery), netPayable: pdNum(c.netPayable), status: c.status || 'submitted' };
+    });
+    const expiresAt = Date.now() + 30 * 86400000;
+    const snap = { tid: window.currentTenantId, projectId: pid, projectName: p.name || '', company: window.currentTenantName || 'الشركة', party: 'sub', subName: s.subName || '', scope: s.scope || '', contractValue: pdNum(s.contractValue), createdAt: Date.now(), createdBy: (window.curU && window.curU.uid) || '', revoked: false, expiresAt, certs };
+    try {
+        await set(_rawRef(db, 'portalSnapshots/' + token), snap);
+        await update(ref(db, 'ledger/subcontracts/' + pid + '/' + subKey), { portalToken: token, portalUpdatedAt: Date.now(), portalExpiresAt: expiresAt });
+        if (((window.subcontracts || {})[pid] || {})[subKey]) window.subcontracts[pid][subKey].portalToken = token;
+        toast('✅ رابط بوابة الباطن (' + Object.keys(certs).length + ' شهادة)', 'ok');
+        pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر: ' + (e.message || e), 'er'); }
+};
+window.pdRevokeSubPortalLink = async function (pid, subKey) {
+    const s = ((window.subcontracts || {})[pid] || {})[subKey]; const token = s && s.portalToken; if (!token) return;
+    if (!await cf2('إلغاء رابط بوابة هذا المقاول؟')) return;
+    try {
+        await update(_rawRef(db, 'portalSnapshots/' + token), { revoked: true });
+        await update(ref(db, 'ledger/subcontracts/' + pid + '/' + subKey), { portalToken: null });
+        if (((window.subcontracts || {})[pid] || {})[subKey]) delete window.subcontracts[pid][subKey].portalToken;
+        toast('تم الإلغاء', 'ok'); pdRenderPortalMgr(pid);
+    } catch (e) { toast('❌ تعذّر الإلغاء', 'er'); }
+};
+function pdRenderPortalMgr(pid) {
+    const pane = document.getElementById('pd-tab-portal'); if (!pane) return;
+    const p = (window.projects || {})[pid] || {};
+    const token = p.portalToken;
+    const url = token ? (location.origin + location.pathname + '#portal=' + token) : '';
+    const subs = Object.entries((window.subcontracts || {})[pid] || {});
+    const subsHtml = `<div class="card" style="margin-top:14px"><div class="c-tl" style="font-size:14px">🤝 روابط مقاولي الباطن</div>
+        <p style="font-size:11.5px;color:#888;margin:5px 0 4px">لكل مقاول باطن رابط خاص يعرض <b>شهادات الدفع</b> الخاصة به فقط ليُقرّها أو يضيف ملاحظة.</p>
+        ${subs.length ? subs.map(([sk, s]) => {
+            const stoken = s.portalToken;
+            const surl = stoken ? (location.origin + location.pathname + '#portal=' + stoken) : '';
+            const nCerts = Array.isArray(s.certificates) ? s.certificates.length : 0;
+            return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-top:9px">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                    <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">🤝 ${esc(s.subName || 'مقاول باطن')} <span style="font-size:10.5px;color:#999;font-weight:400">(${nCerts} شهادة)</span></div>
+                    ${stoken
+                        ? `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="pdCopyPortal('${surl}')" style="padding:3px 10px;font-size:11px">📋 نسخ</button><button class="btn" onclick="pdGenSubPortalLink('${pid}','${sk}')" style="padding:3px 10px;font-size:11px;background:var(--pd-sf3);border:1px solid var(--pd-bd)">🔄 تحديث</button><button class="btn" onclick="pdRevokeSubPortalLink('${pid}','${sk}')" style="padding:3px 10px;font-size:11px;background:var(--pd-sf-danger);color:var(--pd-danger)" title="إلغاء">🚫</button></div>`
+                        : `<button class="btn b-b" onclick="pdGenSubPortalLink('${pid}','${sk}')" style="padding:4px 12px;font-size:11.5px">➕ إنشاء رابط</button>`}
+                </div>
+                ${stoken ? `<input readonly value="${surl}" onclick="this.select()" style="width:100%;margin-top:7px;padding:6px 9px;border:1px solid var(--pd-bd);border-radius:6px;font-size:11px;direction:ltr;text-align:left">` : ''}
+            </div>`;
+        }).join('') : '<div style="color:#999;font-size:12px;padding:10px;text-align:center">لا عقود باطن — أضِفها من تبويب «عقود الباطن»</div>'}
+    </div>`;
+    const head = `<div class="card" style="margin-bottom:14px;border-right:4px solid var(--pd-pri)">
+        <div class="c-tl">🔗 بوابة العميل — اطّلاع واعتماد استشاري</div>
+        <p style="font-size:12.5px;color:#777;margin:6px 0 0;line-height:1.85">شارك مع العميل رابطاً آمناً يعرض <b>مستخلصات المشروع</b> ليطّلع عليها ويعتمدها أو يضيف ملاحظة — <b>دون تسجيل دخول ودون وصول لبياناتك</b>. تصل ردوده هنا (استشارية)، وتعتمدها أنت داخلياً من صفحة المستخلصات.</p>
+    </div>`;
+    if (!token) {
+        pane.innerHTML = head + `<div class="card" style="text-align:center;padding:26px">
+            <div style="font-size:40px">🔗</div>
+            <p style="color:#666;font-size:13px;margin:8px 0 14px">لا يوجد رابط بعد. أنشئ رابطاً يتضمّن المستخلصات المُرسَلة والمعتمدة لهذا المشروع.</p>
+            <button class="btn b-g" onclick="pdGenPortalLink('${pid}')">➕ إنشاء رابط البوابة</button>
+        </div>` + subsHtml;
+        return;
+    }
+    const exp = p.portalExpiresAt;
+    const expiryLabel = (typeof exp === 'number')
+        ? (exp < Date.now() ? '<span style="color:var(--pd-danger);font-weight:700">⚠️ منتهٍ — حدّث الرابط لإعادة تفعيله</span>' : '<span style="color:var(--pd-ok);font-weight:700">✅ ينتهي: ' + new Date(exp).toLocaleDateString('ar') + '</span>')
+        : '<span style="color:#888">دائم</span>';
+    pane.innerHTML = head + `
+    <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--pd-bd);border-radius:8px;font-size:12px;direction:ltr;text-align:left">
+            <button class="btn b-b" onclick="pdCopyPortal('${url}')">📋 نسخ</button>
+            <a class="btn" href="https://wa.me/?text=${encodeURIComponent('رابط اعتماد مستخلصات مشروع ' + (p.name || '') + ':\n' + url)}" target="_blank" style="background:#25d366;color:#fff;text-decoration:none">💬 واتساب</a>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn" onclick="pdGenPortalLink('${pid}')" style="background:var(--pd-sf3);border:1.5px solid var(--pd-bd)" title="تحديث اللقطة بأحدث المستخلصات وإعادة ضبط الصلاحية">🔄 تحديث اللقطة</button>
+            <button class="btn" onclick="pdRevokePortalLink('${pid}')" style="background:var(--pd-sf-danger);color:var(--pd-danger)">🚫 إلغاء الرابط</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;font-size:12px;color:#666;padding-top:9px;border-top:1px solid var(--pd-bd)">
+            <span>⏳ الصلاحية عند التحديث:</span>
+            <select id="pdPortalDays" style="padding:5px 8px;border:1px solid var(--pd-bd);border-radius:6px;font-family:inherit;font-size:12px"><option value="30">30 يوماً</option><option value="90">90 يوماً</option><option value="365">سنة</option><option value="0">دائم (بلا انتهاء)</option></select>
+            ${expiryLabel}
+        </div>
+    </div>
+    <div class="card"><div class="c-tl" style="font-size:14px">📥 صندوق ردود العميل</div><div id="pd-portal-inbox" style="margin-top:10px;color:#888;font-size:12.5px">⏳ جارِ التحميل…</div></div>` + subsHtml;
+    get(_rawRef(db, 'portalResponses/' + token)).then(sn => {
+        const box = document.getElementById('pd-portal-inbox'); if (!box) return;
+        if (!sn.exists()) { box.innerHTML = '<div style="text-align:center;padding:14px;color:#999">لا ردود بعد — بانتظار اطّلاع العميل</div>'; return; }
+        const rows = Object.values(sn.val()).sort((a, b) => (b.at || 0) - (a.at || 0));
+        const bmap = window.progressBillings || {};
+        const actLabel = a => a === 'approve' ? ['✅ اعتماد', 'var(--pd-ok)', 'var(--pd-sf-ok)'] : a === 'reject' ? ['❌ رفض', 'var(--pd-danger)', 'var(--pd-sf-danger)'] : a === 'answer' ? ['✍️ إجابة', 'var(--pd-blue)', '#eef3fb'] : ['📝 ملاحظة', 'var(--pd-blue)', '#eef3fb'];
+        const rmap = (window.rfis || {})[pid] || {};
+        const seenKey = 'portalSeen_' + token;
+        let lastSeen = 0; try { lastSeen = parseInt(localStorage.getItem(seenKey) || '0', 10) || 0; } catch (_) {}
+        const newCount = rows.filter(r => (r.at || 0) > lastSeen).length;
+        if (newCount) toast('🔔 ' + newCount + ' ردّ جديد من العميل', 'ok');
+        try { localStorage.setItem(seenKey, String(rows.reduce((m, r) => Math.max(m, r.at || 0), 0))); } catch (_) {}
+        const banner = newCount ? `<div style="background:#fdf3d7;border:1px solid #f0d59b;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;color:#7d6608;font-weight:700">🔔 ${newCount} ردّ جديد منذ آخر اطّلاعك</div>` : '';
+        box.innerHTML = banner + rows.map(r => {
+            const [lb, c, bg] = actLabel(r.action);
+            const b = bmap[r.billId], rfi = rmap[r.billId];
+            const onWhat = b ? `مستخلص رقم ${b.billingNo || '—'}` : rfi ? `استفسار: ${esc(rfi.subject || rfi.number || '')}` : 'عنصر';
+            const jump = b ? `<button class="btn" onclick="nav('progressbillings');setTimeout(function(){ if(typeof openBillingDetail==='function') openBillingDetail('${r.billId}'); },350)" style="padding:3px 11px;font-size:11px;background:var(--pd-sf3);border:1px solid var(--pd-bd)" title="افتح المستخلص لاعتماده داخلياً">↗️ فتح للاعتماد</button>` : '';
+            return `<div style="border:1px solid var(--pd-bd);border-radius:9px;padding:11px;margin-bottom:8px;background:${bg}">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                <div style="font-size:12.5px;font-weight:700;color:var(--pd-pri)">👤 ${esc(r.by || 'عميل')} — <span style="color:${c}">${lb}</span>${(r.at || 0) > lastSeen ? ' <span style="background:#f39c12;color:#fff;font-size:9px;padding:1px 6px;border-radius:99px">🆕</span>' : ''}</div>
+                <div style="font-size:10.5px;color:#999">${r.at ? new Date(r.at).toLocaleString('ar') : ''}</div>
+            </div>
+            <div style="font-size:11.5px;color:#666;margin-top:4px">على: ${onWhat}${r.note ? ` · «${esc(r.note)}»` : ''}</div>
+            ${jump ? `<div style="margin-top:7px">${jump}</div>` : ''}
+        </div>`; }).join('');
+    }).catch(() => { const box = document.getElementById('pd-portal-inbox'); if (box) box.innerHTML = '<div style="color:var(--pd-danger)">تعذّر تحميل الردود</div>'; });
 }
 
 // ── عرض جانت لمهام المشروع ─────────────────
@@ -5056,14 +5345,7 @@ window.pdApplyDrag = async function (pid, key, newStart, newDue) {
 };
 
 // ── 📋 قوالب المشاريع: حفظ مهام مشروع كقالب وإعادة استخدامه ───────────────────
-// ⚠️ من المكوّنات المحلية لا toISOString: الأخيرة تحوّل إلى UTC فتُزيح اليوم
-//    للخلف في التوقيتات المتقدّمة على UTC (الرياض +3).
-const pdAddDays = (d, n) => {
-    if (!d) return null;
-    const x = new Date(String(d) + 'T00:00:00'); if (isNaN(x.getTime())) return null;
-    x.setDate(x.getDate() + (parseInt(n) || 0));
-    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-};
+const pdAddDays = (d, n) => new Date(new Date(d).getTime() + n * 86400000).toISOString().slice(0, 10);
 window.pdSaveTasksAsTemplate = async function (pid) {
     const tasksObj = (window.projectTasks || {})[pid] || {};
     const entries = Object.entries(tasksObj);
@@ -6469,6 +6751,8 @@ function pdRenderEVM(pid) {
         </div>
     </div>
 
+    ${pdEvmForecast({ bac, EV, ac, CPI, SPI, EAC, plannedStart, plannedEnd, pct })}
+
     <div class="card" style="margin:0;background:${CV >= 0 && SV >= 0 ? 'var(--pd-sf-ok)' : '#fdf0ec'};border-right:4px solid ${CV >= 0 && SV >= 0 ? good : bad}">
         <div style="font-size:13px;line-height:1.9;color:#333">
             <strong>الخلاصة:</strong>
@@ -6476,6 +6760,63 @@ function pdRenderEVM(pid) {
             و<strong style="color:${schedColor}">${schedMsg}</strong> من حيث الجدول الزمني.
             ${EAC != null ? `المتوقع أن تبلغ التكلفة النهائية نحو <strong>${f(EAC)} ريال</strong> مقابل ميزانية <strong>${f(bac)} ريال</strong> (${VAC >= 0 ? 'وفر متوقّع' : 'تجاوز متوقّع'} ${f(Math.abs(VAC))} ريال).` : ''}
         </div>
+    </div>`;
+}
+
+// ── 🔮 التوقّعات التنبؤية (Forecast & Risk) — تبني على مؤشرات EVM ─────────────
+// تحليل أمامي: تاريخ الإنجاز المتوقّع (من SPI)، نطاق EAC (متفائل/مرجّح/متشائم)،
+// TCPI (الكفاءة اللازمة للباقي)، ومؤشرات مخاطر التجاوز/التأخّر. قراءة فقط.
+function pdEvmForecast(o) {
+    const { bac, EV, ac, CPI, SPI, EAC, plannedStart, plannedEnd, pct } = o;
+    const f = v => fmt(Math.round(v || 0));
+    const good = 'var(--pd-ok)', bad = 'var(--pd-danger)', warnc = 'var(--pd-warn)', neu = 'var(--pd-pri2)';
+    if (!(pct > 0) || CPI == null || !(bac > 0)) {
+        return `<div class="card" style="margin:0 0 14px;border-right:4px solid ${neu}">
+            <div class="c-tl" style="font-size:14px">🔮 التوقّعات التنبؤية</div>
+            <div style="font-size:12.5px;color:#888;margin-top:8px;line-height:1.85">تحتاج <b>ميزانية وتقدّم فعلي وتكلفة فعلية</b> لحساب التوقّعات — سجّل تقدّم المشروع وتكاليفه لتظهر التكلفة النهائية المتوقّعة وتاريخ الإنجاز واحتمالات التجاوز.</div>
+        </div>`;
+    }
+    const eacOpt = ac + (bac - EV);
+    const eacLikely = (CPI > 0) ? bac / CPI : null;
+    const eacPess = (CPI > 0 && SPI > 0) ? ac + (bac - EV) / (CPI * SPI) : null;
+    const remBudget = bac - ac;
+    const tcpi = remBudget > 0 ? (bac - EV) / remBudget : null;
+    const tcpiUnreal = (tcpi != null && CPI > 0 && tcpi > CPI * 1.1);
+    let finishDate = null, delayDays = null;
+    if (plannedStart && plannedEnd && SPI && SPI > 0) {
+        const s = new Date(plannedStart), e = new Date(plannedEnd);
+        const planDur = Math.round((e - s) / 86400000);
+        if (planDur > 0) {
+            const fcDur = Math.round(planDur / SPI);
+            const fd = new Date(s); fd.setDate(fd.getDate() + fcDur);
+            finishDate = fd.toISOString().slice(0, 10); delayDays = fcDur - planDur;
+        }
+    }
+    const costRisk = CPI >= 1 ? ['منخفض', good] : CPI >= 0.9 ? ['متوسط', warnc] : ['عالٍ', bad];
+    const schedRisk = SPI == null ? ['—', neu] : SPI >= 1 ? ['منخفض', good] : SPI >= 0.9 ? ['متوسط', warnc] : ['عالٍ', bad];
+
+    const fc = (label, val, color, hint) => `<div style="flex:1;min-width:150px;background:var(--pd-sf1);border-radius:10px;padding:12px 14px;border-right:3px solid ${color}"><div style="font-size:10.5px;color:#777">${label}</div><div style="font-size:18px;font-weight:900;color:${color};margin-top:3px">${val}</div>${hint ? `<div style="font-size:10px;color:#999;margin-top:2px">${hint}</div>` : ''}</div>`;
+    const pill = (lb, arr) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px"><span style="color:#777">${lb}:</span><span style="background:color-mix(in srgb, ${arr[1]} 14%, transparent);color:${arr[1]};padding:2px 11px;border-radius:99px;font-weight:800">${arr[0]}</span></span>`;
+    const scen = (label, val, color) => val == null ? '' : `<div style="background:color-mix(in srgb, ${color} 9%, transparent);border:1px solid color-mix(in srgb, ${color} 35%, transparent);border-radius:10px;padding:11px;text-align:center"><div style="font-size:11px;color:${color};font-weight:800">${label}</div><div style="font-size:15px;font-weight:900;color:var(--pd-pri);margin:3px 0;font-variant-numeric:tabular-nums">${f(val)}</div><div style="font-size:9.5px;color:${val <= bac ? good : bad}">${val <= bac ? 'وفر ' : 'تجاوز '}${f(Math.abs(bac - val))}</div></div>`;
+
+    return `<div class="card" style="margin:0 0 14px;border-right:4px solid var(--pd-blue)">
+        <div class="c-tl" style="font-size:14px">🔮 التوقّعات التنبؤية <span style="font-size:11px;color:#999;font-weight:400">— تحليل أمامي مبني على CPI/SPI</span></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            ${fc('📅 تاريخ الإنجاز المتوقّع', finishDate || '—', delayDays == null ? neu : delayDays > 0 ? bad : good, finishDate ? (delayDays > 0 ? `تأخّر ${delayDays} يوم عن المخطط` : delayDays < 0 ? `أبكر ${-delayDays} يوم` : 'في الموعد') : 'يلزم تواريخ/خط أساس')}
+            ${fc('🎯 الكفاءة المطلوبة (TCPI)', tcpi == null ? '—' : tcpi.toFixed(2), tcpi == null ? neu : tcpiUnreal ? bad : good, tcpi == null ? 'الميزانية استُنفدت' : tcpiUnreal ? `أعلى من أدائك (CPI ${CPI.toFixed(2)}) — صعب` : 'ضمن المتناول')}
+            ${fc('💰 التكلفة النهائية المرجّحة', eacLikely == null ? '—' : f(eacLikely) + ' ريال', eacLikely != null && eacLikely <= bac ? good : bad, 'مقابل ميزانية ' + f(bac))}
+        </div>
+        <div style="margin-top:14px">
+            <div style="font-size:11.5px;color:#666;font-weight:700;margin-bottom:8px">📊 نطاق التكلفة النهائية المتوقّعة (EAC)</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                ${scen('🟢 متفائل', eacOpt, good)}${scen('🔵 مرجّح', eacLikely, 'var(--pd-blue)')}${scen('🔴 متشائم', eacPess, bad)}
+            </div>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--pd-bd)">
+            ${pill('⚠️ مخاطر تجاوز التكلفة', costRisk)}
+            ${pill('⏳ مخاطر التأخّر', schedRisk)}
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:10px;line-height:1.75">💡 <b>متفائل</b>: الباقي بالكفاءة المخططة · <b>مرجّح</b>: بكفاءة التكلفة الحالية (BAC÷CPI) · <b>متشائم</b>: بكفاءة التكلفة×الجدول. <b>TCPI</b> = الكفاءة اللازمة للعمل المتبقّي لإنهاء المشروع ضمن الميزانية.</div>
     </div>`;
 }
 
@@ -6875,731 +7216,6 @@ window.prDelete = function (pid, key) {
             await remove(ref(db, `ledger/projectRisks/${pid}/${key}`));
             if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف خطر: ${r?.title || key}`);
             toast('🗑️ حُذف', 'ok');
-        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
-    });
-};
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║   ⚖️  تسوية القيمة والتكلفة (CVR — Cost Value Reconciliation)             ║
-// ║   التقرير المحوري في برامج المقاولات (Sage 300 CRE · CMiC · Deltek).      ║
-// ║   يجيب: كم استحققتُ؟ كم كلّفني؟ **وأين** الفجوة؟                          ║
-// ║   الربح الإجمالي وحده يُخفي النزيف: قد تربح في الحفر وتنزف في الخرسانة.   ║
-// ║                                                                          ║
-// ║   مستويان — لأن البيانات تسمح بذلك ولا تسمح بأكثر:                        ║
-// ║     • القيمة: تفصيل ببنود BOQ (المستخلصات مربوطة بـ boqItemKey)          ║
-// ║     • التكلفة: تفصيل بالفئات (المصروفات مصنّفة، وغير مربوطة ببنود BOQ)   ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-// القيمة المستحقّة من المستخلصات المعتمدة (بلا ضريبة — الضريبة ليست إيراداً)
-function cvrEarnedValue(pid) {
-    const bills = Object.values(window.progressBillings || {})
-        .filter(b => b.projectId === pid && ['approved', 'paid'].includes(b.status));
-    return {
-        gross: pdSum(bills, 'currentAmount'),
-        retention: pdSum(bills, 'retentionAmount'),
-        net: pdSum(bills, 'netAmount'),
-        count: bills.length
-    };
-}
-
-// القيمة المستحقّة لكل بند BOQ (من عناصر المستخلصات المرتبطة بـ boqItemKey)
-function cvrByBOQ(pid) {
-    const billed = {};
-    Object.values(window.progressBillings || {})
-        .filter(b => b.projectId === pid && ['approved', 'paid'].includes(b.status))
-        .forEach(b => (b.items || []).forEach(it => {
-            const k = it.boqItemKey; if (!k) return;
-            billed[k] = (billed[k] || 0) + pdNum(it.currentAmount);
-        }));
-    const boq = (window.projectBOQ || {})[pid] || {};
-    return Object.entries(boq).map(([k, it]) => {
-        const contract = pdNum(it.totalPrice) || (pdNum(it.qty) * pdNum(it.rate));
-        const earned = billed[k] || 0;
-        return {
-            k, desc: it.description || it.desc || '—', unit: it.unit || '',
-            contract, earned,
-            pct: contract > 0 ? (earned / contract) * 100 : 0,
-            remaining: contract - earned
-        };
-    }).sort((a, b) => b.contract - a.contract);
-}
-
-function pdRenderCVR(pid) {
-    const pane = document.getElementById('pd-tab-cvr'); if (!pane) return;
-    const p = (window.projects || {})[pid] || {};
-    const ev = cvrEarnedValue(pid);
-    const ac = (typeof calcProjectActualCosts === 'function') ? calcProjectActualCosts(pid) : {};
-    const contractValue = (typeof getProjectContractValue === 'function') ? getProjectContractValue(pid) : pdNum(p.contractValue);
-
-    // فئات التكلفة: الميزانية من نموذج المشروع، والفعلي من المشتريات/الرواتب/المصروفات
-    const cats = [
-        { k: 'materials', l: '🧱 المواد', budget: pdNum(p.matBudgetEstimate), actual: pdNum(ac.materials) },
-        { k: 'labor', l: '👷 العمالة', budget: pdNum(p.laborCost), actual: pdNum(ac.labor) },
-        { k: 'equipment', l: '🚜 المعدات', budget: pdNum(p.equipCost), actual: pdNum(ac.equipment) },
-        { k: 'subcontractors', l: '🤝 مقاولو الباطن', budget: pdNum(p.subcontractors), actual: pdNum(ac.subcontractors) },
-        { k: 'indirect', l: '🏢 غير مباشرة', budget: pdNum(p.indirectCost), actual: pdNum(ac.indirect) },
-        { k: 'otherExpenses', l: '📎 مصروفات أخرى', budget: 0, actual: pdNum(ac.otherExpenses) }
-    ];
-    const totalBudget = cats.reduce((s, c) => s + c.budget, 0);
-    const totalActual = pdNum(ac.total) || cats.reduce((s, c) => s + c.actual, 0);
-
-    // الهامش المحقّق حتى الآن = القيمة المستحقّة − التكلفة الفعلية
-    const margin = ev.gross - totalActual;
-    const marginPct = ev.gross > 0 ? (margin / ev.gross) * 100 : null;
-    // الهامش المتعاقَد عليه (الهدف)
-    const targetMargin = contractValue > 0 && totalBudget > 0 ? ((contractValue - totalBudget) / contractValue) * 100 : null;
-    // نسبة الإنجاز المالي
-    const workPct = contractValue > 0 ? (ev.gross / contractValue) * 100 : 0;
-    // التكلفة المتوقّعة عند الإنجاز (بنفس معدّل الإنفاق الحالي)
-    const forecastCost = workPct > 0 ? (totalActual / (workPct / 100)) : null;
-    const forecastMargin = forecastCost != null ? contractValue - forecastCost : null;
-
-    const money = v => v == null ? '—' : (v < 0 ? '−' : '') + fmt(Math.abs(v));
-    const pctTxt = v => v == null ? '—' : v.toFixed(1) + '%';
-    const good = v => v == null ? 'var(--pd-bd)' : v >= 0 ? 'var(--pd-ok)' : 'var(--pd-danger)';
-
-    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
-        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
-        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
-        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
-
-    // صفوف فئات التكلفة
-    const catRows = cats.map(c => {
-        const varc = c.budget - c.actual;                      // موجب = تحت الميزانية
-        const usedPct = c.budget > 0 ? (c.actual / c.budget) * 100 : null;
-        const over = c.budget > 0 && c.actual > c.budget;
-        return `<tr style="border-bottom:1px solid var(--pd-sf1);${over ? 'background:var(--pd-sf-danger)' : ''}">
-            <td style="padding:8px 9px;font-weight:700;color:var(--pd-pri)">${c.l}</td>
-            <td style="text-align:left">${c.budget ? fmt(c.budget) : '—'}</td>
-            <td style="text-align:left;font-weight:700">${fmt(c.actual)}</td>
-            <td style="text-align:left;font-weight:800;color:${good(c.budget ? varc : null)}">${c.budget ? money(varc) : '—'}</td>
-            <td style="text-align:center">${usedPct == null ? '—' : `<span style="font-weight:800;color:${usedPct > 100 ? 'var(--pd-danger)' : usedPct > 85 ? 'var(--pd-warn)' : 'var(--pd-ok)'}">${pctTxt(usedPct)}</span>`}</td>
-        </tr>`;
-    }).join('');
-
-    // صفوف بنود BOQ (جانب القيمة)
-    const boqRows = cvrByBOQ(pid);
-    const boqHtml = boqRows.length ? boqRows.map(r => `<tr style="border-bottom:1px solid var(--pd-sf1)">
-        <td style="padding:8px 9px">${esc(r.desc)}${r.unit ? ` <span style="color:#8a97a5;font-size:10.5px">(${esc(r.unit)})</span>` : ''}</td>
-        <td style="text-align:left">${fmt(r.contract)}</td>
-        <td style="text-align:left;font-weight:700;color:var(--pd-acc)">${fmt(r.earned)}</td>
-        <td style="text-align:left">${fmt(r.remaining)}</td>
-        <td style="text-align:center;white-space:nowrap">
-            <div style="display:inline-block;width:56px;background:var(--pd-sf1);border-radius:4px;height:6px;overflow:hidden;vertical-align:middle">
-                <div style="width:${Math.min(100, Math.max(0, r.pct))}%;background:var(--pd-acc);height:100%"></div></div>
-            <span style="font-size:11px;font-weight:700;margin-inline-start:5px">${r.pct.toFixed(0)}%</span>
-        </td>
-    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:#aaa;padding:22px">لا بنود BOQ — أضِفها من تبويب «العقد والبنود» ليظهر التفصيل</td></tr>`;
-
-    pane.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        ${kpi('📈', 'القيمة المستحقّة', fmt(ev.gross), 'var(--pd-acc)', `${ev.count} مستخلص معتمد · بلا ضريبة`)}
-        ${kpi('💸', 'التكلفة الفعلية', fmt(totalActual), 'var(--pd-warn)', 'مشتريات + رواتب + مصروفات')}
-        ${kpi(margin >= 0 ? '✅' : '🔴', margin >= 0 ? 'الهامش المحقّق' : 'العجز المحقّق', money(Math.abs(margin)), good(margin), pctTxt(marginPct) + ' من القيمة المستحقّة')}
-        ${kpi('🎯', 'الهامش المستهدف', pctTxt(targetMargin), 'var(--pd-pri2)', targetMargin == null ? 'يحتاج ميزانية تقديرية' : 'من العقد مقابل الميزانية')}
-        ${kpi('🔮', 'الهامش المتوقّع عند الإنجاز', money(forecastMargin), good(forecastMargin), forecastMargin == null ? 'يحتاج مستخلصاً واحداً' : 'بمعدّل الإنفاق الحالي')}
-    </div>
-
-    ${totalBudget <= 0 ? `<div class="card" style="margin-bottom:14px;background:var(--pd-sf-warn);border:1.5px solid #f0d68a">
-        <div style="font-weight:800;color:#8a6100">⚠️ لا ميزانية تقديرية لهذا المشروع</div>
-        <div style="font-size:12.5px;color:#8a6100;margin-top:5px">
-            المقارنة بالميزانية ونسب الاستهلاك والهامش المستهدف كلها معطّلة.
-            املأ «تقسيم التكلفة المستهدفة» من تبويب <b>العقد والبنود</b> — وهي أيضاً أساس مؤشّرات EVM.
-        </div></div>` : ''}
-
-    <div class="card" style="margin-bottom:14px">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:4px">💸 أين ذهبت التكلفة — الفعلي مقابل الميزانية</div>
-        <div style="font-size:11.5px;color:#8a97a5;margin-bottom:10px">الانحراف موجب = تحت الميزانية. الصفوف الحمراء تجاوزت ميزانيتها.</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">الفئة</th><th style="text-align:left">الميزانية</th>
-                <th style="text-align:left">الفعلي</th><th style="text-align:left">الانحراف</th>
-                <th style="text-align:center">المستهلك</th>
-            </tr></thead>
-            <tbody>${catRows}
-                <tr style="background:var(--pd-sf2);font-weight:900">
-                    <td style="padding:9px">الإجمالي</td>
-                    <td style="text-align:left">${totalBudget ? fmt(totalBudget) : '—'}</td>
-                    <td style="text-align:left">${fmt(totalActual)}</td>
-                    <td style="text-align:left;color:${good(totalBudget ? totalBudget - totalActual : null)}">${totalBudget ? money(totalBudget - totalActual) : '—'}</td>
-                    <td style="text-align:center">${totalBudget ? pctTxt((totalActual / totalBudget) * 100) : '—'}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="card">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:4px">📋 القيمة المستحقّة لكل بند</div>
-        <div style="font-size:11.5px;color:#8a97a5;margin-bottom:10px">من عناصر المستخلصات المعتمدة المرتبطة ببنود العقد.</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">البند</th><th style="text-align:left">قيمة العقد</th>
-                <th style="text-align:left">المستحقّ</th><th style="text-align:left">المتبقي</th>
-                <th style="text-align:center">الإنجاز</th>
-            </tr></thead>
-            <tbody>${boqHtml}</tbody>
-        </table>
-    </div>`;
-}
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║   🛡️  الضمانات والمحتجزات — على مستوى المشروع                            ║
-// ║   البيانات موجودة أصلاً في «الخزينة والضمانات» (guarantees · retentions)  ║
-// ║   لكنها على مستوى الشركة، وكلاهما يحمل projectId. الفجوة كانت **عرضاً**  ║
-// ║   لا بيانات — فمدير المشروع لا يرى التزامات مشروعه ولا مستحقّاته.        ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-function pdDaysTo(d) {
-    if (!d) return null;
-    const t = new Date(d + 'T00:00:00').getTime();
-    if (isNaN(t)) return null;
-    const now = new Date(); now.setHours(0, 0, 0, 0);
-    return Math.round((t - now.getTime()) / 86400000);
-}
-
-function pdRenderBonds(pid) {
-    const pane = document.getElementById('pd-tab-bonds'); if (!pane) return;
-    // ⚠️ الخزينة تخزّن بياناتها في window._tre لا في window.guarantees،
-    //    ومستمعوها لا يُسجَّلون إلا بفتح صفحة «الخزينة والضمانات».
-    //    نستدعي treEnsureListeners() كي يعمل التبويب دون زيارتها أولاً.
-    if (typeof treEnsureListeners === 'function' && !window._treListenersDone) {
-        try { treEnsureListeners(); } catch (e) { }
-    }
-    const tre = window._tre || {};
-    const gs = Object.entries(tre.guarantees || {}).map(([k, g]) => ({ k, ...g })).filter(g => g.projectId === pid);
-    const rs = Object.entries(tre.retentions || {}).map(([k, r]) => ({ k, ...r })).filter(r => r.projectId === pid);
-
-    // المحتجزات: من العميل = مستحقّ لنا · لمقاول باطن = التزام علينا
-    const isOurs = r => !String(r.kind || '').includes('باطن');
-    const held = rs.filter(r => r.status !== 'مُفرج عنه');
-    const dueUs = pdSum(held.filter(isOurs), 'amount');
-    const owedBySub = pdSum(held.filter(r => !isOurs(r)), 'amount');
-    const releasedUs = pdSum(rs.filter(r => isOurs(r) && r.status === 'مُفرج عنه'), 'amount');
-
-    const gActive = gs.filter(g => (g.status || '') !== 'منتهٍ' && (g.status || '') !== 'مُفرج عنه');
-    const gTotal = pdSum(gActive, 'amount');
-    const gSoon = gActive.filter(g => { const d = pdDaysTo(g.expiryDate); return d != null && d <= 30; }).length;
-    const rSoon = held.filter(r => { const d = pdDaysTo(r.releaseDate); return d != null && d <= 30 && d >= 0; }).length;
-
-    const money = v => fmt(pdNum(v));
-    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
-        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
-        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
-        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
-
-    // شارة الاستحقاق: متأخّر / قريب / بعيد
-    const dueBadge = (d, lateTxt, soonTxt) => {
-        if (d == null) return '<span style="color:#8a97a5">—</span>';
-        if (d < 0) return `<span style="background:var(--pd-sf-danger);color:var(--pd-danger);border-radius:8px;padding:2px 8px;font-weight:800;white-space:nowrap">${lateTxt} ${Math.abs(d)} يوم</span>`;
-        if (d <= 30) return `<span style="background:var(--pd-sf-warn);color:var(--pd-warn);border-radius:8px;padding:2px 8px;font-weight:800;white-space:nowrap">${soonTxt} ${d} يوم</span>`;
-        return `<span style="color:#7a8896">خلال ${d} يوم</span>`;
-    };
-
-    const gRows = gs.length ? gs.sort((a, b) => (a.expiryDate || '').localeCompare(b.expiryDate || '')).map(g => {
-        const d = pdDaysTo(g.expiryDate);
-        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
-            <td style="padding:8px 9px;font-weight:700;color:var(--pd-pri)">${esc(g.type || g.refNo || '—')}</td>
-            <td style="font-size:11.5px">${esc(g.bank || '—')}</td>
-            <td style="text-align:left;font-weight:700">${money(g.amount)}</td>
-            <td style="font-size:11.5px">${esc(g.expiryDate || '—')}</td>
-            <td style="text-align:center">${dueBadge(d, '⚠️ منتهٍ منذ', '⏳ ينتهي خلال')}</td>
-            <td style="font-size:11.5px">${esc(g.status || '—')}</td>
-        </tr>`;
-    }).join('') : `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:22px">لا خطابات ضمان لهذا المشروع — تُسجَّل من «الخزينة والضمانات»</td></tr>`;
-
-    const rRows = rs.length ? rs.sort((a, b) => (a.releaseDate || '').localeCompare(b.releaseDate || '')).map(r => {
-        const d = pdDaysTo(r.releaseDate);
-        const ours = isOurs(r);
-        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
-            <td style="padding:8px 9px">
-                <span style="background:${ours ? 'var(--pd-sf-ok)' : 'var(--pd-sf-warn)'};color:${ours ? 'var(--pd-ok-d)' : 'var(--pd-warn-d)'};border-radius:8px;padding:2px 8px;font-size:10.5px;font-weight:800;white-space:nowrap">${ours ? '📥 مستحقّ لنا' : '📤 علينا'}</span>
-            </td>
-            <td style="font-size:11.5px">${esc(r.party || '—')}</td>
-            <td style="font-size:11.5px">${esc(r.billingRef || '—')}</td>
-            <td style="text-align:left;font-weight:700">${money(r.amount)}</td>
-            <td style="text-align:center;font-size:11.5px">${r.pct ? pdNum(r.pct) + '%' : '—'}</td>
-            <td style="font-size:11.5px">${esc(r.releaseDate || '—')}</td>
-            <td style="text-align:center">${r.status === 'مُفرج عنه' ? '<span style="color:var(--pd-ok);font-weight:700">✅ مُفرج</span>' : dueBadge(d, '⚠️ تأخّر', '⏳ خلال')}</td>
-        </tr>`;
-    }).join('') : `<tr><td colspan="7" style="text-align:center;color:#aaa;padding:22px">لا محتجزات مسجّلة — تُسجَّل من «الخزينة والضمانات»</td></tr>`;
-
-    pane.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        ${kpi('📥', 'محتجز مستحقّ لنا', money(dueUs), 'var(--pd-acc)', 'لم يُفرَج عنه بعد')}
-        ${kpi('📤', 'محتجز علينا للباطن', money(owedBySub), 'var(--pd-warn)', 'التزام مستقبلي')}
-        ${kpi('✅', 'أُفرج عنه لنا', money(releasedUs), 'var(--pd-ok)', 'محصَّل')}
-        ${kpi('🛡️', 'ضمانات قائمة', money(gTotal), 'var(--pd-pri2)', `${gActive.length} خطاب`)}
-        ${(gSoon || rSoon) ? kpi('⏰', 'يستحقّ خلال 30 يوم', (gSoon + rSoon), 'var(--pd-danger)', `${gSoon} ضمان · ${rSoon} محتجز`) : ''}
-    </div>
-
-    <div class="hr-info" style="margin-bottom:14px;font-size:12.5px">
-        💡 تُدار هذه السجلات من صفحة <b>«الخزينة والضمانات»</b> — وهذا التبويب يعرض ما يخصّ هذا المشروع وحده.
-        المحتجز «مستحقّ لنا» مال محبوس لدى العميل يُفرَج عنه بعد التسليم وفترة الضمان.
-    </div>
-
-    <div class="card" style="margin-bottom:14px">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">🔒 محتجزات الضمان</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">الاتجاه</th><th>الجهة</th><th>المرجع</th>
-                <th style="text-align:left">المبلغ</th><th style="text-align:center">النسبة</th>
-                <th>تاريخ الإفراج</th><th style="text-align:center">الحالة</th>
-            </tr></thead>
-            <tbody>${rRows}</tbody>
-        </table>
-    </div>
-
-    <div class="card">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">🛡️ خطابات الضمان</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">النوع</th><th>البنك</th><th style="text-align:left">المبلغ</th>
-                <th>الانتهاء</th><th style="text-align:center">التنبيه</th><th>الحالة</th>
-            </tr></thead>
-            <tbody>${gRows}</tbody>
-        </table>
-    </div>`;
-}
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║   📔  يومية الموقع (Daily Site Report) — أكثر تبويب استخداماً في Procore  ║
-// ║   قيمتها ليست التوثيق بل أنها **الدليل القانوني** في مطالبات تمديد المدة  ║
-// ║   (EOT): بلا يومية موقع لا تُثبت أن التأخير سببه المالك أو الطقس.         ║
-// ║   لذلك المعوّقات مُهيكَلة (سبب + ساعات ضائعة) لا نصّاً حرّاً.             ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-const SD_WEATHER = { clear: '☀️ صحو', cloudy: '⛅ غائم', rain: '🌧️ ممطر', wind: '💨 رياح', dust: '🌪️ غبار', hot: '🔥 حرارة شديدة' };
-// أسباب التعطّل — التصنيف هو ما يحدّد مَن يتحمّل التأخير تعاقدياً
-const SD_DELAY = {
-    weather: { l: '🌧️ طقس', claim: 'قابل لتمديد المدة (بلا تعويض)' },
-    client: { l: '👤 المالك/الاستشاري', claim: 'قابل لتمديد المدة + تعويض' },
-    design: { l: '📐 تعديل تصميم', claim: 'قابل لتمديد المدة + تعويض' },
-    material: { l: '📦 تأخّر مواد', claim: 'على المقاول عادةً' },
-    labor: { l: '👷 نقص عمالة', claim: 'على المقاول' },
-    equipment: { l: '🚜 عطل معدات', claim: 'على المقاول' },
-    permit: { l: '📜 تصاريح/جهات', claim: 'قابل لتمديد المدة' },
-    other: { l: '📎 أخرى', claim: '—' }
-};
-function sdAll(pid) { return Object.entries((window.siteDiary || {})[pid] || {}).map(([k, r]) => ({ k, ...r })); }
-
-function pdRenderDiary(pid) {
-    const pane = document.getElementById('pd-tab-diary'); if (!pane) return;
-    const rows = sdAll(pid).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-    const totalCrew = rows.reduce((s, r) => s + pdSum(r.crews || [], 'count'), 0);
-    const lostHours = rows.reduce((s, r) => s + pdSum(r.delays || [], 'hours'), 0);
-    const daysWithDelay = rows.filter(r => (r.delays || []).length).length;
-    // ساعات ضائعة قابلة للمطالبة بتمديد المدة (طقس/مالك/تصميم/تصاريح)
-    const claimable = rows.reduce((s, r) => s + pdSum((r.delays || []).filter(d =>
-        ['weather', 'client', 'design', 'permit'].includes(d.cause)), 'hours'), 0);
-
-    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:145px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
-        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
-        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
-        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
-
-    const dayRows = rows.length ? rows.map(r => {
-        const crew = pdSum(r.crews || [], 'count');
-        const lost = pdSum(r.delays || [], 'hours');
-        return `<tr style="border-bottom:1px solid var(--pd-sf1);${lost ? 'background:var(--pd-sf-warn2)' : ''}">
-            <td style="padding:8px 9px;white-space:nowrap;font-weight:700;color:var(--pd-pri)">${esc(r.date || '—')}</td>
-            <td style="font-size:11.5px;white-space:nowrap">${esc(SD_WEATHER[r.weather] || '—')}${r.temp ? ` <span style="color:#8a97a5">${pdNum(r.temp)}°</span>` : ''}</td>
-            <td style="text-align:center;font-weight:700">${crew || '—'}</td>
-            <td style="text-align:center">${(r.equipment || []).length || '—'}</td>
-            <td style="font-size:11.5px;max-width:260px">${esc((r.workDone || '—').slice(0, 90))}${(r.workDone || '').length > 90 ? '…' : ''}</td>
-            <td style="text-align:center">${lost ? `<span style="background:var(--pd-sf-danger);color:var(--pd-danger);border-radius:8px;padding:2px 8px;font-weight:800;white-space:nowrap">${lost} س</span>` : '<span style="color:var(--pd-ok)">—</span>'}</td>
-            <td style="font-size:11px">${(r.delays || []).map(d => esc((SD_DELAY[d.cause] || {}).l || d.cause || '')).join('، ') || '—'}</td>
-            <td style="text-align:left;white-space:nowrap">
-                <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="sdOpenForm('${pid}','${r.k}')">✏️</button>
-                <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="sdDelete('${pid}','${r.k}')">🗑️</button>
-            </td>
-        </tr>`;
-    }).join('') : `<tr><td colspan="8" style="text-align:center;color:#aaa;padding:26px">لا يوميات مسجّلة — سجّل يومك الأول لتبني سجلاً يُحتجّ به</td></tr>`;
-
-    // تجميع أسباب التعطّل — أساس مطالبة تمديد المدة
-    const byCause = {};
-    rows.forEach(r => (r.delays || []).forEach(d => { byCause[d.cause] = (byCause[d.cause] || 0) + pdNum(d.hours); }));
-    const causeRows = Object.entries(byCause).sort((a, b) => b[1] - a[1]).map(([c, h]) => {
-        const def = SD_DELAY[c] || { l: c, claim: '—' };
-        const claimOk = ['weather', 'client', 'design', 'permit'].includes(c);
-        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
-            <td style="padding:8px 9px;font-weight:700">${esc(def.l)}</td>
-            <td style="text-align:center;font-weight:800">${h} ساعة</td>
-            <td style="text-align:center">${(h / 8).toFixed(1)} يوم</td>
-            <td style="font-size:11.5px;color:${claimOk ? 'var(--pd-ok-d)' : 'var(--pd-danger)'}">${esc(def.claim)}</td>
-        </tr>`;
-    }).join('');
-
-    pane.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        ${kpi('📅', 'أيام مسجّلة', rows.length, 'var(--pd-pri2)')}
-        ${kpi('👷', 'إجمالي العمالة/يوم', totalCrew, 'var(--pd-acc)', rows.length ? `متوسط ${(totalCrew / rows.length).toFixed(1)}` : '')}
-        ${kpi('⏱️', 'ساعات ضائعة', lostHours, 'var(--pd-warn)', `${daysWithDelay} يوم بمعوّقات`)}
-        ${kpi('⚖️', 'قابل لتمديد المدة', (claimable / 8).toFixed(1) + ' يوم', 'var(--pd-danger)', `${claimable} ساعة — طقس/مالك/تصميم/تصاريح`)}
-    </div>
-
-    <div class="card" style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <div style="font-weight:800;color:var(--pd-pri)">📔 يومية الموقع</div>
-            <button class="btn b-p" onclick="sdOpenForm('${pid}')">➕ تسجيل يوم</button>
-        </div>
-        <div class="hr-info" style="margin-top:10px;font-size:12px">
-            المعوّقات مصنّفة بالسبب لأن التصنيف هو ما يحدّد <b>مَن يتحمّل التأخير تعاقدياً</b>:
-            الطقس والمالك والتصميم والتصاريح تُبنى عليها مطالبة تمديد المدة، وما عداها على المقاول.
-        </div>
-    </div>
-
-    <div id="pd-diary-form" style="display:none"></div>
-
-    ${causeRows ? `<div class="card" style="margin-bottom:14px">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">⚖️ تحليل أسباب التعطّل — أساس مطالبة تمديد المدة</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">السبب</th><th style="text-align:center">الساعات</th>
-                <th style="text-align:center">ما يعادل</th><th>الأثر التعاقدي</th>
-            </tr></thead><tbody>${causeRows}</tbody>
-        </table>
-    </div>` : ''}
-
-    <div class="card">
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">التاريخ</th><th>الطقس</th><th style="text-align:center">العمالة</th>
-                <th style="text-align:center">معدات</th><th>الأعمال المنجزة</th>
-                <th style="text-align:center">ضائع</th><th>المعوّقات</th><th></th>
-            </tr></thead><tbody>${dayRows}</tbody>
-        </table>
-    </div>`;
-}
-
-window.sdOpenForm = function (pid, key) {
-    const box = document.getElementById('pd-diary-form'); if (!box) return;
-    const r = key ? (sdAll(pid).find(x => x.k === key) || {}) : {};
-    const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
-    const opt = (o, sel) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${typeof v === 'string' ? v : v.l}</option>`).join('');
-    window._sdCrews = Array.isArray(r.crews) ? r.crews.map(x => ({ ...x })) : [];
-    window._sdEquip = Array.isArray(r.equipment) ? r.equipment.map(x => ({ ...x })) : [];
-    window._sdDelays = Array.isArray(r.delays) ? r.delays.map(x => ({ ...x })) : [];
-    box.style.display = '';
-    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-pri2)">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:12px">${key ? '✏️ تعديل يومية' : '➕ تسجيل يوم'}</div>
-        <input type="hidden" id="sd-key" value="${key || ''}">
-        <div class="form-grid sm">
-            <div class="fg"><label>التاريخ *</label><input type="date" id="sd-date" value="${esc(r.date || today)}"></div>
-            <div class="fg"><label>الطقس</label><select id="sd-weather">${opt(SD_WEATHER, r.weather || 'clear')}</select></div>
-            <div class="fg"><label>درجة الحرارة °م</label><input type="number" id="sd-temp" value="${r.temp != null ? pdNum(r.temp) : ''}"></div>
-            <div class="fg"><label>الزوّار</label><input id="sd-visitors" value="${esc(r.visitors || '')}" placeholder="استشاري، مالك…"></div>
-            <div class="fg" style="grid-column:1/-1"><label>الأعمال المنجزة</label>
-                <textarea id="sd-work" rows="2" placeholder="ما أُنجز اليوم">${esc(r.workDone || '')}</textarea></div>
-            <div class="fg" style="grid-column:1/-1"><label>ملاحظات السلامة</label>
-                <input id="sd-safety" value="${esc(r.safety || '')}" placeholder="حوادث/مخالفات/تعليمات"></div>
-        </div>
-
-        <div style="margin-top:14px;font-weight:800;color:var(--pd-pri);font-size:13px">👷 العمالة حسب التخصص</div>
-        <div id="sd-crews"></div>
-        <button class="btn" style="background:var(--pd-sf1);margin-top:6px;font-size:11.5px" onclick="sdAddRow('crew')">➕ تخصص</button>
-
-        <div style="margin-top:14px;font-weight:800;color:var(--pd-pri);font-size:13px">🚜 المعدات</div>
-        <div id="sd-equip"></div>
-        <button class="btn" style="background:var(--pd-sf1);margin-top:6px;font-size:11.5px" onclick="sdAddRow('equip')">➕ معدة</button>
-
-        <div style="margin-top:14px;font-weight:800;color:var(--pd-danger);font-size:13px">⏱️ المعوّقات وساعات التعطّل</div>
-        <div id="sd-delays"></div>
-        <button class="btn" style="background:var(--pd-sf-danger);color:var(--pd-danger);margin-top:6px;font-size:11.5px" onclick="sdAddRow('delay')">➕ معوّق</button>
-
-        <div class="card-actions" style="margin-top:14px">
-            <button class="btn b-p" onclick="sdSave('${pid}')">💾 حفظ</button>
-            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-diary-form').style.display='none'">إلغاء</button>
-        </div>
-    </div>`;
-    sdPaintRows();
-    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-};
-
-function sdPaintRows() {
-    const inp = 'padding:6px 9px;border:1.5px solid var(--pd-bd);border-radius:7px;font-family:inherit;font-size:12.5px';
-    const c = document.getElementById('sd-crews');
-    if (c) c.innerHTML = (window._sdCrews || []).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
-        <input value="${esc(x.trade || '')}" oninput="window._sdCrews[${i}].trade=this.value" placeholder="التخصص (نجارة، حدادة…)" style="${inp};flex:2">
-        <input type="number" min="0" value="${pdNum(x.count) || ''}" oninput="window._sdCrews[${i}].count=this.value" placeholder="العدد" style="${inp};flex:1">
-        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="sdDelRow('crew',${i})">🗑️</button></div>`).join('');
-    const e = document.getElementById('sd-equip');
-    if (e) e.innerHTML = (window._sdEquip || []).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
-        <input value="${esc(x.name || '')}" oninput="window._sdEquip[${i}].name=this.value" placeholder="المعدة (حفارة، رافعة…)" style="${inp};flex:2">
-        <input type="number" min="0" step="0.5" value="${pdNum(x.hours) || ''}" oninput="window._sdEquip[${i}].hours=this.value" placeholder="ساعات" style="${inp};flex:1">
-        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="sdDelRow('equip',${i})">🗑️</button></div>`).join('');
-    const d = document.getElementById('sd-delays');
-    if (d) d.innerHTML = (window._sdDelays || []).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
-        <select oninput="window._sdDelays[${i}].cause=this.value" onchange="window._sdDelays[${i}].cause=this.value" style="${inp};flex:1.4;min-width:150px">
-            ${Object.entries(SD_DELAY).map(([k, v]) => `<option value="${k}" ${x.cause === k ? 'selected' : ''}>${v.l}</option>`).join('')}
-        </select>
-        <input type="number" min="0" step="0.5" value="${pdNum(x.hours) || ''}" oninput="window._sdDelays[${i}].hours=this.value" placeholder="ساعات" style="${inp};flex:.7;min-width:80px">
-        <input value="${esc(x.note || '')}" oninput="window._sdDelays[${i}].note=this.value" placeholder="التفصيل (يُحتجّ به لاحقاً)" style="${inp};flex:2;min-width:160px">
-        <button class="btn b-r" style="padding:4px 9px;font-size:11px" onclick="sdDelRow('delay',${i})">🗑️</button></div>`).join('');
-}
-window.sdAddRow = function (kind) {
-    if (kind === 'crew') (window._sdCrews = window._sdCrews || []).push({ trade: '', count: '' });
-    else if (kind === 'equip') (window._sdEquip = window._sdEquip || []).push({ name: '', hours: '' });
-    else (window._sdDelays = window._sdDelays || []).push({ cause: 'weather', hours: '', note: '' });
-    sdPaintRows();
-};
-window.sdDelRow = function (kind, i) {
-    const arr = kind === 'crew' ? window._sdCrews : kind === 'equip' ? window._sdEquip : window._sdDelays;
-    if (arr) arr.splice(i, 1);
-    sdPaintRows();
-};
-
-window.sdSave = async function (pid) {
-    const g = id => document.getElementById(id);
-    const date = g('sd-date')?.value || '';
-    if (!date) { toast('التاريخ مطلوب', 'er'); return; }
-    const clean = (arr, keys) => (arr || [])
-        .map(x => { const o = {}; keys.forEach(k => { o[k] = k === 'count' || k === 'hours' ? Math.max(0, pdNum(x[k])) : (x[k] || ''); }); return o; })
-        .filter(x => keys.some(k => x[k] !== '' && x[k] !== 0));
-    const data = {
-        date,
-        weather: g('sd-weather')?.value || 'clear',
-        temp: g('sd-temp')?.value === '' ? null : pdNum(g('sd-temp')?.value),
-        visitors: (g('sd-visitors')?.value || '').trim(),
-        workDone: (g('sd-work')?.value || '').trim(),
-        safety: (g('sd-safety')?.value || '').trim(),
-        crews: clean(window._sdCrews, ['trade', 'count']),
-        equipment: clean(window._sdEquip, ['name', 'hours']),
-        delays: clean(window._sdDelays, ['cause', 'hours', 'note']),
-        updatedAt: new Date().toISOString()
-    };
-    const key = g('sd-key')?.value || '';
-    try {
-        if (key) await update(ref(db, `ledger/siteDiary/${pid}/${key}`), data);
-        else { data.createdAt = new Date().toISOString(); await push(ref(db, `ledger/siteDiary/${pid}`), data); }
-        if (typeof logAudit === 'function') logAudit(key ? 'update' : 'create', 'المشاريع', `${key ? 'تعديل' : 'تسجيل'} يومية موقع: ${date}`);
-        toast('✅ حُفظت اليومية', 'ok');
-        const box = document.getElementById('pd-diary-form'); if (box) box.style.display = 'none';
-    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
-};
-
-window.sdDelete = function (pid, key) {
-    const r = sdAll(pid).find(x => x.k === key);
-    cf2(`حذف يومية ${r?.date || ''}؟\n\nاليوميات دليل تعاقدي — الحذف يُضعف أي مطالبة لاحقة.`, async () => {
-        try {
-            await remove(ref(db, `ledger/siteDiary/${pid}/${key}`));
-            if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف يومية موقع: ${r?.date || key}`);
-            toast('🗑️ حُذفت', 'ok');
-        } catch (e) { toast('خطأ: ' + e.message, 'er'); }
-    });
-};
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║   ⏳  تمديد المدة (EOT) وغرامة التأخير (LD)                               ║
-// ║   السلسلة التعاقدية: يومية الموقع (الدليل) ← مطالبة تمديد ← قرار المالك   ║
-// ║   ← تاريخ انتهاء معدَّل ← احتساب الغرامة على ما تجاوزه فقط.               ║
-// ║   بلا تمديد معتمد تُحتسب الغرامة من التاريخ الأصلي — وهذا ما يجعل         ║
-// ║   المطالبة المبكرة أهم من الاعتراض المتأخر.                               ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-const EOT_STATUS = {
-    draft: { l: '📝 مسوّدة', c: 'var(--pd-bd)' },
-    submitted: { l: '📤 مقدَّمة', c: 'var(--pd-pri2)' },
-    approved: { l: '✅ معتمدة', c: 'var(--pd-ok)' },
-    partial: { l: '🟡 معتمدة جزئياً', c: 'var(--pd-warn)' },
-    rejected: { l: '❌ مرفوضة', c: 'var(--pd-danger)' }
-};
-function eotAll(pid) { return Object.entries((window.eotClaims || {})[pid] || {}).map(([k, r]) => ({ k, ...r })); }
-
-function pdRenderEOT(pid) {
-    const pane = document.getElementById('pd-tab-eot'); if (!pane) return;
-    const p = (window.projects || {})[pid] || {};
-    const claims = eotAll(pid).sort((a, b) => (b.submittedDate || '').localeCompare(a.submittedDate || ''));
-    const contractValue = (typeof getProjectContractValue === 'function') ? getProjectContractValue(pid) : pdNum(p.contractValue);
-
-    // أيام التمديد المعتمدة فقط (المعتمدة كلياً أو جزئياً)
-    const approvedDays = claims.filter(c => ['approved', 'partial'].includes(c.status))
-        .reduce((s, c) => s + pdNum(c.daysApproved), 0);
-    const pendingDays = claims.filter(c => ['draft', 'submitted'].includes(c.status))
-        .reduce((s, c) => s + pdNum(c.daysClaimed), 0);
-
-    const origEnd = p.endDate || '';
-    const revisedEnd = pdAddDays(origEnd, approvedDays) || origEnd;
-    const daysLate = revisedEnd ? -(pdDaysTo(revisedEnd)) : null;   // موجب = تأخّر
-
-    // إعدادات الغرامة — تُحفظ على سجل المشروع (النموذج الكبير لا يحويها)
-    const ldPerDayPct = p.ldPerDayPct != null ? pdNum(p.ldPerDayPct) : 0.1;   // ‰ شائع: 0.1% يومياً
-    const ldCapPct = p.ldCapPct != null ? pdNum(p.ldCapPct) : 10;             // سقف شائع: 10%
-    const ldPerDay = contractValue * (ldPerDayPct / 100);
-    const ldCap = contractValue * (ldCapPct / 100);
-    const ldRaw = daysLate > 0 ? daysLate * ldPerDay : 0;
-    const ldDue = Math.min(ldRaw, ldCap);
-    const capped = ldRaw > ldCap;
-
-    // دليل من يومية الموقع: الساعات المؤهَّلة للمطالبة ولم تُقدَّم بعد
-    const CLAIMABLE = ['weather', 'client', 'design', 'permit'];
-    const diaryHours = sdAll(pid).reduce((s, r) => s + pdSum((r.delays || []).filter(d => CLAIMABLE.includes(d.cause)), 'hours'), 0);
-    const diaryDays = diaryHours / 8;
-
-    const kpi = (ic, lb, vl, col, hint) => `<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:13px 15px;border-top:3px solid ${col}">
-        <div style="font-size:11.5px;color:#7a8896">${ic} ${lb}</div>
-        <div style="font-size:19px;font-weight:900;color:${col};margin-top:4px">${vl}</div>
-        ${hint ? `<div style="font-size:10.5px;color:#8a97a5;margin-top:3px">${hint}</div>` : ''}</div>`;
-
-    const rowsHtml = claims.length ? claims.map(c => {
-        const st = EOT_STATUS[c.status || 'draft'] || EOT_STATUS.draft;
-        const def = (typeof SD_DELAY !== 'undefined' && SD_DELAY[c.cause]) || null;
-        return `<tr style="border-bottom:1px solid var(--pd-sf1)">
-            <td style="padding:8px 9px;font-weight:700;color:var(--pd-pri)">${esc(c.claimNo || '—')}</td>
-            <td style="font-size:11.5px">${esc(def ? def.l : (c.cause || '—'))}</td>
-            <td style="font-size:11.5px">${esc(c.submittedDate || '—')}</td>
-            <td style="text-align:center;font-weight:700">${pdNum(c.daysClaimed) || '—'}</td>
-            <td style="text-align:center;font-weight:800;color:${pdNum(c.daysApproved) ? 'var(--pd-ok)' : 'var(--pd-bd)'}">${pdNum(c.daysApproved) || '—'}</td>
-            <td style="text-align:center"><span style="color:${st.c};font-weight:700;font-size:11px">${st.l}</span></td>
-            <td style="font-size:11px;max-width:200px">${esc((c.notes || '').slice(0, 60))}</td>
-            <td style="text-align:left;white-space:nowrap">
-                <button class="btn b-b" style="padding:3px 8px;font-size:11px" onclick="eotOpenForm('${pid}','${c.k}')">✏️</button>
-                <button class="btn b-r" style="padding:3px 8px;font-size:11px" onclick="eotDelete('${pid}','${c.k}')">🗑️</button>
-            </td>
-        </tr>`;
-    }).join('') : `<tr><td colspan="8" style="text-align:center;color:#aaa;padding:26px">لا مطالبات مسجّلة</td></tr>`;
-
-    pane.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        ${kpi('📅', 'الانتهاء الأصلي', esc(origEnd || '—'), 'var(--pd-bd)')}
-        ${kpi('✅', 'تمديد معتمد', approvedDays + ' يوم', 'var(--pd-ok)', pendingDays ? `${pendingDays} يوم قيد المطالبة` : '')}
-        ${kpi('🎯', 'الانتهاء المعدَّل', esc(revisedEnd || '—'), 'var(--pd-pri2)', approvedDays ? `+${approvedDays} يوم` : 'بلا تمديد')}
-        ${kpi(daysLate > 0 ? '🔴' : '🟢', daysLate > 0 ? 'تأخّر عن المعدَّل' : 'ضمن المدة',
-        daysLate == null ? '—' : (daysLate > 0 ? daysLate + ' يوم' : Math.abs(daysLate) + ' يوم متبقٍ'),
-        daysLate > 0 ? 'var(--pd-danger)' : 'var(--pd-ok)')}
-        ${kpi('💸', 'الغرامة المحتملة', fmt(ldDue), ldDue > 0 ? 'var(--pd-danger)' : 'var(--pd-ok)',
-        ldDue > 0 ? (capped ? `⚠️ بلغت السقف ${ldCapPct}%` : `${ldPerDayPct}% يومياً`) : 'لا غرامة')}
-    </div>
-
-    ${diaryDays > 0 ? `<div class="card" style="margin-bottom:14px;background:var(--pd-sf-warn);border:1.5px solid #f0d68a">
-        <div style="font-weight:800;color:#8a6100">📔 دليل متاح من يومية الموقع</div>
-        <div style="font-size:12.5px;color:#8a6100;margin-top:5px">
-            مسجَّل <b>${diaryHours} ساعة</b> تعطّل من أسباب مؤهَّلة للتمديد (طقس · مالك · تصميم · تصاريح)
-            — ما يعادل <b>${diaryDays.toFixed(1)} يوم عمل</b>. استخدمها سنداً لمطالبتك.
-        </div></div>` : ''}
-
-    <div class="card" style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <div style="font-weight:800;color:var(--pd-pri)">⏳ مطالبات تمديد المدة</div>
-            <div style="display:flex;gap:8px">
-                <button class="btn" style="background:var(--pd-sf1)" onclick="eotOpenSettings('${pid}')">⚙️ إعدادات الغرامة</button>
-                <button class="btn b-p" onclick="eotOpenForm('${pid}')">➕ مطالبة جديدة</button>
-            </div>
-        </div>
-        <div class="hr-info" style="margin-top:10px;font-size:12px">
-            الغرامة تُحتسب على ما تجاوز <b>تاريخ الانتهاء المعدَّل</b> لا الأصلي — فكل يوم تمديد معتمد يوفّر
-            <b>${fmt(ldPerDay)}</b> ريال. لذلك المطالبة المبكرة المسنَدة بيومية الموقع أهم من الاعتراض المتأخر.
-        </div>
-    </div>
-
-    <div id="pd-eot-form" style="display:none"></div>
-
-    <div class="card">
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="text-align:right;background:var(--pd-sf1)">
-                <th style="padding:9px">رقم المطالبة</th><th>السبب</th><th>تاريخ التقديم</th>
-                <th style="text-align:center">أيام مطلوبة</th><th style="text-align:center">أيام معتمدة</th>
-                <th style="text-align:center">الحالة</th><th>ملاحظات</th><th></th>
-            </tr></thead><tbody>${rowsHtml}</tbody>
-        </table>
-    </div>`;
-}
-
-window.eotOpenSettings = function (pid) {
-    const p = (window.projects || {})[pid] || {};
-    const box = document.getElementById('pd-eot-form'); if (!box) return;
-    box.style.display = '';
-    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-alt)">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:10px">⚙️ إعدادات غرامة التأخير</div>
-        <div class="hr-info" style="margin-bottom:12px;font-size:12px">
-            الشائع في عقود المقاولات السعودية: <b>0.1% من قيمة العقد يومياً</b> بسقف <b>10%</b>.
-            راجع بنود عقدك — القيم تختلف.
-        </div>
-        <div class="form-grid sm">
-            <div class="fg"><label>الغرامة اليومية (% من قيمة العقد)</label>
-                <input type="number" id="eot-rate" step="0.01" min="0" value="${p.ldPerDayPct != null ? pdNum(p.ldPerDayPct) : 0.1}"></div>
-            <div class="fg"><label>السقف الأقصى (% من قيمة العقد)</label>
-                <input type="number" id="eot-cap" step="0.1" min="0" value="${p.ldCapPct != null ? pdNum(p.ldCapPct) : 10}"></div>
-        </div>
-        <div class="card-actions">
-            <button class="btn b-p" onclick="eotSaveSettings('${pid}')">💾 حفظ</button>
-            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-eot-form').style.display='none'">إلغاء</button>
-        </div>
-    </div>`;
-};
-
-window.eotSaveSettings = async function (pid) {
-    const rate = Math.max(0, pdNum(document.getElementById('eot-rate')?.value));
-    const cap = Math.max(0, pdNum(document.getElementById('eot-cap')?.value));
-    try {
-        await update(ref(db, `ledger/projects/${pid}`), { ldPerDayPct: rate, ldCapPct: cap });
-        toast('✅ حُفظت الإعدادات', 'ok');
-        document.getElementById('pd-eot-form').style.display = 'none';
-        pdRenderEOT(pid);
-    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
-};
-
-window.eotOpenForm = function (pid, key) {
-    const box = document.getElementById('pd-eot-form'); if (!box) return;
-    const c = key ? (eotAll(pid).find(x => x.k === key) || {}) : {};
-    const causes = (typeof SD_DELAY !== 'undefined') ? SD_DELAY : { other: { l: 'أخرى' } };
-    const opt = (o, sel) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${typeof v === 'string' ? v : v.l}</option>`).join('');
-    box.style.display = '';
-    box.innerHTML = `<div class="card" style="margin-bottom:14px;border-right:5px solid var(--pd-pri2)">
-        <div style="font-weight:800;color:var(--pd-pri);margin-bottom:12px">${key ? '✏️ تعديل مطالبة' : '➕ مطالبة تمديد جديدة'}</div>
-        <input type="hidden" id="eot-key" value="${key || ''}">
-        <div class="form-grid sm">
-            <div class="fg"><label>رقم المطالبة *</label><input id="eot-no" value="${esc(c.claimNo || '')}" placeholder="EOT-001"></div>
-            <div class="fg"><label>السبب</label><select id="eot-cause">${opt(causes, c.cause || 'client')}</select></div>
-            <div class="fg"><label>تاريخ التقديم</label><input type="date" id="eot-sub" value="${esc(c.submittedDate || '')}"></div>
-            <div class="fg"><label>أيام مطلوبة *</label><input type="number" id="eot-days" min="0" value="${pdNum(c.daysClaimed) || ''}"></div>
-            <div class="fg"><label>أيام معتمدة</label><input type="number" id="eot-appr" min="0" value="${pdNum(c.daysApproved) || ''}"></div>
-            <div class="fg"><label>الحالة</label><select id="eot-status">${opt(EOT_STATUS, c.status || 'draft')}</select></div>
-            <div class="fg"><label>تاريخ القرار</label><input type="date" id="eot-dec" value="${esc(c.decisionDate || '')}"></div>
-            <div class="fg" style="grid-column:1/-1"><label>ملاحظات / سند المطالبة</label>
-                <textarea id="eot-notes" rows="2" placeholder="مرجع يوميات الموقع، مراسلات، تعليمات المالك…">${esc(c.notes || '')}</textarea></div>
-        </div>
-        <div class="card-actions">
-            <button class="btn b-p" onclick="eotSave('${pid}')">💾 حفظ</button>
-            <button class="btn" style="background:var(--pd-sf1)" onclick="document.getElementById('pd-eot-form').style.display='none'">إلغاء</button>
-        </div>
-    </div>`;
-    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-};
-
-window.eotSave = async function (pid) {
-    const g = id => document.getElementById(id);
-    const claimNo = (g('eot-no')?.value || '').trim();
-    if (!claimNo) { toast('رقم المطالبة مطلوب', 'er'); return; }
-    const daysClaimed = Math.max(0, pdNum(g('eot-days')?.value));
-    let daysApproved = Math.max(0, pdNum(g('eot-appr')?.value));
-    const status = g('eot-status')?.value || 'draft';
-    // المرفوضة لا تمنح أياماً، وغير المحسومة لا تُحتسب في التاريخ المعدَّل
-    if (status === 'rejected') daysApproved = 0;
-    if (!['approved', 'partial'].includes(status)) daysApproved = daysApproved && status === 'draft' ? 0 : daysApproved;
-    if (daysApproved > daysClaimed && daysClaimed > 0) { toast('⚠️ الأيام المعتمدة تتجاوز المطلوبة', 'er'); return; }
-    const data = {
-        claimNo, cause: g('eot-cause')?.value || 'client',
-        submittedDate: g('eot-sub')?.value || '',
-        decisionDate: g('eot-dec')?.value || '',
-        daysClaimed, daysApproved, status,
-        notes: (g('eot-notes')?.value || '').trim(),
-        updatedAt: new Date().toISOString()
-    };
-    const key = g('eot-key')?.value || '';
-    try {
-        if (key) await update(ref(db, `ledger/eotClaims/${pid}/${key}`), data);
-        else { data.createdAt = new Date().toISOString(); await push(ref(db, `ledger/eotClaims/${pid}`), data); }
-        if (typeof logAudit === 'function') logAudit(key ? 'update' : 'create', 'المشاريع', `${key ? 'تعديل' : 'تسجيل'} مطالبة تمديد: ${claimNo}`);
-        toast('✅ حُفظت المطالبة', 'ok');
-        const box = document.getElementById('pd-eot-form'); if (box) box.style.display = 'none';
-    } catch (e) { toast('خطأ: ' + e.message, 'er'); }
-};
-
-window.eotDelete = function (pid, key) {
-    const c = eotAll(pid).find(x => x.k === key);
-    cf2(`حذف المطالبة "${c?.claimNo || ''}"؟`, async () => {
-        try {
-            await remove(ref(db, `ledger/eotClaims/${pid}/${key}`));
-            if (typeof logAudit === 'function') logAudit('delete', 'المشاريع', `حذف مطالبة تمديد: ${c?.claimNo || key}`);
-            toast('🗑️ حُذفت', 'ok');
         } catch (e) { toast('خطأ: ' + e.message, 'er'); }
     });
 };

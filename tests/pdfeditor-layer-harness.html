@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>PDF Text-Layer Regression</title><link rel="icon" href="data:,">
+<link rel="stylesheet" href="/pdfeditor.css"></head>
+<body>
+<!-- صفحة اختبار انحدار: طبقة النص فوق اللوحة يجب أن تبقى شفافة تماماً.
+     أي `style.color` مضمَّن على .pde-txt يهزم `color: transparent` فيُطبع
+     كل حرف مرتين بإزاحة (نص مشوّه غير مقروء). هذا ما تمسكه هذه الصفحة. -->
+<div class="pg act" id="pg-pdfeditor">
+  <div class="pde-app"><div class="pde-body"><div class="pde-center"><div class="pde-pages">
+    <div class="pde-page" style="width:400px;height:300px"><div class="pde-layer" id="layer"></div></div>
+  </div></div></div></div>
+</div>
+<script src="/pdfeditor-engine.js"></script>
+<script src="/pdfeditor-ui.js"></script>
+<script>
+window.__run = async function () {
+  const out = {};
+  const settle = () => new Promise(r => setTimeout(r, 260));  // خلفية .edited تصل عبر انتقال 120ms
+  try {
+    // نبني عنصر نص بنفس الطريقة التي يبنيها المحرر تماماً
+    const item = {
+      id: 't1', page: 1, str: 'Email: info@sawater.sa', x: 10, y: 250, w: 180,
+      fontSize: 11, fontFamily: 'Arial', bold: false, italic: false,
+      color: '#1F4E78', bgColor: '#FFFFFF', align: 'left', rtl: false, charSpacing: 0, angle: 0
+    };
+    const page = { width: 400, height: 300 };
+    PDE.scale = 1;
+
+    const el = PDE.textEl(item, page, false);
+    document.getElementById('layer').appendChild(el);
+    const cs = getComputedStyle(el);
+    out.idle_color = cs.color;
+    out.idle_inline_color = el.style.color || '';
+    out.custom_prop = cs.getPropertyValue('--pde-c').trim();
+    out.text_kept = el.textContent === item.str;
+
+    // بعد وسم العنصر كمُعدَّل يجب أن يظهر بلونه الحقيقي وبخلفية معتِمة
+    el.classList.add('edited');
+    await settle();                       // ننتظر انتهاء الانتقال قبل القياس
+    const cs2 = getComputedStyle(el);
+    out.edited_color = cs2.color;
+    out.edited_bg = cs2.backgroundColor;
+
+    // عنصر OCR يجب أن يبقى شفافاً أيضاً
+    const ocr = PDE.textEl(Object.assign({}, item, { id: 't2' }), page, true);
+    document.getElementById('layer').appendChild(ocr);
+    out.ocr_color = getComputedStyle(ocr).color;
+
+    // الكائنات المضافة (نص جديد) يجب أن تكون **مرئية** — لا شيء تحتها على اللوحة
+    const obj = PDE.objectEl({
+      id: 'o1', kind: 'text', page: 1, text: 'نص جديد', x: 10, y: 100, w: 120, h: 20,
+      fontSize: 12, fontFamily: 'Amiri', color: '#C0392B', align: 'right', dir: 'rtl', opacity: 1
+    }, page);
+    document.getElementById('layer').appendChild(obj);
+    out.object_color = getComputedStyle(obj).color;
+
+    out.ok = true;
+  } catch (e) { out.ok = false; out.error = (e && e.message) || String(e); }
+  return out;
+};
+</script>
+</body>
+</html>

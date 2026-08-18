@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مِشْجب إعدادات قراءة الفواتير</title>
+<link rel="stylesheet" href="../public/aiinvoice.css">
+<style>
+  /* بديل مبسّط لأنماط التطبيق العامة التي تعتمد عليها النافذة */
+  body { font-family: system-ui, sans-serif; margin: 0; background: #eef2f7; }
+  .btn { padding: 7px 13px; border: 1px solid #cfd8e3; background: #fff; border-radius: 7px;
+         cursor: pointer; font: inherit; font-size: 13px; }
+  .btn.b-b { background: #2E75B6; color: #fff; border-color: #2E75B6; }
+  .btn.b-g { background: #1B8A4B; color: #fff; border-color: #1B8A4B; }
+</style>
+</head>
+<body>
+<script>
+// ── جذوع الاعتماديات العامة التي يوفّرها app.js عادةً ───────────────────────
+window.myP = { role: 'admin' };
+window.toast = function (m) { (window.__toasts = window.__toasts || []).push(String(m)); };
+window.fmt = n => (Number(n) || 0).toFixed(2);
+window.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+window.db = {}; window.ref = () => ({}); window.get = async () => ({ exists: () => false, val: () => null });
+window.set = async () => {}; window.update = async () => {}; window.push = () => ({ key: 'k1' });
+window.can = () => true; window.curU = { uid: 'u1', email: 't@x.com' };
+window.aiInvoices = {}; window.sup = {}; window.items = {};
+window.__errors = [];
+window.addEventListener('error', e => window.__errors.push(String(e.message)));
+</script>
+<script src="../public/aiinvoice-engine.js"></script>
+<script src="../public/aiinvoice-ui.js"></script>
+<script src="../public/aiinvoice-actions.js"></script>
+<script>
+// يُستدعى من مُشغّل الاختبار: يفتح النافذة ويُرجع هندستها الفعلية
+window.__probe = function () {
+    const out = { threw: null, errors: window.__errors.slice() };
+    try { window.aiSettings(); } catch (e) { out.threw = String(e && e.message || e); return out; }
+
+    const ov = document.getElementById('aiSetOv');
+    if (!ov) { out.threw = 'لم تُنشأ النافذة'; return out; }
+    const box = ov.querySelector('.ai-modal-box');
+    const body = ov.querySelector('.ai-modal-b');
+    const cs = getComputedStyle(ov);
+    const br = box.getBoundingClientRect();
+
+    out.display = cs.display;
+    out.zIndex = cs.zIndex;
+    out.vw = window.innerWidth;
+    out.vh = window.innerHeight;
+    out.box = { l: Math.round(br.left), r: Math.round(br.right), t: Math.round(br.top),
+                b: Math.round(br.bottom), w: Math.round(br.width), h: Math.round(br.height) };
+    // انسياب أفقي داخل جسم النافذة؟
+    out.bodyScrollW = body.scrollWidth;
+    out.bodyClientW = body.clientWidth;
+    out.pageScrollW = document.documentElement.scrollWidth;
+    // أي عنصر يتجاوز حدود الصندوق أفقياً
+    out.overflowing = [];
+    ov.querySelectorAll('.ai-modal-b *').forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) return;
+        if (r.left < br.left - 1 || r.right > br.right + 1) {
+            out.overflowing.push((el.className || el.tagName) + ' :: ' +
+                Math.round(r.left) + '→' + Math.round(r.right));
+        }
+    });
+    // حقول ذات ارتفاع صفري أو عرض مجهري (مؤشّر تخطيط مكسور)
+    out.tinyFields = [];
+    ov.querySelectorAll('.ai-f input, .ai-f select').forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.width < 60 || r.height < 20) out.tinyFields.push((el.id || el.tagName) + ' ' +
+            Math.round(r.width) + '×' + Math.round(r.height));
+    });
+    // زر النسخ يجب أن ينقل نصّ الأمر حرفياً (لا مفكوكاً ولا مقتطعاً)
+    out.copy = [];
+    const copied = [];
+    const realClip = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: t => { copied.push(t); return Promise.resolve(); } }, configurable: true
+    });
+    ov.querySelectorAll('.ai-cmd').forEach(row => {
+        const want = row.querySelector('code').textContent;
+        copied.length = 0;
+        row.querySelector('.ai-cmd-c').click();
+        out.copy.push({ want, got: copied[0], ok: copied[0] === want });
+    });
+    Object.defineProperty(navigator, 'clipboard', { value: realClip, configurable: true });
+    out.copyAllOk = out.copy.length > 0 && out.copy.every(c => c.ok);
+    return out;
+};
+</script>
+</body>
+</html>

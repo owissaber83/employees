@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>Arabic editing regression</title><link rel="icon" href="data:,">
+<link rel="stylesheet" href="/pdfeditor.css"></head>
+<body>
+<!-- انحدار التحرير العربي: يولّد فاتورة عربية ثم يمرّ بمسار المحرر الحقيقي
+     (تحليل → نقر مزدوج → كتابة → blur → تصدير) ويتأكّد أن النص العربي الجديد
+     وصل إلى الملف الناتج وأن القديم غادر بنيته. -->
+<div class="pg act" id="pg-pdfeditor">
+  <div class="pde-app"><div class="pde-body"><div class="pde-center"><div class="pde-pages">
+    <div class="pde-page" id="page1"><canvas id="cv"></canvas><div class="pde-layer" id="layer" data-page="1"></div></div>
+  </div></div></div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// نحاكي العوالم التي يوفّرها app.js في التطبيق الحقيقي
+window.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+window.toast = m => (window.__toasts = window.__toasts || []).push(m);
+window.can = () => true;
+</script>
+<script src="/pdfeditor-engine.js"></script>
+<script src="/pdfeditor-ui.js"></script>
+<script src="/pdfeditor-edit.js"></script>
+<script src="/pdfeditor-io.js"></script>
+<script>
+window.__runArabic = async function (opts) {
+  opts = opts || {};
+  const R = { steps: [] };
+  const S = (k, v) => R.steps.push([k, v]);
+  try {
+    // ── فاتورة عربية شبيهة بفواتير المقاولات السعودية ──
+    const PDFLib = await PDFE.libs.ensurePdfLib();
+    const doc = await PDFLib.PDFDocument.create();
+    doc.registerFontkit(window.fontkit);
+    const fr = await PDFE.libs.loadArabicFont('Amiri', false);
+    const ar = await doc.embedFont(fr.bytes, { subset: true });
+    const la = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const pg = doc.addPage([595, 842]);
+    const put = (txt, x, y, size, rtl) => {
+      let cx = x;
+      for (const r of PDFE.Arabic.visualRuns(txt, rtl ? 'rtl' : 'ltr')) {
+        const f = PDFE.Arabic.hasArabic(r.text) ? ar : la;
+        pg.drawText(r.text, { x: cx, y, size, font: f });
+        cx += f.widthOfTextAtSize(r.text, size);
+      }
+    };
+    put('شركة سواتر الإبداع للمقاولات', 300, 780, 16, true);
+    put('اسم العميل: شركة جي بي ار للمقاولات', 300, 750, 12, true);
+    put('دفعة من عقد توريد وتركيب اعمال الحجر', 300, 700, 11, true);
+    put('إجمالي المبلغ 20,000.00 ريال', 300, 680, 12, true);
+    put('Customer: GBR Contracting', 60, 750, 12, false);
+    const bytes = await doc.save();
+
+    // ── مسار المحرر الحقيقي ──
+    const ctx = await PDFE.Engine.get().load(bytes, {});
+    const analysis = await PDFE.Engine.get().analyze(ctx, { eagerPages: 1 });
+    const a = analysis.pages[0];
+    const arItems = a.items.filter(i => PDFE.Arabic.hasArabic(i.str));
+    S('arabic_items_extracted', arItems.length);
+    S('arabic_text_intact', arItems.some(i => i.str.includes('سواتر الإبداع')));
+    S('arabic_marked_rtl', arItems.every(i => i.rtl === true));
+    S('arabic_has_width', arItems.every(i => i.w > 1));
+    S('arabic_editable_state', arItems.every(i => i.state === 'editable'));
+
+    PDE.ctx = ctx; PDE.analysis = analysis; PDE.scale = 1; PDE.page = 1;
+    PDE.history = new PDFE.History(50); PDE.objects = []; PDE.tool = 'select';
+    PDE.pageOrder = [1]; PDE.doc = { name: 'ar.pdf' };
+    PDE.canvases = new Map(); PDE.pageEls = new Map(); PDE.rendered = new Set();
+    const pageEl = document.getElementById('page1');
+    pageEl.style.width = a.width + 'px'; pageEl.style.height = a.height + 'px';
+    PDE.pageEls.set(1, pageEl);
+    await PDFE.Engine.get().renderPage(ctx, 1, 1, document.getElementById('cv'), {});
+    PDE.canvases.set(1, document.getElementById('cv'));
+    const layer = document.getElementById('layer');
+    layer.innerHTML = '';            // نبدأ من طبقة نظيفة في كل حالة اختبار
+    PDE.buildLayer(layer, a, 1);
+    window.pdeAttachPageHandlers(pageEl, layer, a, 1);
+
+    const divs = Array.from(layer.querySelectorAll('.pde-txt'));
+    const arDivs = divs.filter(d => { const it = a.items.find(i => i.id === d.dataset.id); return it && PDFE.Arabic.hasArabic(it.str); });
+    S('arabic_divs_in_layer', arDivs.length);
+    S('arabic_divs_clickable', arDivs.every(d => parseFloat(d.style.width) > 1 && parseFloat(d.style.height) > 1));
+
+    // اختياري: نكسر شريط الأدوات عمداً للتأكّد أن التحرير لا يتوقّف بسببه
+    if (opts.breakToolbar) PDE.analysis.fonts = null;
+    // اختياري: نحاكي تعذّر تحميل الخط العربي — يجب أن **يرفض** التصدير لا أن يبتلع التعديل
+    let restoreFont = null;
+    if (opts.breakArabicFont) {
+      restoreFont = PDFE.libs.loadArabicFont;
+      PDFE.libs.loadArabicFont = async () => { throw new Error('محاكاة: تعذّر تحميل الخط'); };
+    }
+
+    const target = arDivs[0];
+    target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    S('entered_edit_mode', target.getAttribute('contenteditable') === 'true' && target.classList.contains('editing'));
+    target.textContent = 'شركة النور الجديدة للمقاولات';
+    target.dispatchEvent(new FocusEvent('blur'));
+    await new Promise(r => setTimeout(r, 60));
+    S('edit_recorded', PDE.history.active().length);
+    const op = PDE.history.active()[0];
+    S('op_is_text_edit', !!op && op.type === 'text.edit');
+    S('op_keeps_new_arabic', !!op && op.newText === 'شركة النور الجديدة للمقاولات');
+    S('op_keeps_font', !!op && !!op.fontFamily);
+    S('op_keeps_position', !!op && typeof op.x === 'number' && typeof op.y === 'number');
+
+    if (opts.breakToolbar) PDE.analysis.fonts = analysis.fonts;  // نعيدها للتصدير
+
+    if (opts.breakArabicFont) {
+      let threw = null;
+      try { await PDFE.Export.buildSafe(ctx, PDE.history.active(), { arabicFont: 'Amiri', expectPages: 1 }); }
+      catch (err) { threw = err; }
+      PDFE.libs.loadArabicFont = restoreFont;
+      S('refused_export', !!threw);
+      S('refuse_code', threw ? threw.code : '');
+      S('refuse_lists_text', !!(threw && (threw.dropped || []).some(t => t.includes('النور'))));
+      S('refuse_msg_actionable', !!(threw && /الخط العربي/.test(threw.message)));
+      R.ok = true;
+      return R;
+    }
+    const out = await PDFE.Export.buildSafe(ctx, PDE.history.active(), { arabicFont: 'Amiri', expectPages: 1 });
+    S('surgery_applied', out.report.surgery.applied);
+    S('surgery_fallback', out.report.surgery.fallback);
+    S('drawn', out.report.drawn);
+    S('warnings', (out.report.warnings || []).join(' | '));
+    const chk = await pdfjsLib.getDocument({ data: out.bytes.slice(0) }).promise;
+    const txt = (await (await chk.getPage(1)).getTextContent()).items.map(i => i.str).join(' ');
+    S('output_has_new_arabic', txt.includes('النور'));
+    S('output_lost_old_arabic', !txt.includes('سواتر الإبداع'));
+    S('output_kept_other_arabic', txt.includes('اعمال الحجر'));
+    S('output_kept_numbers', txt.includes('20,000.00'));
+    await chk.destroy();
+    R.ok = true;
+  } catch (e) { R.ok = false; R.error = (e && e.message) || String(e); R.stack = ((e && e.stack) || '').split('\n').slice(0, 4).join(' / '); }
+  return R;
+};
+
+// ── انحدار: مستند يرسم كل حرف عربي بعملية مستقلة (سلوك كثير من المولّدات) ──
+// بدون دمج المقاطع يصل النص للمحرر مفتّتاً حرفاً حرفاً ويستحيل تحريره.
+window.__runPerGlyph = async function () {
+  const R = { steps: [] };
+  const S = (k, v) => R.steps.push([k, v]);
+  try {
+    const PDFLib = await PDFE.libs.ensurePdfLib();
+    const doc = await PDFLib.PDFDocument.create();
+    doc.registerFontkit(window.fontkit);
+    const fr = await PDFE.libs.loadArabicFont('Amiri', false);
+    const ar = await doc.embedFont(fr.bytes, { subset: true });
+    const la = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const pg = doc.addPage([400, 200]);
+
+    // كل حرف بعملية drawText مستقلة — نحاكي المولّد الذي يضبط كل glyph بنفسه
+    const word = 'اعمالالحجر';
+    let x = 60;
+    for (const ch of word) {
+      pg.drawText(ch, { x, y: 150, size: 12, font: ar });
+      x += ar.widthOfTextAtSize(ch, 12);
+    }
+    // ورقم ككتلة واحدة (كما يصل عادةً)
+    pg.drawText('20000.00', { x: 60, y: 110, size: 12, font: la });
+    const bytes = await doc.save();
+
+    const ctx = await PDFE.Engine.get().load(bytes, {});
+    const an = await PDFE.Engine.get().analyze(ctx, { eagerPages: 1 });
+    const a = an.pages[0];
+    S('raw_items', a.rawItems.length);
+    S('merged_items', a.items.length);
+    const arRun = a.items.find(i => PDFE.Arabic.hasArabic(i.str));
+    S('arabic_run_text', arRun ? arRun.str : '');
+    S('arabic_run_len', arRun ? arRun.str.length : 0);
+    S('arabic_op_count', arRun ? (arRun.opIndexes || []).length : 0);
+    S('number_still_one_box', a.items.filter(i => i.str.includes('20000')).length === 1);
+
+    // تعديل المقطع المدموج: يجب أن تُزال **كل** عمليات حروفه لا واحدة
+    const opCounts = an.pages.filter(Boolean).map(pg2 => [pg2.n, pg2.opCount]);
+    const out = await PDFE.Export.buildSafe(ctx, [PDFE.Ops.make('text.edit', {
+      page: 1, itemId: arRun.id, opIndex: arRun.opIndex, opIndexes: arRun.opIndexes,
+      oldText: arRun.str, newText: 'اعمال الحديد',
+      x: arRun.x, y: arRun.y, boxWidth: arRun.w,
+      box: { x: arRun.x, y: arRun.y, w: arRun.w },
+      fontSize: arRun.fontSize, fontFamily: arRun.fontFamily,
+      color: arRun.color, bgColor: '#FFFFFF', align: 'right', dir: 'rtl'
+    })], { arabicFont: 'Amiri', expectPages: 1, opCounts });
+    S('surgery_applied', out.report.surgery.applied);
+    S('surgery_fallback', out.report.surgery.fallback);
+
+    const chk = await pdfjsLib.getDocument({ data: out.bytes.slice(0) }).promise;
+    const txt = (await (await chk.getPage(1)).getTextContent()).items.map(i => i.str).join('');
+    // «الحجر» هو الجزء المميِّز للنص القديم؛ النص الجديد «الحديد» لا يحتويه.
+    // (لا نستخدم «اعمال» فهي مشتركة بين القديم والجديد.)
+    S('no_leftover_glyphs', !txt.includes('الحجر') && !txt.includes('حجر'));
+    S('new_text_present', txt.includes('الحديد'));
+    S('number_intact', txt.includes('20000.00'));
+    await chk.destroy();
+    R.ok = true;
+  } catch (e) { R.ok = false; R.error = (e && e.message) || String(e); }
+  return R;
+};
+
+// ── انحدار: قابلية التحرير المتكرّر + عدم حجب الشريط للنص + اختفاء المحذوف ──
+window.__runInteraction = async function () {
+  const R = { steps: [] };
+  const S = (k, v) => R.steps.push([k, v]);
+  try {
+    const PDFLib = await PDFE.libs.ensurePdfLib();
+    const doc = await PDFLib.PDFDocument.create();
+    doc.registerFontkit(window.fontkit);
+    const fr = await PDFE.libs.loadArabicFont('Amiri', false);
+    const ar = await doc.embedFont(fr.bytes, { subset: true });
+    const pg = doc.addPage([400, 200]);
+    let x = 40;
+    for (const ch of 'توريدحجرعشوائي') { pg.drawText(ch, { x, y: 170, size: 12, font: ar }); x += ar.widthOfTextAtSize(ch, 12); }
+    pg.drawText('العنوان', { x: 40, y: 60, size: 12, font: ar });
+    const bytes = await doc.save();
+
+    const ctx = await PDFE.Engine.get().load(bytes, {});
+    const an = await PDFE.Engine.get().analyze(ctx, { eagerPages: 1 });
+    const a = an.pages[0];
+    PDE.ctx = ctx; PDE.analysis = an; PDE.scale = 1; PDE.page = 1;
+    PDE.history = new PDFE.History(50); PDE.objects = []; PDE.tool = 'select';
+    PDE.pageOrder = [1]; PDE.doc = { name: 'x.pdf' };
+    PDE.canvases = new Map(); PDE.pageEls = new Map(); PDE.rendered = new Set();
+    const pe = document.getElementById('page1');
+    pe.style.width = a.width + 'px'; pe.style.height = a.height + 'px';
+    PDE.pageEls.set(1, pe);
+    await PDFE.Engine.get().renderPage(ctx, 1, 1, document.getElementById('cv'), {});
+    PDE.canvases.set(1, document.getElementById('cv'));
+    const layer = document.getElementById('layer');
+    layer.innerHTML = '';            // نبدأ من طبقة نظيفة في كل حالة اختبار
+    PDE.buildLayer(layer, a, 1);
+    window.pdeAttachPageHandlers(pe, layer, a, 1);
+
+    const boxes = Array.from(layer.querySelectorAll('.pde-txt'));
+    const top = boxes[0];
+
+    // (أ-1) وضع «تحرير نص» (الافتراضي): نقرة واحدة تفتح التحرير مباشرةً
+    PDE.tool = 'text';
+    top.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    S('one_click_edits_in_text_mode', top.getAttribute('contenteditable') === 'true');
+    top.dispatchEvent(new FocusEvent('blur'));
+    await new Promise(r => setTimeout(r, 40));
+
+    // (أ-2) وضع «تحديد»: نقرة تُحدِّد، ونقرة ثانية على المحدَّد تفتح التحرير
+    PDE.tool = 'select'; PDE.clearSelection();
+    top.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    S('first_click_selects', !!PDE.selection && PDE.selection.el === top);
+    top.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    S('second_click_edits', top.getAttribute('contenteditable') === 'true');
+
+    // (ب) الشريط العائم لا يغطّي النص المحرَّر
+    const bar = document.getElementById('pdeFloatBar');
+    const br = bar.getBoundingClientRect(), tr = top.getBoundingClientRect();
+    S('floatbar_visible', bar.style.display === 'flex');
+    S('floatbar_not_covering', br.bottom <= tr.top + 1 || br.top >= tr.bottom - 1);
+
+    top.textContent = 'توريد رخام'; top.dispatchEvent(new FocusEvent('blur'));
+    await new Promise(r => setTimeout(r, 70));
+    S('edit1_ops', PDE.history.active().length);
+
+    // (ج) إعادة تحرير نفس العنصر مرة أخرى
+    top.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    top.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    S('reedit_opened', top.getAttribute('contenteditable') === 'true');
+    top.textContent = 'توريد بلاط'; top.dispatchEvent(new FocusEvent('blur'));
+    await new Promise(r => setTimeout(r, 70));
+    const last = PDE.history.active()[PDE.history.active().length - 1];
+    S('reedit_recorded', !!last && last.newText === 'توريد بلاط');
+    S('reedit_old_correct', !!last && last.oldText === 'توريد رخام');
+
+    // (د) لا علامة خضراء دائمة على النص المُعدَّل
+    S('no_persistent_marker', getComputedStyle(top).outlineStyle === 'none');
+
+    // (هـ) حذف النص يُخفي صندوقه فلا يعترض النقر
+    const other = boxes.find(b => b !== top);
+    other.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    other.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    other.textContent = ''; other.dispatchEvent(new FocusEvent('blur'));
+    await new Promise(r => setTimeout(r, 70));
+    S('deleted_box_hidden', other.style.display === 'none');
+
+    // (و) النقر على الفراغ في وضع «تحرير نص» لا يرسم مستطيلاً وهمياً
+    PDE.tool = 'text';
+    layer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 5, clientY: 5 }));
+    S('no_ghost_in_text_mode', layer.querySelectorAll('.pde-ghost').length === 0);
+    R.ok = true;
+  } catch (e) { R.ok = false; R.error = (e && e.message) || String(e); }
+  return R;
+};
+</script>
+</body>
+</html>

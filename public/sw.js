@@ -1,6 +1,8 @@
 /* بنيان — Service Worker: تثبيت التطبيق والعمل دون اتصال (App Shell caching).
-   استراتيجية: cache-first للأصول من نفس النطاق · تجاوز طلبات Firebase/Google (لها تزامنها الخاص). */
-const CACHE = 'bunyan-cache-v2';
+   استراتيجية: network-first لكل أصول النطاق (احتراماً لسياسة «لا تخزين» لـ JS/CSS —
+   تصل التحديثات دائماً أونلاين، والرجوع للمخزّن فقط عند انقطاع الاتصال) ·
+   تجاوز طلبات Firebase/Google (لها تزامنها الخاص). */
+const CACHE = 'bunyan-cache-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -33,11 +35,12 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // بقية أصول النطاق: من المخزّن أولاً، ثم الشبكة (وتُخزَّن للاستخدام لاحقاً دون اتصال)
+  // بقية أصول النطاق: الشبكة أولاً (تصل تحديثات JS/CSS دائماً)، وتُخزَّن نسخة للرجوع
+  // إليها فقط عند انقطاع الاتصال — بهذا لا يُخالف الـ SW سياسة «لا تخزين» للملفات.
   e.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(r => {
+    fetch(req).then(r => {
       if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
       return r;
-    }).catch(() => cached))
+    }).catch(() => caches.match(req))
   );
 });

@@ -22610,9 +22610,9 @@ window.saveInvItem = async function () {
                 if (!window.inventoryItems) window.inventoryItems = {};
                 window.inventoryItems[newKey] = data;
 
-                if (ctx.invType === 'pinv') {
+                if (ctx && ctx.invType === 'pinv') {
                     onPInvLineItemChange(ctx.lineIdx, newKey);
-                } else if (ctx.invType === 'sinv') {
+                } else if (ctx && ctx.invType === 'sinv') {
                     onSInvLineItemChange(ctx.lineIdx, newKey);
                 }
             }, 150);
@@ -30789,6 +30789,9 @@ window.renderAuditLog = function () {
     <div class="card" style="background:linear-gradient(135deg,#374151,#1f2937);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:14px">
         <h2 style="margin:0;display:flex;align-items:center;gap:8px">🕵️ سجل التدقيق الشامل</h2>
         <div style="opacity:.9;margin-top:4px;font-size:13px">سجل كامل بالعمليات الحساسة في النظام: من قام بها، متى، وتفاصيلها</div>
+        ${window.__auditBounded
+            ? `<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px"><span>⚡ يُعرض <b>آخر 2000 حدث</b> (الأحدث) للأداء. لعرض فترة أقدم:</span><button onclick="loadFullAuditLog()" style="background:#fff;color:#1f2937;border:none;border-radius:7px;padding:5px 12px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit">📜 تحميل السجل الكامل</button></div>`
+            : `<div style="margin-top:8px;font-size:11.5px;opacity:.78">📜 السجل الكامل محمّل</div>`}
     </div>`;
 
     html += `<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -32864,11 +32867,7 @@ function treEnsureListeners() {
     window._treListenersDone = true;
     try {
         ['guarantees', 'cheques', 'retentions'].forEach(key => {
-            onValue(R[key], sn => { window._tre[key] = sn.val() || {};
-                if ($('pg-treasury')?.classList.contains('act')) renderTreasury();
-                // تبويب «الضمانات والمحتجزات» في ملف المشروع يقرأ من _tre نفسه
-                if ($('pg-projectdetail')?.classList.contains('act') && window._pd?.tab === 'bonds' && typeof pdRenderTab === 'function') pdRenderTab('bonds');
-            });
+            onValue(R[key], sn => { window._tre[key] = sn.val() || {}; if ($('pg-treasury')?.classList.contains('act')) renderTreasury(); });
         });
     } catch (e) { console.warn('treasury listeners failed', e); }
 }
@@ -33085,94 +33084,84 @@ function ocrNum(s) {
 }
 
 // ── الذكاء الاصطناعي (Claude API مباشرة من المتصفح) — يقرأ أي تخطيط فاتورة ─────────────────
-function pinvAiGetKey() { try { return (localStorage.getItem('gbrAiKey') || '').trim(); } catch (e) { return ''; } }
-window.pinvAiSaveKey = function () {
-    const el = $('pinvAiKey'); if (!el) return;
-    const k = (el.value || '').trim();
-    try { if (k) localStorage.setItem('gbrAiKey', k); else localStorage.removeItem('gbrAiKey'); } catch (e) { }
-    toast(k ? '✅ تم حفظ مفتاح الذكاء الاصطناعي محلياً على جهازك' : 'تم مسح المفتاح', 'ok', 4000);
-    renderPInvOcrControls();
-};
+// المفتاح لم يعد يُخزَّن في المتصفح إطلاقاً — يعيش في الوسيط الآمن.
+// تبقى الدالة لأن نقاط أخرى تسأل «هل الذكاء الاصطناعي متاح؟».
+function pinvAiGetKey() {
+    try { return (window.AINV && window.AINV.Config.ready().ok) ? 'proxy' : ''; } catch (e) { return ''; }
+}
+// 🔐 تنظيف لمرة واحدة: أي مفتاح خزّنه إصدار سابق في المتصفح يُمحى عند أول تحميل.
+// تخزين مفتاح API في localStorage يجعله مقروءاً لأي سكربت على الصفحة.
+(function purgeLegacyKey() {
+    try {
+        if (localStorage.getItem('gbrAiKey')) {
+            localStorage.removeItem('gbrAiKey');
+            console.warn('🔐 أُزيل مفتاح الذكاء الاصطناعي القديم من المتصفح — صار يعيش في الوسيط الآمن.');
+        }
+    } catch (e) { /* وضع خاص أو تخزين معطّل */ }
+})();
 function pinvFileToBase64(file) {
     return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => { const s = String(r.result); res(s.slice(s.indexOf(',') + 1)); }; r.onerror = rej; r.readAsDataURL(file); });
 }
+/**
+ * قراءة فاتورة بالذكاء الاصطناعي — تفويض كامل لمحرك [AI] الآمن.
+ * ─────────────────────────────────────────────────────────────────────────
+ * كان هذا المسار يستدعي Anthropic **مباشرةً من المتصفح** ومعه المفتاح في
+ * localStorage. أُلغي ذلك: الاستدعاء يمرّ الآن عبر وسيط آمن يحتفظ بالمفتاح
+ * عنده، ويتحقّق من هوية المستخدم، ويحدّ من المعدّل.
+ * منطق الاستخراج والتحقق موجود مرة واحدة فقط في aiinvoice-engine.js —
+ * لا نسخة موازية هنا.
+ */
 async function pinvAiRead(file, setP) {
-    const key = pinvAiGetKey();
-    if (!key) throw new Error('لم يتم إدخال مفتاح الذكاء الاصطناعي');
-    setP && setP('جارٍ تجهيز الملف للذكاء الاصطناعي…', 0.2);
-    const b64 = await pinvFileToBase64(file);
-    const isPDF = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-    const block = isPDF
-        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
-        : { type: 'image', source: { type: 'base64', media_type: (file.type || 'image/png'), data: b64 } };
-    const prompt = `أنت خبير قراءة الفواتير. اقرأ هذه الفاتورة (أيّاً كان تخطيطها) واستخرج بياناتها بدقة تامة.
-أعد JSON فقط بلا أي نص قبله أو بعده، بهذا الشكل بالضبط:
-{"number":"رقم الفاتورة","date":"YYYY-MM-DD","vendorName":"اسم المورد/البائع","vendorVat":"الرقم الضريبي للبائع","customerName":"اسم العميل","currency":"العملة","items":[{"code":"رقم/كود الصنف أو البند إن وُجد","description":"وصف الصنف كاملاً","unit":"الوحدة","qty":0,"unitPrice":0,"taxable":0,"vatRate":0,"vatAmount":0,"total":0}],"subtotal":0,"vatTotal":0,"grandTotal":0}
-قواعد صارمة:
-- الأرقام أرقام لاتينية عشرية بنقطة وبدون فواصل آلاف ولا رموز عملة.
-- "taxable" = صافي البند قبل الضريبة، "total" = إجمالي البند شامل الضريبة.
-- "subtotal" = الإجمالي قبل الضريبة، "vatTotal" = إجمالي الضريبة، "grandTotal" = الإجمالي النهائي بعد الضريبة.
-- استخرج كل بنود الجدول دون استثناء. إن لم يتوفّر حقل اتركه "" أو 0.`;
-    setP && setP('جارٍ القراءة بالذكاء الاصطناعي (Claude)…', 0.5);
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            'x-api-key': key,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-            model: 'claude-opus-4-8',
-            max_tokens: 8000,
-            messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }]
-        })
-    });
-    if (!resp.ok) {
-        let msg = resp.status + ''; try { const e = await resp.json(); msg = (e.error && e.error.message) || JSON.stringify(e); } catch (x) { try { msg = await resp.text(); } catch (y) { } }
-        if (resp.status === 401) msg = 'المفتاح غير صحيح أو منتهٍ (401)';
-        throw new Error('فشل الاتصال بالذكاء الاصطناعي: ' + String(msg).slice(0, 200));
-    }
-    const data = await resp.json();
-    if (data.stop_reason === 'refusal') throw new Error('رفض النموذج معالجة هذا الملف');
-    const txt = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-    let j = null; try { j = JSON.parse(txt); } catch (e) { const m = txt.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (e2) { } } }
-    if (!j) throw new Error('تعذّر تفسير رد الذكاء الاصطناعي');
-    return pinvAiMap(j);
-}
-function pinvAiMap(j) {
-    const n = v => { if (v == null || v === '') return null; const x = parseFloat(ocrToLatinDigits(String(v)).replace(/[^\d.\-]/g, '')); return isNaN(x) ? null : x; };
-    const items = (Array.isArray(j.items) ? j.items : []).map(it => {
-        const qty = n(it.qty), price = n(it.unitPrice), taxable = n(it.taxable), vatAmt = n(it.vatAmount), total = n(it.total);
-        return { code: String(it.code || '').trim(), description: String(it.description || '').trim(), unit: String(it.unit || '').trim(), qty: qty != null ? qty : 1, unitPrice: price != null ? price : 0, net: taxable != null ? taxable : ((qty || 0) * (price || 0)), vatAmt: vatAmt, total: total, vatRate: n(it.vatRate) };
-    }).filter(it => it.description || it.unitPrice || it.total);
-    let net = n(j.subtotal), vat = n(j.vatTotal), total = n(j.grandTotal);
-    if (items.length) {
-        const sNet = items.reduce((s, l) => s + (l.net || 0), 0), sVat = items.reduce((s, l) => s + (l.vatAmt || 0), 0);
-        if (net == null) net = Math.round(sNet * 100) / 100;
-        if (vat == null && sVat) vat = Math.round(sVat * 100) / 100;
-    }
-    if (net == null && total != null && vat != null) net = Math.round((total - vat) * 100) / 100;
-    if (vat == null && net != null) vat = Math.round(net * 0.15 * 100) / 100;
-    if (total == null && net != null) total = Math.round((net + (vat || 0)) * 100) / 100;
-    const rate = (net && vat != null) ? Math.round(vat / net * 100) : 15;
-    // مطابقة المورد
-    let vendorKey = '', vendorName = j.vendorName || '', bestSim = 0;
-    const vendors = window.vendors || {};
-    if (vendorName) Object.entries(vendors).forEach(([k, v]) => { const nm = v.nameAr || v.nameEn || ''; if (!nm) return; const s = (typeof vatRecNameSim === 'function') ? vatRecNameSim(vendorName, nm) : 0; if (s > bestSim) { bestSim = s; vendorKey = k; } });
-    if (bestSim < 0.34) vendorKey = '';
-    return { number: j.number ? ocrToLatinDigits(String(j.number)) : '', date: pinvNormDate(j.date) || (j.date || ''), vatNo: j.vendorVat || '', custVatNo: '', net, vat, total, rate, vendorKey, vendorName, lineItems: items, _mode: 'ai' };
+    if (typeof window.AINV === 'undefined') throw new Error('محرك قراءة الفواتير غير محمّل — أعد تحميل الصفحة');
+    const ready = window.AINV.Config.ready();
+    if (!ready.ok) throw new Error(ready.reason);
+
+    const chk = window.AINV.validateFile(file);
+    if (!chk.ok) throw new Error(chk.reason);
+
+    setP && setP('جارٍ تجهيز الملف…', 0.15);
+    const b64 = await window.AINV.fileToBase64(file);
+    const out = await window.AINV.callProxy(b64, chk.mediaType, setP);
+
+    const inv = window.AINV.map(out.data);
+    const comp = window.AINV.recompute(inv).computed;   // ★ الحساب في النظام لا في النموذج
+    const vm = window.AINV.matchVendor(inv.supplier);
+
+    return {
+        number: inv.number,
+        date: inv.date,
+        vatNo: inv.supplier.vatNumber,
+        custVatNo: inv.customer.vatNumber,
+        net: comp.taxable,
+        vat: comp.vat,
+        total: comp.grandTotal,
+        rate: comp.rates.length === 1 ? comp.rates[0].rate : 15,
+        vendorKey: vm.key,
+        vendorName: inv.supplier.name,
+        lineItems: comp.lines.map((c, k) => {
+            const l = inv.items[k] || {};
+            return {
+                code: l.code || '', description: l.description || '', unit: l.unit || '',
+                qty: c.qty, unitPrice: c.price, net: c.taxable,
+                vatAmt: c.vatAmount, total: c.lineTotal, vatRate: c.rate
+            };
+        }),
+        _mode: 'ai'
+    };
 }
 
 function renderPInvOcrControls() {
     const wrap = $('pinvAiKeyWrap'); if (!wrap) return;
     const has = !!pinvAiGetKey();
+    // لا حقل مفتاح هنا بعد الآن — المفتاح يعيش في الوسيط الآمن، ويُضبط مرة واحدة من الإعدادات.
     wrap.innerHTML = has
-        ? `<span style="font-size:11px;color:#16a34a">🔑 مفتاح الذكاء الاصطناعي محفوظ</span> <button onclick="pinvAiClearKey()" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:11px;text-decoration:underline">تغيير</button>`
-        : `<input id="pinvAiKey" type="password" placeholder="مفتاح Claude API (sk-ant-...)" style="flex:1;min-width:180px;padding:6px;border:1px solid #d0d7e0;border-radius:6px;font-size:11px"> <button class="btn" onclick="pinvAiSaveKey()" style="background:#8e44ad;color:#fff;padding:6px 12px;font-size:11px;font-weight:700">حفظ المفتاح</button>`;
+        ? `<span style="font-size:11px;color:#16a34a">🤖 الذكاء الاصطناعي جاهز عبر الوسيط الآمن</span>
+           <button onclick="nav('aiinvoices')" style="background:none;border:none;color:#2E75B6;cursor:pointer;font-size:11px;text-decoration:underline">الصفحة الكاملة ↗</button>`
+        : `<span style="font-size:11px;color:#D97706">⚠️ الذكاء الاصطناعي غير مهيّأ</span>
+           <button onclick="nav('aiinvoices')" style="background:none;border:none;color:#2E75B6;cursor:pointer;font-size:11px;text-decoration:underline">التهيئة من صفحة قراءة الفواتير</button>`;
     const chk = $('pinvUseAi'); if (chk) { chk.checked = has; chk.disabled = !has; }
 }
-window.pinvAiClearKey = function () { try { localStorage.removeItem('gbrAiKey'); } catch (e) { } renderPInvOcrControls(); };
+window.pinvAiClearKey = function () { if (typeof nav === 'function') nav('aiinvoices'); };
 
 window.openPInvOCR = function () {
     if (typeof Tesseract === 'undefined' && !pinvAiGetKey()) { toast('⚠️ محرّك القراءة لم يُحمّل — تحقّق من الاتصال بالإنترنت', 'er', 7000); return; }

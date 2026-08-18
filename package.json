@@ -10,6 +10,12 @@
   "scripts": {
     "deploy": "firebase deploy --only hosting",
     "test:rules": "firebase emulators:exec --only database --project demo-gbr-rules \"node tests/rules.test.mjs\"",
+    "test:calc": "node tests/calc.test.mjs",
+    "test:pdf": "node tests/pdfeditor.test.mjs",
+    "test:ai": "node tests/aiinvoice.test.mjs",
+    "test:pdf:e2e": "node tests/pdfeditor.e2e.mjs",
+    "test:ai:e2e": "node tests/aiinvoice.e2e.mjs",
+    "test:proxy": "node tests/aiproxy.test.mjs",
     "lint": "eslint . --quiet",
     "lint:all": "eslint .",
     "lint:globals": "node scripts/gen-eslint-globals.mjs"

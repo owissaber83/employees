@@ -24,6 +24,8 @@ firebase serve                    # run locally (serves public/) — hard-refres
 firebase deploy --only hosting    # deploy public/ to live (project: emplyeeapp-1dc64) — same as: npm run deploy
 firebase deploy --only database   # deploy database.rules.json
 npm run test:rules                # security-rules test suite (emulator) — run before editing database.rules.json
+npm run test:calc                 # pure financial-calc tests (Node only)
+npm run test:pdf                  # PDF-editor engine tests: bidi, content-stream surgery, autofit (Node only)
 ./verify-features.sh              # grep-based sanity check of attendance features
 ```
 
@@ -55,6 +57,23 @@ Everything lives in `public/` as a handful of very large files:
 - **`accounting.js`**, **`project-detail.js`**, **`help.js`**, **`analytics.js`** — secondary modules loaded as classic `defer` scripts *after* app.js. They are NOT modules: they rely entirely on globals that app.js attaches to `window` (≈400 of them: `db`, `ref`, `R`, `$`, `toast`, `fmt`, `cf2`, `ov`, `cov`, `can`, `curU`, shared data like `window.projects`, `window.emp`, …). Anything a secondary file needs from app.js must be explicitly exposed on `window`.
 - **`styles.css`** — all styling.
 
+### Professional PDF Editor (`pdfeditor-*.js`) — the one strictly layered module
+
+Unlike the rest of the app, the PDF editor is split into four files that must load **in this order** (see `index.html`), plus `pdfeditor.css`. Page section: `<div class="pg" id="pg-pdfeditor">` (empty — the whole UI is built in JS).
+
+| File | Namespace | Contains |
+|---|---|---|
+| `pdfeditor-engine.js` | `window.PDFE` | Everything non-DOM: lazy lib loader, Arabic bidi, parser, style intelligence, content-stream surgery, ops model, history, export, OCR, storage & audit adapters. **Never touches the DOM** — that is what makes it unit-testable (`npm run test:pdf`). |
+| `pdfeditor-ui.js` | `window.PDE` | Shell, library screen, open flow, virtualized page rendering, overlay layer, thumbnails, zoom, autosave. |
+| `pdfeditor-edit.js` | — | Selection/handles, text editing, objects, layers, style copy/paste, color picker, inspector panels. |
+| `pdfeditor-io.js` | — | Search & replace, page management, merge/split, OCR run, signature/stamp/watermark/QR, export/validate, versions/compare, ERP linking, shortcuts. |
+
+Each file starts with a bracketed TOC (`[PE-CS]`, `[UI-RENDER]`, `[ED-TEXT]`, `[IO-EXPORT]`) — same convention as app.js.
+
+Two rules that are easy to break:
+- **`PDFE.Engine` is a swappable interface** (`local` = pdf.js + pdf-lib, `apryse` = registered-but-unlicensed stub). UI code must call `PDFE.Engine.get()`, never pdf.js/pdf-lib directly, so a commercial engine can be dropped in later without touching the UI.
+- **Text editing is content-stream surgery, not white-box overlay.** `PDFE.CS` decodes the page content stream and empties the Nth text-showing operator, so the original glyphs leave the file (§ real redaction). `PDFE.Export.buildSafe` re-parses the output and, if any text that should be gone is still extractable, rebuilds using the cover-and-redraw fallback. Do not "simplify" this into drawing a white rectangle.
+
 ### Navigating the big files
 
 `app.js` and `accounting.js` start with a table of contents using bracketed section codes — `[HR3]` Loans, `[PR5]` Material Requests, `[ACC-FS]` Financial Statements, etc. Search for the code (e.g. `[HR4]`) to jump to a section. Use these TOCs instead of scanning; update the TOC when adding a section.
@@ -63,12 +82,15 @@ Everything lives in `public/` as a handful of very large files:
 
 - Firebase **Realtime Database** (not Firestore). All data lives under `ledger/*`; every ref is declared once in the `R` object near the top of `app.js` (`R.emp`, `R.tr`, `R.pay`, …). Add new collections there.
 - Realtime `onValue` listeners populate shared in-memory state, and render functions re-read that state — there is no state library.
-- Firebase **Storage is disabled** (requires Blaze plan) — document features store external URLs instead of uploads. The commented-out Storage import in app.js documents this.
+- Firebase **Storage is disabled** (requires Blaze plan) — document features store external URLs instead of uploads. The commented-out Storage import in app.js documents this. Binary uploads go to **Cloudinary** via `window.cloudinaryUpload` (unsigned preset configured in Settings → Integrations). The PDF editor wraps this in `PDFE.Storage`, which already has a `firebase` adapter registered for the day the project moves to Blaze — switch with `PDFE.Storage.use('firebase')`.
+- `ledger/pdfVersions/*` and `ledger/pdfEdits/*` are **append-only in the security rules** (only `admin` may modify or delete an existing version, and only `_draft` is rewritable). This is what makes the version history audit-grade — don't relax it.
 - `dataconnect/` is unused Firebase Data Connect scaffolding; the app does not use it.
 
 ### Cache busting
 
 Script tags in `index.html` carry version query strings (`app.js?v=20260610-8`). When you edit a JS file, bump its `?v=` in `index.html`.
+
+**Adding a module = wiring every asset.** There is no bundler to catch a missing file, and a missing `<link>` fails *silently and confusingly*: unstyled `.ai-modal`/`.pde-*` overlays lose `position:fixed` and get appended to the bottom of the page as ordinary content, so the button that opens them looks dead. When adding a module, link **the CSS too** (`<head>`, near the other module stylesheets), not just the scripts. `npm run test:ai:e2e` asserts all four `aiinvoice.*` assets are referenced with a `?v=`.
 
 ## Conventions and cautions
 

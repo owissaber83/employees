@@ -40,6 +40,7 @@
             }
           },
           "auditLog": {
+            ".indexOn": "at",
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin'",
             "$entryId": {
               ".write": "auth != null && !data.exists() && ((root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false) || root.child('operators').child(auth.uid).val() === true)"
@@ -187,6 +188,7 @@
             }
           },
           "_errorLog": {
+            ".indexOn": "at",
             ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('operators').child(auth.uid).val() === true)",
             "$id": {
               ".write": "auth != null && ((root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && !data.exists()) || root.child('operators').child(auth.uid).val() === true)"
@@ -422,6 +424,67 @@
           "eotClaims": {
             ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).exists() && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'employee' && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() !== 'viewer'",
             ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'project_manager' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'executive_director') && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false"
+          },
+        "pdfDocuments": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor').val() === true)",
+            ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false",
+            "$docId": {
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor_edit').val() === true) && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && ( newData.exists() || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' )",
+              ".validate": "newData.hasChildren(['name','url']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length < 300 && newData.child('url').isString() && newData.child('url').val().beginsWith('https://')"
+            }
+          },
+        "pdfVersions": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor').val() === true)",
+            "$docId": {
+              ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false",
+              "$verId": {
+                ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor_edit').val() === true) && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && ( !data.exists() || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' )",
+                ".validate": "newData.hasChildren(['url','at']) && newData.child('url').isString() && newData.child('url').val().beginsWith('https://') && newData.child('at').isNumber() && newData.child('by').isString()"
+              }
+            }
+          },
+        "pdfEdits": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor').val() === true)",
+            "$docId": {
+              ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false",
+              "$verId": {
+                ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor_edit').val() === true) && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && ( $verId === '_draft' || !data.exists() || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' )"
+              }
+            }
+          },
+        "pdfStyles": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor').val() === true)",
+            ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false",
+            "$styleId": {
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('pdf_editor_edit').val() === true) && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && ( newData.exists() || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' )",
+              ".validate": "newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length < 200"
+            }
+          },
+        "aiInvoices": {
+            ".read": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice').val() === true)",
+            ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false",
+            "$invId": {
+              ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice_process').val() === true) && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && ( newData.exists() || (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice_approve').val() === true) )",
+              ".validate": "newData.hasChildren(['status','uploadedAt']) && newData.child('status').isString() && newData.child('uploadedAt').isNumber() && ( !newData.child('fileUrl').exists() || newData.child('fileUrl').val() === '' || newData.child('fileUrl').val().beginsWith('https://') )",
+              "status": {
+                ".validate": "( newData.val() !== 'approved' && newData.val() !== 'posted' ) || (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice_approve').val() === true)"
+              },
+              "approvedBy": {
+                ".validate": "(root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice_approve').val() === true)"
+              },
+              "linkedPInvKey": {
+                ".validate": "(root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice_approve').val() === true)"
+              }
+            }
+          },
+        "aiInvoiceLog": {
+            ".read": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin'",
+            "$invId": {
+              ".write": "auth != null && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false",
+              "$entryId": {
+                ".write": "auth != null && (root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('permsMap').child('ai_invoice_process').val() === true) && (!root.child('tenants').child($tid).child('meta/accessUntil').exists() || root.child('tenants').child($tid).child('meta/accessUntil').val() > now) && root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('active').val() !== false && ( !data.exists() || root.child('tenants').child($tid).child('ledger/users').child(auth.uid).child('role').val() === 'admin' )"
+              }
+            }
           }
         }
       }

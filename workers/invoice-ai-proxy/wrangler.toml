@@ -1,0 +1,16 @@
+name = "gbr-invoice-ai-proxy"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# اسم مشروع Firebase — يُتحقّق به من رمز الهوية (aud/iss)
+[vars]
+FIREBASE_PROJECT_ID = "emplyeeapp-1dc64"
+# نطاق التطبيق المسموح له بالاستدعاء. ضعه بدقّة — "*" يسمح لأي موقع.
+ALLOWED_ORIGIN = "https://emplyeeapp-1dc64.web.app"
+
+# اختياري لكن مُستحسن: تحديد معدّل دائم عبر KV بدل عدّاد الذاكرة.
+# أنشئ المساحة ثم أزل التعليق:
+#   npx wrangler kv namespace create RATE_KV
+# [[kv_namespaces]]
+# binding = "RATE_KV"
+# id = "<ضع المعرّف الناتج هنا>"

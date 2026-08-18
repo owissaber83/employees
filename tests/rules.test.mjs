@@ -24,7 +24,6 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await set(ref(db, 'tenants/A/ledger/users/acctA'), { role: 'accountant', active: true });
   await set(ref(db, 'tenants/A/ledger/users/viewerA'), { role: 'viewer', active: true });
   await set(ref(db, 'tenants/A/ledger/users/pmA'), { role: 'project_manager', active: true });
-  await set(ref(db, 'tenants/A/ledger/users/seA'), { role: 'site_engineer', active: true });   // [DIARY] مهندس موقع
   // 🔐 [PERM] مستخدمون لاختبار إنفاذ permsMap — مُرحَّل بلا صلاحية حذف، ومُرحَّل بها، وقديم بلا خريطة
   await set(ref(db, 'tenants/A/ledger/users/acctNoDel'), { role: 'accountant', active: true,
     permissions: ['create_journal_entry'], permsMap: { create_journal_entry: true } });
@@ -64,6 +63,27 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   // المستأجر منتهي الاشتراك
   await set(ref(db, 'tenants/EXP/meta'), { createdBy: 'adminE', accessUntil: PAST });
   await set(ref(db, 'tenants/EXP/ledger/users/adminE'), { role: 'admin', active: true });
+  // [PORTAL] لقطة بوابة عميل (مستأجر A) + لقطة ملغاة + ردّ موجود (لاختبار الإلحاق فقط)
+  await set(ref(db, 'portalSnapshots/TOK1'), { tid: 'A', projectId: 'p1', projectName: 'مشروع', revoked: false, billings: { b1: { no: 1, net: 1000, status: 'submitted' } } });
+  await set(ref(db, 'portalSnapshots/TOKREV'), { tid: 'A', projectId: 'p1', revoked: true });
+  await set(ref(db, 'portalResponses/TOK1/seedR'), { billId: 'b1', action: 'note', by: 'عميل', at: 100 });
+  // [PDF] محرر PDF: مستخدم بصلاحية عرض فقط، وآخر بصلاحية تحرير — لاختبار فصل الصلاحيتين
+  await set(ref(db, 'tenants/A/ledger/users/pdfView'), { role: 'accountant', active: true,
+    permissions: ['pdf_editor'], permsMap: { pdf_editor: true } });
+  await set(ref(db, 'tenants/A/ledger/users/pdfEdit'), { role: 'accountant', active: true,
+    permissions: ['pdf_editor', 'pdf_editor_edit'], permsMap: { pdf_editor: true, pdf_editor_edit: true } });
+  await set(ref(db, 'tenants/A/ledger/pdfDocuments/d1'), { name: 'فاتورة.pdf', url: 'https://cdn.example/a.pdf', createdAt: 1 });
+  await set(ref(db, 'tenants/A/ledger/pdfVersions/d1/v1'), { url: 'https://cdn.example/v1.pdf', at: 1, by: 'x@y.z', label: 'نسخة 1' });
+  await set(ref(db, 'tenants/B/ledger/pdfDocuments/db1'), { name: 'عقد B.pdf', url: 'https://cdn.example/b.pdf', createdAt: 1 });
+  // [AI] قراءة الفواتير: معالِج (يرفع ويحرّر) ومعتمِد (يعتمد ويحوّل) — لاختبار فصل الصلاحيتين
+  await set(ref(db, 'tenants/A/ledger/users/aiProc'), { role: 'accountant', active: true,
+    permissions: ['ai_invoice', 'ai_invoice_process'], permsMap: { ai_invoice: true, ai_invoice_process: true } });
+  await set(ref(db, 'tenants/A/ledger/users/aiAppr'), { role: 'accountant', active: true,
+    permissions: ['ai_invoice', 'ai_invoice_process', 'ai_invoice_approve'],
+    permsMap: { ai_invoice: true, ai_invoice_process: true, ai_invoice_approve: true } });
+  await set(ref(db, 'tenants/A/ledger/aiInvoices/ai1'), { status: 'needs_review', uploadedAt: 1, fileName: 'f.pdf' });
+  await set(ref(db, 'tenants/A/ledger/aiInvoiceLog/ai1/e1'), { at: 1, event: 'extracted' });
+  await set(ref(db, 'tenants/B/ledger/aiInvoices/bi1'), { status: 'draft', uploadedAt: 1 });
 });
 
 // ── سياقات المستخدمين ──────────────────────────────────────────────────────
@@ -73,7 +93,6 @@ const db = {
   acctA: testEnv.authenticatedContext('acctA').database(),
   viewerA: testEnv.authenticatedContext('viewerA').database(),
   pmA: testEnv.authenticatedContext('pmA').database(),
-  seA: testEnv.authenticatedContext('seA').database(),                 // [DIARY] مهندس موقع
   acctNoDel: testEnv.authenticatedContext('acctNoDel').database(),     // [PERM] مُرحَّل بلا صلاحية حذف
   acctCanDel: testEnv.authenticatedContext('acctCanDel').database(),   // [PERM] مُرحَّل بصلاحية حذف
   acctLegacy: testEnv.authenticatedContext('acctLegacy').database(),   // [PERM] قديم بلا permsMap               // مدير مشروع (غير محاسبي)
@@ -84,6 +103,10 @@ const db = {
   op: testEnv.authenticatedContext('op1').database(),
   empU: testEnv.authenticatedContext('empU').database(),          // موظف خدمة ذاتية (empKey=E1)
   hrA: testEnv.authenticatedContext('hrA').database(),            // شؤون موظفين
+  pdfView: testEnv.authenticatedContext('pdfView').database(),    // [PDF] عرض محرر PDF فقط
+  pdfEdit: testEnv.authenticatedContext('pdfEdit').database(),    // [PDF] عرض + تحرير وحفظ
+  aiProc: testEnv.authenticatedContext('aiProc').database(),      // [AI] رفع ومعالجة بلا اعتماد
+  aiAppr: testEnv.authenticatedContext('aiAppr').database(),      // [AI] اعتماد وتحويل
 };
 
 // ── مُشغّل اختبارات مبسّط ───────────────────────────────────────────────────
@@ -465,22 +488,127 @@ await test('مشاهد لا يقرأ سجل المخاطر', assertFails(get(ref
 await test('عزل: مدير مشروع A لا يكتب مخاطر في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/projectRisks/p1/hack'), { title: 'x' })));
 await test('اشتراك منتهٍ يمنع تسجيل خطر', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/projectRisks/p1/x'), { title: 'x' })));
 
+console.log('\n🔗 بوابة العميل/المقاول [PORTAL] — لقطة عامة بالرمز + ردود إلحاقية معزولة (اعتماد استشاري):');
+// قراءة اللقطة عامة (بلا حساب) لمن يملك الرمز — هذا هو أساس الوصول الخارجي
+await test('زائر (بلا حساب) يقرأ لقطة البوابة بالرمز', assertSucceeds(get(ref(db.unauth, 'portalSnapshots/TOK1'))));
+// زائر يُلحق ردّاً صالحاً على لقطة سارية
+await test('زائر يُلحق ردّ اعتماد صالحاً', assertSucceeds(set(ref(db.unauth, 'portalResponses/TOK1/r1'), { billId: 'b1', action: 'approve', by: 'العميل', at: Date.now() })));
+await test('زائر يُلحق إجابة RFI صالحة (answer)', assertSucceeds(set(ref(db.unauth, 'portalResponses/TOK1/rans'), { billId: 'rfi1', action: 'answer', note: 'الجواب: يُعتمد التصميم المقترح', by: 'العميل', at: Date.now() })));
+// تصلّب: زائر لا يُنشئ/يزوّر لقطة بوابة
+await test('زائر لا يُنشئ لقطة بوابة (تزوير)', assertFails(set(ref(db.unauth, 'portalSnapshots/HACK'), { tid: 'A', projectId: 'p1' })));
+// تحقّق الشكل: إجراء غير مسموح / حقول ناقصة
+await test('زائر لا يُلحق ردّاً بإجراء غير مسموح', assertFails(set(ref(db.unauth, 'portalResponses/TOK1/rbad'), { billId: 'b1', action: 'delete_all', by: 'x', at: 1 })));
+await test('زائر لا يُلحق ردّاً ناقص الحقول', assertFails(set(ref(db.unauth, 'portalResponses/TOK1/rmiss'), { action: 'approve' })));
+// لقطة ملغاة لا تقبل ردوداً
+await test('لا ردّ على لقطة ملغاة (revoked)', assertFails(set(ref(db.unauth, 'portalResponses/TOKREV/r'), { billId: 'b1', action: 'approve', by: 'x', at: 1 })));
+// إلحاق فقط — لا تعديل ردّ موجود
+await test('لا تعديل ردّ موجود (إلحاق فقط)', assertFails(set(ref(db.unauth, 'portalResponses/TOK1/seedR'), { billId: 'b1', action: 'reject', by: 'مزوّر', at: 2 })));
+// صندوق الردود: المالك (عضو المستأجر) يقرأ، والغريب لا
+await test('عضو A يقرأ صندوق ردود بوابته', assertSucceeds(get(ref(db.adminA, 'portalResponses/TOK1'))));
+await test('غريب لا يقرأ ردود بوابة A', assertFails(get(ref(db.stranger, 'portalResponses/TOK1'))));
+// إنشاء اللقطة: عضو المستأجر فقط
+await test('عضو A يُنشئ لقطة بوابة لمستأجره', assertSucceeds(set(ref(db.adminA, 'portalSnapshots/TOKA2'), { tid: 'A', projectId: 'p1', revoked: false })));
 
-console.log('\n📔 يومية الموقع [DIARY]:');
-await test('مهندس موقع يسجّل يومية', assertSucceeds(set(ref(db.seA, 'tenants/A/ledger/siteDiary/p1/d1'), { date: '2026-08-12', workDone: 'صبّة' })));
-await test('مدير مشروع يسجّل يومية', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/siteDiary/p1/d2'), { date: '2026-08-13' })));
-await test('محاسب يقرأ اليوميات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/siteDiary/p1'))));
-await test('محاسب لا يسجّل يومية', assertFails(set(ref(db.acctA, 'tenants/A/ledger/siteDiary/p1/d3'), { date: 'x' })));
-await test('مشاهد لا يقرأ اليوميات', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/siteDiary/p1'))));
-await test('عزل: مهندس A لا يكتب يومية في B', assertFails(set(ref(db.seA, 'tenants/B/ledger/siteDiary/p1/hack'), { date: 'x' })));
+console.log('\n📄 محرر PDF (pdfDocuments · pdfVersions · pdfEdits · pdfStyles):');
+// ── العزل بين المستأجرين ──
+await test('عضو A لا يقرأ مستندات PDF لـ B (عزل)', assertFails(get(ref(db.pdfEdit, 'tenants/B/ledger/pdfDocuments'))));
+await test('عضو A لا يكتب مستند PDF في B (عزل)', assertFails(set(ref(db.pdfEdit, 'tenants/B/ledger/pdfDocuments/hack'), { name: 'x.pdf', url: 'https://cdn.example/x.pdf' })));
+await test('غير المصادَق لا يقرأ مستندات PDF', assertFails(get(ref(db.unauth, 'tenants/A/ledger/pdfDocuments'))));
+// ── فصل صلاحية العرض عن التحرير ──
+await test('صاحب صلاحية العرض يقرأ مكتبة PDF', assertSucceeds(get(ref(db.pdfView, 'tenants/A/ledger/pdfDocuments'))));
+await test('مدير A يقرأ مكتبة PDF', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/pdfDocuments'))));
+await test('محاسب بلا صلاحية PDF لا يقرأ المكتبة (فشل مغلق)', assertFails(get(ref(db.acctA, 'tenants/A/ledger/pdfDocuments'))));
+await test('صاحب العرض فقط لا يُنشئ مستنداً', assertFails(set(ref(db.pdfView, 'tenants/A/ledger/pdfDocuments/dNew'), { name: 'n.pdf', url: 'https://cdn.example/n.pdf', createdAt: 2 })));
+await test('صاحب التحرير يُنشئ مستنداً', assertSucceeds(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfDocuments/dNew'), { name: 'n.pdf', url: 'https://cdn.example/n.pdf', createdAt: 2 })));
+// ── التحقق من صحة البيانات ──
+await test('مستند بلا اسم مرفوض', assertFails(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfDocuments/dBad'), { url: 'https://cdn.example/x.pdf' })));
+await test('مستند برابط غير https مرفوض', assertFails(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfDocuments/dBad2'), { name: 'x.pdf', url: 'http://insecure/x.pdf' })));
+// ── الحذف للمدير فقط: المستندات المالية لا تُمحى بصلاحية تحرير عادية ──
+await test('صاحب التحرير لا يحذف مستنداً', assertFails(remove(ref(db.pdfEdit, 'tenants/A/ledger/pdfDocuments/d1'))));
+await test('مدير A يحذف مستنداً', assertSucceeds(remove(ref(db.adminA, 'tenants/A/ledger/pdfDocuments/dNew'))));
+// ── النُّسخ: إلحاق فقط (سلامة سجل النُّسخ والتدقيق) ──
+await test('صاحب التحرير يُلحق نسخة جديدة', assertSucceeds(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfVersions/d1/v2'), { url: 'https://cdn.example/v2.pdf', at: 2, by: 'a@b.c', label: 'نسخة 2' })));
+await test('🔒 لا تعديل نسخة محفوظة (إلحاق فقط)', assertFails(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfVersions/d1/v1'), { url: 'https://cdn.example/tampered.pdf', at: 9, by: 'a@b.c' })));
+await test('🔒 لا حذف نسخة محفوظة', assertFails(remove(ref(db.pdfEdit, 'tenants/A/ledger/pdfVersions/d1/v1'))));
+await test('مدير A يصحّح نسخة (صلاحية استثنائية)', assertSucceeds(set(ref(db.adminA, 'tenants/A/ledger/pdfVersions/d1/v1'), { url: 'https://cdn.example/v1.pdf', at: 1, by: 'admin@x.y' })));
+await test('نسخة بلا رابط مرفوضة', assertFails(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfVersions/d1/v3'), { at: 3, by: 'a@b.c' })));
+await test('صاحب العرض فقط لا يُلحق نسخة', assertFails(set(ref(db.pdfView, 'tenants/A/ledger/pdfVersions/d1/v4'), { url: 'https://cdn.example/v4.pdf', at: 4, by: 'a@b.c' })));
+// ── عمليات التحرير: إلحاق فقط، عدا مسوّدة الحفظ التلقائي ──
+await test('صاحب التحرير يكتب عمليات نسخة', assertSucceeds(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfEdits/d1/v2'), { ops: [{ type: 'text.edit' }], at: 2 })));
+await test('🔒 لا تعديل عمليات نسخة محفوظة', assertFails(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfEdits/d1/v2'), { ops: [], at: 3 })));
+await test('مسوّدة الحفظ التلقائي قابلة لإعادة الكتابة', assertSucceeds(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfEdits/d1/_draft'), { ops: [], at: 1 })));
+await test('ويُعاد كتابتها مراراً', assertSucceeds(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfEdits/d1/_draft'), { ops: [{ type: 'x' }], at: 2 })));
+// ── قوالب التنسيق ──
+await test('صاحب التحرير يحفظ قالب تنسيق', assertSucceeds(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfStyles/s1'), { name: 'نمط فواتير الشركة', createdAt: 1 })));
+await test('قالب بلا اسم مرفوض', assertFails(set(ref(db.pdfEdit, 'tenants/A/ledger/pdfStyles/s2'), { createdAt: 1 })));
+await test('صاحب العرض فقط لا يحفظ قالباً', assertFails(set(ref(db.pdfView, 'tenants/A/ledger/pdfStyles/s3'), { name: 'x', createdAt: 1 })));
+// ── الاشتراك المنتهي وحساب مُوقَف ──
+await test('مدير مُوقَف (active:false) لا يكتب مستند PDF', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/pdfDocuments/dz'), { name: 'z.pdf', url: 'https://cdn.example/z.pdf' })));
+await test('اشتراك منتهٍ يمنع حفظ مستند PDF', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/pdfDocuments/dx'), { name: 'x.pdf', url: 'https://cdn.example/x.pdf' })));
 
+console.log('\n🤖 قراءة الفواتير بالذكاء الاصطناعي (aiInvoices · aiInvoiceLog):');
+// ── العزل ──
+await test('عضو A لا يقرأ فواتير B (عزل)', assertFails(get(ref(db.aiAppr, 'tenants/B/ledger/aiInvoices'))));
+await test('غير المصادَق لا يقرأ الفواتير', assertFails(get(ref(db.unauth, 'tenants/A/ledger/aiInvoices'))));
+// ── فصل العرض عن المعالجة ──
+await test('صاحب صلاحية العرض يقرأ الفواتير', assertSucceeds(get(ref(db.aiProc, 'tenants/A/ledger/aiInvoices'))));
+await test('محاسب بلا صلاحية AI لا يقرأ (فشل مغلق)', assertFails(get(ref(db.acctA, 'tenants/A/ledger/aiInvoices'))));
+await test('المعالِج يُنشئ سجل فاتورة', assertSucceeds(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/ai2'), { status: 'processing', uploadedAt: 2, fileName: 'x.pdf' })));
+await test('صاحب العرض فقط لا يُنشئ سجلاً', assertFails(set(ref(db.pdfView, 'tenants/A/ledger/aiInvoices/ai9'), { status: 'processing', uploadedAt: 2 })));
+// ── التحقق من صحة البيانات ──
+await test('سجل بلا حالة مرفوض', assertFails(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/aiBad'), { uploadedAt: 3 })));
+await test('رابط ملف غير https مرفوض', assertFails(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/aiBad2'), { status: 'draft', uploadedAt: 3, fileUrl: 'http://x/y.pdf' })));
+await test('سجل بلا ملف محفوظ مقبول', assertSucceeds(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/aiNoFile'), { status: 'draft', uploadedAt: 3, fileUrl: '' })));
+// ── 🔒 جوهر الأمان: الاعتماد والترحيل يحتاجان صلاحية أعلى ──
+await test('🔒 المعالِج لا ينقل الحالة إلى «معتمدة»', assertFails(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/ai1'), { status: 'approved', uploadedAt: 1 })));
+await test('🔒 المعالِج لا ينقل الحالة إلى «مُرحَّلة»', assertFails(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/ai1'), { status: 'posted', uploadedAt: 1 })));
+await test('المعالِج ينقلها إلى «مسوّدة» بحرّية', assertSucceeds(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/ai1'), { status: 'draft', uploadedAt: 1 })));
+await test('🔒 صاحب الاعتماد يعتمدها', assertSucceeds(set(ref(db.aiAppr, 'tenants/A/ledger/aiInvoices/ai1'), { status: 'approved', uploadedAt: 1, approvedBy: 'a@b.c' })));
+await test('🔒 المعالِج لا يربطها بفاتورة مشتريات', assertFails(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/ai1'), { status: 'draft', uploadedAt: 1, linkedPInvKey: 'p1' })));
+await test('🔒 المعالِج لا يحذف سجلاً', assertFails(remove(ref(db.aiProc, 'tenants/A/ledger/aiInvoices/ai1'))));
+await test('صاحب الاعتماد يحذف سجلاً', assertSucceeds(remove(ref(db.aiAppr, 'tenants/A/ledger/aiInvoices/aiNoFile'))));
+// ── سجل المعالجة: للمدير قراءةً، وإلحاق فقط كتابةً ──
+await test('مدير A يقرأ سجل المعالجة', assertSucceeds(get(ref(db.adminA, 'tenants/A/ledger/aiInvoiceLog'))));
+await test('المعالِج لا يقرأ سجل المعالجة (admin فقط)', assertFails(get(ref(db.aiProc, 'tenants/A/ledger/aiInvoiceLog'))));
+await test('المعالِج يُلحق سطر معالجة', assertSucceeds(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoiceLog/ai1/e2'), { at: 2, event: 'extracted' })));
+await test('🔒 لا تعديل سطر معالجة موجود (إلحاق فقط)', assertFails(set(ref(db.aiProc, 'tenants/A/ledger/aiInvoiceLog/ai1/e1'), { at: 9, event: 'tampered' })));
+// ── الاشتراك وحساب مُوقَف ──
+await test('مدير مُوقَف لا يكتب سجل فاتورة', assertFails(set(ref(db.deadAdminA, 'tenants/A/ledger/aiInvoices/aiz'), { status: 'draft', uploadedAt: 1 })));
+await test('اشتراك منتهٍ يمنع الكتابة', assertFails(set(ref(db.adminE, 'tenants/EXP/ledger/aiInvoices/aix'), { status: 'draft', uploadedAt: 1 })));
 
-console.log('\n⏳ مطالبات تمديد المدة [EOT]:');
-await test('مدير مشروع يسجّل مطالبة', assertSucceeds(set(ref(db.pmA, 'tenants/A/ledger/eotClaims/p1/e1'), { claimNo: 'EOT-001', daysClaimed: 15 })));
-await test('محاسب يقرأ المطالبات', assertSucceeds(get(ref(db.acctA, 'tenants/A/ledger/eotClaims/p1'))));
-await test('مهندس موقع لا يسجّل مطالبة (قرار تعاقدي)', assertFails(set(ref(db.seA, 'tenants/A/ledger/eotClaims/p1/e2'), { claimNo: 'x' })));
-await test('مشاهد لا يقرأ المطالبات', assertFails(get(ref(db.viewerA, 'tenants/A/ledger/eotClaims/p1'))));
-await test('عزل: مدير مشروع A لا يكتب مطالبة في B', assertFails(set(ref(db.pmA, 'tenants/B/ledger/eotClaims/p1/hack'), { claimNo: 'x' })));
+// ═══════════════════════════════════════════════════════════════════════════
+// 📇 الفهارس (.indexOn) — فحص ثابت على الملف، لا عبر المحاكي
+// ───────────────────────────────────────────────────────────────────────────
+// المحاكي لا يُفشل استعلاماً بلا فهرس، يكتفي بتحذير. لكن الأثر حقيقي: Firebase
+// يُنزّل المجموعة كاملةً ويرشّح في المتصفح، فيُبطل مفعول limitToLast تماماً —
+// وهو ما وُضع أصلاً لمنع تحميل السجلات المتنامية. لذا نفحص الملف مباشرةً.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n📇 فهارس الاستعلامات:');
+{
+  const rulesSrc = readFileSync(new URL('../database.rules.json', import.meta.url), 'utf8');
+  const rulesObj = JSON.parse(rulesSrc);
+  const ledger = rulesObj.rules.tenants.$tid.ledger;
+
+  // كل مجموعة يستعلمها الكود بـorderByChild، والحقل المُرتَّب به
+  const REQUIRED = { auditLog: 'at', _errorLog: 'at' };
+
+  for (const [node, field] of Object.entries(REQUIRED)) {
+    const idx = ledger[node] && ledger[node]['.indexOn'];
+    const has = idx === field || (Array.isArray(idx) && idx.includes(field));
+    await test(`${node} مفهرس على «${field}»`,
+      has ? Promise.resolve() : Promise.reject(new Error(`.indexOn مفقود — الاستعلام سيُنزّل المجموعة كاملة`)));
+  }
+
+  // شبكة أمان: لو أُضيف استعلام على حقل آخر، يجب أن يُضاف فهرسه هنا أيضاً.
+  const appSrc = ['app.js', 'accounting.js', 'project-detail.js', 'analytics.js']
+    .map(f => { try { return readFileSync(new URL('../public/' + f, import.meta.url), 'utf8'); } catch (e) { return ''; } })
+    .join('\n');
+  const fields = [...new Set([...appSrc.matchAll(/orderByChild\(\s*['"]([^'"]+)['"]\s*\)/g)].map(m => m[1]))];
+  const uncovered = fields.filter(f => !Object.values(REQUIRED).includes(f));
+  await test(`لا استعلام على حقل غير مفهرس (وُجد: ${fields.join('، ') || 'لا شيء'})`,
+    uncovered.length === 0 ? Promise.resolve()
+      : Promise.reject(new Error(`حقول بلا فهرس: ${uncovered.join('، ')} — أضفها إلى REQUIRED وإلى database.rules.json`)));
+}
 
 await testEnv.cleanup();
 console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);

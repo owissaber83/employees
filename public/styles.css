@@ -931,24 +931,24 @@ overflow-y: auto
 font-size: 9.5px;
 font-weight: 800;
 color: rgba(255, 255, 255, .38);
-padding: 12px 16px 4px;
+padding: 8px 14px 3px;
 text-transform: uppercase;
 letter-spacing: 1.2px;
 white-space: nowrap;
 overflow: hidden;
 border-right: 2px solid rgba(255,255,255,.1);
 margin-right: 8px;
-margin-top: 4px
+margin-top: 3px
 }
 
 .sb-it {
 display: flex;
 align-items: center;
-gap: 12px;
-padding: 10px 16px;
+gap: 10px;
+padding: 6px 14px;
 cursor: pointer;
-border-radius: 8px;
-margin: 2px 8px;
+border-radius: 7px;
+margin: 1px 8px;
 transition: all .2s;
 white-space: nowrap;
 color: rgba(255, 255, 255, .7);
@@ -975,24 +975,24 @@ box-shadow: inset -3px 0 0 0 #58a6e0
 }
 
 .sb-it .ic {
-font-size: 18px;
+font-size: 16px;
 flex-shrink: 0;
-width: 22px;
+width: 20px;
 text-align: center
 }
 
 /* مجموعة قابلة للطي */
 .sb-grp {
-margin: 2px 0
+margin: 1px 0
 }
 .sb-grp-h {
 display: flex;
 align-items: center;
 gap: 10px;
-padding: 10px 16px;
+padding: 6px 14px;
 cursor: pointer;
-border-radius: 8px;
-margin: 2px 8px;
+border-radius: 7px;
+margin: 1px 8px;
 transition: all .2s;
 color: rgba(255, 255, 255, .85);
 font-size: 13px;
@@ -1047,7 +1047,7 @@ color: white
    تعديل الـ148 عنصراً؛ الأيقونات تصبح أحادية اللون بهدوء وتعود لألوانها عند التمرير/التنشيط. */
 .sb .sb-it,
 .sb .sb-grp-h { border-right-width: 0 !important; }
-.sb .sb-it:not(.act) { background: transparent !important; color: rgba(255, 255, 255, .72) !important; }
+.sb .sb-it:not(.act) { background: transparent !important; color: rgba(255, 255, 255, .92) !important; }
 .sb .sb-it:not(.act):hover { background: rgba(255, 255, 255, .09) !important; color: #fff !important; }
 .sb .sb-grp-h { background: rgba(255, 255, 255, .05) !important; color: rgba(255, 255, 255, .85) !important; }
 .sb .sb-grp-h:hover { background: rgba(255, 255, 255, .12) !important; }
@@ -1113,9 +1113,7 @@ display: flex;
 align-items: center;
 justify-content: space-between;
 box-shadow: 0 2px 10px rgba(0, 0, 0, .07);
-position: sticky;
-top: 0;
-z-index: 50;
+position: static;
 flex-wrap: wrap;
 gap: 10px
 }

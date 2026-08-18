@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>PDF Editor E2E Harness</title><link rel="icon" href="data:,"></head>
+<body>
+<!-- صفحة اختبار فقط — لا تُخدَم للمستخدمين. يستدعيها tests/pdfeditor.e2e.mjs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="/pdfeditor-engine.js"></script>
+<script>
+window.__run = async function (url) {
+  const out = { steps: [] };
+  const S = (k, v) => { out.steps.push([k, v]); };
+  try {
+    const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    S('fetched_bytes', bytes.length);
+
+    const eng = PDFE.Engine.get();
+    const ctx = await eng.load(bytes, {});
+    S('num_pages', ctx.numPages);
+
+    const analysis = await eng.analyze(ctx, { eagerPages: 3 });
+    const p1 = analysis.pages[0];
+    S('analyzed_pages', analysis.pages.filter(Boolean).length);
+    S('text_items_p1', p1.items.length);
+    S('shapes_p1', p1.shapes.length);
+    S('images_p1', p1.images.length);
+    S('fonts', analysis.fonts.size);
+    S('colors', analysis.colors.size);
+    S('is_scanned', p1.isScanned);
+    S('design_groups', PDFE.Style.buildDesignSystem(analysis).groups.length);
+
+    // عنصر نصي حقيقي → تعديله هو المسار الحرج كله (جراحة + إعادة رسم + تحقّق)
+    const target = p1.items.find(i => i.str.trim().length > 6) || p1.items[0];
+    S('target_text', target.str);
+
+    const ops = [
+      PDFE.Ops.make('text.edit', {
+        page: 1, itemId: target.id, opIndex: target.opIndex,
+        oldText: target.str, newText: 'شركة XYZ للمقاولات 125,500.00 SAR',
+        x: target.x, y: target.y, boxWidth: target.w,
+        box: { x: target.x, y: target.y, w: target.w },
+        fontSize: target.fontSize, fontFamily: target.fontFamily,
+        bold: target.bold, color: target.color, bgColor: target.bgColor || '#FFFFFF',
+        align: target.align, dir: 'rtl', charSpacing: 0
+      }),
+      PDFE.Ops.make('watermark', { text: 'نسخة اختبار', pages: 'all', fontSize: 60, rotation: 45, opacity: 0.15, color: '#9E9E9E', fontFamily: 'Amiri', position: 'center' }),
+      PDFE.Ops.make('doc.meta', { title: 'مستند مُختبَر', author: 'GBR' })
+    ];
+
+    const r = await PDFE.Export.buildSafe(ctx, ops, { arabicFont: 'Amiri', expectPages: ctx.numPages });
+    S('output_bytes', r.bytes.length);
+    S('surgery_applied', r.report.surgery.applied);
+    S('surgery_fallback', r.report.surgery.fallback);
+    S('drawn', r.report.drawn);
+    S('warnings', (r.report.warnings || []).join(' | '));
+    S('valid_ok', r.validation.ok);
+    S('valid_pages', r.validation.pages);
+    S('valid_searchable', r.validation.textSearchable);
+    S('valid_leaked', (r.validation.leaked || []).join(' | '));
+    S('degraded', !!r.validation.degraded);
+
+    // تحقّق مستقل من الملف الناتج (لا نثق بتقرير البناء وحده)
+    const chk = await pdfjsLib.getDocument({ data: r.bytes.slice(0) }).promise;
+    const all = (await (await chk.getPage(1)).getTextContent()).items.map(i => i.str).join(' ');
+    S('new_text_present', all.includes('XYZ'));
+    S('old_text_gone', !all.replace(/\s+/g, ' ').includes(target.str.replace(/\s+/g, ' ').trim()));
+    S('arabic_present', /[ء-ي]/.test(all));
+    S('number_present', all.includes('125,500.00'));
+    await chk.destroy();
+
+    out.ok = true;
+  } catch (e) {
+    out.ok = false;
+    out.error = (e && e.message) || String(e);
+    out.stack = ((e && e.stack) || '').split('\n').slice(0, 4).join(' / ');
+  }
+  return out;
+};
+
+// ── انحدار: نص داخل Form XObject (شكل القوالب والفواتير المولّدة) ──
+// كانت الجراحة تُبلّغ بالنجاح بينما تفرّغ عاملاً خاطئاً ويبقى النص المستهدف.
+window.__runXObject = async function () {
+  const R = { steps: [] };
+  const S = (k, v) => R.steps.push([k, v]);
+  try {
+    const PDFLib = await PDFE.libs.ensurePdfLib();
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const A = await PDFDocument.create();
+    const pa = A.addPage([400, 300]);
+    const fa = await A.embedFont(StandardFonts.Helvetica);
+    pa.drawText('Invoice Total 20000', { x: 40, y: 200, size: 14, font: fa });
+    pa.drawText('Second Line Here', { x: 40, y: 170, size: 12, font: fa });
+    const B = await PDFDocument.create();
+    const fb = await B.embedFont(StandardFonts.Helvetica);
+    const pb = B.addPage([400, 300]);
+    pb.drawPage(await B.embedPage(pa), { x: 0, y: 0, width: 400, height: 300 });
+    pb.drawText('Outside XObject', { x: 40, y: 60, size: 12, font: fb });
+    const bytes = await B.save();
+
+    const ctx = await PDFE.Engine.get().load(bytes, {});
+    const an = await PDFE.Engine.get().analyze(ctx, { eagerPages: 1 });
+    const items = an.pages[0].items;
+    S('items_seen', items.length);
+
+    // هل يرصد الجامع كل العمليات عبر XObject؟
+    const doc2 = await PDFLib.PDFDocument.load(bytes.slice(0), { ignoreEncryption: true });
+    const col = PDFE.CS.collectTextOps(PDFLib, doc2.getPage(0));
+    S('ops_collected', col ? col.entries.length : -1);
+    S('counts_match', !!col && col.entries.length === an.pages[0].opCount);
+    S('streams_walked', col ? col.streams.size : 0);
+
+    const target = items[0];
+    const opCounts = an.pages.filter(Boolean).map(pg => [pg.n, pg.opCount]);
+    const out = await PDFE.Export.buildSafe(ctx, [PDFE.Ops.make('text.edit', {
+      page: 1, itemId: target.id, opIndex: target.opIndex,
+      oldText: target.str, newText: 'REPLACED VALUE',
+      x: target.x, y: target.y, boxWidth: target.w,
+      box: { x: target.x, y: target.y, w: target.w },
+      fontSize: target.fontSize, fontFamily: 'Helvetica',
+      color: '#000000', bgColor: '#FFFFFF', align: 'left', dir: 'ltr'
+    })], { expectPages: 1, opCounts });
+    S('surgery_applied', out.report.surgery.applied);
+    S('surgery_fallback', out.report.surgery.fallback);
+
+    const chk = await pdfjsLib.getDocument({ data: out.bytes.slice(0) }).promise;
+    const txt = (await (await chk.getPage(1)).getTextContent()).items.map(i => i.str).join(' ');
+    S('target_removed', !txt.includes('Invoice Total 20000'));
+    S('new_text_present', txt.includes('REPLACED VALUE'));
+    S('neighbour_intact', txt.includes('Second Line Here'));
+    S('outside_intact', txt.includes('Outside XObject'));
+    await chk.destroy();
+    R.ok = true;
+  } catch (e) { R.ok = false; R.error = (e && e.message) || String(e); }
+  return R;
+};
+</script>
+</body>
+</html>
