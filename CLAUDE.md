@@ -26,6 +26,8 @@ firebase deploy --only database   # deploy database.rules.json
 npm run test:rules                # security-rules test suite (emulator) — run before editing database.rules.json
 npm run test:calc                 # pure financial-calc tests (Node only)
 npm run test:pdf                  # PDF-editor engine tests: bidi, content-stream surgery, autofit (Node only)
+npm run test:ai                   # AI-invoice engine tests: arithmetic, ZATCA QR TLV, validation, duplicates (Node only)
+npm run test:ai:page              # AI-invoice page + review screen render in real Chrome (skips if no Chrome)
 ./verify-features.sh              # grep-based sanity check of attendance features
 ```
 
@@ -73,6 +75,24 @@ Each file starts with a bracketed TOC (`[PE-CS]`, `[UI-RENDER]`, `[ED-TEXT]`, `[
 Two rules that are easy to break:
 - **`PDFE.Engine` is a swappable interface** (`local` = pdf.js + pdf-lib, `apryse` = registered-but-unlicensed stub). UI code must call `PDFE.Engine.get()`, never pdf.js/pdf-lib directly, so a commercial engine can be dropped in later without touching the UI.
 - **Text editing is content-stream surgery, not white-box overlay.** `PDFE.CS` decodes the page content stream and empties the Nth text-showing operator, so the original glyphs leave the file (§ real redaction). `PDFE.Export.buildSafe` re-parses the output and, if any text that should be gone is still extractable, rebuilds using the cover-and-redraw fallback. Do not "simplify" this into drawing a white rectangle.
+
+### AI invoice extraction (`aiinvoice-*.js`) — three-layer module
+
+"استخراج وتدقيق وتصدير الفواتير بالذكاء الاصطناعي": upload supplier invoices (PDF/image), an LLM extracts them, and **the system re-does every calculation in code** before anything reaches accounting. Page section: `<div class="pg" id="pg-aiinvoices">` (empty — built entirely in JS). Load order matters (see `index.html`), plus `aiinvoice.css`.
+
+| File | Namespace | Contains |
+|---|---|---|
+| `aiinvoice-engine.js` | `window.AINV` | Everything non-DOM: settings, extraction schema/prompt, model calls, ZATCA QR TLV decode, normalization + provenance, arithmetic recomputation, validation engine, supplier/item matching, duplicate detection, accounting preview, RTDB store, quota, audit. **Never touches the DOM** — that is what makes it unit-testable (`npm run test:ai`). |
+| `aiinvoice-ui.js` | `window.AIU` | Page, upload queue, review screen, provenance badges, document viewer. |
+| `aiinvoice-actions.js` | — | Edit/link/override, approve/reject, conversion to purchase invoice, Excel/PDF/JSON exports, admin panels. |
+
+Rules that are easy to break:
+- **Status values must stay lowercase.** `database.rules.json` guards the literals `'approved'` and `'posted'` on `aiInvoices/$invId/status`. Switching to the spec's uppercase enum (`APPROVED`) silently disables that guard so any user with `ai_invoice_process` could approve. The rules also require every record to carry `status` and `uploadedAt`, and validate the child names `approvedBy` and `linkedPInvKey` — keep those exact names.
+- **The model reads; the system computes.** `AINV.recompute`/`AINV.computeLine` re-derive every amount from qty × price − discount and compare against what the model returned. Never "trust" a model total.
+- **`AINV.toPurchaseInvoice` must emit the fields `createJournalForPInv` actually reads** — `vendorId`, `netBeforeTax`, `debitAccountCode`, `projectId` — not similarly-named ones. A missing field here posts a journal with no vendor account or a zero debit, and it's only discovered after posting. `npm run test:ai` asserts these.
+- Conversion creates a **draft** purchase invoice only. Posting stays a separate human action in the purchases page.
+
+The React/Vite/Express original this was ported from lives at `ai-invoice-system.src/` (repo root, not served) as a specification reference — see its `PORTED.md`. It cannot run here: no build step, no server, Spark plan.
 
 ### Navigating the big files
 

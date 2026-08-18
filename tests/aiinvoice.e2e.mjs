@@ -53,7 +53,7 @@ for (const [label, width, height] of [['سطح المكتب', 1280, 900], ['لو
     const page = await browser.newPage();
     await page.setViewport({ width, height });
     await page.goto('file://' + path.join(ROOT, 'tests/aiinvoice-settings-harness.html'), { waitUntil: 'networkidle0' });
-    const r = await page.evaluate(() => window.__probe());
+    const r = await page.evaluate(() => globalThis.__probe());
 
     ok('تُفتح بلا استثناء', r.threw === null, r.threw);
     ok('بلا أخطاء تشغيل', (r.errors || []).length === 0, (r.errors || []).join(' | '));
@@ -62,7 +62,7 @@ for (const [label, width, height] of [['سطح المكتب', 1280, 900], ['لو
     ok('لا انسياب أفقي للصفحة', r.pageScrollW <= r.vw, r.pageScrollW + ' > ' + r.vw);
     ok('لا عنصر يتجاوز الصندوق', (r.overflowing || []).length === 0, (r.overflowing || []).join(' | '));
     ok('لا حقول مشوّهة', (r.tinyFields || []).length === 0, (r.tinyFields || []).join(' | '));
-    ok('أوامر دليل التركيب تُنسخ حرفياً', r.copyAllOk === true,
+    ok('أوامر دليل التركيب تُنسخ حرفياً (إن وُجدت)', r.copyAllOk === true,
         JSON.stringify(r.copy || []));
 
     await page.close();

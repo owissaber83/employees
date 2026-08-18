@@ -1,15 +1,22 @@
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║  🤖 اختبارات محرّك قراءة الفواتير (public/aiinvoice-engine.js)              ║
-// ║  التشغيل:  npm run test:ai   (بلا متصفح ولا شبكة — Node فقط)                ║
-// ║  ────────────────────────────────────────────────────────────────────────  ║
-// ║  المُختبَر هنا هو ما يحمي المال: **الحساب والتحقق يجريان في الكود لا في      ║
-// ║  النموذج** (المتطلّب §10 و§27). كل حالة تحاكي فاتورة حقيقية أو رداً معطوباً   ║
-// ║  من النموذج، وتتأكّد أن النظام يمسك الخطأ بدل أن يمرّره إلى القيد المحاسبي.  ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  🤖 اختبارات محرّك استخراج وتدقيق الفواتير (public/aiinvoice-engine.js)         ║
+// ║  التشغيل:  npm run test:ai   (بلا متصفح ولا شبكة — Node فقط)                   ║
+// ║  ────────────────────────────────────────────────────────────────────────────  ║
+// ║  المُختبَر هنا هو ما يحمي المال: **الحساب والتحقق يجريان في الكود لا في          ║
+// ║  النموذج**. كل حالة تحاكي فاتورة حقيقية أو رداً معطوباً من النموذج، وتتأكّد      ║
+// ║  أن النظام يمسك الخطأ بدل أن يمرّره إلى القيد المحاسبي.                         ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
 
 globalThis.window = globalThis;
 globalThis.cfg = { currency: 'SAR' };
-await import('../public/aiinvoice-engine.js');
+globalThis.localStorage = { _d: {}, getItem(k) { return this._d[k] || null; }, setItem(k, v) { this._d[k] = v; } };
+globalThis.vendors = {};
+globalThis.invItems = {};
+globalThis.aiInvoices = {};
+globalThis.purchaseInvoices = {};
+globalThis.chartOfAccounts = {};
+
+await import('file://' + new URL('../public/aiinvoice-engine.js', import.meta.url).pathname);
 const AINV = globalThis.AINV;
 
 let pass = 0, fail = 0;
@@ -18,30 +25,31 @@ function eq(name, actual, expected) {
     if (a === e) { pass++; console.log('  ✅ ' + name); }
     else { fail++; console.log(`  ❌ ${name}\n       متوقّع: ${e}\n       فعلي  : ${a}`); }
 }
-const ok = (n, c) => eq(n, !!c, true);
+const ok = (n, c, d) => { if (c) { pass++; console.log('  ✅ ' + n); } else { fail++; console.log('  ❌ ' + n + (d ? '\n       ' + d : '')); } };
+const has = (issues, code) => issues.some(i => i.code === code);
 
-/** فاتورة نموذجية سليمة: 2 بند، 15%، بلا خصم. */
-function goodInvoice(over) {
+/** فاتورة ضريبية سليمة: بندان، 15%، بلا خصم. */
+function goodRaw(over) {
     return Object.assign({
-        isInvoice: true, docType: 'tax_invoice', quality: 'good', language: 'عربي',
-        number: 'INV-2026-001', date: '2026-02-03', hijriDate: '', dueDate: '2026-03-05',
-        poNumber: '', contractNumber: '', reference: '', currency: 'SAR',
-        supplier: { name: 'شركة سواتر الإبداع للمقاولات', legalName: '', vatNumber: '311905689900003', crNumber: '1010912286', address: '', phone: '', email: '', iban: '' },
-        customer: { name: 'شركة جي بي ار للمقاولات', vatNumber: '312733987800003', crNumber: '', address: '' },
+        is_invoice: true, document_type: 'TAX_INVOICE', document_quality: 'good', language: 'mixed',
+        invoice_number: 'INV-2026-001', invoice_date: '2026-02-03', due_date: '2026-03-05',
+        currency: 'SAR',
+        supplier: { name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003', commercial_registration: '1010912286' },
+        customer: { name: 'شركة جي بي ار للمقاولات', vat_number: '312733987800003' },
         items: [
-            { idx: 0, code: '', description: 'توريد حجر', qty: 100, unit: 'متر', unitPrice: 100, discount: null, taxable: 10000, vatRate: 15, vatAmount: 1500, total: 11500 },
-            { idx: 1, code: '', description: 'تركيب', qty: 1, unit: 'مقطوعية', unitPrice: 5000, discount: null, taxable: 5000, vatRate: 15, vatAmount: 750, total: 5750 }
+            { item_name: 'توريد حجر', quantity: 100, unit: 'متر', unit_price: 100, discount: 0, taxable_amount: 10000, vat_rate: 15, vat_amount: 1500, total_amount: 11500 },
+            { item_name: 'تركيب', quantity: 1, unit: 'مقطوعية', unit_price: 5000, discount: 0, taxable_amount: 5000, vat_rate: 15, vat_amount: 750, total_amount: 5750 }
         ],
-        totals: { subtotalBeforeDiscount: 15000, discount: null, taxable: 15000, vat: 2250, grandTotal: 17250, paid: null, due: null },
-        vatBreakdown: [], modelConfidence: { overall: 95 }, modelWarnings: []
+        totals: { subtotal: 15000, discount_total: 0, taxable_amount: 15000, vat_total: 2250, grand_total: 17250 },
+        overall_confidence: 0.95
     }, over || {});
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 console.log('\n🔢 [1] إعادة احتساب البنود — النظام يحسب، لا النموذج');
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    const c = AINV.computeLine({ qty: 100, unitPrice: 100, discount: null, vatRate: 15, taxable: 10000, vatAmount: 1500, total: 11500 });
+    const c = AINV.computeLine({ quantity: 100, unit_price: 100, discount: 0, vat_rate: 15, taxable_amount: 10000, vat_amount: 1500, total_amount: 11500 });
     eq('كمية × سعر = الإجمالي قبل الخصم', c.lineSubtotal, 10000);
     eq('الخاضع للضريبة', c.taxable, 10000);
     eq('الضريبة = الخاضع × النسبة', c.vatAmount, 1500);
@@ -49,333 +57,383 @@ console.log('\n🔢 [1] إعادة احتساب البنود — النظام ي
     eq('لا ملاحظات على بند سليم', c.issues.length, 0);
 }
 {
-    const c = AINV.computeLine({ qty: 10, unitPrice: 100, discount: 200, vatRate: 15, taxable: 800, vatAmount: 120, total: 920 });
+    const c = AINV.computeLine({ quantity: 10, unit_price: 100, discount: 200, vat_rate: 15, taxable_amount: 800, vat_amount: 120, total_amount: 920 });
     eq('الخصم يُخصم قبل الضريبة', c.taxable, 800);
     eq('الضريبة على ما بعد الخصم', c.vatAmount, 120);
     eq('بند بخصم سليم بلا ملاحظات', c.issues.length, 0);
 }
 {
     // 🛑 النموذج نقل ضريبة خاطئة — النظام يجب أن يمسكها
-    const c = AINV.computeLine({ qty: 10, unitPrice: 100, discount: null, vatRate: 15, taxable: 1000, vatAmount: 100, total: 1100 });
-    ok('يُمسك خطأ مبلغ الضريبة', c.issues.some(i => i.field === 'vatAmount'));
-    eq('الصحيح محسوب لا منقول', c.vatAmount, 150);
+    const c = AINV.computeLine({ quantity: 10, unit_price: 100, discount: 0, vat_rate: 15, taxable_amount: 1000, vat_amount: 100, total_amount: 1100 });
+    ok('يُمسك خطأ مبلغ الضريبة', c.issues.some(i => i.field === 'vat_amount'));
+    eq('ويحسبها صحيحة رغم خطأ النموذج', c.vatAmount, 150);
 }
 {
-    // نسبة غير مذكورة → تُستنتج من المبلغ المكتوب
-    const c = AINV.computeLine({ qty: 1, unitPrice: 1000, discount: null, vatRate: null, taxable: 1000, vatAmount: 50, total: 1050 });
-    eq('استنتاج النسبة من المبلغ', c.rate, 5);
-    eq('لا يفترض 15% أبداً', c.vatAmount, 50);
+    const c = AINV.computeLine({ quantity: 3, unit_price: 33.333, discount: 0, vat_rate: 15 });
+    eq('التقريب إلى منزلتين', c.taxable, 100);
+    eq('ضريبة مقرَّبة', c.vatAmount, 15);
 }
 {
-    const c = AINV.computeLine({ qty: 3, unitPrice: 33.33, discount: null, vatRate: 15, taxable: 99.99, vatAmount: 15, total: 114.99 });
-    eq('تسامح التقريب لا يُنتج خطأً زائفاً', c.issues.length, 0);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n🧮 [2] التحقق من الإجماليات');
-// ═══════════════════════════════════════════════════════════════════════════
-{
-    const v = AINV.validate(goodInvoice());
-    eq('فاتورة سليمة بلا أخطاء', v.errors.length, 0);
-    eq('المجموع المحسوب', v.computed.grandTotal, 17250);
-    eq('الضريبة المحسوبة', v.computed.vat, 2250);
-    ok('صالحة للاعتماد', v.ok);
-}
-{
-    // 🛑 إجمالي مكتوب لا يطابق البنود — أخطر حالة على الإطلاق
-    const v = AINV.validate(goodInvoice({ totals: { taxable: 15000, vat: 2250, grandTotal: 20000, discount: null, subtotalBeforeDiscount: null, paid: null, due: null } }));
-    ok('🔑 يُمسك اختلاف الإجمالي عن مجموع البنود', v.errors.some(e => e.field === 'grandTotal'));
-    ok('لا تُعتمد', !v.ok);
-}
-{
-    // 🛑 إجماليات غير متوازنة داخلياً: خاضع + ضريبة ≠ إجمالي
-    const v = AINV.validate(goodInvoice({
-        items: [{ idx: 0, description: 'بند', qty: 1, unitPrice: 1000, discount: null, taxable: 1000, vatRate: 15, vatAmount: 150, total: 1150 }],
-        totals: { taxable: 1000, vat: 150, grandTotal: 1200, discount: null, subtotalBeforeDiscount: null, paid: null, due: null }
-    }));
-    ok('🔑 يُمسك عدم التوازن الداخلي', v.errors.some(e => /غير متوازنة|لا يطابق/.test(e.msg)));
-}
-{
-    const v = AINV.validate(goodInvoice({ items: [] }));
-    ok('فاتورة بلا بنود = خطأ', v.errors.some(e => e.field === 'items'));
-}
-{
-    // إجمالي غير مذكور في المستند → تحذير لا خطأ، ويُحتسب
-    const v = AINV.validate(goodInvoice({ totals: { taxable: null, vat: null, grandTotal: null, discount: null, subtotalBeforeDiscount: null, paid: null, due: null } }));
-    eq('غياب الإجماليات لا يُعد خطأً', v.errors.filter(e => ['taxable', 'vat', 'grandTotal'].includes(e.field)).length, 0);
-    ok('يُحذَّر بأنها احتُسبت', v.warnings.some(w => w.field === 'grandTotal'));
-    eq('والقيمة المحسوبة صحيحة', v.computed.grandTotal, 17250);
+    // نسبة صفرية (سلع معفاة/صفرية) لا تُحوَّل قسراً إلى 15%
+    const c = AINV.computeLine({ quantity: 2, unit_price: 500, discount: 0, vat_rate: 0 });
+    eq('النسبة الصفرية تبقى صفراً', c.vatAmount, 0);
+    eq('الإجمالي بلا ضريبة', c.lineTotal, 1000);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n🇸🇦 [3] قواعد الفاتورة السعودية');
-// ═══════════════════════════════════════════════════════════════════════════
-eq('رقم ضريبي صحيح', AINV.Saudi.checkVat('311905689900003').ok, true);
-eq('طول خاطئ يُرفض', AINV.Saudi.checkVat('31190568990').ok, false);
-eq('لا يبدأ بـ3 يُرفض', AINV.Saudi.checkVat('411905689900003').ok, false);
-eq('لا ينتهي بـ3 يُرفض', AINV.Saudi.checkVat('311905689900004').ok, false);
-eq('فارغ = لا رأي', AINV.Saudi.checkVat('').ok, null);
-eq('سجل تجاري 10 أرقام', AINV.Saudi.checkCr('1010912286').ok, true);
-eq('سجل تجاري بطول خاطئ', AINV.Saudi.checkCr('101091').ok, false);
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🧮 [2] إعادة احتساب الفاتورة كاملة');
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    const v = AINV.validate(goodInvoice({ supplier: Object.assign({}, goodInvoice().supplier, { vatNumber: '123' }) }));
-    ok('رقم ضريبي معطوب = تحذير', v.warnings.some(w => w.field === 'supplier.vatNumber'));
+    const doc = AINV.map(goodRaw(), { provider: 'gemini' });
+    const c = AINV.recompute(doc).computed;
+    eq('مجموع البنود قبل الخصم', c.subtotal, 15000);
+    eq('الخاضع للضريبة', c.taxable, 15000);
+    eq('إجمالي الضريبة', c.vat, 2250);
+    eq('الإجمالي شامل الضريبة', c.grandTotal, 17250);
+    eq('تجميع الضريبة حسب النسبة', c.taxes.length, 1);
+    eq('وعاء النسبة 15%', c.taxes[0].taxable_amount, 15000);
 }
 {
-    // 🛑 لا يُفترض 15% أبداً — نسبة 5% تُحترم وتُحذَّر فقط
-    const inv = goodInvoice({
-        items: [{ idx: 0, description: 'بند', qty: 1, unitPrice: 1000, discount: null, taxable: 1000, vatRate: 5, vatAmount: 50, total: 1050 }],
-        totals: { taxable: 1000, vat: 50, grandTotal: 1050, discount: null, subtotalBeforeDiscount: null, paid: null, due: null }
+    // نِسب مختلطة: 15% و0% — أساس الإقرار الضريبي
+    const raw = goodRaw();
+    raw.items[1].vat_rate = 0; raw.items[1].vat_amount = 0; raw.items[1].total_amount = 5000;
+    raw.totals = { subtotal: 15000, discount_total: 0, taxable_amount: 15000, vat_total: 1500, grand_total: 16500 };
+    const doc = AINV.map(raw, {});
+    const c = AINV.recompute(doc).computed;
+    eq('نسبتان في التفصيل الضريبي', c.taxes.length, 2);
+    eq('ضريبة النسبة المختلطة', c.vat, 1500);
+    eq('الإجمالي المختلط', c.grandTotal, 16500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🚨 [3] محرّك التحقق — ما يمنع الاعتماد وما لا يمنعه');
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    const doc = AINV.map(goodRaw(), {});
+    const issues = AINV.Validate.run(doc);
+    eq('فاتورة سليمة بلا ملاحظات', issues.length, 0);
+    eq('ولا مانع اعتماد', AINV.Validate.hasBlocking(issues), false);
+}
+{
+    // 🛑 إجمالي مضخّم — أخطر حالة: تدفع أكثر مما يجب
+    const raw = goodRaw(); raw.totals.grand_total = 20000;
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('يُمسك اختلاف الإجمالي عن مجموع البنود', has(issues, 'GRAND_TOTAL_SUM_MISMATCH'));
+    ok('ويمنع الاعتماد', AINV.Validate.hasBlocking(issues));
+}
+{
+    // 🛑 ضريبة الترويسة ≠ مجموع ضريبة البنود — يذهب الفرق للإقرار الضريبي
+    const raw = goodRaw(); raw.totals.vat_total = 3000; raw.totals.grand_total = 18000;
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('يُمسك اختلال الضريبة', has(issues, 'VAT_TOTAL_SUM_MISMATCH'));
+    ok('ويمنع الاعتماد', AINV.Validate.hasBlocking(issues));
+}
+{
+    const raw = goodRaw(); raw.invoice_number = '';
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('رقم الفاتورة المفقود مانع', issues.some(i => i.code === 'MISSING_INVOICE_NUMBER' && i.blocking));
+}
+{
+    const raw = goodRaw(); raw.supplier.name = '';
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('اسم المورد المفقود مانع', issues.some(i => i.code === 'MISSING_SUPPLIER_NAME' && i.blocking));
+}
+{
+    // فاتورة ضريبية بلا رقم ضريبي: لا يجوز خصم ضريبة المدخلات ⇒ مانع
+    const raw = goodRaw(); raw.supplier.vat_number = '';
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('الرقم الضريبي المفقود مانع في فاتورة ضريبية', issues.some(i => i.code === 'MISSING_SUPPLIER_VAT_NUMBER' && i.blocking));
+}
+{
+    // الإيصال ليس فاتورة ضريبية ⇒ الرقم الضريبي تحذير لا مانع
+    const raw = goodRaw({ document_type: 'RECEIPT' }); raw.supplier.vat_number = '';
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('وفي الإيصال تحذير لا مانع', issues.some(i => i.code === 'MISSING_SUPPLIER_VAT_NUMBER' && !i.blocking));
+}
+{
+    const raw = goodRaw(); raw.supplier.vat_number = '123456789';
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('صيغة الرقم الضريبي المخالفة تُرصد', has(issues, 'INVALID_SAUDI_VAT_FORMAT'));
+    ok('لكنها لا تمنع الاعتماد وحدها', !issues.filter(i => i.code === 'INVALID_SAUDI_VAT_FORMAT')[0].blocking);
+}
+{
+    const raw = goodRaw(); raw.due_date = '2026-01-01';
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('الاستحقاق قبل تاريخ الفاتورة يُرصد', has(issues, 'DUE_DATE_BEFORE_INVOICE_DATE'));
+}
+{
+    const raw = goodRaw(); raw.items = [];
+    raw.totals = { subtotal: null, discount_total: 0, taxable_amount: 15000, vat_total: 2250, grand_total: 17250 };
+    const issues = AINV.Validate.run(AINV.map(raw, {}));
+    ok('غياب البنود تحذير لا مانع', issues.some(i => i.code === 'NO_LINE_ITEMS' && !i.blocking));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🇸🇦 [4] رمز الزكاة والضريبة (ZATCA TLV)');
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    const b64 = AINV.QR.encodeTLV({
+        seller_name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003',
+        timestamp: '2026-02-03T10:00:00Z', total_with_vat: 17250, vat_amount: 2250
     });
-    const v = AINV.validate(inv);
-    eq('🔑 النسبة غير القياسية تُحترم لا تُصحَّح', v.computed.vat, 50);
-    eq('ولا تُعد خطأً', v.errors.length, 0);
-    ok('لكن يُنبَّه عليها', v.warnings.some(w => w.field === 'vatRate'));
+    const d = AINV.QR.decodeTLV(b64);
+    eq('اسم البائع يُفكّ بالعربية سليماً', d.seller_name, 'شركة سواتر الإبداع للمقاولات');
+    eq('الرقم الضريبي', d.vat_number, '311905689900003');
+    eq('الإجمالي رقماً', d.total_with_vat, 17250);
+    eq('الضريبة رقماً', d.vat_amount, 2250);
+
+    // الرمز مطابق للفاتورة ⇒ لا اختلافات
+    const raw = goodRaw({ qr_code_raw: b64 });
+    const doc = AINV.map(raw, {});
+    ok('الرمز يُصنَّف مطابقاً لمواصفة الهيئة', doc.qr_code.is_zatca_compliant === true);
+    eq('لا اختلاف بين الرمز ووجه الفاتورة', doc.qr_code.mismatches.length, 0);
+    eq('مصدر الإجمالي يصبح رمز QR', doc.provenance.totals_grand_total.source, 'qr_code');
+    eq('التحقق يمرّ بلا ملاحظات', AINV.Validate.run(doc).length, 0);
 }
 {
-    // أكثر من نسبة ضريبة → تُعالَج كلٌّ على حدة (§6)
-    const inv = goodInvoice({
-        items: [
-            { idx: 0, description: 'خاضع', qty: 1, unitPrice: 1000, discount: null, taxable: 1000, vatRate: 15, vatAmount: 150, total: 1150 },
-            { idx: 1, description: 'معفى', qty: 1, unitPrice: 500, discount: null, taxable: 500, vatRate: 0, vatAmount: 0, total: 500 }
-        ],
-        totals: { taxable: 1500, vat: 150, grandTotal: 1650, discount: null, subtotalBeforeDiscount: null, paid: null, due: null }
+    // 🛑 الرمز يقول مبلغاً والفاتورة تقول آخر — إشارة تعديل أو تزوير
+    const b64 = AINV.QR.encodeTLV({
+        seller_name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003',
+        timestamp: '2026-02-03T10:00:00Z', total_with_vat: 11500, vat_amount: 1500
     });
-    const v = AINV.validate(inv);
-    eq('🔑 نسبتان مختلفتان تُفصلان', v.computed.rates.length, 2);
-    eq('إجمالي الضريبة صحيح', v.computed.vat, 150);
-    eq('الإجمالي صحيح', v.computed.grandTotal, 1650);
-    eq('بلا أخطاء', v.errors.length, 0);
+    const doc = AINV.map(goodRaw({ qr_code_raw: b64 }), {});
+    const issues = AINV.Validate.run(doc);
+    ok('اختلاف إجمالي الرمز يُرصد', has(issues, 'QR_DOCUMENT_MISMATCH_GRAND_TOTAL'));
+    ok('ويمنع الاعتماد', AINV.Validate.hasBlocking(issues));
 }
 {
-    const v = AINV.validate(goodInvoice({ docType: 'quotation' }));
-    ok('عرض السعر لا يصلح للترحيل', v.warnings.some(w => /عرض سعر|مبدئية/.test(w.msg)));
-}
-{
-    const v = AINV.validate(goodInvoice({ customer: { name: 'عميل', vatNumber: '', crNumber: '', address: '' } }));
-    ok('فاتورة ضريبية بلا رقم ضريبي للعميل تُنبَّه', v.warnings.some(w => w.field === 'docType'));
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n📅 [4] التواريخ والأرقام العربية');
-// ═══════════════════════════════════════════════════════════════════════════
-eq('YYYY-MM-DD كما هو', AINV.normDate('2026-02-03'), '2026-02-03');
-eq('DD/MM/YYYY', AINV.normDate('03/02/2026'), '2026-02-03');
-eq('D/M/YYYY يُقرأ يوماً/شهراً', AINV.normDate('3/2/2026'), '2026-02-03');
-eq('يوم > 12 يحسم الترتيب', AINV.normDate('25/02/2026'), '2026-02-25');
-eq('شهر > 12 يحسم الترتيب عكسياً', AINV.normDate('02/25/2026'), '2026-02-25');
-ok('🔑 التاريخ الغامض يُوسَم', AINV.parseDate('3/2/2026').ambiguous);
-eq('ويُعرض البديل', AINV.parseDate('3/2/2026').alt, '2026-03-02');
-ok('غير الغامض لا يُوسَم', !AINV.parseDate('25/02/2026').ambiguous);
-ok('اليوم = الشهر ليس غامضاً', !AINV.parseDate('05/05/2026').ambiguous);
-eq('صيغة بنقاط', AINV.normDate('2026.02.03'), '2026-02-03');
-eq('غير صالح = فارغ', AINV.normDate('غداً'), '');
-eq('أرقام هندية → لاتينية', AINV.toLatinDigits('١٢٣٤٥'), '12345');
-eq('أرقام فارسية → لاتينية', AINV.toLatinDigits('۱۲۳'), '123');
-eq('num يزيل فواصل الآلاف', AINV.num('17,250.50'), 17250.5);
-eq('num يزيل رمز العملة', AINV.num('١٧٬٢٥٠ ر.س'), 17250);
-eq('num لفارغ = null', AINV.num(''), null);
-{
-    const v = AINV.validate(goodInvoice({ date: '2099-01-01' }));
-    ok('تاريخ مستقبلي = تحذير', v.warnings.some(w => w.field === 'date'));
-}
-{
-    const v = AINV.validate(goodInvoice({ date: '' }));
-    ok('تاريخ مفقود = خطأ', v.errors.some(e => e.field === 'date'));
-}
-{
-    const inv = AINV.map({
-        document: { document_type: 'tax_invoice', invoice_number: 'A', invoice_date: '3/2/2026', currency: 'SAR' },
-        supplier: { name: 'م' }, customer: { name: 'ع' },
-        items: [{ description: 'ب', quantity: 1, unit_price: 100, vat_rate: 15 }],
-        totals: { grand_total: 115 }, confidence: {}, warnings: []
+    // 🛑 رقم ضريبي مختلف بين الرمز والوجه
+    const b64 = AINV.QR.encodeTLV({
+        seller_name: 'شركة سواتر الإبداع للمقاولات', vat_number: '399999999999993',
+        timestamp: '2026-02-03T10:00:00Z', total_with_vat: 17250, vat_amount: 2250
     });
-    ok('🔑 التاريخ الغامض يُحذَّر منه في التحقق', AINV.validate(inv).warnings.some(w => /غامض/.test(w.msg)));
+    const doc = AINV.map(goodRaw({ qr_code_raw: b64 }), {});
+    ok('اختلاف الرقم الضريبي في الرمز يُرصد', has(AINV.Validate.run(doc), 'QR_DOCUMENT_MISMATCH_VAT_NUMBER'));
 }
 {
-    const v = AINV.validate(goodInvoice({ dueDate: '2026-01-01' }));
-    ok('استحقاق قبل التاريخ = تحذير', v.warnings.some(w => w.field === 'dueDate'));
+    eq('نصّ غير Base64 لا يُفكّ', AINV.QR.decodeTLV('ليس رمزاً'), null);
+    eq('سلسلة فارغة لا تُفكّ', AINV.QR.decodeTLV(''), null);
+    const doc = AINV.map(goodRaw({ qr_code_raw: 'https://example.com/invoice/123' }), {});
+    ok('رمز غير قياسي يُعلَّم غير مطابق للمواصفة', doc.qr_code.is_zatca_compliant === false);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n📉 [5] الثقة — لا نثق بالنموذج وحده');
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🔎 [5] أثر مصدر الحقل (Provenance)');
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    const inv = goodInvoice();
-    const c = AINV.confidence(inv, AINV.validate(inv));
-    ok('ثقة عالية لفاتورة سليمة', c.overall >= 85);
-    ok('الرقم الضريبي الصحيح يرفع ثقته', c.supplier_vat_number >= 90);
+    const doc = AINV.map(goodRaw(), { provider: 'gemini' });
+    eq('مصدر رقم الفاتورة استخراج Gemini', doc.provenance.invoice_number.source, 'gemini_extraction');
+    eq('لم يعدّله بشر بعد', doc.provenance.invoice_number.user_modified, false);
+    eq('القيمة الأصلية محفوظة', doc.provenance.invoice_number.original_ai_value, 'INV-2026-001');
+
+    const doc2 = AINV.map(goodRaw(), { provider: 'anthropic' });
+    eq('مصدر Claude يُميَّز', doc2.provenance.invoice_number.source, 'claude_extraction');
+
+    const doc3 = AINV.map(goodRaw(), { viaOcr: true });
+    eq('مصدر OCR يُميَّز', doc3.provenance.invoice_number.source, 'ocr_extraction');
 }
 {
-    // 🛑 النموذج «واثق» 100% لكن الرقم الضريبي معطوب — النظام يخفض الثقة
-    const inv = goodInvoice({
-        supplier: Object.assign({}, goodInvoice().supplier, { vatNumber: '999' }),
-        modelConfidence: { overall: 100, supplier_vat_number: 100 }
-    });
-    const c = AINV.confidence(inv, AINV.validate(inv));
-    ok('🔑 ثقة النموذج لا تتجاوز إشارات النظام', c.supplier_vat_number < 60);
-    ok('والثقة الكلية تنخفض معها', c.overall < 100);
-}
-{
-    // إجماليات معطوبة تهبط بثقة الإجماليات
-    const inv = goodInvoice({ totals: { taxable: 15000, vat: 2250, grandTotal: 99999, discount: null, subtotalBeforeDiscount: null, paid: null, due: null } });
-    const c = AINV.confidence(inv, AINV.validate(inv));
-    ok('خطأ حسابي يهبط بثقة الإجماليات', c.totals < 50);
-}
-{
-    const inv = goodInvoice({ quality: 'poor' });
-    const c = AINV.confidence(inv, AINV.validate(inv));
-    ok('جودة المستند سقف للثقة', c.overall <= 70);
-}
-{
-    globalThis.cfg.aiInvoice = { confidenceThreshold: 85 };
-    const low = AINV.lowFields({ overall: 90, invoice_number: 95, supplier_vat_number: 40, totals: 88 });
-    eq('يرصد الحقول دون العتبة', low, ['supplier_vat_number']);
-    delete globalThis.cfg.aiInvoice;
+    // تعديل بشري: تُحفظ قيمة الذكاء الاصطناعي الأصلية ولا تُطمس
+    const doc = AINV.map(goodRaw(), {});
+    const before = doc.provenance.invoice_number;
+    const after = AINV.Audit.touch(before, 'INV-2026-999');
+    eq('القيمة الجديدة', after.value, 'INV-2026-999');
+    eq('المصدر يصبح إدخال مستخدم', after.source, 'user_input');
+    eq('معلَّم بأن بشراً عدّله', after.user_modified, true);
+    eq('قيمة الذكاء الاصطناعي الأصلية محفوظة', after.original_ai_value, 'INV-2026-001');
+
+    // تعديل ثانٍ لا يطمس الأصل
+    const again = AINV.Audit.touch(after, 'INV-2026-777');
+    eq('التعديل المتكرر يُبقي الأصل الأوّل', again.original_ai_value, 'INV-2026-001');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n🏭 [6] مطابقة المورّد — بلا إنشاء تلقائي');
-// ═══════════════════════════════════════════════════════════════════════════
-globalThis.vendors = {
-    v1: { nameAr: 'شركة سواتر الإبداع للمقاولات', vatNumber: '311905689900003' },
-    v2: { nameAr: 'مؤسسة النور التجارية', vatNumber: '300000000000003' },
-    v3: { nameAr: 'شركة البناء الحديث', crNumber: '4030123456' }
-};
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n👯 [6] كشف التكرار');
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    const m = AINV.matchVendor({ name: 'اسم مختلف تماماً', vatNumber: '311905689900003', crNumber: '' });
-    eq('🔑 الرقم الضريبي مطابقة قاطعة', m.key, 'v1');
-    ok('ويوسم كمطابقة أكيدة', m.exact);
+    const doc = AINV.map(goodRaw(), {});
+    const store = {
+        old1: Object.assign({}, AINV.map(goodRaw(), {}), { status: 'posted' })
+    };
+    const dup = AINV.Dup.detect(doc, store, 'new1');
+    ok('يرصد تكراراً تام التطابق', !!dup);
+    ok('بنسبة تتجاوز العتبة', dup.similarity_score >= 0.7, String(dup && dup.similarity_score));
 }
 {
-    const m = AINV.matchVendor({ name: 'سواتر الابداع للمقاولات', vatNumber: '', crNumber: '' });
-    eq('تشابه الاسم رغم اختلاف الهمزات', m.key, 'v1');
-    ok('لكنه ترشيح لا مطابقة أكيدة', !m.exact);
+    // مورد مختلف ورقم مختلف ⇒ لا تكرار
+    const doc = AINV.map(goodRaw(), {});
+    const other = AINV.map(goodRaw({ invoice_number: 'INV-2026-777', supplier: { name: 'مورد آخر', vat_number: '300000000000003' } }), {});
+    other.totals.grand_total = 999;
+    eq('لا تكرار بين فاتورتين مختلفتين', AINV.Dup.detect(doc, { o: other }, 'x'), null);
 }
 {
-    const m = AINV.matchVendor({ name: 'شركة لا وجود لها إطلاقاً', vatNumber: '', crNumber: '' });
-    eq('🔑 لا مطابق ⇒ لا يُنشأ مورّد', m.key, '');
-    ok('ويُبلَّغ أنه جديد', /جديد/.test(m.reason));
+    // بصمة الملف نفسها ⇒ يقين لا احتمال
+    const doc = AINV.map(goodRaw({ invoice_number: 'ANY' }), {});
+    doc.file_metadata = { sha256: 'abc123' };
+    const store = { old: Object.assign({}, AINV.map(goodRaw({ invoice_number: 'DIFFERENT' }), {}), { file_metadata: { sha256: 'abc123' } }) };
+    const dup = AINV.Dup.detect(doc, store, 'me');
+    ok('بصمة الملف المتطابقة تكرار قاطع', dup && dup.is_exact_file === true);
+    eq('بدرجة يقين كاملة', dup.similarity_score, 1);
 }
 {
-    const m = AINV.matchVendor({ name: '', vatNumber: '', crNumber: '4030123456' });
-    eq('مطابقة بالسجل التجاري', m.key, 'v3');
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n♻️ [7] كشف التكرار');
-// ═══════════════════════════════════════════════════════════════════════════
-globalThis.pinv = {
-    p1: { vendorRef: 'INV-2026-001', vendorKey: 'v1', date: '2026-02-03', grandTotal: 17250 },
-    p2: { vendorRef: 'OTHER-9', vendorKey: 'v2', date: '2026-01-01', grandTotal: 500 }
-};
-globalThis.aiInvoices = {};
-{
-    const d = AINV.findDuplicates(goodInvoice(), 'v1', null);
-    ok('🔑 يكشف نفس المورّد ونفس رقم الفاتورة', d.length >= 1);
-    eq('ويحدّد السجل السابق', d[0].key, 'p1');
-}
-{
-    // مختلف في كل شيء ⇒ لا تكرار
-    const d = AINV.findDuplicates(goodInvoice({ number: 'INV-2026-999', date: '2026-05-05', totals: Object.assign({}, goodInvoice().totals, { grandTotal: 999 }) }), 'v1', null);
-    eq('فاتورة مختلفة تماماً = لا تكرار', d.length, 0);
-}
-{
-    // مورّد آخر بنفس الرقم ⇒ ليس تكراراً لدى هذا المورّد
-    const d = AINV.findDuplicates(goodInvoice({ date: '2026-05-05', totals: Object.assign({}, goodInvoice().totals, { grandTotal: 999 }) }), 'v2', null);
-    eq('نفس الرقم لدى مورّد آخر ليس تكراراً', d.length, 0);
-}
-{
-    const d = AINV.findDuplicates(goodInvoice({ number: 'X-1' }), 'v1', null);
-    eq('نفس المورّد والتاريخ والإجمالي = تكرار محتمل', d.length, 1);
+    // الفاتورة المرفوضة لا تُعدّ تكراراً
+    const doc = AINV.map(goodRaw(), {});
+    const store = { old: Object.assign({}, AINV.map(goodRaw(), {}), { status: 'rejected' }) };
+    eq('المرفوضة تُستثنى من كشف التكرار', AINV.Dup.detect(doc, store, 'me'), null);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n🔄 [8] التحويل إلى فاتورة مشتريات');
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🤝 [7] مطابقة الموردين');
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    globalThis.curU = { uid: 'u1', email: 'a@b.c' };
-    const inv = goodInvoice();
-    const rec = { id: 'ai1', extracted: inv, validation: AINV.validate(inv), vendorKey: 'v1', confidence: { overall: 95 }, fileUrl: 'https://x/y.pdf' };
-    const p = AINV.toPurchaseInvoice(rec);
-    eq('رقم فاتورة المورّد محفوظ', p.vendorRef, 'INV-2026-001');
-    eq('المورّد مربوط', p.vendorKey, 'v1');
-    eq('عدد البنود', p.lines.length, 2);
-    eq('🔑 الإجمالي من الحساب لا من النموذج', p.grandTotal, 17250);
-    eq('الضريبة من الحساب', p.vatTotal, 2250);
-    eq('يبدأ مسوّدة لا مُرحَّلاً', p.status, 'draft');
-    eq('🔑 أثر المصدر محفوظ', p.sourceId, 'ai1');
-    eq('ورابط المستند الأصلي', p.sourceFileUrl, 'https://x/y.pdf');
-    eq('صافي البند الأول', p.lines[0].net, 10000);
-    eq('ضريبة البند الأول', p.lines[0].vatAmount, 1500);
+    globalThis.vendors = {
+        v1: { nameAr: 'مؤسسة سواتر الإبداع للمقاولات', vatNumber: '311905689900003', crNumber: '1010912286' },
+        v2: { nameAr: 'شركة الرياض للتوريدات', vatNumber: '300000000000003' }
+    };
+    eq('مطابقة بالرقم الضريبي أولاً', AINV.Match.supplier({ vat_number: '311905689900003', name: 'اسم مختلف تماماً' }).match_type, 'EXACT_VAT');
+    eq('ثم بالسجل التجاري', AINV.Match.supplier({ commercial_registration: '1010912286', name: 'غير معروف' }).match_type, 'EXACT_CR');
+    ok('ثم بتشابه الاسم', ['EXACT_NAME', 'FUZZY_NAME'].includes(AINV.Match.supplier({ name: 'سواتر الإبداع' }).match_type));
+    eq('ولا يخترع مطابقة لغريب', AINV.Match.supplier({ name: 'شركة لا وجود لها إطلاقاً' }).match_type, 'NO_MATCH');
+    eq('والغريب يُعلَّم مورداً جديداً', AINV.Match.supplier({ name: 'شركة لا وجود لها إطلاقاً' }).is_new, true);
+    globalThis.vendors = {};
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n⚙️ [9] الإعدادات والجاهزية والتكلفة');
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n📅 [8] التواريخ — الغموض يُرفع للمستخدم لا يُبتلع');
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    const GKEY = 'AIza' + 'x'.repeat(30);
-    globalThis.cfg.aiInvoice = {};
-    ok('بلا مفتاح ولا وسيط ⇒ غير جاهز', !AINV.Config.ready().ok);
-    ok('والسبب يذكر مفتاح Gemini', /Gemini|مفتاح/.test(AINV.Config.ready().reason));
-    globalThis.cfg.aiInvoice = { geminiKey: GKEY };
-    ok('🟢 مفتاح Gemini ⇒ جاهز مباشرةً (بلا Worker)', AINV.Config.ready().ok);
-    globalThis.cfg.aiInvoice = { provider: 'anthropic', proxyUrl: 'http://insecure.example' };
-    ok('🔑 Anthropic برابط غير https مرفوض', !AINV.Config.ready().ok);
-    globalThis.cfg.aiInvoice = { provider: 'anthropic', proxyUrl: 'https://p.workers.dev' };
-    ok('Anthropic برابط https صالح ⇒ جاهز', AINV.Config.ready().ok);
-    globalThis.cfg.aiInvoice = { enabled: false, geminiKey: GKEY };
-    ok('معطّلة من الإعدادات ⇒ غير جاهز', !AINV.Config.ready().ok);
-    delete globalThis.cfg.aiInvoice;
-}
-{
-    const c = AINV.estimateCost('claude-opus-5', { input_tokens: 2000, output_tokens: 1000 });
-    ok('تكلفة موجبة ومعقولة', c > 0 && c < 1);
-    ok('النموذج الأرخص أرخص فعلاً',
-        AINV.estimateCost('claude-haiku-4-5', { input_tokens: 2000, output_tokens: 1000 }) < c);
-}
-{
-    const f = AINV.validateFile({ name: 'x.txt', type: 'text/plain', size: 100 });
-    ok('نوع غير مدعوم يُرفض', !f.ok);
-    const f2 = AINV.validateFile({ name: 'x.pdf', type: 'application/pdf', size: 0 });
-    ok('ملف فارغ يُرفض', !f2.ok);
-    const f3 = AINV.validateFile({ name: 'x.pdf', type: 'application/pdf', size: 99 * 1048576 });
-    ok('ملف ضخم يُرفض', !f3.ok);
-    const f4 = AINV.validateFile({ name: 'x.pdf', type: 'application/pdf', size: 1048576 });
-    ok('PDF صالح يُقبل', f4.ok);
+    eq('صيغة ISO تُقرأ كما هي', AINV.parseDate('2026-02-03').date, '2026-02-03');
+    eq('يوم > 12 يحسم الترتيب', AINV.parseDate('25/02/2026').date, '2026-02-25');
+    eq('والعكس كذلك', AINV.parseDate('02/25/2026').date, '2026-02-25');
+    const amb = AINV.parseDate('03/02/2026');
+    eq('الافتراض يوم/شهر', amb.date, '2026-02-03');
+    eq('لكنه معلَّم غامضاً', amb.ambiguous, true);
+    eq('مع عرض البديل', amb.alt, '2026-03-02');
+    eq('اليوم = الشهر ليس غامضاً', AINV.parseDate('05/05/2026').ambiguous, false);
+
+    const raw = goodRaw({ invoice_date: '03/02/2026' });
+    ok('التاريخ الغامض يظهر كملاحظة تحقّق', has(AINV.Validate.run(AINV.map(raw, {})), 'AMBIGUOUS_INVOICE_DATE'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-console.log('\n🗂️ [10] الحالات والتطبيع');
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🔤 [9] الأرقام العربية-الهندية');
+// ═══════════════════════════════════════════════════════════════════════════════
 {
-    ['uploaded', 'processing', 'extracted', 'needs_review', 'validated', 'draft', 'approved', 'posted', 'rejected', 'failed']
-        .forEach(s => ok('حالة معرَّفة: ' + s, !!AINV.STATUS[s]));
-}
-{
-    const m = AINV.map({
-        document: { document_type: 'tax_invoice', invoice_number: 'A-1', invoice_date: '03/02/2026', currency: 'sar' },
-        supplier: { name: ' مورّد ', vat_number: '3 1190 5689 9000 03', commercial_registration: '1010-912286' },
-        customer: { name: 'عميل' },
-        items: [{ description: 'بند', quantity: '٢', unit_price: '1,000.50', vat_rate: 15 }],
-        totals: { grand_total: '2,301.15' },
-        confidence: { overall: 90 }, warnings: ['نص باهت']
-    });
-    eq('العملة تُرفع لأحرف كبيرة', m.currency, 'SAR');
-    eq('🔑 الرقم الضريبي تُنزع فواصله', m.supplier.vatNumber, '311905689900003');
-    eq('السجل التجاري كذلك', m.supplier.crNumber, '1010912286');
-    eq('الاسم يُقلَّم', m.supplier.name, 'مورّد');
-    eq('التاريخ يُطبَّع', m.date, '2026-02-03');
-    eq('الكمية العربية تُحوَّل', m.items[0].qty, 2);
-    eq('السعر بفواصل يُحلَّل', m.items[0].unitPrice, 1000.5);
-    eq('تحذيرات النموذج محفوظة', m.modelWarnings, ['نص باهت']);
-}
-{
-    const m = AINV.map({ document: {}, supplier: {}, customer: {}, items: [], totals: {}, confidence: {}, warnings: [], is_invoice: false });
-    eq('is_invoice=false يُنقل', m.isInvoice, false);
-    const v = AINV.validate(m);
-    ok('ومستند غير فاتورة يُرفض', v.errors.some(e => /فاتورة صالح/.test(e.msg)));
+    eq('تحويل الأرقام العربية', AINV.toLatinDigits('١٢٣٤٥'), '12345');
+    eq('تحويل الأرقام الفارسية', AINV.toLatinDigits('۱۲۳۴۵'), '12345');
+    eq('فواصل الآلاف تُزال', AINV.num('17,250.50'), 17250.5);
+    eq('الفاصلة العربية تُزال', AINV.num('١٧٬٢٥٠'), 17250);
+    eq('رمز العملة يُتجاهل', AINV.num('17250 ر.س'), 17250);
+    eq('الفراغ يعطي null', AINV.num(''), null);
 }
 
-console.log(`\n═══ النتيجة: ${pass} ناجح · ${fail} فاشل ═══`);
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n📒 [10] معاينة القيد المحاسبي والتحويل');
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    globalThis.chartOfAccounts = {
+        a1: { code: '5110', nameAr: 'مشتريات مواد' },
+        a2: { code: '1180', nameAr: 'ضريبة القيمة المضافة — المدخلات' },
+        a3: { code: '2110', nameAr: 'الموردون' }
+    };
+    const doc = AINV.map(goodRaw(), {});
+    const rec = Object.assign({ id: 'r1', expenseType: 'materials', vendorKey: 'v1' }, doc);
+    const p = AINV.Accounting.preview(rec);
+    eq('ثلاثة أسطر: مصروف + ضريبة + مورد', p.journal_lines.length, 3);
+    eq('المدين مصروف بالخاضع', p.journal_lines[0].debit, 15000);
+    eq('حساب المصروف من شجرة الحسابات', p.journal_lines[0].account_code, '5110');
+    eq('المدين الثاني ضريبة المدخلات', p.journal_lines[1].debit, 2250);
+    eq('الدائن الموردون بالإجمالي', p.journal_lines[2].credit, 17250);
+    eq('القيد متوازن', p.is_balanced, true);
+    eq('لا تنبيهات حين تكتمل الحسابات والربط', p.warnings.length, 0);
+}
+{
+    // بلا ربط مورد ⇒ تنبيه صريح قبل الترحيل
+    const doc = AINV.map(goodRaw(), {});
+    const p = AINV.Accounting.preview(Object.assign({ id: 'r2', expenseType: 'materials' }, doc));
+    ok('غياب ربط المورد يُنبَّه عليه', p.warnings.some(w => w.includes('لم يُربط المورد')));
+}
+{
+    // 🛑 الحقول التي يقرؤها createJournalForPInv فعلاً يجب أن توجد بأسمائها
+    const doc = AINV.map(goodRaw(), {});
+    const rec = Object.assign({ id: 'r3', expenseType: 'materials', vendorKey: 'v1', projectKey: 'p1' }, doc);
+    const pinv = AINV.toPurchaseInvoice(rec);
+    ok('vendorId موجود (يقرؤه القيد وكشف حساب المورد)', pinv.vendorId === 'v1');
+    ok('netBeforeTax موجود (الطرف المدين في القيد)', pinv.netBeforeTax === 15000);
+    ok('debitAccountCode موجود (حساب المدين)', !!pinv.debitAccountCode);
+    ok('projectId موجود (مركز التكلفة)', pinv.projectId === 'p1');
+    eq('vendorRef = رقم فاتورة المورد', pinv.vendorRef, 'INV-2026-001');
+    eq('الإجمالي محسوب بالنظام', pinv.grandTotal, 17250);
+    eq('الضريبة محسوبة بالنظام', pinv.vatTotal, 2250);
+    eq('تُنشأ مسوّدة لا مُرحَّلة', pinv.status, 'draft');
+    eq('أثر المصدر محفوظ', pinv.sourceType, 'ai_extraction');
+    globalThis.chartOfAccounts = {};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🔐 [11] الحالات وقواعد الأمان');
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    // ⚠️ قواعد قاعدة البيانات تحرس 'approved' و'posted' بحروف صغيرة حرفياً
+    ok("الحالة 'approved' موجودة بحروف صغيرة", !!AINV.STATUS.approved);
+    ok("الحالة 'posted' موجودة بحروف صغيرة", !!AINV.STATUS.posted);
+    ok('كل مفاتيح الحالات بحروف صغيرة', Object.keys(AINV.STATUS).every(k => k === k.toLowerCase()),
+        Object.keys(AINV.STATUS).filter(k => k !== k.toLowerCase()).join(','));
+    ok('المعتمدة مقفلة ضد التعديل', AINV.isLocked({ status: 'approved' }));
+    ok('المُرحَّلة مقفلة', AINV.isLocked({ status: 'posted' }));
+    ok('التي تحتاج مراجعة غير مقفلة', !AINV.isLocked({ status: 'needs_review' }));
+}
+{
+    // السجل المكتوب يجب أن يحمل status و uploadedAt وإلا رفضته .validate
+    const w = AINV.Store.wire({ invoice_number: 'X' });
+    ok('السجل يحمل status', typeof w.status === 'string');
+    ok('السجل يحمل uploadedAt رقماً', typeof w.uploadedAt === 'number');
+    ok('undefined لا يصل إلى قاعدة البيانات', JSON.stringify(AINV.clean({ a: 1, b: undefined, c: null })) === '{"a":1}');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🎯 [12] الثقة — شهادة النظام لا شهادة النموذج');
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    const doc = AINV.map(goodRaw(), {});
+    const clean = AINV.confidence(doc, AINV.Validate.run(doc));
+    const raw = goodRaw(); raw.totals.grand_total = 20000;
+    const bad = AINV.map(raw, {});
+    const dirty = AINV.confidence(bad, AINV.Validate.run(bad));
+    ok('ثقة الفاتورة السليمة عالية', clean.percent >= 90, String(clean.percent));
+    ok('والمختلّة أقل بوضوح', dirty.percent < clean.percent, `${dirty.percent} vs ${clean.percent}`);
+
+    // نموذج «واثق» من مستند رديء لا يُصدَّق على علّاته
+    const poor = AINV.map(goodRaw({ document_quality: 'poor', overall_confidence: 1 }), {});
+    ok('رداءة المستند تخفض الثقة رغم ادّعاء النموذج', AINV.confidence(poor, []).percent < 100);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n♻️ [13] ترقية سجلات الإصدار الأول');
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    const v1 = {
+        status: 'approved', uploadedAt: 1750000000000, fileName: 'inv.pdf', model: 'gemini-2.5-flash',
+        confidence: { overall: 92 },
+        extracted: {
+            docType: 'tax_invoice', number: 'OLD-1', date: '2026-01-05', currency: 'SAR',
+            supplier: { name: 'مورد قديم', vatNumber: '311905689900003' },
+            items: [{ description: 'صنف', qty: 2, unitPrice: 50, vatRate: 15, taxable: 100, vatAmount: 15, total: 115 }],
+            totals: { taxable: 100, vat: 15, grandTotal: 115 }
+        }
+    };
+    const up = AINV.Store.normalize('k1', v1);
+    eq('رقم الفاتورة يُقرأ', up.invoice_number, 'OLD-1');
+    eq('النوع يُترجم للمخطّط الجديد', up.document_type, 'TAX_INVOICE');
+    eq('اسم المورد يُقرأ', up.supplier.name, 'مورد قديم');
+    eq('البنود تُترجم', up.items.length, 1);
+    eq('اسم البند من الوصف القديم', up.items[0].item_name, 'صنف');
+    eq('الإجمالي يُقرأ', up.totals.grand_total, 115);
+    eq('الثقة تُحوَّل إلى نسبة مئوية', up.confidence_percent, 92);
+    eq('السجل معلَّم بأنه قديم', up.legacy_v1, true);
+    ok('وإعادة الاحتساب تعمل عليه', AINV.recompute(up).computed.grandTotal === 115);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log(`\n${'═'.repeat(56)}\n  ✅ ناجح: ${pass}    ❌ فاشل: ${fail}\n${'═'.repeat(56)}`);
 process.exit(fail ? 1 : 0);

@@ -1,16 +1,15 @@
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║   🤖 قراءة الفواتير بالذكاء الاصطناعي — الواجهة (UI Layer)                     ║
+// ║   🤖 نظام استخراج وتدقيق وتصدير الفواتير — طبقة الواجهة (UI Layer)            ║
 // ║   ────────────────────────────────────────────────────────────────────────    ║
-// ║   [UI-PAGE]   الصفحة الرئيسية: الرفع + قائمة الفواتير + المؤشرات               ║
-// ║   [UI-QUEUE]  معالجة متعدّدة مستقلة — فشل فاتورة لا يُسقط البقية (§29)          ║
-// ║   [UI-REVIEW] شاشة «مراجعة الفاتورة المستخرجة» (§12) بأقسامها الخمسة           ║
-// ║   [UI-EDIT]   التحرير + تسجيل كل تغيير في أثر التدقيق (§13)                    ║
-// ║   [UI-LINK]   ربط المورّد والأصناف (§14 §15)                                   ║
-// ║   [UI-CONV]   الاعتماد والتحويل لفاتورة مشتريات ثم الترحيل (§17 §23)           ║
-// ║   [UI-EXPORT] تصدير Excel (5 أوراق) و PDF (§21 §22)                           ║
-// ║   [UI-ADMIN]  الإعدادات · سجل المعالجة · لوحة التكلفة (§31 §32 §33)            ║
+// ║   [UI-PAGE]   الصفحة الرئيسية: الرفع · مؤشرات · الحصّة اليومية · القائمة        ║
+// ║   [UI-QUEUE]  معالجة متعدّدة مستقلة — فشل فاتورة لا يُسقط البقية                ║
+// ║   [UI-REVIEW] شاشة المراجعة: الأقسام · المشاكل · QR · المستند جنباً إلى جنب     ║
+// ║   [UI-PROV]   شارات مصدر الحقل (Provenance) — من أين جاءت كل قيمة              ║
+// ║   [UI-EDIT]   التحرير مع تسجيل كل تغيير في أثر التدقيق                         ║
+// ║   [UI-LINK]   ربط المورّد والأصناف بسجلات النظام                               ║
+// ║   [UI-DOC]    عارض المستند الأصلي (صورة/PDF) بجانب البيانات                    ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-/* global AINV, XLSX */
+/* global AINV */
 
 (function () {
     'use strict';
@@ -19,35 +18,51 @@
     const $ = id => document.getElementById(id);
     const toast = (m, t, d) => (window.toast ? window.toast(m, t, d) : console.log(m));
     const fmt = n => (window.fmt ? window.fmt(n) : (Number(n) || 0).toFixed(2));
-    const nz = v => (v == null || v === '' ? null : v);
 
-    const AIU = window.AIU = { current: null, tab: 'all', queue: [], busy: false };
+    const AIU = window.AIU = {
+        current: null,      // السجل المفتوح في شاشة المراجعة
+        tab: 'all',
+        queue: [],
+        busy: false,
+        docPane: true       // إظهار المستند الأصلي بجانب البيانات
+    };
 
-    const CAN_VIEW = () => (typeof window.can === 'function' ? window.can('ai_invoice') : true);
-    const CAN_RUN = () => (typeof window.can === 'function' ? window.can('ai_invoice_process') : true);
-    const CAN_APPROVE = () => (typeof window.can === 'function' ? window.can('ai_invoice_approve') : true);
+    const CAN = a => AINV.may(a);
     const IS_ADMIN = () => (window.myP && window.myP.role === 'admin');
 
     // ═══════════════════════════════════════════════════════════════════════════
     // [UI-PAGE] الصفحة الرئيسية
     // ═══════════════════════════════════════════════════════════════════════════
+
     window.renderAiInvoices = function () {
         const pg = $('pg-aiinvoices'); if (!pg) return;
-        if (!CAN_VIEW()) { pg.innerHTML = '<div class="empty"><div class="ei">🚫</div><p>لا تملك صلاحية الوصول إلى قراءة الفواتير</p></div>'; return; }
+        if (!CAN('view')) { pg.innerHTML = '<div class="empty"><div class="ei">🚫</div><p>لا تملك صلاحية الوصول إلى قراءة الفواتير</p></div>'; return; }
         if (AIU.current) { renderReview(); return; }
 
+        const cfg = AINV.Config.get();
         const ready = AINV.Config.ready();
-        const recs = Object.entries(window.aiInvoices || {}).sort((a, b) => (b[1].uploadedAt || 0) - (a[1].uploadedAt || 0));
+        const recs = AINV.Store.all();
         const byStatus = {};
-        recs.forEach(([, r]) => { byStatus[r.status] = (byStatus[r.status] || 0) + 1; });
-        const filtered = AIU.tab === 'all' ? recs : recs.filter(([, r]) => r.status === AIU.tab);
+        recs.forEach(r => { byStatus[r.status] = (byStatus[r.status] || 0) + 1; });
+        const filtered = AIU.tab === 'all' ? recs : recs.filter(r => r.status === AIU.tab);
+        const q = AINV.Quota.report();
+
+        // مؤشرات تشغيلية: ما يحتاج تدخّلاً بشرياً الآن
+        const needAction = recs.filter(r => ['needs_review', 'extracted', 'failed'].includes(r.status)).length;
+        const blocked = recs.filter(r => AINV.Validate.hasBlocking(r.validation_issues)).length;
+        const dupes = recs.filter(r => r.duplicate_warning && !r.duplicate_dismissed).length;
+        const pendingValue = recs.filter(r => !['posted', 'rejected'].includes(r.status))
+            .reduce((s, r) => s + ((r.totals && r.totals.grand_total) || 0), 0);
 
         pg.innerHTML = `
         <div id="aiRoot">
             ${ready.ok
                 ? (IS_ADMIN() ? `<div class="ai-ready">
-                    ✅ <b>الوحدة جاهزة</b> <span class="ai-meta">— المحرك: ${esc((AINV.Config.get().provider || 'gemini') === 'gemini' ? ('Gemini · ' + (AINV.Config.get().geminiModel || 'gemini-2.5-flash')) : ('Claude · ' + AINV.Config.get().model))}</span>
+                    ✅ <b>الوحدة جاهزة</b>
+                    <span class="ai-meta">— المحرك: ${esc(engineLabel(cfg))}</span>
                     <span style="flex:1"></span>
+                    <button class="btn" onclick="aiQuotaPanel()">📊 الحصّة اليومية</button>
+                    <button class="btn" onclick="aiAdminDashboard()">📈 لوحة المدير</button>
                     <button class="btn" onclick="aiSettings()">⚙️ الإعدادات</button>
                   </div>` : '')
                 : `<div class="ai-warn">
@@ -57,22 +72,36 @@
 
             <div class="card ai-hero">
                 <div class="ai-hero-txt">
-                    <h2>🤖 قراءة الفواتير بالذكاء الاصطناعي</h2>
-                    <p>ارفع فواتير الموردين — صوراً أو PDF — ليقرأها المحرك ويستخرج بياناتها، ثم <b>يتحقّق النظام من كل عملية حسابية بنفسه</b> ويعرضها لمراجعتك قبل أي اعتماد أو ترحيل.</p>
+                    <h2>🤖 استخراج وتدقيق وتصدير الفواتير بالذكاء الاصطناعي</h2>
+                    <p>ارفع فواتير الموردين — صوراً أو PDF — ليقرأها المحرك ويستخرج بياناتها، ثم
+                       <b>يتحقّق النظام من كل عملية حسابية بنفسه</b>، ويفكّ رمز الزكاة والضريبة ويقارنه بوجه الفاتورة،
+                       ويعرض كل ذلك لمراجعتك قبل أي اعتماد أو ترحيل.</p>
                     <div class="ai-hero-tags">
-                        <span>🔐 المفتاح لا يصل المتصفح</span><span>🧮 الحساب في النظام لا في النموذج</span>
-                        <span>🇸🇦 قواعد الفوترة السعودية</span><span>👤 لا ترحيل بلا موافقتك</span><span>🕵️ أثر تدقيق كامل</span>
+                        <span>🧮 الحساب في النظام لا في النموذج</span>
+                        <span>🇸🇦 فكّ رمز ZATCA ومطابقته</span>
+                        <span>🔎 مصدر كل حقل موثّق</span>
+                        <span>👤 لا ترحيل بلا موافقتك</span>
+                        <span>🕵️ أثر تدقيق كامل</span>
                     </div>
                 </div>
-                <div class="ai-drop ${ready.ok && CAN_RUN() ? '' : 'off'}" id="aiDrop">
+                <div class="ai-drop ${ready.ok && CAN('upload') ? '' : 'off'}" id="aiDrop">
                     <div class="ai-drop-ic">📥</div>
                     <div class="ai-drop-t">اسحب الفواتير هنا</div>
                     <div class="ai-drop-s">يمكنك رفع عدة ملفات دفعة واحدة</div>
-                    <button class="btn b-g" ${ready.ok && CAN_RUN() ? '' : 'disabled'} onclick="document.getElementById('aiFileInput').click()">📂 اختر ملفات</button>
+                    <button class="btn b-g" ${ready.ok && CAN('upload') ? '' : 'disabled'} onclick="document.getElementById('aiFileInput').click()">📂 اختر ملفات</button>
                     <input type="file" id="aiFileInput" multiple accept="application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="aiHandleFiles(this.files);this.value=''">
-                    <div class="ai-drop-hint">PDF · JPG · PNG · WEBP — حتى ${AINV.Config.get().maxFileMB} م.ب للملف</div>
+                    <div class="ai-drop-hint">PDF · JPG · PNG · WEBP — حتى ${cfg.maxFileMB} م.ب للملف</div>
                 </div>
             </div>
+
+            ${recs.length ? `<div class="ai-kpis">
+                ${kpi('👁️', 'تنتظر مراجعتك', needAction, needAction ? '#D97706' : '#1B8A4B')}
+                ${kpi('⛔', 'بها مانع اعتماد', blocked, blocked ? '#C0392B' : '#1B8A4B')}
+                ${kpi('👯', 'تكرار محتمل', dupes, dupes ? '#C0392B' : '#1B8A4B')}
+                ${kpi('💰', 'قيمة غير مُرحَّلة', fmt(pendingValue), '#12336B')}
+            </div>` : ''}
+
+            ${ready.ok && q.totalDailyLimit ? quotaStrip(q) : ''}
 
             <div id="aiQueue"></div>
 
@@ -81,23 +110,23 @@
                     <div class="c-tl" style="margin:0;border:none;padding:0">🗂️ الفواتير المقروءة <span class="badge">${recs.length}</span></div>
                     <span style="flex:1"></span>
                     <input type="text" id="aiSearch" class="ai-inp" style="max-width:240px" placeholder="🔍 مورّد / رقم فاتورة…" oninput="aiFilterList()">
-                    <button class="btn" onclick="aiExportAllExcel()">📊 تصدير القائمة</button>
+                    ${recs.length ? '<button class="btn" onclick="aiExportListExcel()">📊 تصدير القائمة</button>' : ''}
                     ${IS_ADMIN() ? '<button class="btn" onclick="aiProcessingLog()">📋 سجل المعالجة</button>' : ''}
-                    ${IS_ADMIN() ? '<button class="btn" onclick="aiSettings()">⚙️ الإعدادات</button>' : ''}
                 </div>
                 <div class="ai-tabs">
                     ${tabBtn('all', 'الكل', recs.length)}
-                    ${['needs_review', 'validated', 'approved', 'posted', 'failed', 'rejected'].map(s => tabBtn(s, AINV.STATUS[s].ar, byStatus[s] || 0)).join('')}
+                    ${['needs_review', 'validated', 'approved', 'posted', 'exported', 'rejected', 'failed']
+                .map(s => tabBtn(s, AINV.STATUS[s].ar, byStatus[s] || 0)).join('')}
                 </div>
                 ${filtered.length === 0
-                ? '<div class="empty"><div class="ei">📄</div><p>لا فواتير في هذا التصنيف</p></div>'
+                ? `<div class="empty"><div class="ei">📄</div><p>${recs.length ? 'لا فواتير في هذا التصنيف' : 'لم تُرفع أي فاتورة بعد — ابدأ بسحب ملف إلى الأعلى'}</p></div>`
                 : `<div class="tw"><table class="ai-tbl" id="aiTbl">
                     <thead><tr>
-                        <th>الحالة</th><th>المورّد</th><th>رقم الفاتورة</th><th>التاريخ</th>
+                        <th>الحالة</th><th>المورّد</th><th>رقم الفاتورة</th><th>النوع</th><th>التاريخ</th>
                         <th class="n">قبل الضريبة</th><th class="n">الضريبة</th><th class="n">الإجمالي</th>
-                        <th class="n">الثقة</th><th>الإجراء</th>
+                        <th class="n">الثقة</th><th>تحقّق</th><th>الإجراء</th>
                     </tr></thead>
-                    <tbody>${filtered.map(([k, r]) => row(k, r)).join('')}</tbody>
+                    <tbody>${filtered.map(row).join('')}</tbody>
                 </table></div>`}
             </div>
         </div>`;
@@ -106,30 +135,74 @@
         renderQueue();
     };
 
+    function engineLabel(cfg) {
+        return (cfg.provider || 'gemini') === 'gemini'
+            ? 'Gemini · ' + (cfg.geminiModel || 'gemini-2.5-flash')
+            : 'Claude · ' + cfg.model;
+    }
+
+    function kpi(icon, label, value, color) {
+        return `<div class="ai-kpi" style="border-inline-start-color:${color}">
+            <div class="ai-kpi-l">${icon} ${esc(label)}</div>
+            <div class="ai-kpi-v" style="color:${color}">${esc(String(value))}</div>
+        </div>`;
+    }
+
+    /** شريط الحصّة اليومية — يمنع المفاجأة بنفاد الرصيد في منتصف دفعة. */
+    function quotaStrip(q) {
+        const pct = q.totalDailyLimit ? Math.round((q.totalInvoicesToday / q.totalDailyLimit) * 100) : 0;
+        const color = pct >= 90 ? '#C0392B' : pct >= 70 ? '#D97706' : '#1B8A4B';
+        return `<div class="ai-quota-strip" onclick="aiQuotaPanel()" title="اضغط لتفاصيل الحصّة لكل نموذج">
+            <span class="ai-qs-ic">⚡</span>
+            <span><b>${q.totalInvoicesToday}</b> من <b>${q.totalDailyLimit}</b> فاتورة اليوم على الطبقة المجانية</span>
+            <div class="ai-qs-bar"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></div>
+            <span class="ai-meta">يتجدّد بعد ${q.hoursUntilReset}س ${q.minutesUntilReset}د</span>
+            ${q.autoFallbackEnabled ? '<span class="ai-pill ok">سقوط تلقائي بين النماذج</span>' : ''}
+        </div>`;
+    }
+
     function tabBtn(id, label, n) {
         return `<button class="ai-tab ${AIU.tab === id ? 'act' : ''}" onclick="aiTab('${id}')">${esc(label)} <i>${n}</i></button>`;
     }
     window.aiTab = t => { AIU.tab = t; window.renderAiInvoices(); };
 
-    function row(k, r) {
-        const e = r.extracted || {}, c = r.confidence || {}, t = (e.totals || {});
+    function row(r) {
         const st = AINV.STATUS[r.status] || AINV.STATUS.uploaded;
-        const comp = (r.validation && r.validation.computed) || {};
-        const conf = c.overall == null ? null : c.overall;
-        const th = AINV.Config.get().confidenceThreshold;
-        return `<tr data-search="${esc(((e.supplier && e.supplier.name) || '') + ' ' + (e.number || '') + ' ' + (r.fileName || ''))}">
-            <td><span class="ai-st" style="--c:${st.color}">${esc(st.ar)}</span></td>
-            <td>${esc((e.supplier && e.supplier.name) || r.fileName || '—')}${r.vendorKey ? ' <span class="ai-ok" title="مربوط بمورّد في النظام">🔗</span>' : ''}</td>
-            <td>${esc(e.number || '—')}</td>
-            <td>${esc(e.date || '—')}</td>
-            <td class="n">${comp.taxable != null ? fmt(comp.taxable) : '—'}</td>
-            <td class="n">${comp.vat != null ? fmt(comp.vat) : '—'}</td>
-            <td class="n"><b>${comp.grandTotal != null ? fmt(comp.grandTotal) : '—'}</b></td>
-            <td class="n">${conf == null ? '—' : `<span class="ai-conf ${conf >= th ? 'hi' : conf >= 60 ? 'md' : 'lo'}">${conf}%</span>`}</td>
+        const t = r.totals || {};
+        const sum = AINV.Validate.summary(r.validation_issues);
+        const conf = r.confidence_percent;
+        const th = Math.round(AINV.Config.get().confidenceThreshold * 100);
+        const confClass = conf == null ? '' : (conf >= th ? 'ok' : conf >= th - 15 ? 'wn' : 'er');
+
+        const checks = [];
+        if (r.qr_code && r.qr_code.is_zatca_compliant) {
+            const bad = AINV.toArray(r.qr_code.mismatches).length;
+            checks.push(bad
+                ? `<span class="ai-chk er" title="رمز QR يخالف وجه الفاتورة في ${bad} حقل">QR ✗</span>`
+                : '<span class="ai-chk ok" title="رمز الزكاة والضريبة مطابق لوجه الفاتورة">QR ✓</span>');
+        }
+        if (sum.blocking) checks.push(`<span class="ai-chk er" title="${sum.blocking} مانع اعتماد">⛔ ${sum.blocking}</span>`);
+        else if (sum.warnings) checks.push(`<span class="ai-chk wn" title="${sum.warnings} تحذير">⚠️ ${sum.warnings}</span>`);
+        else if (r.validation_issues) checks.push('<span class="ai-chk ok" title="لا ملاحظات">✓</span>');
+        if (r.duplicate_warning && !r.duplicate_dismissed) checks.push('<span class="ai-chk er" title="تكرار محتمل">👯</span>');
+
+        const search = ((r.supplier && r.supplier.name) || '') + ' ' + (r.invoice_number || '') + ' ' + ((r.file_metadata && r.file_metadata.original_filename) || '');
+
+        return `<tr data-search="${esc(search)}">
+            <td><span class="ai-badge" style="background:${st.color}1a;color:${st.color};border-color:${st.color}55">${st.icon} ${esc(st.ar)}</span></td>
+            <td>${esc((r.supplier && r.supplier.name) || '—')}
+                ${r.vendorKey ? '<span class="ai-lnk" title="مربوطة بمورد في النظام">🔗</span>' : '<span class="ai-new" title="لم تُربط بمورد بعد">جديد</span>'}</td>
+            <td class="mono">${esc(r.invoice_number || '—')}</td>
+            <td><span class="ai-meta">${esc(AINV.DOC_TYPE_AR[r.document_type] || '—')}</span></td>
+            <td class="mono">${esc(r.invoice_date || '—')}</td>
+            <td class="n">${t.taxable_amount == null ? '—' : fmt(t.taxable_amount)}</td>
+            <td class="n">${t.vat_total == null ? '—' : fmt(t.vat_total)}</td>
+            <td class="n"><b>${t.grand_total == null ? '—' : fmt(t.grand_total)}</b></td>
+            <td class="n">${conf == null ? '—' : `<span class="ai-conf ${confClass}">${conf}%</span>`}</td>
+            <td class="ai-checks">${checks.join('') || '—'}</td>
             <td class="ai-acts">
-                <button class="btn b-b" onclick="aiOpen('${esc(k)}')">👁️ مراجعة</button>
-                ${r.status === 'failed' && CAN_RUN() ? `<button class="btn" onclick="aiRetry('${esc(k)}')" title="إعادة المحاولة">🔄</button>` : ''}
-                ${CAN_APPROVE() ? `<button class="btn b-r" onclick="aiDelete('${esc(k)}')" title="حذف">🗑️</button>` : ''}
+                <button class="btn" onclick="aiOpen('${r.id}')" title="فتح للمراجعة">👁️</button>
+                ${CAN('delete') && !AINV.isLocked(r) ? `<button class="btn b-r" onclick="aiDelete('${r.id}')" title="حذف">🗑️</button>` : ''}
             </td>
         </tr>`;
     }
@@ -141,506 +214,642 @@
         });
     };
 
+    // ── السحب والإفلات ───────────────────────────────────────────────────────
     function setupDrop() {
-        const dz = $('aiDrop'); if (!dz) return;
-        ['dragenter', 'dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('over'); }));
-        ['dragleave', 'drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('over'); }));
-        dz.addEventListener('drop', ev => {
-            const f = ev.dataTransfer && ev.dataTransfer.files;
-            if (f && f.length) window.aiHandleFiles(f);
-        });
+        const el = $('aiDrop'); if (!el || el.classList.contains('off')) return;
+        ['dragenter', 'dragover'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); el.classList.add('over'); }));
+        ['dragleave', 'drop'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); el.classList.remove('over'); }));
+        el.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files) window.aiHandleFiles(e.dataTransfer.files); });
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // [UI-QUEUE] المعالجة المتعدّدة
+    // [UI-QUEUE] معالجة متعدّدة مستقلة
     // ───────────────────────────────────────────────────────────────────────────
-    // كل ملف يُعالَج في مساره الخاص؛ فشل واحد لا يوقف الباقي (§29). المعالجة
-    // متسلسلة عمداً لاحترام حدّ المعدّل في الوسيط وعدم استنزاف الرصيد دفعة واحدة.
+    // كل ملف وظيفة قائمة بذاتها: فشل ملف لا يُسقط الدفعة، ولا يُخفي ما نجح.
     // ═══════════════════════════════════════════════════════════════════════════
-    window.aiHandleFiles = async function (fileList) {
-        if (!CAN_RUN()) { toast('🚫 لا تملك صلاحية معالجة الفواتير', 'er'); return; }
+
+    window.aiHandleFiles = function (fileList) {
+        if (!CAN('upload')) { toast('لا تملك صلاحية رفع الفواتير ومعالجتها', 'er'); return; }
         const ready = AINV.Config.ready();
-        if (!ready.ok) { toast('⚠️ ' + ready.reason, 'er', 9000); return; }
+        if (!ready.ok) { toast('⚠️ ' + ready.reason, 'er', 8000); return; }
 
         const files = Array.from(fileList || []);
         if (!files.length) return;
-        if (files.length > 25 && !confirm(`سيُعالَج ${files.length} ملفاً. المتابعة؟`)) return;
 
-        files.forEach(f => {
-            const chk = AINV.validateFile(f);
-            AIU.queue.push({
-                id: 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-                file: f, name: f.name, size: f.size,
-                state: chk.ok ? 'waiting' : 'invalid',
-                msg: chk.ok ? 'في الانتظار' : chk.reason,
-                mediaType: chk.mediaType, pct: 0
-            });
+        files.forEach(file => {
+            const check = AINV.validateFile(file);
+            const job = {
+                jobId: 'job-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                file, name: file.name, size: file.size,
+                mediaType: check.mediaType || file.type,
+                state: check.ok ? 'queued' : 'error',
+                message: check.ok ? 'في الانتظار…' : check.reason,
+                progress: 0, recId: ''
+            };
+            AIU.queue.push(job);
         });
+
         renderQueue();
-        if (!AIU.busy) pump();
+        pump();
     };
 
+    /** يعالج المهام واحدة تلو الأخرى — التوازي يستنزف حدّ الطلبات في الدقيقة. */
     async function pump() {
+        if (AIU.busy) return;
         AIU.busy = true;
-        while (true) {
-            const job = AIU.queue.find(j => j.state === 'waiting');
-            if (!job) break;
-            await processOne(job);
+        try {
+            for (;;) {
+                const job = AIU.queue.find(j => j.state === 'queued');
+                if (!job) break;
+                await processJob(job);
+            }
+        } finally {
+            AIU.busy = false;
+            renderQueue();
+            if (!AIU.current) window.renderAiInvoices();
         }
-        AIU.busy = false;
-        renderQueue();
-        window.renderAiInvoices();
     }
 
-    async function processOne(job) {
-        const cfg = AINV.Config.get();
-        const set = (state, msg, pct) => { job.state = state; job.msg = msg; if (pct != null) job.pct = pct; renderQueue(); };
-        let recId = null;
-        const t0 = Date.now();
+    async function processJob(job) {
+        const started = Date.now();
+        const set = (state, message, progress) => {
+            job.state = state; job.message = message;
+            if (progress != null) job.progress = progress;
+            renderQueue();
+        };
 
+        set('running', 'تحضير الملف…', 0.05);
+        let recId = '';
         try {
-            set('running', 'جارٍ رفع الملف الأصلي…', 0.08);
-            // نحفظ السجل أولاً كي لا يضيع أثر المحاولة حتى لو فشلت لاحقاً
-            let up = { url: '' };
-            try { up = await AINV.Store.uploadFile(job.file); }
-            catch (e) { /* التخزين اختياري — نكمل ونُنبّه لاحقاً */ }
+            const cfg = AINV.Config.get();
+            const [b64, sha] = await Promise.all([AINV.fileToBase64(job.file), AINV.sha256(job.file)]);
 
+            // 1) سجل مبدئي — يظهر الملف في القائمة حتى لو فشل الاستخراج بعدها
+            set('running', 'إنشاء السجل…', 0.12);
             recId = await AINV.Store.create({
-                status: 'processing', fileName: job.name, fileSize: job.size, fileType: job.mediaType,
-                fileUrl: up.url || '', fileProvider: up.provider || '',
+                status: 'processing',
                 uploadedAt: Date.now(),
-                uploadedBy: (window.curU && window.curU.email) || '',
-                uploadedByName: (window.myP && window.myP.name) || '',
-                model: (cfg.provider === 'anthropic' ? cfg.model : cfg.geminiModel), retryCount: 0, edits: []
+                created_at: new Date().toISOString(),
+                created_by: (window.myP && window.myP.name) || (window.curU && window.curU.email) || '',
+                file_metadata: {
+                    original_filename: job.name, file_size_bytes: job.size,
+                    mime_type: job.mediaType, sha256: sha,
+                    upload_timestamp: new Date().toISOString()
+                }
             });
             job.recId = recId;
 
-            set('running', 'جارٍ قراءة الملف…', 0.2);
-            const b64 = await AINV.fileToBase64(job.file);
+            // 2) رفع الملف الأصلي (اختياري — الملف والسجل كيانان منفصلان)
+            set('running', 'حفظ الملف الأصلي…', 0.2);
+            let fileInfo = { url: '' };
+            try { fileInfo = await AINV.Store.uploadFile(job.file); }
+            catch (e) { fileInfo = { url: '', note: 'تعذّر حفظ الملف: ' + (e.message || '') }; }
 
-            // استخراج مع إعادة المحاولة والسقوط إلى OCR المحلي عند نفاد حصّة Gemini
-            const out = await AINV.extractInvoice(job.file, b64, job.mediaType, (m, p) => set('running', m, p));
+            // 3) الاستخراج
+            set('running', 'جارٍ القراءة بالذكاء الاصطناعي…', 0.3);
+            const out = await AINV.extractInvoice(job.file, b64, job.mediaType, (msg, p) => set('running', msg, p));
 
-            set('running', 'جارٍ التحقق الحسابي…', 0.9);
-            const inv = AINV.map(out.data);
-            const validation = AINV.validate(inv);
-            const confidence = AINV.confidence(inv, validation);
-            const vm = cfg.autoMatchVendor ? AINV.matchVendor(inv.supplier) : { key: '', reason: '' };
-            const itemMatches = AINV.matchItems(inv.items);
-            const dups = AINV.findDuplicates(inv, vm.key, recId);
+            // 4) التطبيع + التحقق + المطابقة + التكرار
+            set('running', 'التحقق الحسابي والمطابقة…', 0.9);
+            const doc = AINV.map(out.data, { provider: out.provider, model: out.model, viaOcr: out.viaOcr });
+            const issues = AINV.Validate.run(doc);
+            const conf = AINV.confidence(doc, issues);
 
-            const low = AINV.lowFields(confidence);
-            // قراءة OCR تقديرية دائماً — تُعرَض للمراجعة مهما كانت النتيجة
-            const status = (!validation.ok || low.length || dups.length || out.viaOcr) ? 'needs_review' : 'validated';
+            const vendorMatch = cfg.autoSuggestSupplier ? AINV.Match.supplier(doc.supplier) : { key: '', confidence: 0, match_type: 'NO_MATCH', is_new: true };
+            const itemMatches = cfg.autoSuggestItems ? AINV.Match.allItems(doc).map(m => ({ key: m.key, confidence: m.confidence, match_type: m.match_type, name: m.item && m.item.name })) : [];
 
-            await AINV.Store.update(recId, {
-                status, viaOcr: !!out.viaOcr,
-                extracted: JSON.parse(JSON.stringify(inv)),
-                validation: { errors: validation.errors, warnings: validation.warnings, computed: validation.computed, ok: validation.ok },
-                confidence, lowFields: low,
-                vendorKey: vm.key || '', vendorMatch: { score: vm.score || 0, reason: vm.reason || '', exact: !!vm.exact },
-                itemMatches: itemMatches.map(m => ({ key: m.key, score: m.score, reason: m.reason, exact: !!m.exact })),
-                duplicates: dups.map(d => ({ kind: d.kind, where: d.where, key: d.key, why: d.why })),
-                model: out.model, usage: out.usage || null,
-                estCost: AINV.estimateCost(out.model, out.usage),
-                processingMs: Date.now() - t0,
-                extractedAt: Date.now()
+            const rec = Object.assign({}, doc, {
+                id: recId,
+                file_metadata: Object.assign({
+                    original_filename: job.name, file_size_bytes: job.size,
+                    mime_type: job.mediaType, sha256: sha,
+                    upload_timestamp: new Date().toISOString(),
+                    page_count: out.pageCount || 1
+                }, fileInfo.url ? { url: fileInfo.url, storage_provider: fileInfo.provider, storage_id: fileInfo.providerId } : { storage_note: fileInfo.note || '' }),
+                validation_issues: issues,
+                confidence_percent: conf.percent,
+                confidence_overall: conf.overall,
+                low_fields: conf.lowFields,
+                vendorKey: vendorMatch.key || '',
+                vendorMatch: { confidence: vendorMatch.confidence, match_type: vendorMatch.match_type, is_new: vendorMatch.is_new },
+                itemMatches,
+                processing_job: {
+                    job_id: job.jobId, model_used: out.model || '', ai_provider: out.provider || 'gemini',
+                    started_at: new Date(started).toISOString(), completed_at: new Date().toISOString(),
+                    duration_ms: Date.now() - started,
+                    tokens_used: out.usage || {}, estimated_cost_usd: AINV.estimateCost(out.model, out.usage),
+                    via_ocr: !!out.viaOcr, retry_count: 0
+                }
             });
+
+            const dup = AINV.Dup.detect(rec, window.aiInvoices, recId);
+            if (dup) rec.duplicate_warning = dup;
+            const dupPInv = AINV.Dup.againstPurchases(rec);
+            if (dupPInv) rec.duplicate_purchase = dupPInv;
+
+            // 5) الحالة: لا تُعتبر «مستخرَجة» إلا إن خلت من الموانع وبلغت حدّ الثقة
+            const blocking = AINV.Validate.hasBlocking(issues);
+            rec.status = (blocking || conf.overall < cfg.confidenceThreshold || dup || out.viaOcr) ? 'needs_review' : 'extracted';
+            rec.uploadedAt = Date.now();
+
+            rec.audit_trail = [AINV.Audit.event({
+                action: 'AI_EXTRACTION_COMPLETED', action_ar: 'اكتمل الاستخراج بالذكاء الاصطناعي',
+                source: out.viaOcr ? 'ocr_extraction' : (out.provider === 'anthropic' ? 'claude_extraction' : 'gemini_extraction'),
+                notes: `النموذج: ${out.model} · الثقة: ${conf.percent}% · الملاحظات: ${issues.length}`
+            })];
+
+            delete rec.id;
+            await AINV.Store.update(recId, rec);
 
             await AINV.Store.log(recId, {
-                event: 'extracted', model: out.model, ms: Date.now() - t0,
-                inputTokens: (out.usage && out.usage.input_tokens) || 0,
-                outputTokens: (out.usage && out.usage.output_tokens) || 0,
-                estCost: AINV.estimateCost(out.model, out.usage),
-                errors: validation.errors.length, warnings: validation.warnings.length, confidence: confidence.overall
+                event: 'extract', model: out.model, provider: out.provider,
+                durationMs: Date.now() - started, tokensIn: (out.usage && out.usage.input_tokens) || 0,
+                tokensOut: (out.usage && out.usage.output_tokens) || 0,
+                cost: AINV.estimateCost(out.model, out.usage), viaOcr: !!out.viaOcr,
+                confidence: conf.percent, issues: issues.length, status: rec.status
             });
-            await AINV.Audit.log('استخراج فاتورة', `قُرئت «${job.name}» — ${inv.supplier.name || 'مورّد غير محدّد'} · ${inv.number || 'بلا رقم'} · ${validation.computed.grandTotal} ${inv.currency}`, { aiInvoiceId: recId });
 
-            set('done', out.viaOcr
-                ? '🔤 قُرئت بالـOCR المجاني — راجِع كل الحقول وأضِف البنود قبل الاعتماد'
-                : (validation.ok && !low.length && !dups.length ? '✅ جاهزة للمراجعة' : `⚠️ تحتاج مراجعة (${validation.errors.length} خطأ · ${low.length} حقل منخفض الثقة${dups.length ? ` · ${dups.length} تكرار محتمل` : ''})`), 1);
+            AINV.Audit.log('استخراج فاتورة', `${job.name} — ${doc.invoice_number || 'بلا رقم'} — ثقة ${conf.percent}%`, { recordId: recId });
+
+            set('done', `تمّت القراءة — ثقة ${conf.percent}%${blocking ? ' · بها مانع اعتماد' : ''}`, 1);
+            job.recId = recId;
+
         } catch (e) {
-            const msg = (e && e.message) || 'خطأ غير معروف';
-            set('failed', msg, 1);
+            const msg = (e && e.message) || 'فشل غير معروف';
+            set('error', msg, 1);
             if (recId) {
-                await AINV.Store.update(recId, { status: 'failed', error: msg, errorCode: e.code || '', processingMs: Date.now() - t0 }).catch(() => { });
-                await AINV.Store.log(recId, { event: 'failed', error: msg, code: e.code || '', ms: Date.now() - t0 }).catch(() => { });
+                try {
+                    await AINV.Store.update(recId, { status: 'failed', failure_reason: msg });
+                    await AINV.Store.log(recId, { event: 'extract_failed', error: msg, code: e && e.code });
+                } catch (e2) { /* السجل ثانوي */ }
             }
-            await AINV.Audit.log('فشل استخراج فاتورة', `«${job.name}» — ${msg}`, { aiInvoiceId: recId || null }).catch(() => { });
+            console.warn('AI invoice job failed:', e);
         }
     }
 
     function renderQueue() {
-        const host = $('aiQueue'); if (!host) return;
-        const active = AIU.queue.filter(j => j.state !== 'cleared');
-        if (!active.length) { host.innerHTML = ''; return; }
-        const running = active.filter(j => j.state === 'running' || j.state === 'waiting').length;
-        host.innerHTML = `<div class="card ai-queue">
-            <div class="tlb"><div class="c-tl" style="margin:0;border:none;padding:0">⏳ المعالجة <span class="badge">${active.length}</span></div>
-            <span style="flex:1"></span>
-            ${running === 0 ? '<button class="btn" onclick="aiClearQueue()">مسح المكتمل</button>' : `<span class="ai-meta">${running} متبقٍّ…</span>`}</div>
-            ${active.map(j => `<div class="ai-job ${j.state}">
-                <div class="aj-name">${esc(j.name)}</div>
-                <div class="aj-bar"><i style="width:${Math.round((j.pct || 0) * 100)}%"></i></div>
-                <div class="aj-msg">${esc(j.msg)}</div>
-                ${j.recId && j.state === 'done' ? `<button class="btn b-b" onclick="aiOpen('${esc(j.recId)}')">مراجعة</button>` : ''}
-            </div>`).join('')}
+        const el = $('aiQueue'); if (!el) return;
+        const active = AIU.queue.filter(j => j.state !== 'dismissed');
+        if (!active.length) { el.innerHTML = ''; return; }
+
+        el.innerHTML = `<div class="card ai-queue">
+            <div class="tlb">
+                <div class="c-tl" style="margin:0;border:none;padding:0">⚙️ قائمة المعالجة <span class="badge">${active.length}</span></div>
+                <span style="flex:1"></span>
+                ${active.every(j => j.state === 'done' || j.state === 'error') ? '<button class="btn" onclick="aiClearQueue()">🧹 إخفاء المنتهية</button>' : ''}
+            </div>
+            ${active.map(jobRow).join('')}
         </div>`;
     }
+
+    function jobRow(j) {
+        const ICON = { queued: '⏸️', running: '⏳', done: '✅', error: '⚠️' };
+        return `<div class="ai-job ${j.state}">
+            <div class="ai-job-h">
+                <span>${ICON[j.state] || '•'}</span>
+                <b>${esc(j.name)}</b>
+                <span class="ai-meta">${(j.size / 1048576).toFixed(2)} م.ب</span>
+                <span style="flex:1"></span>
+                <span class="ai-meta">${esc(j.message)}</span>
+                ${j.state === 'done' && j.recId ? `<button class="btn b-g" onclick="aiOpen('${j.recId}')">مراجعة</button>` : ''}
+            </div>
+            ${j.state === 'running' ? `<div class="ai-job-bar"><i style="width:${Math.round((j.progress || 0) * 100)}%"></i></div>` : ''}
+        </div>`;
+    }
+
     window.aiClearQueue = function () {
-        AIU.queue = AIU.queue.filter(j => j.state === 'running' || j.state === 'waiting');
+        AIU.queue = AIU.queue.filter(j => j.state === 'queued' || j.state === 'running');
         renderQueue();
     };
 
-    window.aiRetry = async function (id) {
-        const r = (window.aiInvoices || {})[id];
-        if (!r) return;
-        toast('ℹ️ أعد رفع الملف — لا يُحتفظ بالملف الأصلي في المتصفح بعد المعالجة', 'ok', 7000);
-        await AINV.Store.update(id, { retryCount: (r.retryCount || 0) + 1 });
-    };
-
-    window.aiDelete = async function (id) {
-        const r = (window.aiInvoices || {})[id] || {};
-        const e = r.extracted || {};
-        if (r.status === 'posted') { toast('🚫 لا يمكن حذف فاتورة مُرحَّلة — ألغِ القيد أولاً', 'er', 7000); return; }
-        if (!confirm(`حذف سجل الفاتورة «${e.number || r.fileName || ''}»؟\n\nملاحظة: الملف الأصلي على خادم التخزين لا يُحذف بهذا الإجراء.`)) return;
-        try {
-            await AINV.Store.remove(id);
-            await AINV.Audit.log('حذف سجل استخراج', `حُذف سجل «${e.number || r.fileName || ''}» — الملف الأصلي بقي على التخزين`, { aiInvoiceId: id });
-            toast('✅ حُذف السجل', 'ok');
-            window.renderAiInvoices();
-        } catch (err) { toast('تعذّر الحذف: ' + err.message, 'er', 7000); }
-    };
-
     // ═══════════════════════════════════════════════════════════════════════════
-    // [UI-REVIEW] شاشة المراجعة
+    // [UI-REVIEW] شاشة مراجعة الفاتورة المستخرجة
     // ═══════════════════════════════════════════════════════════════════════════
+
     window.aiOpen = function (id) {
-        const r = (window.aiInvoices || {})[id];
-        if (!r) { toast('السجل غير موجود', 'er'); return; }
-        AIU.current = JSON.parse(JSON.stringify(Object.assign({ id }, r)));
-        AIU.current.id = id;
-        if (!AIU.current.extracted) { toast('لا بيانات مستخرَجة لهذا السجل', 'er'); AIU.current = null; return; }
+        const rec = AINV.Store.normalize(id, (window.aiInvoices || {})[id]);
+        if (!rec) { toast('لم يُعثر على السجل', 'er'); return; }
+        AIU.current = rec;
+        AIU.dirty = false;
         renderReview();
+        const pg = $('pg-aiinvoices'); if (pg) pg.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
-    window.aiClose = function () {
-        if (AIU.dirty && !confirm('هناك تعديلات غير محفوظة. الخروج؟')) return;
+
+    window.aiBack = function () {
+        if (AIU.dirty && !confirm('لديك تعديلات غير محفوظة — هل تريد الخروج وفقدانها؟')) return;
         AIU.current = null; AIU.dirty = false;
         window.renderAiInvoices();
     };
 
-    /** يعيد الحساب والتحقق بعد أي تعديل — الحقيقة تُشتقّ دائماً لا تُخزَّن. */
-    function revalidate() {
-        const c = AIU.current;
-        c.validation = AINV.validate(c.extracted);
-        c.confidence = AINV.confidence(c.extracted, c.validation);
-        c.lowFields = AINV.lowFields(c.confidence);
-        c.duplicates = AINV.findDuplicates(c.extracted, c.vendorKey, c.id)
-            .map(d => ({ kind: d.kind, where: d.where, key: d.key, why: d.why }));
-    }
-
     function renderReview() {
-        const pg = $('pg-aiinvoices'); const c = AIU.current;
-        revalidate();
-        const inv = c.extracted, v = c.validation, comp = v.computed, conf = c.confidence;
-        const th = AINV.Config.get().confidenceThreshold;
-        const st = AINV.STATUS[c.status] || AINV.STATUS.uploaded;
-        const locked = c.status === 'posted' || c.status === 'approved';
+        const pg = $('pg-aiinvoices'); if (!pg) return;
+        const r = AIU.current; if (!r) { window.renderAiInvoices(); return; }
+
+        const st = AINV.STATUS[r.status] || AINV.STATUS.uploaded;
+        const locked = AINV.isLocked(r);
+        const sum = AINV.Validate.summary(r.validation_issues);
+        const comp = AINV.recompute(r).computed;
+        const fileUrl = (r.file_metadata && r.file_metadata.url) || '';
 
         pg.innerHTML = `
-        <div class="ai-review">
+        <div id="aiRoot" class="ai-review">
             <div class="ai-rv-bar">
-                <button class="btn" onclick="aiClose()">↩︎ رجوع</button>
-                <div class="ai-rv-title">مراجعة الفاتورة المستخرجة</div>
-                <span class="ai-st" style="--c:${st.color}">${esc(st.ar)}</span>
-                <span class="ai-conf ${conf.overall >= th ? 'hi' : conf.overall >= 60 ? 'md' : 'lo'}" title="الثقة الكلية">${conf.overall}%</span>
+                <button class="btn" onclick="aiBack()">→ رجوع للقائمة</button>
+                <span class="ai-badge" style="background:${st.color}1a;color:${st.color};border-color:${st.color}55">${st.icon} ${esc(st.ar)}</span>
+                <b class="ai-rv-title">${esc(r.invoice_number || 'بلا رقم')} — ${esc((r.supplier && r.supplier.name) || 'مورد غير محدّد')}</b>
+                <span class="ai-meta">${esc(AINV.DOC_TYPE_AR[r.document_type] || '')}</span>
                 <span style="flex:1"></span>
-                <button class="btn" onclick="aiExportExcel()">📊 Excel</button>
-                <button class="btn" onclick="aiExportPdf()">📄 PDF</button>
-                ${locked ? '' : `<button class="btn b-b" onclick="aiSaveDraft()">💾 حفظ مسوّدة</button>`}
-                ${locked || !CAN_APPROVE() ? '' : `<button class="btn b-g" onclick="aiApprove()">✅ اعتماد</button>`}
-                ${locked || !CAN_APPROVE() ? '' : `<button class="btn b-r" onclick="aiReject()">✖️ رفض</button>`}
-                ${c.status === 'approved' && !c.linkedPInvKey ? `<button class="btn b-g" onclick="aiConvert()">🔄 تحويل إلى فاتورة مشتريات</button>` : ''}
-                ${c.linkedPInvKey ? `<button class="btn b-b" onclick="aiGoToPInv()">📋 فتح فاتورة المشتريات للترحيل</button>` : ''}
+                ${r.confidence_percent != null ? `<span class="ai-conf ${confClass(r.confidence_percent)}" title="ثقة النظام (لا ثقة النموذج وحدها)">ثقة ${r.confidence_percent}%</span>` : ''}
+                <button class="btn" onclick="aiAuditTrail()" title="من غيّر ماذا ومتى">🕵️ أثر التدقيق</button>
+                ${fileUrl ? `<button class="btn" onclick="aiToggleDoc()">${AIU.docPane ? '🗕 إخفاء المستند' : '🗖 عرض المستند'}</button>` : ''}
             </div>
-            ${c.linkedPInvKey ? `<div class="ai-banner ok">✅ حُوِّلت إلى فاتورة مشتريات <b>مسوّدة</b>.
-                الترحيل المحاسبي لا يتم من هنا — افتحها من صفحة فواتير المشتريات وراجعها ثم رحّلها بموافقتك.</div>` : ''}
 
-            ${banners(c, v, th)}
+            ${r.duplicate_warning && !r.duplicate_dismissed ? dupBanner(r) : ''}
+            ${r.duplicate_purchase ? `<div class="ai-banner er">
+                <b>⛔ تكرار مقابل فواتير المشتريات</b><div>${esc(r.duplicate_purchase.message_ar)}</div>
+                <button class="btn" onclick="nav('purchaseinvoices')">فتح فواتير المشتريات</button>
+            </div>` : ''}
+            ${r.status === 'failed' ? `<div class="ai-banner er"><b>⚠️ فشل الاستخراج</b><div>${esc(r.failure_reason || '')}</div>
+                ${CAN('upload') ? '<button class="btn b-b" onclick="aiRetry()">↻ إعادة المحاولة</button>' : ''}</div>` : ''}
+            ${(r.processing_job && r.processing_job.via_ocr) ? `<div class="ai-banner wn">
+                <b>👓 قُرئت بالـOCR المحلي المجاني</b>
+                <div>نفدت حصّة النماذج فقُرئ المستند محلياً — كل الحقول تقديرية ويلزم مراجعتها بالكامل قبل الاعتماد.</div></div>` : ''}
+            ${AINV.toArray(r.model_warnings).length ? `<div class="ai-banner wn"><b>ملاحظات المحرك على المستند</b>
+                <ul>${AINV.toArray(r.model_warnings).map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
 
-            <div class="ai-rv-grid">
-                <div class="ai-rv-doc">
-                    <div class="ai-sec">📎 المستند الأصلي</div>
-                    ${c.fileUrl
-                ? (String(c.fileType || '').includes('pdf')
-                    ? `<iframe class="ai-doc-frame" src="${esc(c.fileUrl)}#view=FitH" title="المستند"></iframe>`
-                    : `<div class="ai-doc-img"><img src="${esc(c.fileUrl)}" id="aiDocImg" alt="المستند" style="transform:rotate(0deg) scale(1)"></div>`)
-                : '<div class="ai-nofile">لم يُحفظ الملف الأصلي — التخزين غير مهيّأ في الإعدادات</div>'}
-                    <div class="ai-doc-tools">
-                        ${c.fileUrl ? `<button class="btn" onclick="aiDocZoom(0.2)">＋</button>
-                        <button class="btn" onclick="aiDocZoom(-0.2)">－</button>
-                        <button class="btn" onclick="aiDocRotate()">⟳</button>
-                        <a class="btn b-b" href="${esc(c.fileUrl)}" target="_blank" rel="noopener">⤢ فتح</a>
-                        <a class="btn" href="${esc(c.fileUrl)}" download>⬇️</a>` : ''}
-                    </div>
-                    <div class="ai-meta">${esc(c.fileName || '')} · ${c.fileSize ? (c.fileSize / 1024).toFixed(0) + ' ك.ب' : ''}
-                        · رُفعت ${c.uploadedAt ? new Date(c.uploadedAt).toLocaleString('ar-EG') : ''} بواسطة ${esc(c.uploadedByName || c.uploadedBy || '')}</div>
+            <div class="ai-rv-grid ${AIU.docPane && fileUrl ? 'with-doc' : ''}">
+                <div class="ai-rv-main">
+                    ${issuesPanel(r, sum)}
+                    ${qrPanel(r)}
+                    ${sectionDocument(r, locked)}
+                    ${sectionSupplier(r, locked)}
+                    ${sectionCustomer(r, locked)}
+                    ${sectionItems(r, locked, comp)}
+                    ${sectionTotals(r, locked, comp)}
+                    ${sectionPosting(r, locked)}
                 </div>
+                ${AIU.docPane && fileUrl ? `<div class="ai-rv-doc">${docViewer(r)}</div>` : ''}
+            </div>
 
-                <div class="ai-rv-data">
-                    ${vendorSection(c, conf, th)}
-                    ${invoiceSection(inv, conf, th, locked)}
-                    ${itemsSection(c, comp, locked)}
-                    ${totalsSection(inv, comp)}
-                    ${auditSection(c)}
+            ${actionBar(r, locked, sum)}
+        </div>`;
+
+        if (typeof window.ssEnhance === 'function') {
+            pg.querySelectorAll('select[data-ss="1"]').forEach(s => { try { window.ssEnhance(s); } catch (e) { /* اختياري */ } });
+        }
+    }
+
+    function confClass(p) {
+        const th = Math.round(AINV.Config.get().confidenceThreshold * 100);
+        return p >= th ? 'ok' : p >= th - 15 ? 'wn' : 'er';
+    }
+
+    function dupBanner(r) {
+        const d = r.duplicate_warning;
+        return `<div class="ai-banner er">
+            <b>👯 ${d.is_exact_file ? 'نفس الملف مرفوع من قبل' : 'احتمال تكرار'} — تطابق ${Math.round(d.similarity_score * 100)}%</b>
+            <div>${esc(d.message_ar)}</div>
+            <div class="ai-dup-acts">
+                <button class="btn" onclick="aiOpen('${d.existing_invoice_id}')">فتح الفاتورة السابقة</button>
+                ${CAN('override') ? `<button class="btn b-b" onclick="aiDismissDup()">ليست تكراراً — تجاهل</button>` : ''}
+            </div>
+        </div>`;
+    }
+
+    // ── لوحة المشاكل ─────────────────────────────────────────────────────────
+    function issuesPanel(r, sum) {
+        const list = AINV.toArray(r.validation_issues);
+        if (!list.length) return `<div class="ai-sec ok-sec"><div class="ai-sec-h">✅ التحقق</div>
+            <div class="ai-sec-b"><div class="ai-ok">لم يرصد النظام أي ملاحظة حسابية أو نظامية على هذه الفاتورة.</div></div></div>`;
+
+        const SEV = { ERROR: { ic: '⛔', cls: 'er', ar: 'خطأ' }, WARNING: { ic: '⚠️', cls: 'wn', ar: 'تحذير' }, INFO: { ic: 'ℹ️', cls: 'in', ar: 'ملاحظة' } };
+        return `<div class="ai-sec">
+            <div class="ai-sec-h">🔍 نتائج التحقق
+                <span class="ai-meta">${sum.errors} خطأ · ${sum.warnings} تحذير · ${sum.info} ملاحظة${sum.overridden ? ` · ${sum.overridden} متجاوَز` : ''}</span>
+                ${sum.blocking ? `<span class="ai-pill er">${sum.blocking} مانع اعتماد</span>` : '<span class="ai-pill ok">لا مانع للاعتماد</span>'}
+            </div>
+            <div class="ai-sec-b">
+                <div class="ai-issues">
+                ${list.map((i, idx) => {
+            const s = SEV[i.severity] || SEV.INFO;
+            return `<div class="ai-issue ${s.cls} ${i.resolved ? 'resolved' : ''}">
+                        <div class="ai-issue-h">
+                            <span class="ai-issue-ic">${s.ic}</span>
+                            <b>${esc(i.message_ar || i.message)}</b>
+                            ${i.blocking && !i.resolved ? '<span class="ai-pill er">يمنع الاعتماد</span>' : ''}
+                            ${i.resolved ? '<span class="ai-pill ok">متجاوَز</span>' : ''}
+                        </div>
+                        <div class="ai-issue-m">
+                            <code>${esc(i.code)}</code>
+                            ${i.actual_value != null ? `<span>القيمة: <b>${esc(String(i.actual_value))}</b></span>` : ''}
+                            ${i.expected_value != null ? `<span>المتوقّع: <b>${esc(String(i.expected_value))}</b></span>` : ''}
+                            ${i.resolved && i.override_reason ? `<span class="ai-ovr">تجاوَزه ${esc(i.override_by || '')}: ${esc(i.override_reason)}</span>` : ''}
+                        </div>
+                        ${i.blocking && !i.resolved && CAN('override') ? `<button class="btn b-w" onclick="aiOverride(${idx})">تجاوُز مسبَّب…</button>` : ''}
+                    </div>`;
+        }).join('')}
                 </div>
             </div>
         </div>`;
     }
 
-    function banners(c, v, th) {
-        let h = '';
-        if (v.errors.length) {
-            h += `<div class="ai-banner err">
-                <b>⛔ ${v.errors.length} خطأ في التحقق — لا يمكن الاعتماد قبل معالجتها</b>
-                <ul>${v.errors.slice(0, 8).map(e => `<li>${e.line ? `بند ${e.line}: ` : ''}${esc(e.msg)}</li>`).join('')}</ul>
-                ${v.errors.length > 8 ? `<div class="ai-meta">…و${v.errors.length - 8} غيرها</div>` : ''}
-            </div>`;
-        }
-        if ((c.duplicates || []).length) {
-            h += `<div class="ai-banner warn">
-                <b>♻️ قد تكون هذه الفاتورة مكرّرة</b>
-                <ul>${c.duplicates.map(d => `<li>${esc(d.where)}: ${esc(d.why)} <button class="ai-lnk" onclick="aiShowDup('${esc(d.kind)}','${esc(d.key)}')">عرض السابقة</button></li>`).join('')}</ul>
-            </div>`;
-        }
-        const low = c.lowFields || [];
-        if (low.length) {
-            const names = { invoice_number: 'رقم الفاتورة', invoice_date: 'التاريخ', supplier_name: 'اسم المورّد', supplier_vat_number: 'الرقم الضريبي', items: 'الأصناف', totals: 'الإجماليات' };
-            h += `<div class="ai-banner info">⚠️ حقول استُخرجت بثقة أقل من ${th}% — راجعها بعناية: <b>${low.map(k => esc(names[k] || k)).join('، ')}</b></div>`;
-        }
-        if (v.warnings.length) {
-            h += `<details class="ai-banner note"><summary>ℹ️ ${v.warnings.length} ملاحظة</summary>
-                <ul>${v.warnings.map(w => `<li>${esc(w.msg)}</li>`).join('')}</ul></details>`;
-        }
-        return h;
+    // ── لوحة رمز الزكاة والضريبة ──────────────────────────────────────────────
+    function qrPanel(r) {
+        const q = r.qr_code;
+        if (!q) return `<div class="ai-sec"><div class="ai-sec-h">🇸🇦 رمز الزكاة والضريبة (QR)</div>
+            <div class="ai-sec-b"><div class="ai-note">لم يُرصد رمز استجابة سريعة في هذا المستند — لا مقارنة مستقلة ممكنة، اعتمد على المراجعة البصرية.</div></div></div>`;
+
+        if (!q.is_zatca_compliant) return `<div class="ai-sec"><div class="ai-sec-h">🇸🇦 رمز الاستجابة السريعة</div>
+            <div class="ai-sec-b"><div class="ai-note">رُصد رمز لكنه ليس بصيغة TLV المعتمدة من الهيئة (قد يكون رابطاً أو نصّاً حرّاً) — لا يصلح للمطابقة.</div></div></div>`;
+
+        const mis = AINV.toArray(q.mismatches);
+        const rowQ = (label, qv, dv, bad) => `<tr class="${bad ? 'bad' : ''}">
+            <td>${esc(label)}</td><td class="mono">${esc(qv == null ? '—' : String(qv))}</td>
+            <td class="mono">${esc(dv == null ? '—' : String(dv))}</td>
+            <td>${bad ? '<span class="ai-pill er">مختلف</span>' : '<span class="ai-pill ok">مطابق</span>'}</td></tr>`;
+        const has = f => mis.some(m => m.field === f);
+
+        return `<div class="ai-sec ${mis.length ? 'er-sec' : 'ok-sec'}">
+            <div class="ai-sec-h">🇸🇦 رمز الزكاة والضريبة (ZATCA QR)
+                ${mis.length ? `<span class="ai-pill er">${mis.length} اختلاف عن وجه الفاتورة</span>` : '<span class="ai-pill ok">مطابق تماماً</span>'}
+                ${q.has_phase2_signature ? '<span class="ai-pill ok">موقّع — المرحلة الثانية</span>' : '<span class="ai-pill">المرحلة الأولى</span>'}
+            </div>
+            <div class="ai-sec-b">
+                <p class="ai-note">الرمز يُطبع من نظام المورد المحاسبي. اختلافه عمّا هو مطبوع على وجه الفاتورة إشارة جدّية إلى تعديل أو تزوير — وهو ما لا يكشفه أي استخراج نصّي.</p>
+                <div class="tw"><table class="ai-tbl sm">
+                    <thead><tr><th>الحقل</th><th>في الرمز</th><th>على وجه الفاتورة</th><th>النتيجة</th></tr></thead>
+                    <tbody>
+                        ${rowQ('اسم البائع', q.seller_name, (r.supplier && r.supplier.name), has('seller_name'))}
+                        ${rowQ('الرقم الضريبي', q.vat_registration_number, (r.supplier && r.supplier.vat_number), has('vat_number'))}
+                        ${rowQ('الإجمالي شامل الضريبة', q.invoice_total_with_vat, (r.totals && r.totals.grand_total), has('grand_total'))}
+                        ${rowQ('مبلغ الضريبة', q.vat_total, (r.totals && r.totals.vat_total), has('vat_total'))}
+                        ${q.invoice_timestamp ? `<tr><td>ختم الوقت</td><td class="mono" colspan="3">${esc(q.invoice_timestamp)}</td></tr>` : ''}
+                    </tbody>
+                </table></div>
+            </div>
+        </div>`;
     }
 
-    function chip(conf, key, th) {
-        if (conf[key] == null) return '';
-        const v = conf[key];
-        return `<span class="ai-badge ${v >= th ? 'hi' : v >= 60 ? 'md' : 'lo'}" title="استخرجه الذكاء الاصطناعي بثقة ${v}% — انقر للتفاصيل" onclick="aiFieldInfo('${key}')">AI ${v}%</span>`;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [UI-PROV] شارة مصدر الحقل
+    // ───────────────────────────────────────────────────────────────────────────
+    // كل قيمة تحمل من أين جاءت وبأي ثقة، وإن عدّلها المستخدم تُعرَض قيمة الذكاء
+    // الاصطناعي الأصلية إلى جوارها. بلا هذا الأثر تصبح المراجعة توقيعاً على
+    // المجهول.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function provBadge(r, key) {
+        const p = (r.provenance || {})[key];
+        if (!p) return '';
+        const SRC = { qr_code: { ic: '🇸🇦', cls: 'qr' }, user_input: { ic: '✍️', cls: 'usr' }, ocr_extraction: { ic: '👓', cls: 'ocr' }, calculated_value: { ic: '🧮', cls: 'calc' } };
+        const s = SRC[p.source] || { ic: '🤖', cls: 'ai' };
+        const pct = Math.round(AINV.clamp01(p.confidence) * 100);
+        const title = `${AINV.SOURCE_AR[p.source] || p.source} — ثقة ${pct}%`
+            + (p.evidence && p.evidence.snippet ? `\nكما ظهر: «${p.evidence.snippet}»` : '')
+            + (p.user_modified && p.original_ai_value != null ? `\nقيمة الذكاء الاصطناعي الأصلية: ${p.original_ai_value}` : '');
+        return `<span class="ai-prov ${s.cls} ${pct < 80 && !p.user_modified ? 'low' : ''}" title="${esc(title)}">${s.ic} ${pct}%</span>`
+            + (p.user_modified ? `<span class="ai-prov-edited" title="${esc('القيمة الأصلية من الذكاء الاصطناعي: ' + (p.original_ai_value == null ? '—' : p.original_ai_value))}">عُدِّل</span>` : '');
     }
 
-    function fld(label, path, value, conf, key, th, locked, type) {
-        return `<label class="ai-f">
-            <span class="ai-f-l">${esc(label)} ${conf && key ? chip(conf, key, th) : ''}</span>
-            <input type="${type || 'text'}" value="${esc(value == null ? '' : value)}" ${locked ? 'disabled' : ''}
-                   data-path="${esc(path)}" onchange="aiEdit(this)">
-        </label>`;
+    /** حقل نصّي محرَّر مع شارة مصدره. */
+    function fld(r, label, path, provKey, locked, type) {
+        const v = getPath(r, path);
+        return `<div class="ai-f">
+            <label class="ai-f-l">${esc(label)} ${provKey ? provBadge(r, provKey) : ''}</label>
+            <input class="ai-inp" type="${type || 'text'}" value="${esc(v == null ? '' : v)}"
+                ${locked ? 'disabled' : ''} data-path="${esc(path)}" onchange="aiEditField(this)">
+        </div>`;
     }
 
-    function vendorSection(c, conf, th) {
-        const s = c.extracted.supplier;
-        const vm = c.vendorMatch || {};
-        const vendors = Object.entries(window.vendors || {});
-        return `<div class="ai-sec">🏭 بيانات المورّد</div>
-        <div class="ai-match ${c.vendorKey ? 'ok' : 'new'}">
-            ${c.vendorKey
-                ? `✅ <b>تم العثور على مورّد مطابق</b> — ${esc((window.vendors[c.vendorKey] || {}).nameAr || '')} <span class="ai-meta">(${esc(vm.reason || '')})</span>`
-                : `🆕 <b>مورّد جديد</b> — ${esc(vm.reason || 'لم يُعثر على مطابق')}`}
-            <div class="ai-row">
-                <select id="aiVendorSel" onchange="aiSetVendor(this.value)" data-ss="1">
-                    <option value="">— بلا ربط —</option>
-                    ${vendors.map(([k, v]) => `<option value="${esc(k)}" ${k === c.vendorKey ? 'selected' : ''}>${esc(v.nameAr || v.nameEn || k)}</option>`).join('')}
+    function getPath(o, path) {
+        return path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+    }
+
+    // ── القسم 1: بيانات المستند ──────────────────────────────────────────────
+    function sectionDocument(r, locked) {
+        const types = Object.keys(AINV.DOC_TYPE_AR);
+        return `<div class="ai-sec"><div class="ai-sec-h">📄 بيانات المستند</div>
+        <div class="ai-sec-b"><div class="ai-grid2">
+            <div class="ai-f">
+                <label class="ai-f-l">نوع المستند</label>
+                <select class="ai-inp" data-ss="1" ${locked ? 'disabled' : ''} data-path="document_type" onchange="aiEditField(this)">
+                    ${types.map(t => `<option value="${t}" ${r.document_type === t ? 'selected' : ''}>${esc(AINV.DOC_TYPE_AR[t])}</option>`).join('')}
                 </select>
-                ${c.vendorKey ? '' : '<button class="btn b-g" onclick="aiCreateVendor()">➕ إنشاء مورّد جديد</button>'}
             </div>
-            <div class="ai-meta">لا يُنشأ مورّد تلقائياً — القرار لك.</div>
+            ${fld(r, 'رقم الفاتورة', 'invoice_number', 'invoice_number', locked)}
+            ${fld(r, 'تاريخ الفاتورة', 'invoice_date', 'invoice_date', locked, 'date')}
+            ${fld(r, 'تاريخ الاستحقاق', 'due_date', 'due_date', locked, 'date')}
+            ${fld(r, 'رقم أمر الشراء', 'purchase_order_number', null, locked)}
+            ${fld(r, 'الرقم المرجعي', 'reference_number', null, locked)}
+            ${fld(r, 'العملة', 'currency', 'currency', locked)}
+            ${r.hijri_date ? `<div class="ai-f"><label class="ai-f-l">التاريخ الهجري</label><input class="ai-inp" value="${esc(r.hijri_date)}" disabled></div>` : ''}
         </div>
-        <div class="ai-grid2">
-            ${fld('اسم المورّد', 'supplier.name', s.name, conf, 'supplier_name', th, false)}
-            ${fld('الرقم الضريبي', 'supplier.vatNumber', s.vatNumber, conf, 'supplier_vat_number', th, false)}
-            ${fld('السجل التجاري', 'supplier.crNumber', s.crNumber, null, null, th, false)}
-            ${fld('الهاتف', 'supplier.phone', s.phone, null, null, th, false)}
-            ${fld('العنوان', 'supplier.address', s.address, null, null, th, false)}
-            ${fld('الآيبان', 'supplier.iban', s.iban, null, null, th, false)}
-        </div>`;
+        ${r.date_ambiguous && r.date_alt ? `<div class="ai-note wn">📅 التاريخ غامض: قد يكون <b>${esc(r.invoice_date)}</b> أو <b>${esc(r.date_alt)}</b> — يحدّد الفترة الضريبية، فأكّده من المستند.
+            ${locked ? '' : `<button class="btn" onclick="aiUseAltDate()">استخدم ${esc(r.date_alt)}</button>`}</div>` : ''}
+        </div></div>`;
     }
 
-    function invoiceSection(inv, conf, th, locked) {
-        const types = { tax_invoice: 'فاتورة ضريبية', simplified_tax_invoice: 'فاتورة ضريبية مبسّطة', credit_note: 'إشعار دائن', debit_note: 'إشعار مدين', proforma: 'فاتورة مبدئية', quotation: 'عرض سعر', delivery_note: 'سند تسليم', other: 'أخرى' };
-        return `<div class="ai-sec">🧾 بيانات الفاتورة</div>
-        <div class="ai-grid2">
-            ${fld('رقم الفاتورة', 'number', inv.number, conf, 'invoice_number', th, locked)}
-            ${fld('تاريخ الفاتورة', 'date', inv.date, conf, 'invoice_date', th, locked, 'date')}
-            ${fld('تاريخ الاستحقاق', 'dueDate', inv.dueDate, null, null, th, locked, 'date')}
-            <label class="ai-f"><span class="ai-f-l">نوع الفاتورة</span>
-                <select data-path="docType" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}>
-                    ${Object.entries(types).map(([k, l]) => `<option value="${k}" ${inv.docType === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}
-                </select></label>
-            ${fld('العملة', 'currency', inv.currency, null, null, th, locked)}
-            ${fld('رقم أمر الشراء', 'poNumber', inv.poNumber, null, null, th, locked)}
-            ${fld('رقم العقد', 'contractNumber', inv.contractNumber, null, null, th, locked)}
-            ${inv.hijriDate ? `<label class="ai-f"><span class="ai-f-l">التاريخ الهجري (كما ورد)</span><input value="${esc(inv.hijriDate)}" disabled></label>` : ''}
+    // ── القسم 2: المورد + الربط ──────────────────────────────────────────────
+    function sectionSupplier(r, locked) {
+        const m = r.vendorMatch || {};
+        const vendors = AINV.Match.systemVendors();
+        const tinOk = AINV.Saudi.isValidTIN(r.supplier && r.supplier.vat_number);
+        return `<div class="ai-sec"><div class="ai-sec-h">🏭 المورد
+            ${r.vendorKey ? '<span class="ai-pill ok">مربوط بالنظام</span>' : '<span class="ai-pill wn">غير مربوط</span>'}
+            ${m.match_type && m.match_type !== 'NO_MATCH' ? `<span class="ai-meta">${esc(AINV.Match.MATCH_AR[m.match_type] || '')} — ${Math.round((m.confidence || 0) * 100)}%</span>` : ''}
         </div>
-        <div class="ai-sec">🧑‍💼 بيانات العميل (كما وردت في الفاتورة)</div>
-        <div class="ai-grid2">
-            ${fld('اسم العميل', 'customer.name', inv.customer.name, null, null, th, locked)}
-            ${fld('الرقم الضريبي للعميل', 'customer.vatNumber', inv.customer.vatNumber, null, null, th, locked)}
-        </div>`;
+        <div class="ai-sec-b">
+            <div class="ai-match">
+                <label class="ai-f-l">🔗 ربط بمورد في النظام <span class="ai-meta">(يحدّد كشف الحساب والرصيد الدائن — الربط الخاطئ يفسدهما معاً)</span></label>
+                <div class="ai-match-row">
+                    <select class="ai-inp" id="aiVendorSel" data-ss="1" ${locked ? 'disabled' : ''} onchange="aiLinkVendor(this.value)">
+                        <option value="">— لم يُربط بعد —</option>
+                        ${vendors.map(v => `<option value="${esc(v.key)}" ${r.vendorKey === v.key ? 'selected' : ''}>${esc(v.name)}${v.vat_number ? ' · ' + esc(v.vat_number) : ''}</option>`).join('')}
+                    </select>
+                    ${!locked && CAN('edit') ? '<button class="btn b-g" onclick="aiCreateVendor()">➕ إنشاء مورد جديد من هذه البيانات</button>' : ''}
+                </div>
+            </div>
+            <div class="ai-grid2">
+                ${fld(r, 'اسم المورد', 'supplier.name', 'supplier_name', locked)}
+                ${fld(r, 'الاسم النظامي', 'supplier.legal_name', null, locked)}
+                <div class="ai-f">
+                    <label class="ai-f-l">الرقم الضريبي ${provBadge(r, 'supplier_vat')}
+                        ${(r.supplier && r.supplier.vat_number) ? (tinOk ? '<span class="ai-pill ok">صيغة سليمة</span>' : '<span class="ai-pill wn">لا يطابق مواصفة الهيئة</span>') : ''}</label>
+                    <input class="ai-inp mono" value="${esc((r.supplier && r.supplier.vat_number) || '')}" ${locked ? 'disabled' : ''} data-path="supplier.vat_number" onchange="aiEditField(this)">
+                </div>
+                ${fld(r, 'السجل التجاري', 'supplier.commercial_registration', 'supplier_cr', locked)}
+                ${fld(r, 'الآيبان', 'supplier.iban', null, locked)}
+                ${fld(r, 'الهاتف', 'supplier.phone', null, locked)}
+                ${fld(r, 'البريد الإلكتروني', 'supplier.email', null, locked)}
+                ${fld(r, 'المدينة', 'supplier.city', null, locked)}
+            </div>
+            ${fld(r, 'العنوان', 'supplier.address', null, locked)}
+        </div></div>`;
     }
 
-    function itemsSection(c, comp, locked) {
-        const items = c.extracted.items;
-        const errByLine = {};
-        (c.validation.errors || []).forEach(e => { if (e.line) (errByLine[e.line] = errByLine[e.line] || []).push(e); });
-        return `<div class="ai-sec">📦 الأصناف <span class="badge">${items.length}</span>
-            ${locked ? '' : '<button class="btn" style="float:inline-end" onclick="aiAddLine()">➕ بند</button>'}</div>
-        <div class="tw"><table class="ai-lines">
-            <thead><tr>
-                <th>الصنف</th><th>مطابقة</th><th class="n">الكمية</th><th>الوحدة</th><th class="n">السعر</th>
-                <th class="n">الخصم</th><th class="n">قبل الضريبة</th><th class="n">%</th><th class="n">الضريبة</th><th class="n">بعد الضريبة</th>${locked ? '' : '<th></th>'}
-            </tr></thead>
-            <tbody>${items.map((l, i) => {
-            const cc = comp.lines[i] || {};
-            const m = (c.itemMatches || [])[i] || {};
-            const bad = errByLine[i + 1];
-            return `<tr class="${bad ? 'bad' : ''}" title="${bad ? esc(bad.map(x => x.msg).join(' · ')) : ''}">
-                    <td><input class="wide" value="${esc(l.description || '')}" data-path="items.${i}.description" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}></td>
-                    <td class="ai-imatch">${m.key ? `<span class="ai-ok" title="${esc(m.reason || '')}">🔗 ${esc(((window.invItems || window.items || {})[m.key] || {}).nameAr || 'مرتبط')}</span>` : `<span class="ai-new" title="${esc(m.reason || '')}">🆕 جديد</span>`}</td>
-                    <td class="n"><input class="num" value="${nz(l.qty) == null ? '' : l.qty}" data-path="items.${i}.qty" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}></td>
-                    <td><input class="sm" value="${esc(l.unit || '')}" data-path="items.${i}.unit" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}></td>
-                    <td class="n"><input class="num" value="${nz(l.unitPrice) == null ? '' : l.unitPrice}" data-path="items.${i}.unitPrice" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}></td>
-                    <td class="n"><input class="num" value="${nz(l.discount) == null ? '' : l.discount}" data-path="items.${i}.discount" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}></td>
-                    <td class="n calc">${fmt(cc.taxable)}</td>
-                    <td class="n"><input class="num sm" value="${nz(l.vatRate) == null ? '' : l.vatRate}" data-path="items.${i}.vatRate" onchange="aiEdit(this)" ${locked ? 'disabled' : ''}></td>
-                    <td class="n calc">${fmt(cc.vatAmount)}</td>
-                    <td class="n calc"><b>${fmt(cc.lineTotal)}</b></td>
-                    ${locked ? '' : `<td><button class="ai-x" onclick="aiDelLine(${i})" title="حذف البند">✕</button></td>`}
-                </tr>`;
-        }).join('')}</tbody>
-        </table></div>
-        <div class="ai-meta">الأعمدة الرمادية <b>محسوبة في النظام</b> من الكمية والسعر والنسبة — لا تُؤخذ من الذكاء الاصطناعي.</div>`;
+    // ── القسم 3: العميل ──────────────────────────────────────────────────────
+    function sectionCustomer(r, locked) {
+        const c = r.customer || {};
+        if (!c.name && !c.vat_number && !c.address) return '';
+        return `<div class="ai-sec"><div class="ai-sec-h">🧑‍💼 العميل (المشتري)</div>
+        <div class="ai-sec-b"><div class="ai-grid2">
+            ${fld(r, 'اسم العميل', 'customer.name', null, locked)}
+            ${fld(r, 'الرقم الضريبي', 'customer.vat_number', null, locked)}
+            ${fld(r, 'السجل التجاري', 'customer.commercial_registration', null, locked)}
+            ${fld(r, 'العنوان', 'customer.address', null, locked)}
+        </div></div></div>`;
     }
 
-    function totalsSection(inv, comp) {
-        const t = inv.totals;
-        const cmpRow = (label, written, calc) => {
-            const diff = written != null && Math.abs(written - calc) > AINV.TOL_TOTAL;
-            return `<tr class="${diff ? 'bad' : ''}">
-                <td>${esc(label)}</td>
-                <td class="n">${written == null ? '<span class="ai-meta">غير مذكور</span>' : fmt(written)}</td>
-                <td class="n"><b>${fmt(calc)}</b></td>
-                <td class="n">${diff ? `<span class="ai-diff">${fmt(written - calc)}</span>` : '✓'}</td>
-            </tr>`;
+    // ── القسم 4: البنود ──────────────────────────────────────────────────────
+    function sectionItems(r, locked, comp) {
+        const items = AINV.toArray(r.items);
+        const matches = AINV.toArray(r.itemMatches);
+        const catalog = AINV.Match.systemItems();
+
+        return `<div class="ai-sec"><div class="ai-sec-h">📦 بنود الفاتورة <span class="badge">${items.length}</span>
+            <span class="ai-meta">القيم المحسوبة بالنظام تظهر إلى جوار ما قرأه النموذج</span>
+            ${!locked && CAN('edit') ? '<span style="flex:1"></span><button class="btn b-g" onclick="aiAddLine()">➕ إضافة بند</button>' : ''}
+        </div>
+        <div class="ai-sec-b">
+            ${!items.length ? '<div class="ai-note wn">لم تُستخرج بنود — أضِفها يدوياً قبل الاعتماد، فبدونها لا تُنشأ حركات مخزون ولا تفصيل تكلفة.</div>' : ''}
+            <div class="tw"><table class="ai-tbl ai-lines">
+                <thead><tr>
+                    <th style="width:26px">#</th><th>الوصف</th><th>الربط بالصنف</th>
+                    <th class="n">الكمية</th><th>الوحدة</th><th class="n">سعر الوحدة</th><th class="n">الخصم</th>
+                    <th class="n">الخاضع</th><th class="n">%</th><th class="n">الضريبة</th><th class="n">الإجمالي</th>
+                    ${!locked && CAN('edit') ? '<th></th>' : ''}
+                </tr></thead>
+                <tbody>
+                ${items.map((it, i) => {
+            const c = comp && comp.lineCount ? AINV.computeLine(it) : AINV.computeLine(it);
+            const m = matches[i] || {};
+            const bad = f => c.issues.some(x => x.field === f);
+            const cell = (path, val, cls) => `<td class="n ${cls || ''}"><input class="ai-inp n" value="${esc(val == null ? '' : val)}" ${locked ? 'disabled' : ''} data-path="items.${i}.${path}" onchange="aiEditField(this)"></td>`;
+            return `<tr>
+                        <td class="ai-meta">${i + 1}</td>
+                        <td><input class="ai-inp" value="${esc(it.item_name || '')}" ${locked ? 'disabled' : ''} data-path="items.${i}.item_name" onchange="aiEditField(this)"></td>
+                        <td>
+                            <select class="ai-inp sm" data-ss="1" ${locked ? 'disabled' : ''} onchange="aiLinkItem(${i}, this.value)">
+                                <option value="">— بلا ربط —</option>
+                                ${catalog.map(x => `<option value="${esc(x.key)}" ${m.key === x.key ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+                            </select>
+                            ${m.key && m.match_type ? `<span class="ai-imatch" title="${esc(AINV.Match.MATCH_AR[m.match_type] || '')}">${Math.round((m.confidence || 0) * 100)}%</span>` : ''}
+                        </td>
+                        ${cell('quantity', it.quantity)}
+                        <td><input class="ai-inp sm" value="${esc(it.unit || '')}" ${locked ? 'disabled' : ''} data-path="items.${i}.unit" onchange="aiEditField(this)"></td>
+                        ${cell('unit_price', it.unit_price)}
+                        ${cell('discount', it.discount)}
+                        <td class="n ${bad('taxable_amount') ? 'ai-err-cell' : ''}" title="${bad('taxable_amount') ? 'قرأ النموذج ' + it.taxable_amount + ' — النظام يحسب ' + c.taxable : ''}">${fmt(c.taxable)}${bad('taxable_amount') ? `<i class="ai-diff">${fmt(it.taxable_amount)}</i>` : ''}</td>
+                        ${cell('vat_rate', it.vat_rate)}
+                        <td class="n ${bad('vat_amount') ? 'ai-err-cell' : ''}" title="${bad('vat_amount') ? 'قرأ النموذج ' + it.vat_amount + ' — النظام يحسب ' + c.vatAmount : ''}">${fmt(c.vatAmount)}${bad('vat_amount') ? `<i class="ai-diff">${fmt(it.vat_amount)}</i>` : ''}</td>
+                        <td class="n ${bad('total_amount') ? 'ai-err-cell' : ''}"><b>${fmt(c.lineTotal)}</b>${bad('total_amount') ? `<i class="ai-diff">${fmt(it.total_amount)}</i>` : ''}</td>
+                        ${!locked && CAN('edit') ? `<td><button class="btn b-r" onclick="aiDelLine(${i})" title="حذف البند">✕</button></td>` : ''}
+                    </tr>`;
+        }).join('')}
+                </tbody>
+            </table></div>
+        </div></div>`;
+    }
+
+    // ── القسم 5: الإجماليات ──────────────────────────────────────────────────
+    function sectionTotals(r, locked, comp) {
+        const t = r.totals || {};
+        const tol = AINV.Config.get().mathTolerance;
+        const cmp = (claimed, computed) => {
+            if (claimed == null) return '';
+            return Math.abs(claimed - computed) > tol
+                ? `<span class="ai-pill er" title="النظام يحسب ${fmt(computed)}">النظام: ${fmt(computed)}</span>`
+                : '<span class="ai-pill ok">مطابق</span>';
         };
-        return `<div class="ai-sec">💰 الإجماليات</div>
-        <table class="ai-totals">
-            <thead><tr><th></th><th class="n">المكتوب في الفاتورة</th><th class="n">المحسوب في النظام</th><th class="n">الفرق</th></tr></thead>
-            <tbody>
-                ${cmpRow('الإجمالي قبل الخصم', t.subtotalBeforeDiscount, comp.subtotal)}
-                ${cmpRow('الخصم', t.discount, comp.discount)}
-                ${cmpRow('المبلغ الخاضع للضريبة', t.taxable, comp.taxable)}
-                ${cmpRow('ضريبة القيمة المضافة', t.vat, comp.vat)}
-                ${cmpRow('الإجمالي شامل الضريبة', t.grandTotal, comp.grandTotal)}
-            </tbody>
-        </table>
-        ${comp.rates.length > 1 ? `<div class="ai-rates"><b>تفصيل نسب الضريبة:</b>
-            ${comp.rates.map(r => `<span class="ai-rate">${r.rate}% على ${fmt(r.taxable)} = ${fmt(r.vat)} <i>(${r.count} بند)</i></span>`).join('')}</div>` : ''}
-        <div class="ai-meta">🔒 القيم المعتمدة في القيد المحاسبي هي <b>المحسوبة في النظام</b> دائماً.</div>`;
+        const line = (label, path, claimed, computed, provKey) => `<div class="ai-tot-row">
+            <span class="ai-tot-l">${esc(label)} ${provKey ? provBadge(r, provKey) : ''}</span>
+            <input class="ai-inp n" value="${esc(claimed == null ? '' : claimed)}" ${locked ? 'disabled' : ''} data-path="${path}" onchange="aiEditField(this)">
+            ${computed == null ? '' : cmp(claimed, computed)}
+        </div>`;
+
+        return `<div class="ai-sec"><div class="ai-sec-h">🧮 الإجماليات
+            <span class="ai-meta">ما يقرأه النموذج يُقارَن بما يحسبه النظام من البنود — والنظام هو المرجع</span></div>
+        <div class="ai-sec-b">
+            <div class="ai-totals">
+                ${line('المجموع قبل الخصم', 'totals.subtotal', t.subtotal, comp.subtotal)}
+                ${line('إجمالي الخصم', 'totals.discount_total', t.discount_total, comp.discount)}
+                ${line('المبلغ الخاضع للضريبة', 'totals.taxable_amount', t.taxable_amount, comp.taxable)}
+                ${line('إجمالي الضريبة', 'totals.vat_total', t.vat_total, comp.vat, 'totals_vat')}
+                ${line('الإجمالي شامل الضريبة', 'totals.grand_total', t.grand_total, comp.grandTotal, 'totals_grand_total')}
+                ${line('المدفوع', 'totals.amount_paid', t.amount_paid, null)}
+                ${line('المتبقي', 'totals.amount_due', t.amount_due, null)}
+            </div>
+            ${comp.taxes && comp.taxes.length ? `<div class="ai-tax-brk">
+                <b>تفصيل الضريبة حسب النسبة</b> <span class="ai-meta">(أساس الإقرار الضريبي)</span>
+                <table class="ai-tbl sm"><thead><tr><th>النسبة</th><th class="n">الوعاء</th><th class="n">الضريبة</th><th>التصنيف</th></tr></thead>
+                <tbody>${comp.taxes.map(x => `<tr><td>${x.tax_rate}%</td><td class="n">${fmt(x.taxable_amount)}</td><td class="n">${fmt(x.tax_amount)}</td>
+                    <td>${x.tax_category === 'STANDARD' ? 'أساسية' : x.tax_category === 'ZERO_RATED' ? 'صفرية' : esc(x.tax_category)}</td></tr>`).join('')}</tbody></table>
+            </div>` : ''}
+        </div></div>`;
     }
 
-    function auditSection(c) {
-        const edits = c.edits || [];
-        return `<div class="ai-sec">🕵️ أثر التدقيق ${edits.length ? `<span class="badge">${edits.length}</span>` : ''}</div>
-        ${edits.length === 0
-                ? '<div class="ai-meta">لم تُعدَّل أي قيمة استخرجها الذكاء الاصطناعي بعد.</div>'
-                : `<table class="ai-audit"><thead><tr><th>الحقل</th><th>قيمة الذكاء الاصطناعي</th><th>قيمة المستخدم</th><th>بواسطة</th><th>الوقت</th></tr></thead>
-            <tbody>${edits.slice(-30).reverse().map(e => `<tr>
-                <td>${esc(e.field)}</td><td class="old">${esc(e.aiValue || '—')}</td><td class="new">${esc(e.userValue || '—')}</td>
-                <td>${esc(e.by || '')}</td><td>${e.at ? new Date(e.at).toLocaleString('ar-EG') : ''}</td></tr>`).join('')}</tbody></table>`}
-        <div class="ai-meta">النموذج: ${esc(c.model || '—')} · زمن المعالجة: ${c.processingMs ? (c.processingMs / 1000).toFixed(1) + ' ث' : '—'}
-            ${c.usage ? ` · التوكنات: ${(c.usage.input_tokens || 0) + (c.usage.output_tokens || 0)}` : ''}
-            ${c.estCost ? ` · التكلفة التقديرية: $${c.estCost}` : ''}</div>`;
+    // ── القسم 6: الترحيل المحاسبي ────────────────────────────────────────────
+    function sectionPosting(r, locked) {
+        const EXP = { materials: 'مواد', services: 'خدمات', equipment_rent: 'إيجار معدات', subcontractor: 'مقاولات من الباطن', transport: 'نقل', utilities: 'كهرباء ومياه', rent: 'إيجارات', other: 'أخرى' };
+        const projects = window.projects || {};
+        return `<div class="ai-sec"><div class="ai-sec-h">📒 التوجيه المحاسبي
+            <span class="ai-meta">يحدّد حساب المدين ومركز التكلفة عند الترحيل</span>
+            <span style="flex:1"></span>
+            <button class="btn" onclick="aiAccountingPreview()">👁️ معاينة القيد</button>
+        </div>
+        <div class="ai-sec-b"><div class="ai-grid2">
+            <div class="ai-f"><label class="ai-f-l">نوع المصروف</label>
+                <select class="ai-inp" data-ss="1" ${locked ? 'disabled' : ''} data-path="expenseType" onchange="aiEditField(this)">
+                    ${Object.keys(EXP).map(k => `<option value="${k}" ${(r.expenseType || 'materials') === k ? 'selected' : ''}>${esc(EXP[k])}</option>`).join('')}
+                </select></div>
+            <div class="ai-f"><label class="ai-f-l">المشروع / مركز التكلفة</label>
+                <select class="ai-inp" data-ss="1" ${locked ? 'disabled' : ''} data-path="projectKey" onchange="aiEditField(this)">
+                    <option value="">— بلا مشروع —</option>
+                    ${Object.keys(projects).map(k => `<option value="${esc(k)}" ${r.projectKey === k ? 'selected' : ''}>${esc(projects[k].name || k)}</option>`).join('')}
+                </select></div>
+        </div></div></div>`;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [UI-EDIT] التحرير مع أثر التدقيق
-    // ═══════════════════════════════════════════════════════════════════════════
-    function getPath(o, p) { return p.split('.').reduce((x, k) => (x == null ? x : x[k]), o); }
-    function setPath(o, p, v) {
-        const ks = p.split('.'); const last = ks.pop();
-        const t = ks.reduce((x, k) => x[k], o);
-        t[last] = v;
+    // ── عارض المستند الأصلي ──────────────────────────────────────────────────
+    function docViewer(r) {
+        const url = (r.file_metadata && r.file_metadata.url) || '';
+        const mime = (r.file_metadata && r.file_metadata.mime_type) || '';
+        const name = (r.file_metadata && r.file_metadata.original_filename) || 'المستند';
+        if (!url) return `<div class="ai-nofile">لم يُحفظ الملف الأصلي (التخزين غير مهيّأ)</div>`;
+        return `<div class="ai-doc">
+            <div class="ai-doc-tools">
+                <b>📎 ${esc(name)}</b><span style="flex:1"></span>
+                <a class="btn" href="${esc(url)}" target="_blank" rel="noopener">↗ فتح في تبويب</a>
+            </div>
+            ${mime === 'application/pdf'
+                ? `<iframe class="ai-doc-frame" src="${esc(url)}" title="${esc(name)}"></iframe>`
+                : `<img class="ai-doc-img" src="${esc(url)}" alt="${esc(name)}">`}
+        </div>`;
     }
-    const NUM_PATHS = /\.(qty|unitPrice|discount|vatRate|taxable|vatAmount|total)$/;
 
-    window.aiEdit = function (el) {
-        const c = AIU.current; if (!c) return;
-        const path = el.dataset.path;
-        const before = getPath(c.extracted, path);
-        let val = el.value;
-        if (NUM_PATHS.test(path)) val = val === '' ? null : AINV.num(val);
-        if (path === 'date' || path === 'dueDate') val = AINV.normDate(val) || val;
-        if (String(before == null ? '' : before) === String(val == null ? '' : val)) return;
+    window.aiToggleDoc = function () { AIU.docPane = !AIU.docPane; renderReview(); };
 
-        setPath(c.extracted, path, val);
-        c.edits = AINV.Audit.field(c, path, before, val);
-        AIU.dirty = true;
-        renderReview();
-    };
+    // ── شريط الإجراءات ───────────────────────────────────────────────────────
+    function actionBar(r, locked, sum) {
+        const canApprove = CAN('approve') && !locked && !sum.blocking;
+        const blockedReason = sum.blocking ? `${sum.blocking} مانع اعتماد — عالِجها أو تجاوزها بسبب مسجَّل` : '';
+        return `<div class="ai-actionbar">
+            <span class="ai-meta">${esc((r.file_metadata && r.file_metadata.original_filename) || '')}
+                ${r.processing_job ? ` · ${esc(r.processing_job.model_used || '')} · ${Math.round((r.processing_job.duration_ms || 0) / 1000)}ث` : ''}</span>
+            <span style="flex:1"></span>
+            <button class="btn" onclick="aiExportExcel()">📊 Excel</button>
+            <button class="btn" onclick="aiExportPdf()">📄 PDF</button>
+            <button class="btn" onclick="aiExportPayload()">🔌 JSON للتكامل</button>
+            ${!locked && CAN('edit') ? '<button class="btn b-b" onclick="aiSaveDraft()">💾 حفظ مسوّدة</button>' : ''}
+            ${!locked && CAN('reject') ? '<button class="btn b-r" onclick="aiReject()">⛔ رفض</button>' : ''}
+            ${!locked ? `<button class="btn b-g" ${canApprove ? '' : 'disabled'} title="${esc(blockedReason)}" onclick="aiApprove()">✅ اعتماد</button>` : ''}
+            ${r.status === 'approved' && CAN('approve') && !r.linkedPInvKey ? '<button class="btn b-g" onclick="aiConvert()">📒 تحويل إلى فاتورة مشتريات</button>' : ''}
+            ${r.linkedPInvKey ? `<button class="btn" onclick="nav('purchaseinvoices')">↗ فاتورة المشتريات المرتبطة</button>` : ''}
+        </div>`;
+    }
 
-    window.aiAddLine = function () {
-        AIU.current.extracted.items.push({ idx: AIU.current.extracted.items.length, code: '', description: '', qty: 1, unit: '', unitPrice: 0, discount: null, taxable: null, vatRate: 15, vatAmount: null, total: null });
-        AIU.current.itemMatches = AINV.matchItems(AIU.current.extracted.items).map(m => ({ key: m.key, score: m.score, reason: m.reason, exact: !!m.exact }));
-        AIU.dirty = true; renderReview();
-    };
-    window.aiDelLine = function (i) {
-        const c = AIU.current;
-        const l = c.extracted.items[i];
-        c.edits = AINV.Audit.field(c, `items.${i}`, (l && l.description) || '', '[محذوف]');
-        c.extracted.items.splice(i, 1);
-        c.itemMatches = AINV.matchItems(c.extracted.items).map(m => ({ key: m.key, score: m.score, reason: m.reason, exact: !!m.exact }));
-        AIU.dirty = true; renderReview();
-    };
+    // يعيد رسم الشاشة الحالية أياً كانت — تستدعيه طبقة الإجراءات بعد كل تغيير
+    window.aiRerender = function () { if (AIU.current) renderReview(); else window.renderAiInvoices(); };
+    window.aiRenderReview = renderReview;
 
-    window.aiSetVendor = function (key) {
-        const c = AIU.current;
-        c.edits = AINV.Audit.field(c, 'vendorKey', c.vendorKey || '', key || '');
-        c.vendorKey = key;
-        AIU.dirty = true; renderReview();
-    };
-
-    window.aiCreateVendor = function () {
-        const s = AIU.current.extracted.supplier;
-        if (typeof window.openVendorModal === 'function') { window.openVendorModal(null, { nameAr: s.name, vatNumber: s.vatNumber, crNumber: s.crNumber, phone: s.phone, address: s.address }); return; }
-        toast('ℹ️ افتح صفحة «الموردون» وأنشئ المورّد ببياناته، ثم عد واربطه هنا', 'ok', 9000);
-    };
-
-    window.aiFieldInfo = function (key) {
-        const c = AIU.current, conf = c.confidence;
-        const edit = (c.edits || []).filter(e => e.field.includes(key.replace('supplier_', 'supplier.').replace('invoice_', ''))).pop();
-        alert(`الحقل: ${key}\nثقة الاستخراج: ${conf[key]}%\n` +
-            (edit ? `قيمة الذكاء الاصطناعي الأصلية: ${edit.aiValue}\nقيمتك: ${edit.userValue}` : 'لم تُعدَّل هذه القيمة'));
-    };
-
-    window.aiDocZoom = function (d) {
-        const img = $('aiDocImg'); if (!img) return;
-        AIU.zoom = Math.max(0.3, Math.min(4, (AIU.zoom || 1) + d));
-        img.style.transform = `rotate(${AIU.rot || 0}deg) scale(${AIU.zoom})`;
-    };
-    window.aiDocRotate = function () {
-        const img = $('aiDocImg'); if (!img) return;
-        AIU.rot = ((AIU.rot || 0) + 90) % 360;
-        img.style.transform = `rotate(${AIU.rot}deg) scale(${AIU.zoom || 1})`;
-    };
-
-    window.aiShowDup = function (kind, key) {
-        const rec = kind === 'pinv' ? (window.pinv || {})[key] : (window.aiInvoices || {})[key];
-        if (!rec) { toast('السجل غير موجود', 'er'); return; }
-        const e = rec.extracted || rec;
-        alert(`الفاتورة السابقة:\n\nالرقم: ${e.vendorRef || e.number || '—'}\nالتاريخ: ${e.date || '—'}\nالإجمالي: ${fmt((e.totals && e.totals.grandTotal) || e.grandTotal)}\nالحالة: ${rec.status || '—'}`);
-    };
-
-    console.log('✅ AI Invoice UI [AIU] loaded');
 })();

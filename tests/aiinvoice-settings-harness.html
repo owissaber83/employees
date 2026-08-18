@@ -25,7 +25,9 @@ window.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
 window.db = {}; window.ref = () => ({}); window.get = async () => ({ exists: () => false, val: () => null });
 window.set = async () => {}; window.update = async () => {}; window.push = () => ({ key: 'k1' });
 window.can = () => true; window.curU = { uid: 'u1', email: 't@x.com' };
-window.aiInvoices = {}; window.sup = {}; window.items = {};
+window.aiInvoices = {}; window.vendors = {}; window.invItems = {}; window.items = {};
+window.projects = {}; window.chartOfAccounts = {}; window.purchaseInvoices = {};
+window.cfg = { aiInvoice: {} }; window.remove = async () => {};
 window.__errors = [];
 window.addEventListener('error', e => window.__errors.push(String(e.message)));
 </script>
@@ -38,7 +40,7 @@ window.__probe = function () {
     const out = { threw: null, errors: window.__errors.slice() };
     try { window.aiSettings(); } catch (e) { out.threw = String(e && e.message || e); return out; }
 
-    const ov = document.getElementById('aiSetOv');
+    const ov = document.getElementById('aiSetModal');
     if (!ov) { out.threw = 'لم تُنشأ النافذة'; return out; }
     const box = ov.querySelector('.ai-modal-box');
     const body = ov.querySelector('.ai-modal-b');
@@ -68,6 +70,8 @@ window.__probe = function () {
     // حقول ذات ارتفاع صفري أو عرض مجهري (مؤشّر تخطيط مكسور)
     out.tinyFields = [];
     ov.querySelectorAll('.ai-f input, .ai-f select').forEach(el => {
+        // الحقول المخفية عمداً (نموذج المزوّد غير المختار) ليست تخطيطاً مكسوراً
+        if (el.offsetParent === null) return;
         const r = el.getBoundingClientRect();
         if (r.width < 60 || r.height < 20) out.tinyFields.push((el.id || el.tagName) + ' ' +
             Math.round(r.width) + '×' + Math.round(r.height));
@@ -86,7 +90,8 @@ window.__probe = function () {
         out.copy.push({ want, got: copied[0], ok: copied[0] === want });
     });
     Object.defineProperty(navigator, 'clipboard', { value: realClip, configurable: true });
-    out.copyAllOk = out.copy.length > 0 && out.copy.every(c => c.ok);
+    // نافذة الإصدار الثاني لا تحوي أوامر تركيب — الفحص يبقى صالحاً إن أُعيدت
+    out.copyAllOk = out.copy.length === 0 || out.copy.every(c => c.ok);
     return out;
 };
 </script>

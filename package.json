@@ -18,6 +18,7 @@
     "test:proxy": "node tests/aiproxy.test.mjs",
     "lint": "eslint . --quiet",
     "lint:all": "eslint .",
-    "lint:globals": "node scripts/gen-eslint-globals.mjs"
+    "lint:globals": "node scripts/gen-eslint-globals.mjs",
+    "test:ai:page": "node tests/aiinvoice-page.e2e.mjs"
   }
 }

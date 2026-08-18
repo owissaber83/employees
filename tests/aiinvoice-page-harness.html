@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مِشْجب صفحة قراءة الفواتير</title>
+<link rel="stylesheet" href="../public/aiinvoice.css">
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #eef2f7; }
+  .pg { padding: 14px; }
+  .card { background:#fff; border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .btn { padding: 7px 13px; border: 1px solid #cfd8e3; background: #fff; border-radius: 7px; cursor: pointer; font: inherit; font-size: 13px; }
+  .btn.b-b{background:#2E75B6;color:#fff}.btn.b-g{background:#1B8A4B;color:#fff}
+  .btn.b-r{background:#C0392B;color:#fff}.btn.b-w{background:#D97706;color:#fff}
+  .tlb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .c-tl{font-weight:800}.badge{background:#eef3f7;padding:1px 7px;border-radius:9px;font-size:11px}
+  .tw{overflow-x:auto}.empty{padding:26px;text-align:center;color:#889}.ei{font-size:30px}
+</style>
+</head>
+<body>
+<div class="pg" id="pg-aiinvoices"></div>
+<script>
+// ── جذوع الاعتماديات التي يوفّرها app.js عادةً ──────────────────────────────
+window.myP = { role: 'admin', name: 'مدير الاختبار' };
+window.toast = m => (window.__toasts = window.__toasts || []).push(String(m));
+window.fmt = n => (Number(n) || 0).toFixed(2);
+window.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+window.db = {}; window.ref = () => ({});
+window.get = async () => ({ exists: () => false, val: () => null });
+window.set = async () => {}; window.update = async () => {};
+window.push = async () => ({ key: 'k1' }); window.remove = async () => {};
+window.can = () => true; window.curU = { uid: 'u1', email: 't@x.com' };
+window.nav = () => {};
+window.cfg = { aiInvoice: { enabled: true, geminiKey: 'AIzaTEST' } };
+window.projects = { p1: { name: 'مشروع الاختبار' } };
+window.vendors = { v1: { nameAr: 'شركة سواتر الإبداع للمقاولات', vatNumber: '311905689900003', crNumber: '1010912286' } };
+window.invItems = { i1: { nameAr: 'حجر طبيعي', code: 'ST-1', unit: 'متر' } };
+window.chartOfAccounts = { a1:{code:'5110',nameAr:'مشتريات مواد'}, a2:{code:'1180',nameAr:'ضريبة المدخلات'}, a3:{code:'2110',nameAr:'الموردون'} };
+window.purchaseInvoices = {};
+window.__errors = [];
+window.addEventListener('error', e => window.__errors.push(String(e.message)));
+window.onunhandledrejection = e => window.__errors.push('rejection: ' + String(e.reason));
+</script>
+<script src="../public/aiinvoice-engine.js"></script>
+<script src="../public/aiinvoice-ui.js"></script>
+<script src="../public/aiinvoice-actions.js"></script>
+<script>
+// ── بيانات اختبار: فاتورة سليمة برمز ZATCA، وأخرى مختلّة حسابياً، وسجل قديم ──
+(function () {
+    const A = window.AINV;
+    const raw = {
+        is_invoice: true, document_type: 'TAX_INVOICE', document_quality: 'good', language: 'mixed',
+        invoice_number: 'INV-2026-001', invoice_date: '2026-02-03', due_date: '2026-03-05', currency: 'SAR',
+        supplier: { name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003', commercial_registration: '1010912286', iban: 'SA0380000000608010167519' },
+        customer: { name: 'شركة جي بي ار للمقاولات', vat_number: '312733987800003' },
+        items: [
+            { item_name: 'توريد حجر طبيعي', quantity: 100, unit: 'متر', unit_price: 100, discount: 0, taxable_amount: 10000, vat_rate: 15, vat_amount: 1500, total_amount: 11500 },
+            { item_name: 'أعمال تركيب', quantity: 1, unit: 'مقطوعية', unit_price: 5000, discount: 0, taxable_amount: 5000, vat_rate: 15, vat_amount: 750, total_amount: 5750 }
+        ],
+        totals: { subtotal: 15000, discount_total: 0, taxable_amount: 15000, vat_total: 2250, grand_total: 17250 },
+        overall_confidence: 0.95
+    };
+    raw.qr_code_raw = A.QR.encodeTLV({
+        seller_name: 'شركة سواتر الإبداع للمقاولات', vat_number: '311905689900003',
+        timestamp: '2026-02-03T10:00:00Z', total_with_vat: 17250, vat_amount: 2250
+    });
+
+    function build(over, status) {
+        const doc = A.map(Object.assign({}, raw, over || {}), { provider: 'gemini' });
+        const issues = A.Validate.run(doc);
+        const conf = A.confidence(doc, issues);
+        return Object.assign(doc, {
+            status: status || 'needs_review', uploadedAt: Date.now(),
+            validation_issues: issues, confidence_percent: conf.percent, confidence_overall: conf.overall,
+            vendorKey: 'v1', expenseType: 'materials', projectKey: 'p1',
+            itemMatches: [{ key: 'i1', confidence: 0.9, match_type: 'FUZZY_NAME', name: 'حجر طبيعي' }, {}],
+            file_metadata: { original_filename: 'invoice-001.pdf', mime_type: 'application/pdf', file_size_bytes: 240000, sha256: 'aa11' },
+            processing_job: { model_used: 'gemini-2.5-flash', ai_provider: 'gemini', duration_ms: 4200, tokens_used: { input_tokens: 1200, output_tokens: 800 }, estimated_cost_usd: 0.0021 },
+            audit_trail: [A.Audit.event({ action: 'AI_EXTRACTION_COMPLETED', action_ar: 'اكتمل الاستخراج', notes: 'اختبار' })]
+        });
+    }
+
+    const broken = build({ totals: { subtotal: 15000, discount_total: 0, taxable_amount: 15000, vat_total: 2250, grand_total: 20000 } });
+    const legacy = {
+        status: 'approved', uploadedAt: Date.now() - 86400000, fileName: 'old.pdf', model: 'gemini-2.5-flash',
+        confidence: { overall: 92 },
+        extracted: { docType: 'tax_invoice', number: 'OLD-1', date: '2026-01-05', currency: 'SAR',
+            supplier: { name: 'مورد قديم', vatNumber: '311905689900003' },
+            items: [{ description: 'صنف قديم', qty: 2, unitPrice: 50, vatRate: 15, taxable: 100, vatAmount: 15, total: 115 }],
+            totals: { taxable: 100, vat: 15, grandTotal: 115 } }
+    };
+
+    window.aiInvoices = { good: build({}, 'validated'), broken: broken, legacy: legacy };
+    window.__ids = { good: 'good', broken: 'broken', legacy: 'legacy' };
+})();
+
+// ── الفحوص التي يستدعيها مُشغّل الاختبار ────────────────────────────────────
+window.__probeList = function () {
+    const out = { threw: null, errors: [] };
+    try { window.renderAiInvoices(); } catch (e) { out.threw = String(e && e.message || e); }
+    out.errors = window.__errors.slice();
+    const pg = document.getElementById('pg-aiinvoices');
+    out.rows = pg.querySelectorAll('#aiTbl tbody tr').length;
+    out.kpis = pg.querySelectorAll('.ai-kpi').length;
+    out.html = pg.innerHTML.length;
+    out.pageScrollW = document.documentElement.scrollWidth;
+    out.vw = window.innerWidth;
+    // نصوص undefined/NaN المتسربة إلى الواجهة
+    const txt = pg.textContent;
+    out.leaks = ['undefined', 'NaN', '[object Object]'].filter(t => txt.includes(t));
+    return out;
+};
+
+window.__probeReview = function (id) {
+    const out = { threw: null, errors: [] };
+    window.__errors.length = 0;
+    try { window.aiOpen(id); } catch (e) { out.threw = String(e && e.message || e); }
+    out.errors = window.__errors.slice();
+    const pg = document.getElementById('pg-aiinvoices');
+    out.sections = pg.querySelectorAll('.ai-sec').length;
+    out.issues = pg.querySelectorAll('.ai-issue').length;
+    out.provBadges = pg.querySelectorAll('.ai-prov').length;
+    out.hasQr = !!pg.querySelector('.ai-sec-h');
+    out.hasActionbar = !!pg.querySelector('.ai-actionbar');
+    out.lineRows = pg.querySelectorAll('.ai-lines tbody tr').length;
+    out.pageScrollW = document.documentElement.scrollWidth;
+    out.vw = window.innerWidth;
+    const txt = pg.textContent;
+    out.leaks = ['undefined', 'NaN', '[object Object]'].filter(t => txt.includes(t));
+    return out;
+};
+
+window.__probeModals = function () {
+    const out = { errors: [], opened: {} };
+    window.__errors.length = 0;
+    const fns = ['aiAccountingPreview', 'aiAuditTrail', 'aiExportPayload', 'aiQuotaPanel', 'aiAdminDashboard'];
+    fns.forEach(fn => {
+        try { window[fn](); out.opened[fn] = true; } catch (e) { out.opened[fn] = String(e && e.message || e); }
+    });
+    out.errors = window.__errors.slice();
+    return out;
+};
+</script>
+</body>
+</html>

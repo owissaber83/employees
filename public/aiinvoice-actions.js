@@ -1,12 +1,14 @@
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║   🤖 قراءة الفواتير — الإجراءات والتكامل المحاسبي (Actions Layer)              ║
+// ║   🤖 نظام استخراج وتدقيق وتصدير الفواتير — الإجراءات والتكامل (Actions)       ║
 // ║   ────────────────────────────────────────────────────────────────────────    ║
-// ║   [AC-SAVE]   حفظ مسوّدة · اعتماد · رفض                                       ║
-// ║   [AC-CONV]   التحويل إلى فاتورة مشتريات ثم القيد (لا ترحيل بلا موافقة)        ║
-// ║   [AC-XLS]    تصدير Excel بخمس أوراق (§21)                                    ║
-// ║   [AC-PDF]    تصدير PDF احترافي (§22)                                         ║
-// ║   [AC-SET]    إعدادات المدير + اختبار الوسيط (§32)                             ║
-// ║   [AC-LOG]    سجل المعالجة ولوحة التكلفة (§31 §33)                            ║
+// ║   [AC-EDIT]   التحرير · الربط · التجاوُز المسبَّب — كلّها تُسجَّل في أثر التدقيق  ║
+// ║   [AC-FLOW]   حفظ مسوّدة · اعتماد · رفض · حذف · إعادة محاولة                  ║
+// ║   [AC-CONV]   التحويل إلى فاتورة مشتريات (لا ترحيل بلا موافقة صريحة)          ║
+// ║   [AC-ACC]    معاينة القيد المحاسبي قبل الالتزام به                           ║
+// ║   [AC-XLS]    تصدير Excel بستّ أوراق                                          ║
+// ║   [AC-PDF]    تقرير تحقّق PDF احترافي                                          ║
+// ║   [AC-JSON]   حمولة التكامل مع الأنظمة الخارجية                               ║
+// ║   [AC-ADMIN]  الإعدادات · الحصّة اليومية · لوحة المدير · سجل المعالجة          ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 /* global AINV, AIU, XLSX */
 
@@ -18,345 +20,13 @@
     const toast = (m, t, d) => (window.toast ? window.toast(m, t, d) : console.log(m));
     const fmt = n => (window.fmt ? window.fmt(n) : (Number(n) || 0).toFixed(2));
     const IS_ADMIN = () => (window.myP && window.myP.role === 'admin');
+    const cur = () => AIU.current;
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [AC-SAVE] الحفظ والاعتماد والرفض
-    // ═══════════════════════════════════════════════════════════════════════════
-    function snapshot(c) {
-        return {
-            extracted: JSON.parse(JSON.stringify(c.extracted)),
-            validation: {
-                errors: c.validation.errors, warnings: c.validation.warnings,
-                computed: c.validation.computed, ok: c.validation.ok
-            },
-            confidence: c.confidence,
-            lowFields: c.lowFields || [],
-            vendorKey: c.vendorKey || '',
-            itemMatches: c.itemMatches || [],
-            duplicates: c.duplicates || [],
-            edits: c.edits || [],
-            updatedAt: Date.now(),
-            updatedBy: (window.curU && window.curU.email) || ''
-        };
+    async function confirmAsk(msg) {
+        if (typeof window.cf2 === 'function') return window.cf2(msg);
+        return confirm(msg);
     }
 
-    window.aiSaveDraft = async function () {
-        const c = AIU.current; if (!c) return;
-        try {
-            await AINV.Store.update(c.id, Object.assign(snapshot(c), { status: 'draft' }));
-            c.status = 'draft'; AIU.dirty = false;
-            await AINV.Audit.log('حفظ مسوّدة فاتورة', `حُفظت مسوّدة «${c.extracted.number || c.fileName}» — ${(c.edits || []).length} تعديل يدوي`, { aiInvoiceId: c.id });
-            toast('💾 حُفظت المسوّدة', 'ok');
-            window.renderAiInvoices();
-        } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'er', 7000); }
-    };
-
-    window.aiReject = async function () {
-        const c = AIU.current; if (!c) return;
-        const why = prompt('سبب الرفض (يُسجَّل في أثر التدقيق):');
-        if (why == null) return;
-        try {
-            await AINV.Store.update(c.id, Object.assign(snapshot(c), { status: 'rejected', rejectReason: why, rejectedAt: Date.now() }));
-            await AINV.Audit.log('رفض فاتورة مستخرَجة', `رُفضت «${c.extracted.number || c.fileName}» — السبب: ${why}`, { aiInvoiceId: c.id });
-            toast('✖️ رُفضت الفاتورة', 'ok');
-            AIU.current = null; AIU.dirty = false;
-            window.renderAiInvoices();
-        } catch (e) { toast('تعذّر الرفض: ' + e.message, 'er', 7000); }
-    };
-
-    /**
-     * الاعتماد — البوابة الوحيدة نحو المحاسبة.
-     * لا يمرّ إلا بعد: تحقّق حسابي سليم · مورّد مربوط · إقرار المستخدم بالتكرار إن وُجد.
-     */
-    window.aiApprove = async function () {
-        const c = AIU.current; if (!c) return;
-        if (!(typeof window.can === 'function' ? window.can('ai_invoice_approve') : true)) { toast('🚫 لا تملك صلاحية الاعتماد', 'er'); return; }
-
-        const cfg = AINV.Config.get();
-        const v = c.validation;
-
-        if (cfg.blockOnArithmetic && !v.ok) {
-            toast(`⛔ لا يمكن الاعتماد: ${v.errors.length} خطأ في التحقق الحسابي. صحّح البنود أو الإجماليات أولاً.`, 'er', 10000);
-            return;
-        }
-        if (!c.vendorKey) {
-            toast('⛔ اربط الفاتورة بمورّد في النظام قبل الاعتماد', 'er', 8000);
-            return;
-        }
-        if ((c.duplicates || []).length) {
-            if (!confirm(`⚠️ قد تكون هذه الفاتورة مكرّرة:\n\n${c.duplicates.map(d => '• ' + d.where + ': ' + d.why).join('\n')}\n\nهل تؤكّد أنها فاتورة جديدة فعلاً؟`)) return;
-        }
-        const low = c.lowFields || [];
-        if (low.length && !confirm(`⚠️ ${low.length} حقل استُخرج بثقة منخفضة. هل راجعتها جميعاً؟`)) return;
-
-        const comp = v.computed;
-        if (!confirm(`اعتماد الفاتورة؟\n\nالمورّد: ${(window.vendors[c.vendorKey] || {}).nameAr || ''}\nالرقم: ${c.extracted.number}\nالتاريخ: ${c.extracted.date}\nقبل الضريبة: ${fmt(comp.taxable)}\nالضريبة: ${fmt(comp.vat)}\nالإجمالي: ${fmt(comp.grandTotal)} ${c.extracted.currency}\n\nلن يُرحَّل أي قيد محاسبي إلا بموافقة منفصلة بعد ذلك.`)) return;
-
-        try {
-            await AINV.Store.update(c.id, Object.assign(snapshot(c), {
-                status: 'approved', approvedAt: Date.now(),
-                approvedBy: (window.curU && window.curU.email) || '',
-                approvedByName: (window.myP && window.myP.name) || ''
-            }));
-            c.status = 'approved'; AIU.dirty = false;
-            await AINV.Audit.log('اعتماد فاتورة مستخرَجة',
-                `اعتُمدت «${c.extracted.number}» للمورّد ${(window.vendors[c.vendorKey] || {}).nameAr || ''} بمبلغ ${fmt(comp.grandTotal)} ${c.extracted.currency} — ${(c.edits || []).length} تعديل يدوي`,
-                { aiInvoiceId: c.id, amount: comp.grandTotal, vendorKey: c.vendorKey });
-            toast('✅ اعتُمدت — يمكنك الآن تحويلها إلى فاتورة مشتريات', 'ok', 7000);
-            window.renderAiInvoices();
-            setTimeout(() => window.aiOpen(c.id), 60);
-        } catch (e) { toast('تعذّر الاعتماد: ' + e.message, 'er', 7000); }
-    };
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [AC-CONV] التحويل إلى فاتورة مشتريات
-    // ───────────────────────────────────────────────────────────────────────────
-    // نكتب في ledger/purchaseInvoices بنفس شكل savePInv تماماً، ثم نترك الترحيل
-    // لدالة postPInv القائمة — فلا نكرّر منطق القيد المحاسبي ولا نخاطر بمخالفته.
-    // ═══════════════════════════════════════════════════════════════════════════
-    window.aiConvert = async function () {
-        const c = AIU.current; if (!c) return;
-        if (c.status !== 'approved') { toast('⛔ اعتمد الفاتورة أولاً', 'er'); return; }
-        if (c.linkedPInvKey) { toast('ℹ️ حُوِّلت هذه الفاتورة مسبقاً', 'ok'); return; }
-
-        const p = AINV.toPurchaseInvoice(c);
-        if (!confirm(`إنشاء فاتورة مشتريات مسوّدة؟\n\nالمورّد: ${(window.vendors[c.vendorKey] || {}).nameAr || ''}\nالإجمالي: ${fmt(p.grandTotal)}\n\nستُنشأ كمسوّدة — الترحيل المحاسبي يتم بخطوة منفصلة بموافقتك.`)) return;
-
-        try {
-            const r = await window.push(window.R.pinv, p);
-            await AINV.Store.update(c.id, { linkedPInvKey: r.key, convertedAt: Date.now(), convertedBy: (window.curU && window.curU.email) || '' });
-            c.linkedPInvKey = r.key;
-            await AINV.Audit.log('تحويل إلى فاتورة مشتريات',
-                `أُنشئت فاتورة مشتريات مسوّدة من الاستخراج «${c.extracted.number}» بمبلغ ${fmt(p.grandTotal)}`,
-                { aiInvoiceId: c.id, purchaseInvoiceKey: r.key, amount: p.grandTotal });
-            toast('✅ أُنشئت فاتورة مشتريات مسوّدة — راجعها ثم رحّلها من صفحة فواتير المشتريات', 'ok', 9000);
-            window.renderAiInvoices();
-            setTimeout(() => window.aiOpen(c.id), 60);
-        } catch (e) { toast('تعذّر التحويل: ' + e.message, 'er', 9000); }
-    };
-
-    /** ينقل المستخدم إلى فاتورة المشتريات الناتجة للترحيل هناك (لا نرحّل نحن). */
-    window.aiGoToPInv = function () {
-        const c = AIU.current;
-        if (!c || !c.linkedPInvKey) return;
-        AIU.current = null;
-        if (typeof window.nav === 'function') window.nav('purchaseinvoices');
-        setTimeout(() => {
-            if (typeof window.openPInvModal === 'function') window.openPInvModal(c.linkedPInvKey);
-            else toast('افتح الفاتورة من القائمة لمراجعتها وترحيلها', 'ok', 7000);
-        }, 300);
-    };
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [AC-XLS] تصدير Excel — خمس أوراق (§21)
-    // ═══════════════════════════════════════════════════════════════════════════
-    function safeName(s) { return String(s || 'invoice').replace(/[\\/:*?"<>|[\]]+/g, '_').slice(0, 28); }
-
-    window.aiExportExcel = function () {
-        const c = AIU.current; if (!c) return;
-        if (typeof XLSX === 'undefined') { toast('مكتبة Excel غير محمّلة', 'er'); return; }
-        const inv = c.extracted, comp = c.validation.computed;
-        const vendor = (window.vendors || {})[c.vendorKey] || {};
-        const wb = XLSX.utils.book_new();
-
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-            ['بيانات الفاتورة', ''],
-            ['رقم الفاتورة', inv.number], ['التاريخ', inv.date], ['تاريخ الاستحقاق', inv.dueDate],
-            ['نوع المستند', inv.docType], ['العملة', inv.currency],
-            ['رقم أمر الشراء', inv.poNumber], ['رقم العقد', inv.contractNumber],
-            [], ['الحالة', (AINV.STATUS[c.status] || {}).ar || c.status],
-            ['الثقة الكلية', (c.confidence.overall || 0) + '%'],
-            ['رُفعت بواسطة', c.uploadedByName || c.uploadedBy],
-            ['تاريخ الرفع', c.uploadedAt ? new Date(c.uploadedAt).toLocaleString('ar-EG') : ''],
-            ['اعتُمدت بواسطة', c.approvedByName || c.approvedBy || '—'],
-            ['رقم المستند في النظام', c.id]
-        ]), 'الفاتورة');
-
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-            ['بيانات المورّد (من الفاتورة)', ''],
-            ['الاسم', inv.supplier.name], ['الرقم الضريبي', inv.supplier.vatNumber],
-            ['السجل التجاري', inv.supplier.crNumber], ['العنوان', inv.supplier.address],
-            ['الهاتف', inv.supplier.phone], ['البريد', inv.supplier.email], ['الآيبان', inv.supplier.iban],
-            [], ['المورّد المربوط في النظام', vendor.nameAr || vendor.nameEn || '— غير مربوط —'],
-            ['كود المورّد', vendor.code || ''],
-            [], ['العميل (من الفاتورة)', inv.customer.name], ['الرقم الضريبي للعميل', inv.customer.vatNumber]
-        ]), 'المورّد');
-
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-            ['#', 'الكود', 'الوصف', 'الكمية', 'الوحدة', 'سعر الوحدة', 'الخصم', 'قبل الضريبة', 'النسبة %', 'الضريبة', 'بعد الضريبة', 'الصنف المربوط']
-        ].concat(inv.items.map((l, i) => {
-            const cc = comp.lines[i] || {}, m = (c.itemMatches || [])[i] || {};
-            const it = (window.invItems || window.items || {})[m.key] || {};
-            return [i + 1, l.code, l.description, cc.qty, l.unit, cc.price, cc.discount, cc.taxable, cc.rate, cc.vatAmount, cc.lineTotal, it.nameAr || ''];
-        })).concat([[], ['', '', 'الإجمالي', '', '', '', comp.discount, comp.taxable, '', comp.vat, comp.grandTotal, '']])), 'الأصناف');
-
-        const je = buildJournalPreview(c);
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(
-            [['القيد المحاسبي المقترح', '', '', ''], [], ['الحساب', 'اسم الحساب', 'مدين', 'دائن']]
-                .concat(je.lines.map(l => [l.code, l.name, l.debit || '', l.credit || '']))
-                .concat([[], ['', 'الإجمالي', je.totalDebit, je.totalCredit],
-                [], ['ملاحظة', 'هذا القيد لا يُرحَّل إلا بموافقة صريحة من صفحة فواتير المشتريات']])
-        ), 'القيد المحاسبي');
-
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(
-            [['نتائج الفحص والتحذيرات'], [], ['النوع', 'الحقل', 'الرسالة']]
-                .concat((c.validation.errors || []).map(e => ['خطأ', e.field + (e.line ? ` (بند ${e.line})` : ''), e.msg]))
-                .concat((c.validation.warnings || []).map(w => ['تحذير', w.field, w.msg]))
-                .concat([[], ['درجات الثقة'], []])
-                .concat(Object.entries(c.confidence || {}).map(([k, v]) => ['ثقة', k, v + '%']))
-                .concat([[], ['تعديلات المستخدم على قيم الذكاء الاصطناعي'], ['الحقل', 'قيمة الذكاء الاصطناعي', 'قيمة المستخدم', 'بواسطة', 'الوقت']])
-                .concat((c.edits || []).map(e => [e.field, e.aiValue, e.userValue, e.by, e.at ? new Date(e.at).toLocaleString('ar-EG') : '']))
-        ), 'الفحص');
-
-        XLSX.writeFile(wb, `فاتورة-${safeName(inv.number || c.fileName)}.xlsx`);
-        AINV.Audit.log('تصدير Excel', `صُدِّرت «${inv.number || c.fileName}» إلى Excel`, { aiInvoiceId: c.id });
-    };
-
-    window.aiExportAllExcel = function () {
-        if (typeof XLSX === 'undefined') { toast('مكتبة Excel غير محمّلة', 'er'); return; }
-        const recs = Object.entries(window.aiInvoices || {});
-        if (!recs.length) { toast('لا فواتير للتصدير', 'er'); return; }
-        const rows = [['الحالة', 'المورّد', 'الرقم الضريبي', 'رقم الفاتورة', 'التاريخ', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'الثقة %', 'أخطاء', 'تحذيرات', 'مربوط بمورّد', 'رُفعت بواسطة', 'التكلفة $']];
-        recs.forEach(([, r]) => {
-            const e = r.extracted || {}, comp = (r.validation && r.validation.computed) || {};
-            rows.push([
-                (AINV.STATUS[r.status] || {}).ar || r.status,
-                (e.supplier && e.supplier.name) || r.fileName || '',
-                (e.supplier && e.supplier.vatNumber) || '',
-                e.number || '', e.date || '',
-                comp.taxable, comp.vat, comp.grandTotal,
-                (r.confidence && r.confidence.overall) || '',
-                ((r.validation && r.validation.errors) || []).length,
-                ((r.validation && r.validation.warnings) || []).length,
-                r.vendorKey ? 'نعم' : 'لا',
-                r.uploadedByName || r.uploadedBy || '', r.estCost || ''
-            ]);
-        });
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'الفواتير');
-        XLSX.writeFile(wb, `الفواتير-بالذكاء-الاصطناعي-${new Date().toISOString().slice(0, 10)}.xlsx`);
-    };
-
-    /**
-     * القيد المقترح — للعرض والتصدير فقط. القيد الفعلي يبنيه createJournalForPInv
-     * القائم عند الترحيل، فلا يوجد مصدران للحقيقة المحاسبية.
-     */
-    function buildJournalPreview(c) {
-        const comp = c.validation.computed;
-        const coa = window.coa || {};
-        const find = (...names) => {
-            const hit = Object.entries(coa).find(([, a]) =>
-                names.some(n => String(a.nameAr || a.name || '').includes(n)));
-            return hit ? { code: hit[1].code || hit[0], name: hit[1].nameAr || hit[1].name } : null;
-        };
-        const vendor = (window.vendors || {})[c.vendorKey] || {};
-        const expense = (vendor.defaultAccountCode && { code: vendor.defaultAccountCode, name: 'حساب المورّد الافتراضي' })
-            || find('مشتريات', 'مصروف') || { code: '—', name: 'حساب المشتريات/المصروف (يُحدَّد عند الترحيل)' };
-        const vatIn = find('ضريبة القيمة المضافة - المدخلات', 'ضريبة المدخلات', 'المدخلات') || { code: '—', name: 'ضريبة القيمة المضافة — المدخلات' };
-        const ap = find('الموردون', 'الدائنون', 'ذمم دائنة') || { code: '—', name: 'حسابات الموردين' };
-
-        const lines = [
-            { code: expense.code, name: expense.name, debit: comp.taxable, credit: 0 }
-        ];
-        if (comp.vat) lines.push({ code: vatIn.code, name: vatIn.name, debit: comp.vat, credit: 0 });
-        lines.push({ code: ap.code, name: (vendor.nameAr ? ap.name + ' — ' + vendor.nameAr : ap.name), debit: 0, credit: comp.grandTotal });
-
-        return {
-            lines,
-            totalDebit: AINV.r2(lines.reduce((s, l) => s + (l.debit || 0), 0)),
-            totalCredit: AINV.r2(lines.reduce((s, l) => s + (l.credit || 0), 0))
-        };
-    }
-    window.aiJournalPreview = buildJournalPreview;
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [AC-PDF] تصدير PDF (§22)
-    // ═══════════════════════════════════════════════════════════════════════════
-    window.aiExportPdf = function () {
-        const c = AIU.current; if (!c) return;
-        const inv = c.extracted, comp = c.validation.computed;
-        const vendor = (window.vendors || {})[c.vendorKey] || {};
-        const je = buildJournalPreview(c);
-        const st = AINV.STATUS[c.status] || {};
-        const co = (window.cfg && window.cfg.companyName) || 'الشركة';
-
-        const w = window.open('', '_blank');
-        if (!w) { toast('⚠️ المتصفح منع النافذة — اسمح بالنوافذ المنبثقة', 'er', 7000); return; }
-        w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
-        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-        <title>فاتورة ${esc(inv.number || '')}</title><style>
-        body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:26px;color:#1a3a5c;direction:rtl}
-        h1{font-size:19px;margin:0 0 4px;color:#12336B}
-        .sub{font-size:12px;color:#777;margin-bottom:16px}
-        .st{display:inline-block;padding:3px 12px;border-radius:12px;color:#fff;font-size:11px;font-weight:800;background:${st.color || '#777'}}
-        .box{border:1px solid #dde4ec;border-radius:9px;padding:12px 14px;margin-bottom:12px}
-        .box h3{margin:0 0 8px;font-size:13px;color:#12336B;border-bottom:1px solid #eef2f7;padding-bottom:5px}
-        .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 18px;font-size:12px}
-        .kv div{display:flex;justify-content:space-between;border-bottom:1px dashed #f0f3f7;padding:3px 0}
-        .kv span{color:#7a8899}.kv b{color:#1a3a5c}
-        table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px}
-        th,td{border:1px solid #e6ebf0;padding:6px 8px;text-align:right}
-        th{background:#f2f6fa;color:#12336B;font-weight:700}
-        td.n,th.n{text-align:left;font-variant-numeric:tabular-nums}
-        tfoot td{background:#f8fafc;font-weight:800}
-        .warn{background:#fff8e6;border:1px solid #f0d493;color:#8a6100;padding:9px 12px;border-radius:8px;font-size:11.5px;margin-bottom:10px}
-        .err{background:#fdecea;border-color:#f0a9a0;color:#8a2b22}
-        .foot{margin-top:16px;font-size:10.5px;color:#8894a2;border-top:1px solid #eef2f7;padding-top:8px;line-height:1.9}
-        @page{size:A4;margin:1.2cm}
-        </style></head><body>
-        <h1>${esc(co)} — فاتورة مشتريات مستخرَجة آلياً</h1>
-        <div class="sub">رقم المستند في النظام: ${esc(c.id)} · <span class="st">${esc(st.ar || c.status)}</span> · الثقة ${c.confidence.overall}%</div>
-
-        ${(c.validation.errors || []).length ? `<div class="warn err"><b>⛔ ${c.validation.errors.length} خطأ تحقّق:</b> ${esc(c.validation.errors.slice(0, 4).map(e => e.msg).join(' · '))}</div>` : ''}
-        ${(c.duplicates || []).length ? `<div class="warn"><b>♻️ تكرار محتمل:</b> ${esc(c.duplicates.map(d => d.why).join(' · '))}</div>` : ''}
-
-        <div class="box"><h3>بيانات الفاتورة</h3><div class="kv">
-            <div><span>رقم الفاتورة</span><b>${esc(inv.number || '—')}</b></div>
-            <div><span>التاريخ</span><b>${esc(inv.date || '—')}</b></div>
-            <div><span>تاريخ الاستحقاق</span><b>${esc(inv.dueDate || '—')}</b></div>
-            <div><span>العملة</span><b>${esc(inv.currency)}</b></div>
-            <div><span>أمر الشراء</span><b>${esc(inv.poNumber || '—')}</b></div>
-            <div><span>نوع المستند</span><b>${esc(inv.docType)}</b></div>
-        </div></div>
-
-        <div class="box"><h3>المورّد</h3><div class="kv">
-            <div><span>الاسم</span><b>${esc(inv.supplier.name || '—')}</b></div>
-            <div><span>الرقم الضريبي</span><b>${esc(inv.supplier.vatNumber || '—')}</b></div>
-            <div><span>السجل التجاري</span><b>${esc(inv.supplier.crNumber || '—')}</b></div>
-            <div><span>المربوط في النظام</span><b>${esc(vendor.nameAr || vendor.nameEn || 'غير مربوط')}</b></div>
-        </div></div>
-
-        <div class="box"><h3>الأصناف</h3>
-        <table><thead><tr><th>#</th><th>الوصف</th><th class="n">الكمية</th><th>الوحدة</th><th class="n">السعر</th><th class="n">الخصم</th><th class="n">قبل الضريبة</th><th class="n">%</th><th class="n">الضريبة</th><th class="n">بعد الضريبة</th></tr></thead>
-        <tbody>${inv.items.map((l, i) => { const cc = comp.lines[i] || {}; return `<tr><td>${i + 1}</td><td>${esc(l.description || '')}</td>
-            <td class="n">${fmt(cc.qty)}</td><td>${esc(l.unit || '')}</td><td class="n">${fmt(cc.price)}</td>
-            <td class="n">${cc.discount ? fmt(cc.discount) : '—'}</td><td class="n">${fmt(cc.taxable)}</td>
-            <td class="n">${cc.rate}%</td><td class="n">${fmt(cc.vatAmount)}</td><td class="n">${fmt(cc.lineTotal)}</td></tr>`; }).join('')}</tbody>
-        <tfoot><tr><td colspan="6">الإجمالي</td><td class="n">${fmt(comp.taxable)}</td><td></td><td class="n">${fmt(comp.vat)}</td><td class="n">${fmt(comp.grandTotal)}</td></tr></tfoot>
-        </table></div>
-
-        <div class="box"><h3>القيد المحاسبي المقترح</h3>
-        <table><thead><tr><th>الحساب</th><th>الاسم</th><th class="n">مدين</th><th class="n">دائن</th></tr></thead>
-        <tbody>${je.lines.map(l => `<tr><td>${esc(l.code)}</td><td>${esc(l.name)}</td><td class="n">${l.debit ? fmt(l.debit) : ''}</td><td class="n">${l.credit ? fmt(l.credit) : ''}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="2">الإجمالي</td><td class="n">${fmt(je.totalDebit)}</td><td class="n">${fmt(je.totalCredit)}</td></tr></tfoot>
-        </table></div>
-
-        <div class="foot">
-            استُخرجت بياناتها آلياً بواسطة الذكاء الاصطناعي، وأُعيد احتساب جميع المبالغ والضرائب داخل النظام والتحقق منها.
-            ${(c.edits || []).length ? `عُدِّل ${(c.edits || []).length} حقل يدوياً بعد الاستخراج.` : 'لم تُعدَّل أي قيمة يدوياً.'}
-            رُفعت بواسطة ${esc(c.uploadedByName || c.uploadedBy || '')} في ${c.uploadedAt ? new Date(c.uploadedAt).toLocaleString('ar-EG') : ''}.
-            ${c.approvedBy ? `اعتُمدت بواسطة ${esc(c.approvedByName || c.approvedBy)}.` : 'لم تُعتمد بعد.'}
-            هذا المستند تقرير داخلي وليس فاتورة ضريبية صادرة.
-        </div>
-        <script>setTimeout(function(){window.print()},500)<\/script>
-        </body></html>`);
-        w.document.close();
-        AINV.Audit.log('تصدير PDF', `صُدِّرت «${inv.number || c.fileName}» إلى PDF`, { aiInvoiceId: c.id });
-    };
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [AC-SET] إعدادات المدير (§32)
-    // ═══════════════════════════════════════════════════════════════════════════
     function modal(id, title, body, footer, wide) {
         let ov = $(id);
         if (!ov) { ov = document.createElement('div'); ov.id = id; ov.className = 'ai-modal'; document.body.appendChild(ov); }
@@ -368,257 +38,1067 @@
     }
     window.aiCloseModal = id => { const e = $(id); if (e) e.classList.remove('show'); };
 
-    /** نسخ أمر إلى الحافظة — يقرأ النص من العنصر الشقيق لا من وسيط داخل onclick
-     *  (تمريره كنصّ في السمة فخّ: محلّل HTML يفكّ &#39; إلى ' قبل أن يقرأه JS) */
-    window.aiCopy = function (btn) {
-        const code = btn.parentNode.querySelector('code');
-        const text = code ? code.textContent : '';
-        const done = () => { const o = btn.textContent; btn.textContent = '✅'; setTimeout(() => { btn.textContent = o; }, 1200); };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(done, () => toast('تعذّر النسخ — انسخه يدوياً', 'er'));
-        } else {
-            const ta = document.createElement('textarea');
-            ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
-            document.body.appendChild(ta); ta.select();
-            try { document.execCommand('copy'); done(); } catch (e) { toast('تعذّر النسخ — انسخه يدوياً', 'er'); }
-            ta.remove();
-        }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-EDIT] التحرير والربط والتجاوُز
+    // ───────────────────────────────────────────────────────────────────────────
+    // كل تعديل يفعل ثلاثة أشياء معاً: يغيّر القيمة، ويعلّم أثر الحقل بأن بشراً
+    // غيّره (مع حفظ قيمة الذكاء الاصطناعي الأصلية)، ويعيد تشغيل محرّك التحقق —
+    // لأن تعديل رقم واحد قد يُنشئ أو يُزيل مانع اعتماد.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const PROV_OF = {
+        invoice_number: 'invoice_number', invoice_date: 'invoice_date', due_date: 'due_date',
+        currency: 'currency', 'supplier.name': 'supplier_name', 'supplier.vat_number': 'supplier_vat',
+        'supplier.commercial_registration': 'supplier_cr',
+        'totals.vat_total': 'totals_vat', 'totals.grand_total': 'totals_grand_total'
     };
 
-    /** سطر أمر قابل للنسخ داخل دليل التركيب */
-    function cmd(text) {
-        return `<div class="ai-cmd"><code dir="ltr">${esc(text)}</code>` +
-            `<button type="button" class="ai-cmd-c" title="نسخ" onclick="aiCopy(this)">⧉</button></div>`;
+    const NUMERIC = /^(totals\.|items\.\d+\.(quantity|unit_price|discount|vat_rate|taxable_amount|vat_amount|total_amount))/;
+
+    function setPath(obj, path, value) {
+        const parts = path.split('.');
+        let o = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const k = parts[i];
+            if (o[k] == null || typeof o[k] !== 'object') o[k] = /^\d+$/.test(parts[i + 1]) ? [] : {};
+            o = o[k];
+        }
+        o[parts[parts.length - 1]] = value;
+    }
+    function getPath(o, path) { return path.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
+
+    window.aiEditField = function (el) {
+        const r = cur(); if (!r) return;
+        if (AINV.isLocked(r)) { toast('السجل مقفل — لا يقبل التعديل في حالته الحالية', 'er'); return; }
+        if (!AINV.may('edit')) { toast('لا تملك صلاحية التعديل', 'er'); return; }
+
+        const path = el.dataset.path;
+        const raw = el.value;
+        const before = getPath(r, path);
+        const value = NUMERIC.test(path) ? (raw === '' ? null : AINV.num(raw)) : raw.trim();
+
+        if (String(before == null ? '' : before) === String(value == null ? '' : value)) return;
+
+        setPath(r, path, value);
+
+        // أثر الحقل: من غيّره ومتى، مع الاحتفاظ بقيمة الذكاء الاصطناعي الأصلية
+        const pk = PROV_OF[path];
+        if (pk) {
+            r.provenance = r.provenance || {};
+            r.provenance[pk] = AINV.Audit.touch(r.provenance[pk], value);
+        }
+
+        // أثر التدقيق على مستوى الحدث
+        r._pendingEdits = r._pendingEdits || [];
+        r._pendingEdits.push(AINV.Audit.event({
+            action: 'MODIFIED_FIELD', action_ar: 'تعديل حقل',
+            field_name: path, old_value: before, new_value: value, source: 'user_input'
+        }));
+
+        revalidate(r);
+        AIU.dirty = true;
+        window.aiRenderReview();
+    };
+
+    /** يعيد تشغيل التحقق والثقة والتكرار بعد أي تعديل. */
+    function revalidate(r) {
+        // نحافظ على التجاوزات المسجَّلة عبر إعادة التحقق
+        const overrides = {};
+        AINV.toArray(r.validation_issues).forEach(i => {
+            if (i.resolved) overrides[i.id] = { override_reason: i.override_reason, override_by: i.override_by, override_at: i.override_at };
+        });
+
+        const issues = AINV.Validate.run(r);
+        issues.forEach(i => {
+            if (overrides[i.id]) Object.assign(i, overrides[i.id], { resolved: true });
+        });
+        r.validation_issues = issues;
+
+        const conf = AINV.confidence(r, issues);
+        r.confidence_percent = conf.percent;
+        r.confidence_overall = conf.overall;
+        r.low_fields = conf.lowFields;
     }
 
-    window.aiSettings = function () {
-        if (!IS_ADMIN()) { toast('🚫 للمدير فقط', 'er'); return; }
-        const c = AINV.Config.get();
-        const rd = AINV.Config.ready();       // ‏{ ok, reason } — لا قيمة منطقية
-        const ready = !!(rd && rd.ok);
-        modal('aiSetOv', '⚙️ إعدادات قراءة الفواتير بالذكاء الاصطناعي', `
-            <label class="ai-toggle"><input type="checkbox" id="asEnabled" ${c.enabled ? 'checked' : ''}> تفعيل الوحدة</label>
-
-            <div class="ai-sec">🔑 مفتاح Gemini (مجاني — بلا Worker)
-                <span class="ai-pill ${ready ? 'ok' : 'warn'}">${ready ? '✅ جاهز' : '⚠️ غير جاهز'}</span></div>
-            ${ready ? '' : `<div class="ai-step-d" style="margin:-2px 0 8px">⛔ ${esc(rd.reason || '')}</div>`}
-
-            <label class="ai-f"><span class="ai-f-l">مفتاح Gemini</span>
-                <input id="asGeminiKey" type="password" dir="ltr" placeholder="AIza…" value="${esc(c.geminiKey || '')}"></label>
-            <button class="btn b-b" onclick="aiTestGemini()">🔌 اختبار المفتاح</button>
-            <div id="asTest" class="ai-meta"></div>
-
-            <div class="ai-note">🔐 <b>هذا المفتاح مخزَّن في إعدادات التطبيق ويقرؤه المتصفّح</b> (لا Worker).
-                لمفتاح مجاني هذا مقبول، لكن <b>قيّده بنطاق تطبيقك في Google</b> ليعمل من موقعك فقط —
-                فحتى لو ظهر لا يُستعمل من مكان آخر.</div>
-
-            <details class="ai-steps" ${ready ? '' : 'open'}>
-                <summary>📘 خطوتان لمرّة واحدة — الحصول على المفتاح وتقييده</summary>
-
-                <div class="ai-step"><b>1️⃣ احصل على مفتاح مجاني</b>
-                    <div class="ai-step-d">افتح
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>
-                        ← <b>Create API key</b> (بلا بطاقة دفع). القيمة تبدأ بـ<code dir="ltr">AIza</code> —
-                        انسخها بزر النسخ 📋 والصقها في الحقل بالأعلى.</div></div>
-
-                <div class="ai-step"><b>2️⃣ قيّد المفتاح بنطاقك (مهم للأمان)</b>
-                    <div class="ai-step-d">افتح
-                        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>
-                        ← اختر المفتاح ←
-                        <b>Application restrictions</b> = <b>Websites</b> وأضف نطاقات تطبيقك:</div>
-                    ${cmd('emplyeeapp-1dc64.web.app/*')}
-                    ${cmd('emplyeeapp-1dc64.firebaseapp.com/*')}
-                    <div class="ai-step-d">ثم <b>API restrictions</b> = <b>Generative Language API</b> فقط ← Save.
-                        <br><span class="ai-meta">لو تستخدم نطاقاً مخصّصاً أضِفه أيضاً. بلا هذا التقييد يعمل المفتاح من أي مكان لو ظهر.</span></div></div>
-            </details>
-
-            <details class="ai-steps">
-                <summary>🔧 خيار متقدّم: وسيط Cloudflare (لازم لـAnthropic فقط)</summary>
-                <div class="ai-step-d ai-meta" style="margin-bottom:6px">لست بحاجة إليه مع Gemini. اتركه فارغاً.
-                    يلزم فقط إن اخترت مزوّد Anthropic (مدفوع) الذي لا يُوضع مفتاحه في المتصفّح.</div>
-                ${cmd('cd workers/invoice-ai-proxy && npx wrangler login && npx wrangler deploy')}
-                ${cmd('printf \'%s\' "$(pbpaste)" | npx wrangler secret put ANTHROPIC_API_KEY')}
-                <label class="ai-f" style="margin-top:6px"><span class="ai-f-l">رابط الوسيط (اختياري)</span>
-                    <input id="asProxy" dir="ltr" placeholder="https://gbr-invoice-ai-proxy.xxx.workers.dev" value="${esc(c.proxyUrl)}"></label>
-                <button class="btn b-b" onclick="aiTestProxy()">🔌 اختبار الوسيط</button>
-            </details>
-
-            <div class="ai-sec">🧠 المحرك (المزوّد)</div>
-            <div class="ai-grid2">
-                <label class="ai-f"><span class="ai-f-l">المزوّد</span><select id="asProvider">
-                    <option value="gemini" ${(c.provider || 'gemini') === 'gemini' ? 'selected' : ''}>Google Gemini — مجاني (موصى به)</option>
-                    <option value="anthropic" ${c.provider === 'anthropic' ? 'selected' : ''}>Anthropic Claude — مدفوع بالـAPI</option>
-                </select></label>
-                <label class="ai-f"><span class="ai-f-l">نموذج Gemini</span><select id="asGeminiModel">
-                    <option value="gemini-2.5-flash" ${(c.geminiModel || 'gemini-2.5-flash') === 'gemini-2.5-flash' ? 'selected' : ''}>Gemini 2.5 Flash — الأدق (موصى به)</option>
-                    <option value="gemini-2.5-flash-lite" ${c.geminiModel === 'gemini-2.5-flash-lite' ? 'selected' : ''}>Gemini 2.5 Flash-Lite — الأسرع</option>
-                    <option value="gemini-2.0-flash" ${c.geminiModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
-                </select></label>
-                <label class="ai-f"><span class="ai-f-l">نموذج Claude</span><select id="asModel">
-                    <option value="claude-opus-5" ${c.model === 'claude-opus-5' ? 'selected' : ''}>Opus 5 — الأدق</option>
-                    <option value="claude-sonnet-5" ${c.model === 'claude-sonnet-5' ? 'selected' : ''}>Sonnet 5 — متوازن</option>
-                    <option value="claude-haiku-4-5" ${c.model === 'claude-haiku-4-5' ? 'selected' : ''}>Haiku 4.5 — الأرخص</option>
-                </select></label>
-                <label class="ai-f"><span class="ai-f-l">عمق المعالجة (Claude)</span><select id="asEffort">
-                    ${['low', 'medium', 'high', 'xhigh'].map(e => `<option value="${e}" ${c.effort === e ? 'selected' : ''}>${e}</option>`).join('')}
-                </select></label>
-                <label class="ai-f"><span class="ai-f-l">عتبة الثقة %</span><input type="number" id="asConf" min="50" max="100" value="${c.confidenceThreshold}"></label>
-                <label class="ai-f"><span class="ai-f-l">أقصى حجم ملف (م.ب)</span><input type="number" id="asMaxMB" min="1" max="12" value="${c.maxFileMB}"></label>
-                <label class="ai-f"><span class="ai-f-l">عدد المحاولات</span><input type="number" id="asRetry" min="0" max="5" value="${c.retryCount}"></label>
-                <label class="ai-f"><span class="ai-f-l">المهلة (ثانية)</span><input type="number" id="asTimeout" min="30" max="300" value="${Math.round(c.timeoutMs / 1000)}"></label>
-            </div>
-            <label class="ai-toggle"><input type="checkbox" id="asOcrFallback" ${c.ocrFallback !== false ? 'checked' : ''}>
-                عند نفاد حصّة Gemini المجانية → قراءة محلية مجانية (OCR)
-                <span class="ai-meta">(تقديرية — تُعرَض للمراجعة دائماً)</span></label>
-
-            <div class="ai-sec">🛡️ قواعد الاعتماد</div>
-            <label class="ai-toggle"><input type="checkbox" id="asBlockArith" ${c.blockOnArithmetic ? 'checked' : ''}>
-                منع الاعتماد عند وجود خطأ حسابي <span class="ai-meta">(يُنصح ببقائه مفعّلاً)</span></label>
-            <label class="ai-toggle"><input type="checkbox" id="asMatchVendor" ${c.autoMatchVendor ? 'checked' : ''}>
-                ترشيح المورّد تلقائياً <span class="ai-meta">(لا يُنشئ مورّداً أبداً)</span></label>`,
-            `<button class="btn" onclick="aiCloseModal('aiSetOv')">إلغاء</button>
-             <button class="btn b-g" onclick="aiSaveSettings()">💾 حفظ</button>`);
+    window.aiUseAltDate = function () {
+        const r = cur(); if (!r || !r.date_alt) return;
+        const before = r.invoice_date;
+        r.invoice_date = r.date_alt;
+        r.date_alt = before;
+        r.provenance = r.provenance || {};
+        r.provenance.invoice_date = AINV.Audit.touch(r.provenance.invoice_date, r.invoice_date);
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'RESOLVED_AMBIGUOUS_DATE', action_ar: 'تأكيد التاريخ الغامض',
+            field_name: 'invoice_date', old_value: before, new_value: r.invoice_date, source: 'user_input'
+        }));
+        revalidate(r); AIU.dirty = true; window.aiRenderReview();
     };
 
-    // اختبار مفتاح Gemini المباشر: نداء خفيف لقائمة النماذج يتحقّق من صحّة المفتاح
-    // وتقييد النطاق دون إنفاق حصّة استخراج.
-    window.aiTestGemini = async function () {
-        const el = $('asTest'); const key = ($('asGeminiKey').value || '').trim();
-        if (!key) { el.textContent = '⚠️ الصق المفتاح أولاً'; return; }
-        if (!/^AIza[A-Za-z0-9_-]{20,}$/.test(key)) {
-            el.innerHTML = '<span style="color:#C0392B">❌ الشكل غير صالح — مفتاح Gemini يبدأ بـ<code dir="ltr">AIza</code>. قد تكون نسخت قيمة أخرى.</span>'; return;
-        }
-        el.textContent = '⏳ جارٍ الاختبار…';
-        try {
-            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
-                headers: { 'x-goog-api-key': key }
-            });
-            const j = await res.json().catch(() => ({}));
-            if (res.ok) { el.innerHTML = '<span style="color:#1B8A4B">✅ المفتاح يعمل — Gemini جاهز</span>'; return; }
-            const st = (j.error && j.error.status) || '';
-            const msg = (j.error && j.error.message) || '';
-            if (/api key not valid|API_KEY_INVALID/i.test(msg) || res.status === 400)
-                el.innerHTML = '<span style="color:#C0392B">❌ المفتاح غير صالح — أعد نسخه كاملاً من aistudio.google.com</span>';
-            else if (res.status === 403 || st === 'PERMISSION_DENIED')
-                el.innerHTML = '<span style="color:#C0392B">❌ مرفوض (403) — غالباً تقييد النطاق لا يشمل هذا الموقع. أضِف نطاق تطبيقك في Google Cloud ← Credentials.</span>';
-            else
-                el.innerHTML = `<span style="color:#C0392B">❌ ${esc(st || res.status)} — ${esc(String(msg).slice(0, 140))}</span>`;
-        } catch (e) {
-            el.innerHTML = '<span style="color:#C0392B">❌ تعذّر الوصول إلى Gemini — تحقّق من الاتصال بالإنترنت</span>';
-        }
+    window.aiLinkVendor = function (key) {
+        const r = cur(); if (!r) return;
+        const before = r.vendorKey || '';
+        r.vendorKey = key || '';
+        const v = (window.vendors || {})[key];
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: key ? 'LINKED_SUPPLIER' : 'UNLINKED_SUPPLIER',
+            action_ar: key ? 'ربط المورد بسجلات النظام' : 'إلغاء ربط المورد',
+            field_name: 'vendorKey', old_value: before, new_value: key,
+            notes: v ? (v.nameAr || v.nameEn || '') : '', source: 'user_input'
+        }));
+        AIU.dirty = true; window.aiRenderReview();
     };
 
-    window.aiTestProxy = async function () {
-        const el = $('asTest'); const url = ($('asProxy').value || '').trim();
-        if (!url) { el.textContent = '⚠️ أدخل الرابط أولاً'; return; }
-        el.textContent = '⏳ جارٍ الاختبار…';
-        try {
-            const res = await fetch(url.replace(/\/+$/, '') + '/', { method: 'GET' });
-            const j = await res.json();
-            if (!j || !j.ok) { el.innerHTML = '<span style="color:#C0392B">❌ رد غير متوقّع من الرابط</span>'; return; }
+    window.aiLinkItem = function (i, key) {
+        const r = cur(); if (!r) return;
+        r.itemMatches = AINV.toArray(r.itemMatches);
+        const before = (r.itemMatches[i] && r.itemMatches[i].key) || '';
+        const cat = AINV.Match.systemItems().find(x => x.key === key);
+        r.itemMatches[i] = key ? { key, confidence: 1, match_type: 'USER_LINKED', name: cat && cat.name } : { key: '', confidence: 0, match_type: 'NO_MATCH' };
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'LINKED_ITEM', action_ar: `ربط البند ${i + 1} بصنف`,
+            field_name: `itemMatches[${i}]`, old_value: before, new_value: key, source: 'user_input'
+        }));
+        AIU.dirty = true; window.aiRenderReview();
+    };
 
-            // الوسيط يُبلغ عن حالة كل مفتاح كقيم منطقية (لا يكشف منه شيئاً).
-            // نعرض حالة Gemini (المجاني) وAnthropic معاً.
-            const P = j.providers || {};
-            const line = (name, label, setCmd, prov) => {
-                // توافق مع وسيط أقدم يبلّغ عن Anthropic فقط في الجذر
-                const info = prov || (name === 'anthropic' ? { keyConfigured: j.keyConfigured, keyFormatValid: j.keyFormatValid } : null);
-                if (!info || info.keyConfigured == null) return '';
-                if (info.keyConfigured === false) return `<div style="color:#8a6d00;margin-top:4px">◽ ${label}: غير مضبوط — <code dir="ltr">${setCmd}</code></div>`;
-                if (info.keyFormatValid === false) return `<div style="color:#C0392B;margin-top:4px">❌ ${label}: مفتاح مقصوص أو ملوّث — أعد لصقه كاملاً: <code dir="ltr">${setCmd}</code></div>`;
-                return `<div style="color:#1B8A4B;margin-top:4px">✅ ${label}: مضبوط وشكله سليم</div>`;
+    window.aiAddLine = function () {
+        const r = cur(); if (!r) return;
+        r.items = AINV.toArray(r.items);
+        r.items.push({ id: 'line-' + (r.items.length + 1), item_name: '', quantity: 1, unit: 'وحدة', unit_price: 0, discount: 0, vat_rate: 15 });
+        revalidate(r); AIU.dirty = true; window.aiRenderReview();
+    };
+
+    window.aiDelLine = function (i) {
+        const r = cur(); if (!r) return;
+        r.items = AINV.toArray(r.items);
+        const gone = r.items[i];
+        r.items.splice(i, 1);
+        r.itemMatches = AINV.toArray(r.itemMatches); r.itemMatches.splice(i, 1);
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'DELETED_LINE', action_ar: `حذف البند ${i + 1}`,
+            field_name: 'items', old_value: gone && gone.item_name, new_value: null, source: 'user_input'
+        }));
+        revalidate(r); AIU.dirty = true; window.aiRenderReview();
+    };
+
+    window.aiDismissDup = function () {
+        const r = cur(); if (!r) return;
+        r.duplicate_dismissed = true;
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'DISMISSED_DUPLICATE', action_ar: 'تجاهل تحذير التكرار',
+            notes: r.duplicate_warning && r.duplicate_warning.message_ar, source: 'user_input'
+        }));
+        AIU.dirty = true; window.aiRenderReview();
+    };
+
+    /**
+     * تجاوُز مانع اعتماد — بسبب مكتوب واسم من تجاوزه.
+     * التجاوُز الصامت هو ما يحوّل نظام تحقق إلى ديكور؛ لذلك السبب إلزامي ويُخزَّن.
+     */
+    window.aiOverride = function (idx) {
+        const r = cur(); if (!r) return;
+        const issue = AINV.toArray(r.validation_issues)[idx]; if (!issue) return;
+        modal('aiOverrideModal', '⚖️ تجاوُز مانع اعتماد',
+            `<div class="ai-note wn"><b>${esc(issue.message_ar || issue.message)}</b>
+                <div class="ai-meta">الرمز: ${esc(issue.code)}</div></div>
+             <p>هذا المانع وُضع لأن النظام رصد اختلافاً حقيقياً. التجاوُز يُسجَّل باسمك وتاريخه ويظهر لأي مدقّق لاحقاً.</p>
+             <div class="ai-f"><label class="ai-f-l">سبب التجاوُز (إلزامي)</label>
+                <textarea class="ai-inp" id="aiOvrReason" rows="3" placeholder="مثال: راجعتُ الأصل الورقي والفرق ناتج عن تقريب المورد، وأرفقتُ إشعاراً منه."></textarea></div>`,
+            `<button class="btn" onclick="aiCloseModal('aiOverrideModal')">إلغاء</button>
+             <button class="btn b-w" onclick="aiOverrideConfirm(${idx})">تسجيل التجاوُز</button>`);
+    };
+
+    window.aiOverrideConfirm = function (idx) {
+        const r = cur(); if (!r) return;
+        const reason = ($('aiOvrReason').value || '').trim();
+        if (reason.length < 10) { toast('اكتب سبباً واضحاً (10 أحرف على الأقل)', 'er'); return; }
+        const issue = AINV.toArray(r.validation_issues)[idx]; if (!issue) return;
+        issue.resolved = true;
+        issue.override_reason = reason;
+        issue.override_by = (window.myP && window.myP.name) || (window.curU && window.curU.email) || '';
+        issue.override_at = new Date().toISOString();
+        r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+            action: 'OVERRODE_BLOCKING_ISSUE', action_ar: 'تجاوُز مانع اعتماد',
+            field_name: issue.field, notes: issue.code + ' — ' + reason, source: 'user_input'
+        }));
+        AINV.Audit.log('تجاوُز مانع اعتماد', `${issue.code} في «${r.invoice_number || ''}» — ${reason}`, { recordId: r.id });
+        AIU.dirty = true;
+        window.aiCloseModal('aiOverrideModal');
+        window.aiRenderReview();
+    };
+
+    /**
+     * إنشاء مورد جديد في النظام من بيانات الفاتورة مباشرةً.
+     * نحترم قواعد صفحة الموردين نفسها: رمز مولَّد، والرقم الضريبي 15 خانة.
+     * في نمط «مجموعات الموردين» اختيار المجموعة قرار محاسبي يحدّد حساب الأستاذ —
+     * فلا نخمّنه هنا، بل نحيل المستخدم إلى صفحة الموردين.
+     */
+    window.aiCreateVendor = async function () {
+        const r = cur(); if (!r) return;
+        const s = r.supplier || {};
+        if (!s.name) { toast('اسم المورد فارغ — أكمِله أولاً', 'er'); return; }
+
+        if (typeof window.arApMode === 'function' && window.arApMode() === 'groups') {
+            toast('نمط «مجموعات الموردين» مفعّل — أنشئ المورد من صفحة الموردين لاختيار مجموعته (تحدّد حساب الأستاذ)', 'wn', 9000);
+            return;
+        }
+
+        const vat = AINV.digitsOf(s.vat_number);
+        if (vat && vat.length !== 15) {
+            toast('الرقم الضريبي المستخرَج ليس 15 خانة — صحّحه قبل إنشاء المورد', 'er', 7000);
+            return;
+        }
+        if (!await confirmAsk(`إنشاء مورد جديد باسم «${s.name}» في سجلات النظام؟`)) return;
+
+        try {
+            const now = new Date().toISOString();
+            const code = (typeof window.generateVendorCode === 'function') ? window.generateVendorCode() : ('V-' + Date.now().toString().slice(-6));
+            const data = {
+                code, type: 'supplier', groupId: '', groupAccount: '',
+                nameAr: s.name, nameEn: s.legal_name || '',
+                contact: '', phone: s.phone || '', email: s.email || '',
+                iban: s.iban || '', vatNumber: vat, crNumber: AINV.digitsOf(s.commercial_registration),
+                address: s.address || '',
+                openingBalance: 0, paymentTerms: 30, creditLimit: 0,
+                notes: 'أُنشئ تلقائياً من قراءة فاتورة بالذكاء الاصطناعي',
+                active: true,
+                createdAt: now, createdBy: (window.curU && window.curU.uid) || 'system',
+                updatedAt: now, updatedBy: (window.curU && window.curU.uid) || 'system'
             };
-            const keys = line('gemini', 'Gemini (مجاني)', 'npx wrangler secret put GEMINI_API_KEY', P.gemini)
-                + line('anthropic', 'Anthropic', 'npx wrangler secret put ANTHROPIC_API_KEY', P.anthropic);
-            const models = (P.gemini && P.gemini.models) ? [].concat(P.gemini.models, (P.anthropic && P.anthropic.models) || []) : (j.models || []);
+            const ref = await window.push(window.R.vend, data);
+            r.vendorKey = ref.key;
+            r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+                action: 'CREATED_SUPPLIER', action_ar: 'إنشاء مورد جديد من الفاتورة',
+                new_value: s.name, notes: 'رمز المورد: ' + code, source: 'user_input'
+            }));
+            AINV.Audit.log('إنشاء مورد', `أُنشئ المورد «${s.name}» (${code}) من فاتورة مقروءة آلياً`, { recordId: r.id });
+            toast('✅ أُنشئ المورد ورُبط بالفاتورة', 'ok');
+            AIU.dirty = true; window.aiRenderReview();
+        } catch (e) { toast('❌ تعذّر إنشاء المورد: ' + (e.message || e), 'er'); }
+    };
 
-            el.innerHTML = `<span style="color:#1B8A4B">✅ الوسيط يعمل — النماذج: ${esc(models.join('، '))}</span>${keys || '<div class="ai-meta" style="margin-top:4px">نسخة وسيط أقدم لا تُبلغ عن حالة المفاتيح</div>'}`;
-        } catch (e) {
-            el.innerHTML = `<span style="color:#C0392B">❌ تعذّر الوصول — تحقّق من الرابط ومن إضافته إلى connect-src في firebase.json</span>`;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-FLOW] حفظ · اعتماد · رفض · حذف · إعادة محاولة
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /** يبني الحمولة القابلة للكتابة من السجل المفتوح. */
+    function payload(r, extra) {
+        const out = Object.assign({}, r, extra || {});
+        delete out.id; delete out._pendingEdits;
+        // أثر التدقيق: نضيف الأحداث المعلّقة إلى السجل التراكمي
+        const pending = AINV.toArray(r._pendingEdits);
+        if (pending.length) out.audit_trail = AINV.toArray(r.audit_trail).concat(pending);
+        return out;
+    }
+
+    async function commit(r, extra, successMsg) {
+        const data = payload(r, extra);
+        await AINV.Store.update(r.id, data);
+        r.audit_trail = AINV.toArray(data.audit_trail);
+        r._pendingEdits = [];
+        AIU.dirty = false;
+        Object.assign(r, extra || {});
+        if (successMsg) toast(successMsg, 'ok');
+    }
+
+    window.aiSaveDraft = async function () {
+        const r = cur(); if (!r) return;
+        if (!AINV.may('edit')) { toast('لا تملك صلاحية التعديل', 'er'); return; }
+        try {
+            revalidate(r);
+            const status = (r.status === 'processing' || r.status === 'failed') ? r.status
+                : (AINV.Validate.hasBlocking(r.validation_issues) ? 'needs_review' : 'validated');
+            await commit(r, { status }, '💾 حُفظت المسوّدة');
+            window.aiRenderReview();
+        } catch (e) { toast('❌ تعذّر الحفظ: ' + (e.message || e), 'er'); }
+    };
+
+    /**
+     * الاعتماد — البوابة الوحيدة نحو المحاسبة.
+     * لا يمرّ مع مانع قائم، ولا بلا ربط مورد: الاعتماد يعني «هذه البيانات صالحة
+     * لتُصبح التزاماً مالياً»، فمن يعتمدها يوقّع عليها باسمه.
+     */
+    window.aiApprove = async function () {
+        const r = cur(); if (!r) return;
+        if (!AINV.may('approve')) { toast('لا تملك صلاحية الاعتماد', 'er'); return; }
+
+        revalidate(r);
+        const sum = AINV.Validate.summary(r.validation_issues);
+        if (sum.blocking) { toast(`⛔ لا يمكن الاعتماد — ${sum.blocking} مانع قائم. عالِجها أو سجّل تجاوُزاً مسبَّباً.`, 'er', 8000); window.aiRenderReview(); return; }
+        if (!r.vendorKey) { toast('⚠️ اربط الفاتورة بمورد في النظام قبل الاعتماد — بدونه لا يُرحَّل الرصيد إلى كشف حسابه', 'er', 9000); return; }
+
+        const cfg = AINV.Config.get();
+        if (r.duplicate_warning && !r.duplicate_dismissed && cfg.blockOnDuplicate) {
+            toast('⛔ تحذير تكرار قائم — عالِجه قبل الاعتماد', 'er', 7000); return;
         }
+
+        const t = r.totals || {};
+        const warn = (r.duplicate_warning && !r.duplicate_dismissed) ? '\n\n⚠️ ما زال تحذير التكرار قائماً.' : '';
+        if (!await confirmAsk(`اعتماد الفاتورة ${r.invoice_number || ''} بمبلغ ${fmt(t.grand_total)} ${r.currency || 'SAR'}؟${warn}`)) return;
+
+        try {
+            const uid = (window.curU && window.curU.uid) || '';
+            r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+                action: 'APPROVED', action_ar: 'اعتماد الفاتورة',
+                notes: `المبلغ ${fmt(t.grand_total)} ${r.currency || 'SAR'} · الثقة ${r.confidence_percent}%`
+            }));
+            await commit(r, {
+                status: 'approved',
+                approvedBy: uid,                         // ← اسم الحقل تحرسه قواعد الأمان
+                approved_at: new Date().toISOString(),
+                approved_by_name: (window.myP && window.myP.name) || (window.curU && window.curU.email) || ''
+            }, '✅ اعتُمدت الفاتورة');
+            AINV.Audit.log('اعتماد فاتورة مقروءة آلياً', `${r.invoice_number || ''} — ${fmt(t.grand_total)} ${r.currency || 'SAR'}`, { recordId: r.id });
+            await AINV.Store.log(r.id, { event: 'approved', amount: t.grand_total, confidence: r.confidence_percent });
+            window.aiRenderReview();
+        } catch (e) { toast('❌ تعذّر الاعتماد: ' + (e.message || e), 'er'); }
+    };
+
+    window.aiReject = function () {
+        const r = cur(); if (!r) return;
+        if (!AINV.may('reject')) { toast('لا تملك صلاحية الرفض', 'er'); return; }
+        modal('aiRejectModal', '⛔ رفض الفاتورة',
+            `<p>الرفض يُغلق السجل ويستبعده من كشف التكرار. اكتب سبباً يفهمه من يراجع لاحقاً.</p>
+             <div class="ai-f"><label class="ai-f-l">سبب الرفض (إلزامي)</label>
+                <textarea class="ai-inp" id="aiRejReason" rows="3" placeholder="مثال: المستند غير مقروء / ليس فاتورة / مكرّرة لفاتورة رقم…"></textarea></div>`,
+            `<button class="btn" onclick="aiCloseModal('aiRejectModal')">إلغاء</button>
+             <button class="btn b-r" onclick="aiRejectConfirm()">تأكيد الرفض</button>`);
+    };
+
+    window.aiRejectConfirm = async function () {
+        const r = cur(); if (!r) return;
+        const reason = ($('aiRejReason').value || '').trim();
+        if (reason.length < 5) { toast('اكتب سبب الرفض', 'er'); return; }
+        try {
+            r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+                action: 'REJECTED', action_ar: 'رفض الفاتورة', notes: reason
+            }));
+            await commit(r, {
+                status: 'rejected', rejection_reason: reason,
+                rejected_at: new Date().toISOString(),
+                rejected_by_name: (window.myP && window.myP.name) || ''
+            }, '⛔ رُفضت الفاتورة');
+            AINV.Audit.log('رفض فاتورة مقروءة آلياً', `${r.invoice_number || ''} — ${reason}`, { recordId: r.id });
+            window.aiCloseModal('aiRejectModal');
+            window.aiRenderReview();
+        } catch (e) { toast('❌ تعذّر الرفض: ' + (e.message || e), 'er'); }
+    };
+
+    window.aiDelete = async function (id) {
+        if (!AINV.may('delete')) { toast('لا تملك صلاحية الحذف', 'er'); return; }
+        const rec = AINV.Store.normalize(id, (window.aiInvoices || {})[id]); if (!rec) return;
+        if (AINV.isLocked(rec)) { toast('لا يمكن حذف سجل معتمد أو مُرحَّل — هذا أثر محاسبي', 'er', 7000); return; }
+        if (!await confirmAsk(`حذف سجل الفاتورة «${rec.invoice_number || (rec.file_metadata && rec.file_metadata.original_filename) || ''}» نهائياً؟`)) return;
+        try {
+            await AINV.Store.remove(id);
+            AINV.Audit.log('حذف سجل قراءة فاتورة', rec.invoice_number || '', { recordId: id });
+            toast('🗑️ حُذف السجل', 'ok');
+            if (AIU.current && AIU.current.id === id) AIU.current = null;
+            window.aiRerender();
+        } catch (e) { toast('❌ تعذّر الحذف: ' + (e.message || e), 'er'); }
+    };
+
+    window.aiRetry = function () {
+        const r = cur(); if (!r) return;
+        toast('ارفع الملف مرة أخرى من الصفحة الرئيسية لإعادة المحاولة', 'wn', 6000);
+        AIU.current = null;
+        window.renderAiInvoices();
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-CONV] التحويل إلى فاتورة مشتريات
+    // ───────────────────────────────────────────────────────────────────────────
+    // نُنشئ الفاتورة **مسوّدة** فقط. الترحيل وإنشاء القيد يبقيان قراراً بشرياً
+    // منفصلاً في صفحة المشتريات — لأن ترحيلاً آلياً لبيانات قرأها نموذج هو
+    // بالضبط ما يجعل خطأ استخراج واحداً خطأً محاسبياً مُرحَّلاً.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.aiConvert = async function () {
+        const r = cur(); if (!r) return;
+        if (!AINV.may('approve')) { toast('لا تملك صلاحية التحويل', 'er'); return; }
+        if (r.status !== 'approved') { toast('اعتمِد الفاتورة أولاً', 'er'); return; }
+        if (r.linkedPInvKey) { toast('حُوّلت هذه الفاتورة من قبل', 'wn'); return; }
+        if (!r.vendorKey) { toast('اربط المورد أولاً', 'er'); return; }
+
+        const prev = AINV.Accounting.preview(r);
+        if (!prev.is_balanced) { toast('⛔ القيد غير متوازن — راجِع الإجماليات', 'er', 7000); return; }
+
+        const blockers = prev.warnings.filter(w => w.includes('لن يُنشأ القيد'));
+        if (blockers.length && !await confirmAsk('⚠️ ' + blockers.join('\n') + '\n\nهل تريد المتابعة رغم ذلك؟')) return;
+
+        if (!await confirmAsk(`إنشاء فاتورة مشتريات **مسوّدة** بمبلغ ${fmt(prev.total_credits)} ${r.currency || 'SAR'}؟\n\nلن تُرحَّل ولن يُنشأ قيد إلا بأمرك من صفحة فواتير المشتريات.`)) return;
+
+        try {
+            const data = AINV.toPurchaseInvoice(Object.assign({}, r, { confidencePercent: r.confidence_percent }));
+            // رقم الفاتورة يولّده النظام ذرّياً كما في savePInv
+            if (typeof window.generatePInvNumberAtomic === 'function') {
+                data.number = await window.generatePInvNumberAtomic();
+            } else {
+                data.number = 'PINV-AI-' + Date.now().toString().slice(-6);
+            }
+            const ref = await window.push(window.R.pinv, data);
+
+            r._pendingEdits = (r._pendingEdits || []).concat(AINV.Audit.event({
+                action: 'CONVERTED_TO_PURCHASE_INVOICE', action_ar: 'تحويل إلى فاتورة مشتريات (مسوّدة)',
+                new_value: data.number, notes: `مبلغ ${fmt(data.grandTotal)} ${data.currency}`
+            }));
+            await commit(r, {
+                status: 'posted',
+                linkedPInvKey: ref.key,              // ← اسم الحقل تحرسه قواعد الأمان
+                linked_pinv_number: data.number,
+                converted_at: new Date().toISOString()
+            }, `📒 أُنشئت فاتورة مشتريات مسوّدة ${data.number}`);
+
+            AINV.Audit.log('تحويل فاتورة مقروءة آلياً', `${r.invoice_number || ''} ← فاتورة مشتريات ${data.number} (مسوّدة)`, { recordId: r.id, pinvKey: ref.key });
+            await AINV.Store.log(r.id, { event: 'converted', pinvNumber: data.number, amount: data.grandTotal });
+
+            toast('ℹ️ الفاتورة مسوّدة — رحّلها من صفحة فواتير المشتريات بعد المراجعة', 'wn', 9000);
+            window.aiRenderReview();
+        } catch (e) { toast('❌ تعذّر التحويل: ' + (e.message || e), 'er'); }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-ACC] معاينة القيد المحاسبي
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.aiAccountingPreview = function () {
+        const r = cur(); if (!r) return;
+        const p = AINV.Accounting.preview(r);
+        const rows = p.journal_lines.map(l => `<tr class="${l.exists ? '' : 'bad'}">
+            <td class="mono">${esc(l.account_code)}${l.exists ? '' : ' <span class="ai-pill er">غير موجود</span>'}</td>
+            <td>${esc(l.account_name)}</td>
+            <td class="ai-meta">${esc(l.description)}</td>
+            <td class="n">${l.debit ? fmt(l.debit) : ''}</td>
+            <td class="n">${l.credit ? fmt(l.credit) : ''}</td></tr>`).join('');
+
+        modal('aiAccModal', '📒 معاينة القيد المحاسبي',
+            `<p class="ai-note">هذه محاكاة دقيقة لما سيفعله النظام عند الترحيل — من شجرة حساباتك أنت، لا من رموز عامة.</p>
+             <div class="ai-meta">التاريخ: ${esc(p.date)} · المرجع: ${esc(p.reference)} · العملة: ${esc(p.currency)}</div>
+             <div class="tw"><table class="ai-tbl sm">
+                <thead><tr><th>الحساب</th><th>الاسم</th><th>البيان</th><th class="n">مدين</th><th class="n">دائن</th></tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot><tr class="tot"><td colspan="3">الإجمالي</td><td class="n"><b>${fmt(p.total_debits)}</b></td><td class="n"><b>${fmt(p.total_credits)}</b></td></tr></tfoot>
+             </table></div>
+             <div class="ai-note ${p.is_balanced ? 'ok' : 'er'}">${p.is_balanced ? '✅ القيد متوازن' : '⛔ القيد غير متوازن — لا يصلح للترحيل'}</div>
+             ${p.warnings.length ? `<div class="ai-note wn"><b>تنبيهات:</b><ul>${p.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}`,
+            `<button class="btn" onclick="aiCloseModal('aiAccModal')">إغلاق</button>`, 780);
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // أثر التدقيق
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.aiAuditTrail = function () {
+        const r = cur(); if (!r) return;
+        const all = AINV.toArray(r.audit_trail).concat(AINV.toArray(r._pendingEdits));
+        const rows = all.length ? all.slice().reverse().map(e => `<tr>
+            <td class="mono">${esc((e.timestamp || '').replace('T', ' ').slice(0, 19))}</td>
+            <td>${esc(e.user_name || '—')}<div class="ai-meta">${esc(e.user_role || '')}</div></td>
+            <td>${esc(e.action_ar || e.action)}</td>
+            <td class="mono">${esc(e.field_name || '')}</td>
+            <td>${e.old_value == null ? '' : `<s class="ai-old">${esc(String(e.old_value))}</s>`}</td>
+            <td>${e.new_value == null ? '' : `<b>${esc(String(e.new_value))}</b>`}</td>
+            <td class="ai-meta">${esc(e.notes || '')}</td>
+        </tr>`).join('') : '<tr><td colspan="7" class="ai-meta">لا أحداث بعد</td></tr>';
+
+        modal('aiAuditModal', '🕵️ أثر التدقيق — من غيّر ماذا ومتى',
+            `<p class="ai-note">كل تعديل بشري على قيمة استخرجها الذكاء الاصطناعي مسجَّل هنا بقيمته قبل وبعد. هذا ما يجعل السجل صالحاً للعرض على مدقّق خارجي.</p>
+             <div class="tw"><table class="ai-tbl sm">
+                <thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>الحقل</th><th>قبل</th><th>بعد</th><th>ملاحظات</th></tr></thead>
+                <tbody>${rows}</tbody></table></div>
+             ${AINV.toArray(r._pendingEdits).length ? '<div class="ai-note wn">⚠️ بعض الأحداث لم تُحفظ بعد — احفظ المسوّدة لتثبيتها.</div>' : ''}`,
+            `<button class="btn" onclick="aiCloseModal('aiAuditModal')">إغلاق</button>`, 900);
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-XLS] تصدير Excel بستّ أوراق
+    // ───────────────────────────────────────────────────────────────────────────
+    // الأوراق الست ليست تزيّناً: كل ورقة تجيب سؤال جهة مختلفة — المحاسب يريد
+    // البنود، والمدقّق يريد المشاكل وأثر التعديل، والضريبي يريد تفصيل النسب.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function sheetsFor(r) {
+        const comp = AINV.recompute(r).computed;
+        const t = r.totals || {};
+        const s = r.supplier || {};
+        const q = r.qr_code || {};
+
+        // 1) ملخّص الفاتورة
+        const summary = [
+            ['نظام استخراج وتدقيق الفواتير بالذكاء الاصطناعي'], [],
+            ['نوع المستند', AINV.DOC_TYPE_AR[r.document_type] || r.document_type],
+            ['رقم الفاتورة', r.invoice_number || ''],
+            ['تاريخ الفاتورة', r.invoice_date || ''],
+            ['تاريخ الاستحقاق', r.due_date || ''],
+            ['رقم أمر الشراء', r.purchase_order_number || ''],
+            ['العملة', r.currency || 'SAR'], [],
+            ['المورد', s.name || ''],
+            ['الاسم النظامي', s.legal_name || ''],
+            ['الرقم الضريبي', s.vat_number || ''],
+            ['السجل التجاري', s.commercial_registration || ''],
+            ['الآيبان', s.iban || ''], [],
+            ['المجموع قبل الخصم', comp.subtotal],
+            ['إجمالي الخصم', comp.discount],
+            ['المبلغ الخاضع للضريبة', comp.taxable],
+            ['إجمالي الضريبة', comp.vat],
+            ['الإجمالي شامل الضريبة', comp.grandTotal], [],
+            ['الحالة', (AINV.STATUS[r.status] || {}).ar || r.status],
+            ['ثقة النظام %', r.confidence_percent == null ? '' : r.confidence_percent],
+            ['النموذج المستخدم', (r.processing_job && r.processing_job.model_used) || ''],
+            ['قُرئت بالـOCR المحلي', (r.processing_job && r.processing_job.via_ocr) ? 'نعم' : 'لا'],
+            ['الملف الأصلي', (r.file_metadata && r.file_metadata.original_filename) || ''],
+            ['اعتمدها', r.approved_by_name || ''],
+            ['تاريخ الاعتماد', r.approved_at || '']
+        ];
+
+        // 2) البنود — بقيم النظام المحسوبة لا بقيم النموذج
+        const items = [['#', 'رمز الصنف', 'الوصف', 'الصنف المربوط', 'الكمية', 'الوحدة', 'سعر الوحدة', 'الخصم', 'الخاضع للضريبة', 'نسبة %', 'الضريبة', 'الإجمالي']];
+        AINV.toArray(r.items).forEach((it, i) => {
+            const c = AINV.computeLine(it);
+            const m = AINV.toArray(r.itemMatches)[i] || {};
+            items.push([i + 1, it.item_code || it.sku || '', it.item_name || '', m.name || '',
+                c.qty, it.unit || '', c.price, c.discount, c.taxable, c.rate, c.vatAmount, c.lineTotal]);
+        });
+        items.push([]);
+        items.push(['', '', 'الإجمالي', '', '', '', '', comp.discount, comp.taxable, '', comp.vat, comp.grandTotal]);
+
+        // 3) تفصيل الضريبة — أساس الإقرار
+        const taxes = [['نسبة الضريبة %', 'الوعاء الخاضع', 'مبلغ الضريبة', 'التصنيف']];
+        comp.taxes.forEach(x => taxes.push([x.tax_rate, x.taxable_amount, x.tax_amount,
+            x.tax_category === 'STANDARD' ? 'أساسية' : x.tax_category === 'ZERO_RATED' ? 'صفرية' : x.tax_category]));
+
+        // 4) نتائج التحقق
+        const issues = [['الخطورة', 'الرمز', 'الحقل', 'يمنع الاعتماد', 'الوصف', 'القيمة المقروءة', 'المتوقّع', 'حالة التجاوُز', 'سبب التجاوُز', 'من تجاوزه']];
+        AINV.toArray(r.validation_issues).forEach(i => issues.push([
+            i.severity === 'ERROR' ? 'خطأ' : i.severity === 'WARNING' ? 'تحذير' : 'ملاحظة',
+            i.code, i.field, i.blocking ? 'نعم' : 'لا', i.message_ar || i.message,
+            i.actual_value == null ? '' : i.actual_value, i.expected_value == null ? '' : i.expected_value,
+            i.resolved ? 'متجاوَز' : '', i.override_reason || '', i.override_by || ''
+        ]));
+
+        // 5) مصدر الحقول وأثر التدقيق
+        const audit = [['— مصدر كل حقل —'], ['الحقل', 'المصدر', 'الثقة %', 'عدّله بشر', 'قيمة الذكاء الاصطناعي الأصلية', 'القيمة الحالية']];
+        const P = r.provenance || {};
+        Object.keys(P).forEach(k => {
+            const p = P[k] || {};
+            audit.push([k, AINV.SOURCE_AR[p.source] || p.source, Math.round(AINV.clamp01(p.confidence) * 100),
+                p.user_modified ? 'نعم' : 'لا', p.original_ai_value == null ? '' : p.original_ai_value, p.value == null ? '' : p.value]);
+        });
+        audit.push([]); audit.push(['— أثر التدقيق —']);
+        audit.push(['الوقت', 'المستخدم', 'الدور', 'الإجراء', 'الحقل', 'قبل', 'بعد', 'ملاحظات']);
+        AINV.toArray(r.audit_trail).forEach(e => audit.push([
+            (e.timestamp || '').replace('T', ' ').slice(0, 19), e.user_name || '', e.user_role || '',
+            e.action_ar || e.action, e.field_name || '', e.old_value == null ? '' : e.old_value,
+            e.new_value == null ? '' : e.new_value, e.notes || ''
+        ]));
+
+        // 6) رمز الزكاة والضريبة + القيد المحاسبي
+        const zatca = [['— رمز الزكاة والضريبة (ZATCA QR) —']];
+        if (q.is_zatca_compliant) {
+            zatca.push(['الحقل', 'في الرمز', 'على وجه الفاتورة', 'النتيجة']);
+            const bad = f => AINV.toArray(q.mismatches).some(m => m.field === f);
+            zatca.push(['اسم البائع', q.seller_name || '', s.name || '', bad('seller_name') ? 'مختلف' : 'مطابق']);
+            zatca.push(['الرقم الضريبي', q.vat_registration_number || '', s.vat_number || '', bad('vat_number') ? 'مختلف' : 'مطابق']);
+            zatca.push(['الإجمالي شامل الضريبة', q.invoice_total_with_vat == null ? '' : q.invoice_total_with_vat, t.grand_total == null ? '' : t.grand_total, bad('grand_total') ? 'مختلف' : 'مطابق']);
+            zatca.push(['مبلغ الضريبة', q.vat_total == null ? '' : q.vat_total, t.vat_total == null ? '' : t.vat_total, bad('vat_total') ? 'مختلف' : 'مطابق']);
+            zatca.push(['ختم الوقت', q.invoice_timestamp || '', '', '']);
+            zatca.push(['توقيع المرحلة الثانية', q.has_phase2_signature ? 'موجود' : 'غير موجود', '', '']);
+        } else {
+            zatca.push(['لم يُرصد رمز بصيغة الهيئة في هذا المستند']);
+        }
+        zatca.push([]); zatca.push(['— معاينة القيد المحاسبي —']);
+        zatca.push(['الحساب', 'الاسم', 'البيان', 'مدين', 'دائن']);
+        const prev = AINV.Accounting.preview(r);
+        prev.journal_lines.forEach(l => zatca.push([l.account_code, l.account_name, l.description, l.debit || '', l.credit || '']));
+        zatca.push(['', '', 'الإجمالي', prev.total_debits, prev.total_credits]);
+        zatca.push(['', '', 'متوازن', prev.is_balanced ? 'نعم' : 'لا', '']);
+
+        return { summary, items, taxes, issues, audit, zatca };
+    }
+
+    window.aiExportExcel = function () {
+        const r = cur(); if (!r) return;
+        if (typeof XLSX === 'undefined') { toast('مكتبة Excel غير محمّلة', 'er'); return; }
+        try {
+            const S = sheetsFor(r);
+            const wb = XLSX.utils.book_new();
+            const add = (data, name) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), name);
+            add(S.summary, 'ملخص الفاتورة');
+            add(S.items, 'البنود');
+            add(S.taxes, 'تفصيل الضريبة');
+            add(S.issues, 'نتائج التحقق');
+            add(S.audit, 'المصدر وأثر التدقيق');
+            add(S.zatca, 'ZATCA والقيد');
+            XLSX.writeFile(wb, `فاتورة-${(r.invoice_number || r.id).replace(/[\\/:*?"<>|]/g, '-')}.xlsx`);
+            AINV.Audit.log('تصدير Excel', `صُدِّرت «${r.invoice_number || ''}» بستّ أوراق`, { recordId: r.id });
+            toast('📊 صُدِّر الملف', 'ok');
+        } catch (e) { toast('❌ تعذّر التصدير: ' + (e.message || e), 'er'); }
+    };
+
+    /** تصدير قائمة الفواتير كلها — للمتابعة الإدارية. */
+    window.aiExportListExcel = function () {
+        if (typeof XLSX === 'undefined') { toast('مكتبة Excel غير محمّلة', 'er'); return; }
+        const recs = AINV.Store.all();
+        const rows = [['الحالة', 'المورد', 'مربوط بالنظام', 'رقم الفاتورة', 'النوع', 'التاريخ', 'الاستحقاق',
+            'الخاضع للضريبة', 'الضريبة', 'الإجمالي', 'العملة', 'الثقة %', 'موانع', 'تحذيرات',
+            'ZATCA', 'تكرار محتمل', 'النموذج', 'التكلفة $', 'الملف', 'فاتورة المشتريات']];
+        recs.forEach(r => {
+            const t = r.totals || {}, sum = AINV.Validate.summary(r.validation_issues);
+            const q = r.qr_code;
+            rows.push([
+                (AINV.STATUS[r.status] || {}).ar || r.status,
+                (r.supplier && r.supplier.name) || '', r.vendorKey ? 'نعم' : 'لا',
+                r.invoice_number || '', AINV.DOC_TYPE_AR[r.document_type] || '',
+                r.invoice_date || '', r.due_date || '',
+                t.taxable_amount == null ? '' : t.taxable_amount,
+                t.vat_total == null ? '' : t.vat_total,
+                t.grand_total == null ? '' : t.grand_total,
+                r.currency || 'SAR', r.confidence_percent == null ? '' : r.confidence_percent,
+                sum.blocking, sum.warnings,
+                q ? (q.is_zatca_compliant ? (AINV.toArray(q.mismatches).length ? 'مخالف' : 'مطابق') : 'غير قياسي') : 'لا يوجد',
+                (r.duplicate_warning && !r.duplicate_dismissed) ? 'نعم' : 'لا',
+                (r.processing_job && r.processing_job.model_used) || '',
+                (r.processing_job && r.processing_job.estimated_cost_usd) || 0,
+                (r.file_metadata && r.file_metadata.original_filename) || '',
+                r.linked_pinv_number || ''
+            ]);
+        });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'الفواتير المقروءة');
+        XLSX.writeFile(wb, `قائمة-الفواتير-المقروءة-${AINV.todayLocal()}.xlsx`);
+        toast('📊 صُدِّرت القائمة', 'ok');
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-JSON] حمولة التكامل
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.aiExportPayload = function () {
+        const r = cur(); if (!r) return;
+        const payloadObj = AINV.Accounting.integrationPayload(r);
+        const text = JSON.stringify(payloadObj, null, 2);
+        modal('aiPayloadModal', '🔌 حمولة التكامل (JSON)',
+            `<p class="ai-note">حمولة موحّدة جاهزة لأي نظام خارجي (SAP · Oracle · Odoo · QuickBooks) — تحمل البيانات والقيد ونتيجة التحقق ومصدر كل حقل معاً.</p>
+             <textarea class="ai-inp mono" id="aiPayloadText" rows="16" readonly style="width:100%;font-size:11px">${esc(text)}</textarea>`,
+            `<button class="btn" onclick="aiCloseModal('aiPayloadModal')">إغلاق</button>
+             <button class="btn" onclick="aiCopyPayload()">📋 نسخ</button>
+             <button class="btn b-g" onclick="aiDownloadPayload()">⬇️ تنزيل</button>`, 820);
+    };
+
+    window.aiCopyPayload = function () {
+        const ta = $('aiPayloadText'); if (!ta) return;
+        ta.select();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(ta.value).then(() => toast('📋 نُسخت', 'ok'), () => toast('تعذّر النسخ', 'er'));
+        } else { document.execCommand('copy'); toast('📋 نُسخت', 'ok'); }
+    };
+
+    window.aiDownloadPayload = function () {
+        const r = cur(); if (!r) return;
+        const blob = new Blob([JSON.stringify(AINV.Accounting.integrationPayload(r), null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `invoice-payload-${(r.invoice_number || r.id).replace(/[\\/:*?"<>|]/g, '-')}.json`;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        AINV.Audit.log('تصدير حمولة تكامل', r.invoice_number || '', { recordId: r.id });
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-PDF] تقرير تحقّق احترافي
+    // ───────────────────────────────────────────────────────────────────────────
+    // ليس نسخة من الفاتورة — بل **شهادة ما فعله النظام بها**: ما قرأه النموذج،
+    // وما حسبه النظام، وأين اختلفا، ومن عدّل وتجاوز. هذه هي الورقة التي تُعرض
+    // على المدقّق.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.aiExportPdf = function () {
+        const r = cur(); if (!r) return;
+        const comp = AINV.recompute(r).computed;
+        const s = r.supplier || {}, t = r.totals || {}, q = r.qr_code || {};
+        const sum = AINV.Validate.summary(r.validation_issues);
+        const prev = AINV.Accounting.preview(r);
+        const st = AINV.STATUS[r.status] || {};
+
+        const issuesHtml = AINV.toArray(r.validation_issues).map(i => `<tr class="${i.severity === 'ERROR' ? 'er' : i.severity === 'WARNING' ? 'wn' : ''}">
+            <td>${i.severity === 'ERROR' ? 'خطأ' : i.severity === 'WARNING' ? 'تحذير' : 'ملاحظة'}</td>
+            <td class="mono">${esc(i.code)}</td>
+            <td>${esc(i.message_ar || i.message)}</td>
+            <td>${i.resolved ? 'متجاوَز: ' + esc(i.override_reason || '') + ' — ' + esc(i.override_by || '') : (i.blocking ? 'يمنع الاعتماد' : '')}</td>
+        </tr>`).join('') || '<tr><td colspan="4">لا ملاحظات — اجتازت الفاتورة كل الفحوص</td></tr>';
+
+        const itemsHtml = AINV.toArray(r.items).map((it, i) => {
+            const c = AINV.computeLine(it);
+            return `<tr><td>${i + 1}</td><td>${esc(it.item_name || '')}</td><td class="n">${c.qty}</td>
+                <td>${esc(it.unit || '')}</td><td class="n">${fmt(c.price)}</td><td class="n">${fmt(c.discount)}</td>
+                <td class="n">${fmt(c.taxable)}</td><td class="n">${c.rate}%</td><td class="n">${fmt(c.vatAmount)}</td>
+                <td class="n"><b>${fmt(c.lineTotal)}</b></td></tr>`;
+        }).join('');
+
+        const P = r.provenance || {};
+        const provHtml = Object.keys(P).map(k => {
+            const p = P[k] || {};
+            return `<tr><td>${esc(k)}</td><td>${esc(AINV.SOURCE_AR[p.source] || p.source || '')}</td>
+                <td class="n">${Math.round(AINV.clamp01(p.confidence) * 100)}%</td>
+                <td>${p.user_modified ? 'عُدِّل بشرياً' : '—'}</td>
+                <td>${p.user_modified && p.original_ai_value != null ? esc(String(p.original_ai_value)) : ''}</td></tr>`;
+        }).join('');
+
+        const qrHtml = q.is_zatca_compliant ? `
+            <table><thead><tr><th>الحقل</th><th>في رمز QR</th><th>على وجه الفاتورة</th><th>النتيجة</th></tr></thead><tbody>
+            ${[['اسم البائع', q.seller_name, s.name, 'seller_name'],
+                ['الرقم الضريبي', q.vat_registration_number, s.vat_number, 'vat_number'],
+                ['الإجمالي', q.invoice_total_with_vat, t.grand_total, 'grand_total'],
+                ['الضريبة', q.vat_total, t.vat_total, 'vat_total']].map(([l, a, b, f]) => {
+                    const bad = AINV.toArray(q.mismatches).some(m => m.field === f);
+                    return `<tr class="${bad ? 'er' : ''}"><td>${esc(l)}</td><td class="mono">${esc(a == null ? '—' : String(a))}</td>
+                        <td class="mono">${esc(b == null ? '—' : String(b))}</td><td>${bad ? '✗ مختلف' : '✓ مطابق'}</td></tr>`;
+                }).join('')}
+            </tbody></table>`
+            : '<p class="muted">لم يُرصد رمز استجابة سريعة بصيغة الهيئة في هذا المستند — لم تُجرَ مقارنة مستقلة.</p>';
+
+        const w = window.open('', '_blank');
+        if (!w) { toast('اسمح بالنوافذ المنبثقة لتصدير PDF', 'er'); return; }
+        w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+        <title>تقرير تحقّق — ${esc(r.invoice_number || '')}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+        <style>
+            *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
+            body{font-family:'Tajawal',Tahoma,Arial;color:#1a3a5c;direction:rtl;margin:0;padding:22px;background:#fff;font-size:12px}
+            h1{font-size:19px;margin:0;color:#0F7B8A}
+            h2{font-size:14px;margin:18px 0 7px;padding-bottom:5px;border-bottom:2px solid #0F7B8A;color:#0F7B8A}
+            .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0F7B8A;padding-bottom:12px}
+            .hd .sub{font-size:11px;color:#667;margin-top:5px;line-height:1.8}
+            .st{background:#0F7B8A;color:#fff;padding:6px 14px;border-radius:6px;font-weight:800;font-size:13px;display:inline-block}
+            .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+            .box{background:#f6f9fb;border-radius:8px;padding:10px;border-inline-start:3px solid #0F7B8A}
+            .box b{display:block;font-size:11px;color:#0F7B8A;margin-bottom:5px}
+            .kv{font-size:11px;line-height:1.9}
+            table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:7px}
+            th{background:#0F7B8A;color:#fff;padding:6px;text-align:right;font-weight:700}
+            td{padding:5px 6px;border:1px solid #dde5ec}
+            td.n,th.n{text-align:left}
+            tr.er td{background:#fdecea}tr.wn td{background:#fff6e5}
+            .mono{font-family:'Courier New',monospace;direction:ltr;text-align:left}
+            .muted{color:#889;font-size:11px}
+            .tot td{background:#eef4f8;font-weight:800}
+            .banner{padding:9px 12px;border-radius:7px;margin-top:10px;font-size:11.5px}
+            .banner.ok{background:#e8f6ee;border-inline-start:4px solid #1B8A4B}
+            .banner.er{background:#fdecea;border-inline-start:4px solid #C0392B}
+            .foot{margin-top:22px;padding-top:9px;border-top:1px solid #dde5ec;font-size:10px;color:#889;line-height:1.8}
+            @page{size:A4;margin:1cm}
+            @media print{button{display:none}}
+        </style></head><body>
+        <div class="hd">
+            <div><h1>🔍 تقرير تحقّق من فاتورة مستخرَجة آلياً</h1>
+                <div class="sub">🏗️ شركة جي بي آر للمقاولات — نظام حساب الأستاذ<br>
+                صدر في ${new Date().toLocaleString('ar-SA')} · أصدره ${esc((window.myP && window.myP.name) || '')}</div></div>
+            <div style="text-align:left"><span class="st">${esc(st.ar || r.status)}</span>
+                <div class="sub">ثقة النظام: <b>${r.confidence_percent == null ? '—' : r.confidence_percent + '%'}</b><br>
+                ${sum.blocking ? '<b style="color:#C0392B">' + sum.blocking + ' مانع اعتماد</b>' : '<b style="color:#1B8A4B">لا مانع للاعتماد</b>'}</div></div>
+        </div>
+
+        <div class="grid">
+            <div class="box"><b>📄 المستند</b><div class="kv">
+                النوع: ${esc(AINV.DOC_TYPE_AR[r.document_type] || '')}<br>
+                رقم الفاتورة: <b>${esc(r.invoice_number || '—')}</b><br>
+                التاريخ: ${esc(r.invoice_date || '—')} · الاستحقاق: ${esc(r.due_date || '—')}<br>
+                أمر الشراء: ${esc(r.purchase_order_number || '—')} · العملة: ${esc(r.currency || 'SAR')}</div></div>
+            <div class="box"><b>🏭 المورد</b><div class="kv">
+                <b>${esc(s.name || '—')}</b><br>
+                الرقم الضريبي: <span class="mono">${esc(s.vat_number || '—')}</span>
+                ${s.vat_number ? (AINV.Saudi.isValidTIN(s.vat_number) ? ' ✓' : ' ✗ لا يطابق مواصفة الهيئة') : ''}<br>
+                السجل التجاري: <span class="mono">${esc(s.commercial_registration || '—')}</span><br>
+                مربوط بسجلات النظام: ${r.vendorKey ? 'نعم' : '<b style="color:#C0392B">لا</b>'}</div></div>
+        </div>
+
+        <h2>📦 البنود — بالقيم التي حسبها النظام</h2>
+        <table><thead><tr><th>#</th><th>الوصف</th><th class="n">الكمية</th><th>الوحدة</th><th class="n">السعر</th>
+            <th class="n">الخصم</th><th class="n">الخاضع</th><th class="n">%</th><th class="n">الضريبة</th><th class="n">الإجمالي</th></tr></thead>
+        <tbody>${itemsHtml || '<tr><td colspan="10" class="muted">لا بنود مستخرَجة</td></tr>'}
+        <tr class="tot"><td colspan="6">الإجمالي</td><td class="n">${fmt(comp.taxable)}</td><td></td>
+            <td class="n">${fmt(comp.vat)}</td><td class="n">${fmt(comp.grandTotal)}</td></tr></tbody></table>
+
+        <div class="banner ${Math.abs((t.grand_total || 0) - comp.grandTotal) <= AINV.Config.get().mathTolerance ? 'ok' : 'er'}">
+            ${Math.abs((t.grand_total || 0) - comp.grandTotal) <= AINV.Config.get().mathTolerance
+                ? '✅ الإجمالي المطبوع على الفاتورة يطابق ما حسبه النظام من البنود.'
+                : `⛔ الإجمالي المطبوع (${fmt(t.grand_total)}) لا يطابق ما حسبه النظام (${fmt(comp.grandTotal)}).`}
+        </div>
+
+        <h2>🇸🇦 رمز الزكاة والضريبة (ZATCA QR)</h2>
+        ${qrHtml}
+
+        <h2>🔍 نتائج التحقق (${sum.total})</h2>
+        <table><thead><tr><th>الخطورة</th><th>الرمز</th><th>الوصف</th><th>الحالة</th></tr></thead><tbody>${issuesHtml}</tbody></table>
+
+        <h2>🔎 مصدر كل حقل</h2>
+        <table><thead><tr><th>الحقل</th><th>المصدر</th><th class="n">الثقة</th><th>التدخّل البشري</th><th>قيمة الذكاء الاصطناعي الأصلية</th></tr></thead>
+        <tbody>${provHtml || '<tr><td colspan="5" class="muted">—</td></tr>'}</tbody></table>
+
+        <h2>📒 معاينة القيد المحاسبي</h2>
+        <table><thead><tr><th>الحساب</th><th>الاسم</th><th class="n">مدين</th><th class="n">دائن</th></tr></thead><tbody>
+        ${prev.journal_lines.map(l => `<tr><td class="mono">${esc(l.account_code)}</td><td>${esc(l.account_name)}</td>
+            <td class="n">${l.debit ? fmt(l.debit) : ''}</td><td class="n">${l.credit ? fmt(l.credit) : ''}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="2">الإجمالي</td><td class="n">${fmt(prev.total_debits)}</td><td class="n">${fmt(prev.total_credits)}</td></tr>
+        </tbody></table>
+
+        <div class="foot">
+            المحرك: ${esc((r.processing_job && r.processing_job.model_used) || '—')}
+            ${(r.processing_job && r.processing_job.via_ocr) ? ' (قراءة محلية OCR — الحقول تقديرية)' : ''}
+            · زمن المعالجة: ${Math.round(((r.processing_job && r.processing_job.duration_ms) || 0) / 1000)} ثانية
+            · الملف: ${esc((r.file_metadata && r.file_metadata.original_filename) || '')}<br>
+            ⚖️ <b>الحساب والتحقق يجريان داخل النظام لا داخل النموذج.</b> كل مبلغ في هذا التقرير أُعيد احتسابه من الكمية والسعر،
+            وقُورن بما قرأه النموذج، وأي اختلاف مُثبت أعلاه. هذا التقرير مستند تحقّق داخلي ولا يُغني عن الفاتورة الأصلية.
+        </div>
+        <button onclick="window.print()" style="margin-top:14px;padding:8px 18px;font-family:inherit;font-size:13px;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
+        </body></html>`);
+        w.document.close();
+        AINV.Audit.log('تصدير تقرير تحقّق PDF', r.invoice_number || '', { recordId: r.id });
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [AC-ADMIN] الإعدادات · الحصّة · لوحة المدير · سجل المعالجة
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.aiSettings = function () {
+        if (!IS_ADMIN()) { toast('الإعدادات للمدير فقط', 'er'); return; }
+        const c = AINV.Config.get();
+        const gem = AINV.MODELS.filter(m => m.provider === 'gemini');
+        const ant = AINV.MODELS.filter(m => m.provider === 'anthropic');
+
+        modal('aiSetModal', '⚙️ إعدادات قراءة الفواتير',
+            `<div class="ai-set">
+                <label class="ai-chk-l"><input type="checkbox" id="setEnabled" ${c.enabled ? 'checked' : ''}> تفعيل الوحدة</label>
+
+                <h4>🔌 المحرك</h4>
+                <div class="ai-grid2">
+                    <div class="ai-f"><label class="ai-f-l">المزوّد</label>
+                        <select class="ai-inp" id="setProvider" onchange="aiSetProviderChanged()">
+                            <option value="gemini" ${c.provider === 'gemini' ? 'selected' : ''}>Gemini — مجاني (موصى به)</option>
+                            <option value="anthropic" ${c.provider === 'anthropic' ? 'selected' : ''}>Anthropic Claude — مدفوع، يتطلّب وسيطاً</option>
+                        </select></div>
+                    <div class="ai-f" id="setGemModelWrap"><label class="ai-f-l">نموذج Gemini</label>
+                        <select class="ai-inp" id="setGeminiModel">
+                            ${gem.map(m => `<option value="${m.id}" ${c.geminiModel === m.id ? 'selected' : ''}>${esc(m.name)} — ${m.dailyLimit}/يوم</option>`).join('')}
+                        </select></div>
+                    <div class="ai-f" id="setAntModelWrap"><label class="ai-f-l">نموذج Claude</label>
+                        <select class="ai-inp" id="setModel">
+                            ${ant.map(m => `<option value="${m.id}" ${c.model === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
+                        </select></div>
+                </div>
+                <div class="ai-f"><label class="ai-f-l">مفتاح Gemini <span class="ai-meta">(يبدأ بـAIza — من aistudio.google.com)</span></label>
+                    <input class="ai-inp mono" id="setGeminiKey" type="password" value="${esc(c.geminiKey || '')}" placeholder="AIza...">
+                    <div class="ai-note">⚠️ هذا المفتاح يُنادى من المتصفح مباشرةً. <b>قيّده بالنطاق</b> في Google Cloud Console
+                        (HTTP referrer) وإلا كان قابلاً للاستخدام من أي موقع. المقايضة مقبولة لمفتاح مجاني، وغير مقبولة لمفتاح مدفوع.</div></div>
+                <div class="ai-f"><label class="ai-f-l">رابط الوسيط (Cloudflare Worker) <span class="ai-meta">— إلزامي لـClaude</span></label>
+                    <input class="ai-inp mono" id="setProxy" value="${esc(c.proxyUrl || '')}" placeholder="https://invoice-ai-proxy.xxx.workers.dev">
+                    <div class="ai-note">مفتاح Anthropic مدفوع ولا يوضع في المتصفح إطلاقاً — الوسيط يحفظه ويتحقّق من هوية المستخدم قبل كل نداء.</div></div>
+                <label class="ai-chk-l"><input type="checkbox" id="setFallback" ${c.autoFallbackModels ? 'checked' : ''}> السقوط تلقائياً إلى نموذج بديل عند نفاد الحصّة</label>
+                <label class="ai-chk-l"><input type="checkbox" id="setOcr" ${c.ocrFallback ? 'checked' : ''}> القراءة المحلية المجانية (OCR) عند نفاد كل الحصص</label>
+
+                <h4>🧮 التحقق والحدود</h4>
+                <div class="ai-grid2">
+                    <div class="ai-f"><label class="ai-f-l">حدّ الثقة للاعتماد التلقائي %</label>
+                        <input class="ai-inp n" id="setConf" type="number" min="0" max="100" value="${Math.round(c.confidenceThreshold * 100)}"></div>
+                    <div class="ai-f"><label class="ai-f-l">تسامح الفروق الحسابية (ريال)</label>
+                        <input class="ai-inp n" id="setTol" type="number" step="0.01" min="0" value="${c.mathTolerance}"></div>
+                    <div class="ai-f"><label class="ai-f-l">أقصى حجم ملف (م.ب)</label>
+                        <input class="ai-inp n" id="setMaxMb" type="number" min="1" max="30" value="${c.maxFileMB}"></div>
+                    <div class="ai-f"><label class="ai-f-l">عدد إعادات المحاولة</label>
+                        <input class="ai-inp n" id="setRetry" type="number" min="0" max="5" value="${c.retryCount}"></div>
+                    <div class="ai-f"><label class="ai-f-l">المهلة (ثانية)</label>
+                        <input class="ai-inp n" id="setTimeout" type="number" min="30" max="300" value="${Math.round(c.timeoutMs / 1000)}"></div>
+                </div>
+                <label class="ai-chk-l"><input type="checkbox" id="setSaudi" ${c.enforceSaudiVAT ? 'checked' : ''}> تطبيق قواعد هيئة الزكاة والضريبة والجمارك</label>
+                <label class="ai-chk-l"><input type="checkbox" id="setQr" ${c.requireQrForZatca ? 'checked' : ''}> تنبيه عند غياب رمز QR في الفواتير المبسّطة</label>
+                <label class="ai-chk-l"><input type="checkbox" id="setBlockMath" ${c.blockOnArithmetic ? 'checked' : ''}> منع الاعتماد عند اختلال الإجماليات <span class="ai-meta">(يُنصح ببقائه مفعّلاً)</span></label>
+                <label class="ai-chk-l"><input type="checkbox" id="setBlockDup" ${c.blockOnDuplicate ? 'checked' : ''}> منع الاعتماد عند رصد تكرار محتمل</label>
+                <label class="ai-chk-l"><input type="checkbox" id="setMatchV" ${c.autoSuggestSupplier ? 'checked' : ''}> اقتراح ربط المورد تلقائياً</label>
+                <label class="ai-chk-l"><input type="checkbox" id="setMatchI" ${c.autoSuggestItems ? 'checked' : ''}> اقتراح ربط الأصناف تلقائياً</label>
+            </div>`,
+            `<button class="btn" onclick="aiCloseModal('aiSetModal')">إلغاء</button>
+             <button class="btn" onclick="aiTestEngine()">🔌 اختبار الاتصال</button>
+             <button class="btn b-g" onclick="aiSaveSettings()">💾 حفظ</button>`, 720);
+        window.aiSetProviderChanged();
+    };
+
+    window.aiSetProviderChanged = function () {
+        const p = $('setProvider') && $('setProvider').value;
+        const g = $('setGemModelWrap'), a = $('setAntModelWrap');
+        if (g) g.style.display = p === 'gemini' ? '' : 'none';
+        if (a) a.style.display = p === 'anthropic' ? '' : 'none';
     };
 
     window.aiSaveSettings = async function () {
         try {
+            const conf = Math.max(0, Math.min(100, parseInt($('setConf').value) || 85));
             await AINV.Config.save({
-                enabled: $('asEnabled').checked,
-                proxyUrl: ($('asProxy').value || '').trim(),
-                geminiKey: ($('asGeminiKey').value || '').trim(),
-                provider: $('asProvider').value,
-                geminiModel: $('asGeminiModel').value,
-                ocrFallback: $('asOcrFallback').checked,
-                model: $('asModel').value,
-                effort: $('asEffort').value,
-                confidenceThreshold: Math.max(50, Math.min(100, +$('asConf').value || 85)),
-                maxFileMB: Math.max(1, Math.min(12, +$('asMaxMB').value || 10)),
-                retryCount: Math.max(0, Math.min(5, +$('asRetry').value || 2)),
-                timeoutMs: Math.max(30, Math.min(300, +$('asTimeout').value || 120)) * 1000,
-                blockOnArithmetic: $('asBlockArith').checked,
-                autoMatchVendor: $('asMatchVendor').checked
+                enabled: $('setEnabled').checked,
+                provider: $('setProvider').value,
+                geminiModel: $('setGeminiModel').value,
+                model: $('setModel').value,
+                geminiKey: $('setGeminiKey').value.trim(),
+                proxyUrl: $('setProxy').value.trim(),
+                autoFallbackModels: $('setFallback').checked,
+                ocrFallback: $('setOcr').checked,
+                confidenceThreshold: conf / 100,
+                mathTolerance: Math.max(0, parseFloat($('setTol').value) || 0.05),
+                maxFileMB: Math.max(1, parseInt($('setMaxMb').value) || 20),
+                retryCount: Math.max(0, parseInt($('setRetry').value) || 0),
+                timeoutMs: Math.max(30, parseInt($('setTimeout').value) || 120) * 1000,
+                enforceSaudiVAT: $('setSaudi').checked,
+                requireQrForZatca: $('setQr').checked,
+                blockOnArithmetic: $('setBlockMath').checked,
+                blockOnDuplicate: $('setBlockDup').checked,
+                autoSuggestSupplier: $('setMatchV').checked,
+                autoSuggestItems: $('setMatchI').checked
             });
-            await AINV.Audit.log('تعديل إعدادات قراءة الفواتير', 'حُدِّثت إعدادات وحدة قراءة الفواتير بالذكاء الاصطناعي');
-            window.aiCloseModal('aiSetOv');
+            AINV.Audit.log('تعديل إعدادات قراءة الفواتير', 'حُدِّثت إعدادات الوحدة');
             toast('✅ حُفظت الإعدادات', 'ok');
-            window.renderAiInvoices();
-        } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'er', 7000); }
+            window.aiCloseModal('aiSetModal');
+            window.aiRerender();
+        } catch (e) { toast('❌ تعذّر الحفظ: ' + (e.message || e), 'er'); }
     };
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // [AC-LOG] سجل المعالجة ولوحة التكلفة (§31 §33)
-    // ═══════════════════════════════════════════════════════════════════════════
-    window.aiProcessingLog = async function () {
-        if (!IS_ADMIN()) { toast('🚫 للمدير فقط', 'er'); return; }
-        modal('aiLogOv', '📋 سجل المعالجة ولوحة الاستخدام', '<div class="ai-meta">⏳ جارٍ التحميل…</div>', '', 900);
-        let logs = {};
+    /** اختبار الاتصال بمستند صغير مُولَّد — يكشف خطأ الإعداد قبل أول فاتورة حقيقية. */
+    window.aiTestEngine = async function () {
+        const ready = AINV.Config.ready();
+        if (!ready.ok) { toast('⚠️ ' + ready.reason, 'er', 8000); return; }
+        toast('⏳ جارٍ اختبار الاتصال…', 'wn');
         try {
-            const sn = await window.get(window.ref(window.db, 'ledger/aiInvoiceLog'));
-            logs = sn.exists() ? sn.val() : {};
-        } catch (e) { /* قد لا يملك صلاحية القراءة */ }
-
-        const recs = Object.entries(window.aiInvoices || {});
-        const rows = [];
-        recs.forEach(([id, r]) => {
-            const entries = Object.values(logs[id] || {});
-            entries.forEach(e => rows.push(Object.assign({ id, fileName: r.fileName, status: r.status }, e)));
-            if (!entries.length) rows.push({ id, fileName: r.fileName, status: r.status, at: r.uploadedAt, event: r.status, by: r.uploadedBy, ms: r.processingMs, estCost: r.estCost, model: r.model });
-        });
-        rows.sort((a, b) => (b.at || 0) - (a.at || 0));
-
-        const done = recs.filter(([, r]) => ['extracted', 'validated', 'needs_review', 'draft', 'approved', 'posted'].includes(r.status));
-        const failed = recs.filter(([, r]) => r.status === 'failed');
-        const totalCost = recs.reduce((s, [, r]) => s + (r.estCost || 0), 0);
-        const totalTok = recs.reduce((s, [, r]) => s + ((r.usage && (r.usage.input_tokens || 0) + (r.usage.output_tokens || 0)) || 0), 0);
-        const avgMs = done.length ? done.reduce((s, [, r]) => s + (r.processingMs || 0), 0) / done.length : 0;
-
-        const body = `
-            <div class="ai-stats">
-                <div class="ai-stat"><span>الفواتير المعالَجة</span><b>${recs.length}</b></div>
-                <div class="ai-stat"><span>ناجحة</span><b style="color:#1B8A4B">${done.length}</b></div>
-                <div class="ai-stat"><span>فاشلة</span><b style="color:#C0392B">${failed.length}</b></div>
-                <div class="ai-stat"><span>متوسط زمن المعالجة</span><b>${(avgMs / 1000).toFixed(1)} ث</b></div>
-                <div class="ai-stat"><span>إجمالي التوكنات</span><b>${totalTok.toLocaleString('en')}</b></div>
-                <div class="ai-stat"><span>التكلفة التقديرية</span><b>$${totalCost.toFixed(3)}</b></div>
-            </div>
-            <div class="ai-note">التكلفة تقديرية بأسعار القائمة المعلنة للنماذج، للقياس والرقابة لا للفوترة.
-                هذا السجل لا يحتوي أي بيانات مالية من الفواتير — أرقام معالجة فقط.</div>
-            <div class="tw" style="max-height:420px;overflow:auto"><table class="ai-tbl">
-                <thead><tr><th>الوقت</th><th>الملف</th><th>الحدث</th><th>النموذج</th><th class="n">الزمن</th><th class="n">توكنات</th><th class="n">التكلفة</th><th>المستخدم</th><th>الخطأ</th></tr></thead>
-                <tbody>${rows.slice(0, 300).map(r => `<tr>
-                    <td>${r.at ? new Date(r.at).toLocaleString('ar-EG') : '—'}</td>
-                    <td>${esc(r.fileName || '')}</td>
-                    <td>${esc((AINV.STATUS[r.event] || {}).ar || r.event || '')}</td>
-                    <td>${esc(r.model || '—')}</td>
-                    <td class="n">${r.ms ? (r.ms / 1000).toFixed(1) + ' ث' : '—'}</td>
-                    <td class="n">${((r.inputTokens || 0) + (r.outputTokens || 0)) || '—'}</td>
-                    <td class="n">${r.estCost ? '$' + r.estCost : '—'}</td>
-                    <td>${esc(r.by || '')}</td>
-                    <td class="ai-err-cell">${esc(r.error || '')}</td>
-                </tr>`).join('')}</tbody>
-            </table></div>`;
-        modal('aiLogOv', '📋 سجل المعالجة ولوحة الاستخدام', body,
-            `<button class="btn" onclick="aiCloseModal('aiLogOv')">إغلاق</button>
-             <button class="btn b-b" onclick="aiExportAllExcel()">📊 تصدير</button>`, 900);
+            // صورة PNG بيضاء 1×1 — أصغر حمولة صالحة
+            const px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+            await AINV.callModel(px, 'image/png', null);
+            toast('✅ الاتصال بالمحرك سليم', 'ok', 6000);
+        } catch (e) {
+            // رفض النموذج لصورة فارغة = الاتصال والمصادقة سليمان
+            if (e.code === 'REFUSAL' || e.code === 'PARSE' || e.upstreamType === 'bad_request') {
+                toast('✅ الاتصال والمصادقة سليمان (رفض النموذج الصورة الفارغة — وهذا متوقّع)', 'ok', 7000);
+            } else {
+                toast('❌ ' + (e.message || e), 'er', 12000);
+            }
+        }
     };
 
-    console.log('✅ AI Invoice Actions [AC] loaded');
+    // ── لوحة الحصّة اليومية ──────────────────────────────────────────────────
+    window.aiQuotaPanel = function () {
+        const q = AINV.Quota.report();
+        const rows = q.models.map(m => {
+            const cls = m.status === 'exhausted' ? 'er' : m.status === 'near_limit' ? 'wn' : 'ok';
+            const label = m.status === 'exhausted' ? 'نفدت' : m.status === 'near_limit' ? 'قاربت النفاد' : 'متاح';
+            const pct = m.dailyLimit ? Math.min(100, Math.round((m.usedToday / m.dailyLimit) * 100)) : 0;
+            return `<tr class="${m.id === q.activeModel ? 'act' : ''}">
+                <td><b>${esc(m.name)}</b>${m.id === q.activeModel ? ' <span class="ai-pill ok">النشط</span>' : ''}
+                    <div class="ai-meta">${esc(m.ar)}</div></td>
+                <td><span class="ai-pill ${m.isFreeTier ? 'ok' : ''}">${esc(m.tierBadge)}</span></td>
+                <td class="n">${m.dailyLimit || '—'}</td>
+                <td class="n">${m.usedToday}</td>
+                <td class="n">${m.remainingToday == null ? '—' : m.remainingToday}</td>
+                <td style="min-width:110px">${m.dailyLimit ? `<div class="ai-qs-bar sm"><i style="width:${pct}%"></i></div>` : ''}</td>
+                <td><span class="ai-pill ${cls}">${label}</span></td>
+            </tr>`;
+        }).join('');
+
+        modal('aiQuotaModal', '📊 الحصّة اليومية للنماذج',
+            `<p class="ai-note">العدّ محلي على هذا المتصفح ويقارب استهلاكك اليوم؛ الحدّ الحقيقي عند مزوّد الخدمة.
+                الفائدة أن تعرف كم بقي لك قبل أن تصطدم بالرفض في منتصف دفعة.</p>
+             <div class="ai-quota-head">
+                <div><b>${q.totalInvoicesToday}</b> فاتورة اليوم من <b>${q.totalDailyLimit}</b> على الطبقة المجانية</div>
+                <div class="ai-meta">تتجدّد الحصص بعد <b>${q.hoursUntilReset}</b> ساعة و<b>${q.minutesUntilReset}</b> دقيقة</div>
+                <div class="ai-meta">السقوط التلقائي بين النماذج: <b>${q.autoFallbackEnabled ? 'مفعّل' : 'معطّل'}</b></div>
+             </div>
+             <div class="tw"><table class="ai-tbl sm">
+                <thead><tr><th>النموذج</th><th>الطبقة</th><th class="n">الحدّ/يوم</th><th class="n">استُهلك</th><th class="n">المتبقي</th><th>الاستهلاك</th><th>الحالة</th></tr></thead>
+                <tbody>${rows}</tbody></table></div>`,
+            `<button class="btn" onclick="aiCloseModal('aiQuotaModal')">إغلاق</button>`, 860);
+    };
+
+    // ── لوحة المدير: مقاييس الأداء والتكلفة ─────────────────────────────────
+    window.aiAdminDashboard = function () {
+        if (!IS_ADMIN()) { toast('لوحة المدير للمدير فقط', 'er'); return; }
+        const recs = AINV.Store.all();
+        const done = recs.filter(r => r.processing_job);
+        const ok = recs.filter(r => r.status !== 'failed').length;
+        const failed = recs.filter(r => r.status === 'failed').length;
+        const avgConf = done.length ? Math.round(done.reduce((s, r) => s + (r.confidence_percent || 0), 0) / done.length) : 0;
+        const avgMs = done.length ? Math.round(done.reduce((s, r) => s + ((r.processing_job && r.processing_job.duration_ms) || 0), 0) / done.length) : 0;
+        const tokens = done.reduce((s, r) => {
+            const t = (r.processing_job && r.processing_job.tokens_used) || {};
+            return s + (t.input_tokens || 0) + (t.output_tokens || 0);
+        }, 0);
+        const cost = done.reduce((s, r) => s + ((r.processing_job && r.processing_job.estimated_cost_usd) || 0), 0);
+        const viaOcr = done.filter(r => r.processing_job && r.processing_job.via_ocr).length;
+        const overridden = recs.reduce((s, r) => s + AINV.Validate.summary(r.validation_issues).overridden, 0);
+        const edited = recs.filter(r => Object.values(r.provenance || {}).some(p => p && p.user_modified)).length;
+
+        // توزيع النماذج
+        const byModel = {};
+        done.forEach(r => { const m = (r.processing_job && r.processing_job.model_used) || '—'; byModel[m] = (byModel[m] || 0) + 1; });
+
+        const tile = (ic, l, v, sub) => `<div class="ai-mtile"><div class="ai-mtile-l">${ic} ${esc(l)}</div>
+            <div class="ai-mtile-v">${esc(String(v))}</div>${sub ? `<div class="ai-meta">${esc(sub)}</div>` : ''}</div>`;
+
+        modal('aiAdminModal', '📈 لوحة المدير — أداء الوحدة وتكلفتها',
+            `<div class="ai-mtiles">
+                ${tile('📄', 'إجمالي المعالَجة', recs.length)}
+                ${tile('✅', 'نجحت', ok, failed ? `فشلت ${failed}` : '')}
+                ${tile('🎯', 'متوسط الثقة', avgConf + '%')}
+                ${tile('⏱️', 'متوسط زمن المعالجة', (avgMs / 1000).toFixed(1) + 'ث')}
+                ${tile('🔢', 'إجمالي الرموز', tokens.toLocaleString('en-US'))}
+                ${tile('💵', 'التكلفة التقديرية', '$' + cost.toFixed(4), 'الطبقة المجانية = صفر فعلياً')}
+                ${tile('👓', 'قُرئت بالـOCR', viaOcr)}
+                ${tile('✍️', 'عُدِّلت بشرياً', edited, edited ? Math.round(edited / Math.max(1, recs.length) * 100) + '% من الفواتير' : '')}
+                ${tile('⚖️', 'تجاوُزات مسجَّلة', overridden)}
+            </div>
+            <h4>توزيع النماذج المستخدمة</h4>
+            <table class="ai-tbl sm"><thead><tr><th>النموذج</th><th class="n">عدد الفواتير</th><th class="n">النسبة</th></tr></thead>
+            <tbody>${Object.keys(byModel).sort((a, b) => byModel[b] - byModel[a]).map(m =>
+                `<tr><td class="mono">${esc(m)}</td><td class="n">${byModel[m]}</td>
+                 <td class="n">${Math.round(byModel[m] / Math.max(1, done.length) * 100)}%</td></tr>`).join('') || '<tr><td colspan="3" class="ai-meta">لا بيانات</td></tr>'}</tbody></table>
+            <div class="ai-note">💡 نسبة التعديل البشري المرتفعة تعني أن جودة المستندات المرفوعة أو النموذج المختار يحتاج مراجعة —
+                وهي المؤشّر الأصدق على أثر الوحدة الحقيقي في توفير الوقت.</div>`,
+            `<button class="btn" onclick="aiCloseModal('aiAdminModal')">إغلاق</button>
+             <button class="btn" onclick="aiQuotaPanel()">📊 الحصّة اليومية</button>`, 860);
+    };
+
+    // ── سجل المعالجة ────────────────────────────────────────────────────────
+    window.aiProcessingLog = async function () {
+        if (!IS_ADMIN()) { toast('سجل المعالجة للمدير فقط', 'er'); return; }
+        modal('aiLogModal', '📋 سجل المعالجة', '<div class="ai-meta">جارٍ التحميل…</div>', '<button class="btn" onclick="aiCloseModal(\'aiLogModal\')">إغلاق</button>', 880);
+        try {
+            const snap = await window.get(window.ref(window.db, 'ledger/aiInvoiceLog'));
+            const all = snap && snap.exists() ? snap.val() : {};
+            const rows = [];
+            Object.keys(all).forEach(recId => {
+                const entries = all[recId] || {};
+                Object.keys(entries).forEach(k => rows.push(Object.assign({ recId }, entries[k])));
+            });
+            rows.sort((a, b) => (b.at || 0) - (a.at || 0));
+
+            const body = rows.length ? `<div class="tw"><table class="ai-tbl sm">
+                <thead><tr><th>الوقت</th><th>المستخدم</th><th>الحدث</th><th>النموذج</th><th class="n">المدة</th>
+                    <th class="n">رموز داخل/خارج</th><th class="n">التكلفة $</th><th class="n">الثقة</th><th>ملاحظات</th></tr></thead>
+                <tbody>${rows.slice(0, 300).map(e => `<tr>
+                    <td class="mono">${new Date(e.at || 0).toLocaleString('ar-SA')}</td>
+                    <td>${esc(e.by || '')}</td>
+                    <td>${esc(e.event || '')}</td>
+                    <td class="mono">${esc(e.model || '')}${e.viaOcr ? ' (OCR)' : ''}</td>
+                    <td class="n">${e.durationMs ? Math.round(e.durationMs / 1000) + 'ث' : ''}</td>
+                    <td class="n">${e.tokensIn == null ? '' : e.tokensIn + ' / ' + (e.tokensOut || 0)}</td>
+                    <td class="n">${e.cost == null ? '' : Number(e.cost).toFixed(4)}</td>
+                    <td class="n">${e.confidence == null ? '' : e.confidence + '%'}</td>
+                    <td class="ai-meta">${esc(e.error || e.status || e.pinvNumber || '')}</td>
+                </tr>`).join('')}</tbody></table></div>
+                ${rows.length > 300 ? `<div class="ai-meta">عُرضت أحدث 300 من ${rows.length} سجلاً</div>` : ''}`
+                : '<div class="empty"><div class="ei">📋</div><p>لا سجلات معالجة بعد</p></div>';
+
+            const box = $('aiLogModal');
+            if (box) box.querySelector('.ai-modal-b').innerHTML = body;
+        } catch (e) {
+            const box = $('aiLogModal');
+            if (box) box.querySelector('.ai-modal-b').innerHTML = `<div class="ai-note er">تعذّر قراءة السجل: ${esc(e.message || String(e))}</div>`;
+        }
+    };
+
+    console.log('✅ AI Invoice Actions loaded');
 })();

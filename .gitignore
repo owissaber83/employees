@@ -84,3 +84,6 @@ serviceAccountKey.json
 **/serviceAccountKey.json
 *-service-account*.json
 *firebase-adminsdk*.json
+
+# مصدر React الأصلي لنظام قراءة الفواتير — مرجع مواصفة لا يعمل ولا يُنشر
+ai-invoice-system.src/
