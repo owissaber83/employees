@@ -864,6 +864,10 @@
         if (!IS_ADMIN()) { toast('الإعدادات للمدير فقط', 'er'); return; }
         const c = AINV.Config.get();
         const route = AINV.Config.activeRoute();
+        const curModel = AINV.MODELS.find(m => m.id === c.geminiModel);
+        const staleModel = (c.provider || 'gemini') === 'gemini'
+            && (c.geminiModelAliased || (curModel && (curModel.status === 'legacy' || curModel.status === 'retired')));
+        const latestId = (AINV.MODELS.find(m => m.provider === 'gemini' && m.status !== 'legacy' && m.status !== 'retired') || {}).id || AINV.DEFAULTS.geminiModel;
         const gem = AINV.MODELS.filter(m => m.provider === 'gemini');
         const ant = AINV.MODELS.filter(m => m.provider === 'anthropic');
 
@@ -871,11 +875,16 @@
             `<div class="ai-set">
                 <label class="ai-chk-l"><input type="checkbox" id="setEnabled" ${c.enabled ? 'checked' : ''}> تفعيل الوحدة</label>
 
-                <div class="ai-route ${route.legacy ? 'legacy' : 'new'}">
-                    <div class="ai-route-h">${route.legacy ? '🕰️ المسار النشط الآن — قديم' : '🚀 المسار النشط الآن — الجديد'}</div>
+                <div class="ai-route ${route.legacy || staleModel ? 'legacy' : 'new'}">
+                    <div class="ai-route-h">${route.legacy ? '🕰️ المسار النشط الآن — قديم' : staleModel ? '⚠️ المسار النشط الآن — بنموذج قديم' : '🚀 المسار النشط الآن — الجديد'}</div>
                     <div class="ai-route-l">${esc(route.label)}</div>
                     <div class="ai-meta">${esc(route.note)}</div>
-                    ${route.legacy ? `<button class="btn b-g" onclick="aiUseNewRouteOnly()">🚀 أوقف القديم — استخدم Gemini المباشر فقط</button>` : ''}
+                    ${c.geminiModelAliased ? `<div class="ai-note wn">النموذج المحفوظ <code>${esc(c.geminiModelSaved)}</code> مسحوب من Google — يُستخدم <code>${esc(c.geminiModel)}</code> بدلاً عنه. احفظ لتثبيت التغيير.</div>` : ''}
+                    ${staleModel && !c.geminiModelAliased ? `<div class="ai-note wn">النموذج المحفوظ <code>${esc(c.geminiModel)}</code> من جيل سابق ومغلق أمام الحسابات الجديدة — وهو سبب رسالة «هذا النموذج لم يعد متاحاً».</div>` : ''}
+                    <div class="ai-route-acts">
+                        ${route.legacy ? `<button class="btn b-g" onclick="aiUseNewRouteOnly()">🚀 أوقف القديم — استخدم Gemini المباشر فقط</button>` : ''}
+                        ${staleModel && !route.legacy ? `<button class="btn b-g" onclick="aiUseLatestModel()">⚡ حوّلني إلى أحدث نموذج (${esc(latestId)})</button>` : ''}
+                    </div>
                 </div>
 
                 <h4>🔌 المحرك</h4>
@@ -958,6 +967,20 @@
         } catch (e) { toast('❌ تعذّر الحفظ: ' + (e.message || e), 'er'); }
     };
 
+    /** يثبّت أحدث نموذج مستقرّ — علاج مباشر لإعداد محفوظ صار ميتاً. */
+    window.aiUseLatestModel = async function () {
+        const latest = (AINV.MODELS.find(m => m.provider === 'gemini' && m.status !== 'legacy' && m.status !== 'retired') || {}).id;
+        if (!latest) { toast('لا يوجد نموذج مستقرّ في القائمة — اضغط «جلب المتاح» أولاً', 'er'); return; }
+        const before = AINV.Config.get().geminiModel;
+        try {
+            await AINV.Config.save({ geminiModel: latest });
+            AINV.Audit.log('تحديث نموذج قراءة الفواتير', `${before} ← ${latest}`);
+            toast(`⚡ حُوِّل النموذج إلى ${latest}`, 'ok', 7000);
+            window.aiCloseModal('aiSetModal');
+            window.aiSettings();
+        } catch (e) { toast('❌ تعذّر الحفظ: ' + (e.message || e), 'er'); }
+    };
+
     window.aiSetProviderChanged = function () {
         const p = $('setProvider') && $('setProvider').value;
         const g = $('setGemModelWrap'), a = $('setAntModelWrap');
@@ -997,23 +1020,60 @@
         } catch (e) { toast('❌ تعذّر الحفظ: ' + (e.message || e), 'er'); }
     };
 
-    /** اختبار الاتصال بمستند صغير مُولَّد — يكشف خطأ الإعداد قبل أول فاتورة حقيقية. */
+    /**
+     * اختبار الاتصال بمستند صغير مُولَّد.
+     * يجرّب سلسلة السقوط كاملةً لا نموذجاً واحداً — اختبارٌ يفشل على أوّل نموذج
+     * ميت بينما الاستخراج الحقيقي كان سينجح بالتالي له، اختبارٌ يكذب.
+     */
     window.aiTestEngine = async function () {
         const ready = AINV.Config.ready();
         if (!ready.ok) { toast('⚠️ ' + ready.reason, 'er', 8000); return; }
-        toast('⏳ جارٍ اختبار الاتصال…', 'wn');
-        try {
-            // صورة PNG بيضاء 1×1 — أصغر حمولة صالحة
-            const px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-            await AINV.callModel(px, 'image/png', null);
-            toast('✅ الاتصال بالمحرك سليم', 'ok', 6000);
-        } catch (e) {
-            // رفض النموذج لصورة فارغة = الاتصال والمصادقة سليمان
-            if (e.code === 'REFUSAL' || e.code === 'PARSE' || e.upstreamType === 'bad_request') {
-                toast('✅ الاتصال والمصادقة سليمان (رفض النموذج الصورة الفارغة — وهذا متوقّع)', 'ok', 7000);
-            } else {
-                toast('❌ ' + (e.message || e), 'er', 12000);
+        const c = AINV.Config.get();
+        // صورة PNG بيضاء 1×1 — أصغر حمولة صالحة
+        const px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+        if ((c.provider || 'gemini') !== 'gemini') {
+            toast('⏳ جارٍ اختبار الوسيط…', 'wn');
+            try { await AINV.callProxy(px, 'image/png', null); toast('✅ الوسيط والمصادقة سليمان', 'ok', 6000); }
+            catch (e) { reportTest(e); }
+            return;
+        }
+
+        const chain = c.autoFallbackModels ? AINV.fallbackChain(c.geminiModel) : [c.geminiModel];
+        const tried = [];
+        for (const model of chain) {
+            toast(`⏳ اختبار ${model}…`, 'wn', 3000);
+            try {
+                await AINV.callGeminiDirect(px, 'image/png', null, model);
+                await finishOk(model, tried);
+                return;
+            } catch (e) {
+                // رفض النموذج لصورة فارغة = الاتصال والمصادقة سليمان
+                if (e.code === 'REFUSAL' || e.code === 'PARSE' || e.upstreamType === 'bad_request') {
+                    await finishOk(model, tried, true);
+                    return;
+                }
+                tried.push(`${model}: ${e.upstreamType || e.code || 'خطأ'}`);
+                // مفتاح خاطئ أو صلاحية ناقصة لا يُصلحها تبديل النموذج
+                if (['authentication_error', 'permission_error'].includes(e.upstreamType)) { reportTest(e); return; }
+                if (e.upstreamType !== 'model_unavailable' && e.upstreamType !== 'quota_exhausted') { reportTest(e, tried); return; }
             }
+        }
+        toast('❌ لم ينجح أي نموذج:\n' + tried.join('\n'), 'er', 14000);
+
+        async function finishOk(model, failed, viaRefusal) {
+            let extra = '';
+            if (model !== c.geminiModel) {
+                try { await AINV.Config.save({ geminiModel: model }); extra = ` — وثُبِّت بديلاً عن ${c.geminiModel}`; } catch (e) { /* ثانوي */ }
+                AINV.Audit.log('تحويل نموذج بعد اختبار الاتصال', `${c.geminiModel} ← ${model}`);
+            }
+            toast(`✅ الاتصال سليم عبر ${model}${extra}` + (viaRefusal ? ' (رفض النموذج الصورة الفارغة — وهذا متوقّع)' : '')
+                + (failed.length ? `\nتخطّى: ${failed.join(' · ')}` : ''), 'ok', 10000);
+            window.aiCloseModal('aiSetModal');
+            window.aiSettings();
+        }
+        function reportTest(e, failed) {
+            toast('❌ ' + (e.message || e) + (failed && failed.length ? `\nجُرّب: ${failed.join(' · ')}` : ''), 'er', 14000);
         }
     };
 

@@ -520,5 +520,76 @@ console.log('\n🧬 [15] النماذج — القائمة تشيخ، فلا ت�
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🩺 [16] الإعداد المحفوظ يطغى على الافتراضي — والشفاء الذاتي');
+// ───────────────────────────────────────────────────────────────────────────────
+// الدرس الذي كلّف عطلاً متكرراً: تحديث DEFAULTS لا يُصلح تركيباً قائماً، لأن
+// ledger/settings يطغى عليه. النموذج يُحلّ عند كل قراءة، وحين ترفضه Google
+// تسمّي البديل في نصّ الخطأ فنعيد المحاولة به ونثبّته.
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    const cfgOf = o => { globalThis.cfg = { aiInvoice: o }; };
+
+    // نموذج مسحوب محفوظ لا يُمرَّر إلى Google
+    cfgOf({ enabled: true, provider: 'gemini', geminiKey: 'AIzaX', geminiModel: 'gemini-2.0-flash' });
+    const c1 = AINV.Config.get();
+    ok('النموذج المسحوب يُحلّ إلى بديل حيّ', c1.geminiModel !== 'gemini-2.0-flash', c1.geminiModel);
+    eq('والمحفوظ يبقى معروضاً كما هو', c1.geminiModelSaved, 'gemini-2.0-flash');
+    eq('ويُعلَّم بأنه استُبدل', c1.geminiModelAliased, true);
+    ok('ولا يدخل السلسلة أصلاً', !AINV.fallbackChain('gemini-2.0-flash').includes('gemini-2.0-flash'));
+
+    // نموذج حيّ لا يُمسّ
+    cfgOf({ enabled: true, provider: 'gemini', geminiKey: 'AIzaX', geminiModel: 'gemini-3.6-flash' });
+    eq('النموذج الحيّ يبقى كما هو', AINV.Config.get().geminiModel, 'gemini-3.6-flash');
+    eq('وبلا وسم استبدال', AINV.Config.get().geminiModelAliased, false);
+
+    // 🩺 الشفاء الذاتي: Google ترفض وتسمّي البديل → نعيد المحاولة به
+    cfgOf({ enabled: true, provider: 'gemini', geminiKey: 'AIzaX', geminiModel: 'gemini-2.5-flash', timeoutMs: 500 });
+    const calls = [];
+    let saved = null;
+    globalThis.update = async (_ref, patch) => { saved = patch; };
+    globalThis.ref = () => ({});
+    globalThis.push = async () => ({ key: 'k' });
+    globalThis.fetch = async (url) => {
+        const model = String(url).match(/models\/([^:]+):/)[1];
+        calls.push(model);
+        if (model === 'gemini-2.5-flash') {
+            return {
+                ok: false, status: 400, json: async () => ({
+                    error: {
+                        status: 'INVALID_ARGUMENT',
+                        message: 'models/gemini-2.5-flash is no longer available to new users. '
+                            + 'Please update your code to use models/gemini-3.6-flash for the latest features'
+                    }
+                })
+            };
+        }
+        return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{}' }] } }], usageMetadata: {} }) };
+    };
+
+    const out = await AINV.callModel('AAAA', 'image/png', null);
+    eq('جُرّب النموذج المحفوظ أولاً', calls[0], 'gemini-2.5-flash');
+    eq('ثم البديل الذي سمّته Google', calls[1], 'gemini-3.6-flash');
+    eq('والنتيجة من البديل', out.model, 'gemini-3.6-flash');
+    eq('ومعلَّمة بأنها شُفيت', out.healedFrom, 'gemini-2.5-flash');
+    ok('والبديل ثُبِّت في الإعدادات', saved && saved.aiInvoice && saved.aiInvoice.geminiModel === 'gemini-3.6-flash',
+        JSON.stringify(saved && saved.aiInvoice && saved.aiInvoice.geminiModel));
+    ok('ولم تُخزَّن الحقول المشتقّة', saved && saved.aiInvoice && !('geminiModelSaved' in saved.aiInvoice));
+
+    // خطأ لا يسمّي بديلاً لا يُعيد المحاولة بلا نهاية
+    calls.length = 0;
+    globalThis.fetch = async (url) => {
+        calls.push(String(url).match(/models\/([^:]+):/)[1]);
+        return { ok: false, status: 403, json: async () => ({ error: { status: 'PERMISSION_DENIED', message: 'api key not valid' } }) };
+    };
+    let threw = null;
+    await AINV.callModel('AAAA', 'image/png', null).catch(e => { threw = e; });
+    ok('خطأ المفتاح يُرمى ولا يُشفى بتبديل نموذج', !!threw);
+    eq('وبمحاولة واحدة فقط', calls.length, 1);
+
+    delete globalThis.fetch; delete globalThis.update; delete globalThis.push;
+    globalThis.cfg = { currency: 'SAR' };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(56)}\n  ✅ ناجح: ${pass}    ❌ فاشل: ${fail}\n${'═'.repeat(56)}`);
 process.exit(fail ? 1 : 0);

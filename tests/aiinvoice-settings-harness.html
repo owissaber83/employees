@@ -27,7 +27,9 @@ window.set = async () => {}; window.update = async () => {}; window.push = () =>
 window.can = () => true; window.curU = { uid: 'u1', email: 't@x.com' };
 window.aiInvoices = {}; window.vendors = {}; window.invItems = {}; window.items = {};
 window.projects = {}; window.chartOfAccounts = {}; window.purchaseInvoices = {};
-window.cfg = { aiInvoice: {} }; window.remove = async () => {};
+// نموذج محفوظ من جيل سابق — الحالة التي أوقعت العطل فعلاً
+window.cfg = { aiInvoice: { enabled: true, provider: 'gemini', geminiKey: 'AIzaTEST', geminiModel: 'gemini-2.5-flash' } };
+window.remove = async () => {};
 window.__errors = [];
 window.addEventListener('error', e => window.__errors.push(String(e.message)));
 </script>
@@ -92,6 +94,10 @@ window.__probe = function () {
     Object.defineProperty(navigator, 'clipboard', { value: realClip, configurable: true });
     // نافذة الإصدار الثاني لا تحوي أوامر تركيب — الفحص يبقى صالحاً إن أُعيدت
     out.copyAllOk = out.copy.length === 0 || out.copy.every(c => c.ok);
+    // لافتة النموذج القديم وعلاجه بنقرة
+    const route = ov.querySelector('.ai-route');
+    out.staleWarned = !!(route && /جيل سابق|مسحوب|لم يعد متاح/.test(route.textContent));
+    out.hasLatestBtn = !!(route && /أحدث نموذج/.test(route.textContent));
     return out;
 };
 </script>

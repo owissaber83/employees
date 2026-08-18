@@ -96,16 +96,48 @@
     };
     AINV.DEFAULTS = DEFAULTS;
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // بدائل النماذج المسحوبة
+    // ───────────────────────────────────────────────────────────────────────────
+    // ⚠️ الدرس الذي كلّف عطلاً: تغيير DEFAULTS لا يُصلح تركيباً قائماً. الإعداد
+    // المحفوظ في ledger/settings يطغى على الافتراضي دائماً، فيبقى المستخدم على
+    // نموذج ميت مهما حدّثنا الكود. لذلك يُحلّ النموذج **عند كل قراءة**.
+    //
+    // هنا النماذج المسحوبة نهائياً لدى الجميع فقط. أمّا المقيَّدة (تعمل لحساب
+    // استخدمها من قبل ولا تعمل لغيره) فلا تُستبدل بافتراض — بل يكشفها الخطأ
+    // الحقيقي من Google ويشفيها [AI-HEAL] أدناه ببديلٍ تسمّيه Google نفسها.
+    // ═══════════════════════════════════════════════════════════════════════════
+    AINV.MODEL_ALIASES = {
+        'gemini-1.5-flash': 'gemini-3.5-flash-lite',
+        'gemini-1.5-flash-8b': 'gemini-3.5-flash-lite',
+        'gemini-1.5-pro': 'gemini-3.5-flash',
+        'gemini-2.0-flash': 'gemini-3.5-flash-lite',
+        'gemini-2.0-flash-lite': 'gemini-3.5-flash-lite',
+        'gemini-2.0-flash-exp': 'gemini-3.5-flash-lite'
+    };
+
+    /** يحوّل معرّف نموذج مسحوب إلى بديله الحيّ. */
+    AINV.resolveModel = function (id) {
+        if (!id) return DEFAULTS.geminiModel;
+        return AINV.MODEL_ALIASES[id] || id;
+    };
+
     AINV.Config = {
         get() {
             const c = (window.cfg && window.cfg.aiInvoice) || {};
             const merged = Object.assign({}, DEFAULTS, c);
             // ترقية إعداد قديم: كان الحدّ يُخزَّن 0..100
             if (merged.confidenceThreshold > 1) merged.confidenceThreshold = merged.confidenceThreshold / 100;
+            // نموذج مسحوب محفوظ لا يُمرَّر إلى Google — يُحلّ إلى بديله الحيّ
+            merged.geminiModelSaved = merged.geminiModel;
+            merged.geminiModel = AINV.resolveModel(merged.geminiModel);
+            merged.geminiModelAliased = merged.geminiModelSaved !== merged.geminiModel;
             return merged;
         },
         async save(patch) {
             const next = Object.assign({}, AINV.Config.get(), patch);
+            // حقول مشتقّة للعرض لا تُخزَّن
+            delete next.geminiModelSaved; delete next.geminiModelAliased;
             await window.update(window.ref(window.db, 'ledger/settings'), { aiInvoice: next });
             if (window.cfg) window.cfg.aiInvoice = next;
             return next;
@@ -484,10 +516,26 @@
             bad_request: 'رفض Gemini الطلب (قد يكون الملف غير مقروء).',
             api_error: 'خطأ من Gemini: ' + ((body && body.error && body.error.message) || '')
         };
-        const e = new Error(MAP[type] || MAP.api_error);
+        const raw = (body && body.error && body.error.message) || '';
+        // Google تسمّي البديل في نصّ الخطأ حرفياً:
+        //   "models/gemini-2.5-flash is no longer available to new users.
+        //    Please update your code to use models/gemini-3.6-flash"
+        // أخذُ البديل من المصدر أدقّ من أي جدول نضعه في الكود ويشيخ.
+        let replacement = '';
+        if (/no longer available|not found|deprecated|retired|is not supported/i.test(raw)) {
+            type = 'model_unavailable';
+            const all = raw.match(/models\/([a-zA-Z0-9._-]+)/g) || [];
+            const ids = all.map(x => x.replace('models/', ''));
+            replacement = ids.length > 1 ? ids[ids.length - 1] : '';
+        }
+        const e = new Error(type === 'model_unavailable'
+            ? `النموذج لم يعد متاحاً لحسابك${replacement ? ` — البديل الذي تقترحه Google: ${replacement}` : ''}.`
+            : (MAP[type] || MAP.api_error));
         e.code = 'upstream_error'; e.upstreamType = type; e.provider = 'gemini';
+        e.replacementModel = replacement;
+        e.rawMessage = raw;
         e.retryable = status === 429 || status >= 500;
-        if (type === 'quota_exhausted') e.retryable = false;
+        if (type === 'quota_exhausted' || type === 'model_unavailable') e.retryable = false;
         return e;
     }
 
@@ -551,15 +599,37 @@
     };
 
     /**
-     * يوجّه النداء إلى المسار المُختار — ولا يغيّره خلف ظهر المستخدم.
+     * [AI-HEAL] يوجّه النداء إلى المسار المُختار — ولا يغيّره خلف ظهر المستخدم.
      * Gemini ⇒ نداء مباشر دائماً.  Anthropic ⇒ الوسيط دائماً.
+     *
+     * وحين ترفض Google النموذج لأنه لم يعد متاحاً، **تسمّي البديل في نصّ
+     * الخطأ**. نعيد المحاولة به مرة واحدة ونثبّته في الإعدادات، فلا يتكرّر
+     * العطل مع كل فاتورة ولا ينتظر تدخّلاً يدوياً. هذا أوثق من أي جدول بدائل
+     * نكتبه نحن: المصدر هو من يقرّر.
      */
-    AINV.callModel = function (fileB64, mediaType, onProgress, modelOverride) {
+    AINV.callModel = async function (fileB64, mediaType, onProgress, modelOverride) {
         const c = AINV.Config.get();
-        if ((c.provider || 'gemini') === 'gemini') {
-            return AINV.callGeminiDirect(fileB64, mediaType, onProgress, modelOverride);
+        if ((c.provider || 'gemini') !== 'gemini') return AINV.callProxy(fileB64, mediaType, onProgress);
+
+        const wanted = modelOverride || c.geminiModel;
+        try {
+            return await AINV.callGeminiDirect(fileB64, mediaType, onProgress, wanted);
+        } catch (e) {
+            const alt = e.replacementModel;
+            if (e.upstreamType !== 'model_unavailable' || !alt || alt === wanted) throw e;
+
+            onProgress && onProgress(`النموذج ${wanted} لم يعد متاحاً — التحويل إلى ${alt}…`, 0.3);
+            const out = await AINV.callGeminiDirect(fileB64, mediaType, onProgress, alt);
+            out.healedFrom = wanted;
+
+            // نثبّت البديل بعد نجاحه لا قبله
+            if (!modelOverride) {
+                try { await AINV.Config.save({ geminiModel: alt }); } catch (e2) { /* الإعداد ثانوي */ }
+                AINV.Audit.log('تحويل نموذج تلقائي',
+                    `رفضت Google ${wanted} فحُوِّل إلى ${alt} وثُبِّت في الإعدادات`);
+            }
+            return out;
         }
-        return AINV.callProxy(fileB64, mediaType, onProgress);
     };
 
     /**
@@ -586,8 +656,10 @@
                 } catch (e) {
                     lastErr = e;
                     const quota = e.upstreamType === 'quota_exhausted' || e.code === 'rate_limited';
-                    if (quota) {
-                        AINV.Quota.markExhausted(modelId || c.geminiModel);
+                    const dead = e.upstreamType === 'model_unavailable';
+                    if (quota || dead) {
+                        if (quota) AINV.Quota.markExhausted(modelId || c.geminiModel);
+                        if (dead) { const m = AINV.MODELS.find(x => x.id === (modelId || c.geminiModel)); if (m) m.status = 'retired'; }
                         break;   // جرّب النموذج التالي في السلسلة
                     }
                     attempt++;
@@ -2282,12 +2354,13 @@
 
     /** النماذج الصالحة لسلسلة السقوط: مجانية ومستقرّة وغير مسحوبة. */
     AINV.fallbackChain = function (preferred) {
+        const want = AINV.resolveModel(preferred);   // نموذج مسحوب يُحلّ قبل التجربة
         const usable = AINV.MODELS
             .filter(m => m.provider === 'gemini' && m.status !== 'legacy' && m.status !== 'retired')
             .map(m => m.id);
-        const first = preferred && usable.includes(preferred) ? preferred : usable[0];
-        // نموذج اختاره المستخدم صراحةً يُجرَّب أولاً ولو كان قديماً
-        const head = preferred && !usable.includes(preferred) ? [preferred] : [];
+        const first = want && usable.includes(want) ? want : usable[0];
+        // نموذج اختاره المستخدم صراحةً يُجرَّب أولاً ولو كان جيلاً سابقاً
+        const head = want && !usable.includes(want) ? [want] : [];
         return head.concat([first]).concat(usable.filter(id => id !== first)).filter(Boolean);
     };
 

@@ -64,6 +64,9 @@ for (const [label, width, height] of [['سطح المكتب', 1280, 900], ['لو
     ok('لا حقول مشوّهة', (r.tinyFields || []).length === 0, (r.tinyFields || []).join(' | '));
     ok('أوامر دليل التركيب تُنسخ حرفياً (إن وُجدت)', r.copyAllOk === true,
         JSON.stringify(r.copy || []));
+    // النموذج المحفوظ من جيل سابق يجب أن يُنبَّه عليه صراحةً مع علاج بنقرة
+    ok('النموذج القديم المحفوظ يُنبَّه عليه', r.staleWarned === true, 'لا تحذير من نموذج قديم');
+    ok('ويُعرض زر التحويل إلى الأحدث', r.hasLatestBtn === true, 'لا زر تحويل');
 
     await page.close();
 }

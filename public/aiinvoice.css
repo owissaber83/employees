@@ -1225,3 +1225,6 @@
 
 .btn.sm { padding: 3px 8px; font-size: 10.5px; min-height: 0; margin-inline-start: 6px; }
 .ai-note a { color: #2E75B6; font-weight: 700; }
+
+.ai-route-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-route code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; direction: ltr; font-size: 10.5px; }
