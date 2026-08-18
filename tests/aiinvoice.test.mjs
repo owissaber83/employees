@@ -435,5 +435,47 @@ console.log('\n♻️ [13] ترقية سجلات الإصدار الأول');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n🔀 [14] مسار المحرك — المُعلَن هو المُنفَّذ');
+// ───────────────────────────────────────────────────────────────────────────────
+// كان اختيار «Gemini» بلا مفتاح يُفعّل الوسيط (المسار القديم) بصمت، فيفشل النداء
+// برسالة عن Worker لم يقصد المستخدم استخدامه. المسار لا يتغيّر خلف ظهره.
+// ═══════════════════════════════════════════════════════════════════════════════
+{
+    const cfgOf = o => { globalThis.cfg = { aiInvoice: o }; };
+
+    cfgOf({ enabled: true, provider: 'gemini', geminiKey: '' , proxyUrl: 'https://old-proxy.workers.dev' });
+    eq('Gemini بلا مفتاح ليس جاهزاً — ولو وُجد وسيط', AINV.Config.ready().ok, false);
+    ok('والسبب يذكر مفتاح Gemini لا الوسيط', AINV.Config.ready().reason.includes('Gemini'));
+    eq('والمسار المُعلَن يبقى Gemini المباشر', AINV.Config.activeRoute().id, 'gemini_direct');
+
+    cfgOf({ enabled: true, provider: 'gemini', geminiKey: 'AIzaTEST', proxyUrl: 'https://old-proxy.workers.dev' });
+    eq('Gemini بمفتاح جاهز', AINV.Config.ready().ok, true);
+    eq('ووجود وسيط قديم لا يغيّر المسار', AINV.Config.activeRoute().id, 'gemini_direct');
+    eq('والمسار الجديد غير موسوم بالقديم', AINV.Config.activeRoute().legacy, false);
+
+    cfgOf({ enabled: true, provider: 'anthropic', model: 'claude-opus-5', proxyUrl: 'https://p.workers.dev' });
+    eq('Anthropic عبر الوسيط مسار قديم', AINV.Config.activeRoute().legacy, true);
+    eq('ومعرّفه الوسيط', AINV.Config.activeRoute().id, 'worker_proxy');
+
+    cfgOf({ enabled: true, provider: 'anthropic', proxyUrl: '' });
+    eq('Anthropic بلا وسيط ليس جاهزاً', AINV.Config.ready().ok, false);
+
+    // 🛑 التوجيه الفعلي: Gemini لا يلمس الوسيط أبداً
+    cfgOf({ enabled: true, provider: 'gemini', geminiKey: 'AIzaTEST', proxyUrl: 'https://old-proxy.workers.dev', timeoutMs: 50 });
+    let hitProxy = false, hitGemini = false;
+    globalThis.fetch = async (url) => {
+        if (String(url).includes('old-proxy')) hitProxy = true;
+        if (String(url).includes('generativelanguage')) hitGemini = true;
+        return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{}' }] } }], usageMetadata: {} }) };
+    };
+    await AINV.callModel('AAAA', 'image/png', null).catch(() => {});
+    ok('نداء Gemini ذهب إلى Google مباشرةً', hitGemini);
+    ok('ولم يمسّ الوسيط القديم إطلاقاً', !hitProxy);
+    delete globalThis.fetch;
+
+    globalThis.cfg = { currency: 'SAR' };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(56)}\n  ✅ ناجح: ${pass}    ❌ فاشل: ${fail}\n${'═'.repeat(56)}`);
 process.exit(fail ? 1 : 0);

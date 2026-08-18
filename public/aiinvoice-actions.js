@@ -863,12 +863,20 @@
     window.aiSettings = function () {
         if (!IS_ADMIN()) { toast('الإعدادات للمدير فقط', 'er'); return; }
         const c = AINV.Config.get();
+        const route = AINV.Config.activeRoute();
         const gem = AINV.MODELS.filter(m => m.provider === 'gemini');
         const ant = AINV.MODELS.filter(m => m.provider === 'anthropic');
 
         modal('aiSetModal', '⚙️ إعدادات قراءة الفواتير',
             `<div class="ai-set">
                 <label class="ai-chk-l"><input type="checkbox" id="setEnabled" ${c.enabled ? 'checked' : ''}> تفعيل الوحدة</label>
+
+                <div class="ai-route ${route.legacy ? 'legacy' : 'new'}">
+                    <div class="ai-route-h">${route.legacy ? '🕰️ المسار النشط الآن — قديم' : '🚀 المسار النشط الآن — الجديد'}</div>
+                    <div class="ai-route-l">${esc(route.label)}</div>
+                    <div class="ai-meta">${esc(route.note)}</div>
+                    ${route.legacy ? `<button class="btn b-g" onclick="aiUseNewRouteOnly()">🚀 أوقف القديم — استخدم Gemini المباشر فقط</button>` : ''}
+                </div>
 
                 <h4>🔌 المحرك</h4>
                 <div class="ai-grid2">
@@ -890,9 +898,11 @@
                     <input class="ai-inp mono" id="setGeminiKey" type="password" value="${esc(c.geminiKey || '')}" placeholder="AIza...">
                     <div class="ai-note">⚠️ هذا المفتاح يُنادى من المتصفح مباشرةً. <b>قيّده بالنطاق</b> في Google Cloud Console
                         (HTTP referrer) وإلا كان قابلاً للاستخدام من أي موقع. المقايضة مقبولة لمفتاح مجاني، وغير مقبولة لمفتاح مدفوع.</div></div>
-                <div class="ai-f"><label class="ai-f-l">رابط الوسيط (Cloudflare Worker) <span class="ai-meta">— إلزامي لـClaude</span></label>
+                <div class="ai-f"><label class="ai-f-l">رابط الوسيط (Cloudflare Worker) <span class="ai-meta">— المسار القديم · إلزامي لـClaude وحده</span></label>
                     <input class="ai-inp mono" id="setProxy" value="${esc(c.proxyUrl || '')}" placeholder="https://invoice-ai-proxy.xxx.workers.dev">
-                    <div class="ai-note">مفتاح Anthropic مدفوع ولا يوضع في المتصفح إطلاقاً — الوسيط يحفظه ويتحقّق من هوية المستخدم قبل كل نداء.</div></div>
+                    <div class="ai-note">مفتاح Anthropic مدفوع ولا يوضع في المتصفح إطلاقاً — الوسيط يحفظه ويتحقّق من هوية المستخدم قبل كل نداء.
+                        <b>لا يُستخدم هذا الحقل مع Gemini.</b> وإن رفض الوسيط الاتصال رغم نشره، فالسبب غالباً أنّ
+                        <code>ALLOWED_ORIGIN</code> في <code>wrangler.toml</code> لا يطابق نطاق تطبيقك الحالي.</div></div>
                 <label class="ai-chk-l"><input type="checkbox" id="setFallback" ${c.autoFallbackModels ? 'checked' : ''}> السقوط تلقائياً إلى نموذج بديل عند نفاد الحصّة</label>
                 <label class="ai-chk-l"><input type="checkbox" id="setOcr" ${c.ocrFallback ? 'checked' : ''}> القراءة المحلية المجانية (OCR) عند نفاد كل الحصص</label>
 
@@ -920,6 +930,27 @@
              <button class="btn" onclick="aiTestEngine()">🔌 اختبار الاتصال</button>
              <button class="btn b-g" onclick="aiSaveSettings()">💾 حفظ</button>`, 720);
         window.aiSetProviderChanged();
+    };
+
+    /**
+     * أوقف المسار القديم وفعّل الجديد وحده: Gemini مباشر، وإفراغ رابط الوسيط
+     * حتى لا يعود أي نداء إليه. لا يُحفظ شيء قبل وجود مفتاح Gemini — التحويل
+     * إلى مسار بلا مفتاح يستبدل عطلاً بعطل.
+     */
+    window.aiUseNewRouteOnly = async function () {
+        const key = (($('setGeminiKey') && $('setGeminiKey').value) || '').trim();
+        if (!key) {
+            toast('ضع مفتاح Gemini أولاً (يبدأ بـAIza — من aistudio.google.com) ثم اضغط الزر مرة أخرى', 'er', 9000);
+            const el = $('setGeminiKey'); if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+            return;
+        }
+        try {
+            await AINV.Config.save({ provider: 'gemini', proxyUrl: '', geminiKey: key, enabled: true });
+            AINV.Audit.log('تبديل مسار محرك قراءة الفواتير', 'أُوقف الوسيط (Anthropic) وفُعّل Gemini المباشر وحده');
+            toast('🚀 أُوقف المسار القديم — Gemini المباشر هو الفعّال الآن', 'ok', 7000);
+            window.aiCloseModal('aiSetModal');
+            window.aiSettings();
+        } catch (e) { toast('❌ تعذّر الحفظ: ' + (e.message || e), 'er'); }
     };
 
     window.aiSetProviderChanged = function () {

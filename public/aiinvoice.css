@@ -1213,3 +1213,12 @@
 .ai-note.ok { background: #e8f6ee; border-inline-start-color: #1B8A4B; }
 .ai-note.er { background: #fdecea; border-inline-start-color: #C0392B; }
 .ai-note.wn { background: #fff6e5; border-inline-start-color: #D97706; }
+
+/* ── لافتة المسار النشط في الإعدادات ──────────────────────────────────────── */
+.ai-route { border-radius: 10px; padding: 11px 13px; margin: 12px 0; border-inline-start: 4px solid #1B8A4B; background: #e8f6ee; }
+.ai-route.legacy { border-inline-start-color: #D97706; background: #fff6e5; }
+.ai-route-h { font-weight: 800; font-size: 12.5px; color: #1B8A4B; }
+.ai-route.legacy .ai-route-h { color: #D97706; }
+.ai-route-l { font-family: 'Courier New', monospace; direction: ltr; text-align: left; font-size: 12px; margin: 4px 0; }
+.ai-route .btn { margin-top: 8px; }
+.ai-note code { background: #eef3f7; padding: 1px 5px; border-radius: 4px; font-size: 10.5px; direction: ltr; }

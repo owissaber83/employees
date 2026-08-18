@@ -109,20 +109,41 @@
             if (window.cfg) window.cfg.aiInvoice = next;
             return next;
         },
-        /** هل الوحدة جاهزة للعمل فعلاً؟ */
+        /**
+         * هل الوحدة جاهزة للعمل فعلاً؟
+         * ⚠️ لا سقوط صامت من Gemini إلى الوسيط: كان اختيار «Gemini» بلا مفتاح
+         * يُفعّل المسار القديم (Worker) دون علم المستخدم، فيظهر خطأ عن وسيطٍ لم
+         * يقصد استخدامه أصلاً. المسار المُعلَن هو المسار المُنفَّذ.
+         */
         ready() {
             const c = AINV.Config.get();
             if (!c.enabled) return { ok: false, reason: 'الوحدة معطّلة من الإعدادات' };
             const prov = c.provider || 'gemini';
             if (prov === 'gemini') {
                 if (c.geminiKey && c.geminiKey.trim()) return { ok: true };
-                if (c.proxyUrl && /^https:\/\//i.test(c.proxyUrl)) return { ok: true };
-                return { ok: false, reason: 'ضع مفتاح Gemini في الإعدادات (يبدأ بـAIza) — أو رابط وسيط' };
+                return { ok: false, reason: 'ضع مفتاح Gemini في الإعدادات (يبدأ بـAIza — من aistudio.google.com)' };
             }
             // Anthropic مدفوع: لا يوضع مفتاحه في المتصفح — يلزم الوسيط.
             if (!c.proxyUrl) return { ok: false, reason: 'Anthropic يتطلّب الوسيط — انشر الـWorker وضع رابطه، أو استخدم Gemini' };
             if (!/^https:\/\//i.test(c.proxyUrl)) return { ok: false, reason: 'رابط الوسيط يجب أن يبدأ بـ https://' };
             return { ok: true };
+        },
+
+        /** وصف المسار الذي سيُنفَّذ فعلاً — يُعرض في الإعدادات بلا تخمين. */
+        activeRoute() {
+            const c = AINV.Config.get();
+            if ((c.provider || 'gemini') === 'gemini') {
+                return {
+                    id: 'gemini_direct', legacy: false,
+                    label: 'Gemini مباشر من المتصفح — ' + (c.geminiModel || 'gemini-2.5-flash'),
+                    note: 'بلا وسيط وبلا خادم. قيّد المفتاح بالنطاق في Google Cloud Console.'
+                };
+            }
+            return {
+                id: 'worker_proxy', legacy: true,
+                label: 'وسيط Cloudflare ثم Anthropic — ' + (c.model || 'claude-opus-5'),
+                note: 'المسار القديم: يتطلّب Worker منشوراً ومضبوطاً على نطاق تطبيقك، ورصيداً في حساب Anthropic.'
+            };
         }
     };
 
@@ -342,7 +363,15 @@
         } catch (e) {
             clearTimeout(timer);
             if (e.name === 'AbortError') throw new Error(`انتهت المهلة (${Math.round(c.timeoutMs / 1000)} ثانية) — الملف كبير أو الاتصال بطيء`);
-            throw new Error('تعذّر الوصول إلى الوسيط الآمن — تحقّق من الرابط ومن أن الـWorker منشور');
+            // fetch يرمي هنا في حالتين لا يفرّق بينهما المتصفح: الوسيط غير موجود،
+            // أو الوسيط منشور لكنه يرفض نطاقك في CORS. الثانية أشيع بمراحل ولا
+            // تُصلَح بإعادة النشر — لذلك نذكر النطاق الحالي صراحةً.
+            const org = (typeof location !== 'undefined' && location.origin) || 'نطاقك الحالي';
+            const e2 = new Error('تعذّر الوصول إلى الوسيط الآمن. الأرجح أن الـWorker منشور لكنه '
+                + `لا يسمح لنطاق «${org}» — اضبط ALLOWED_ORIGIN في wrangler.toml على هذا النطاق وأعد النشر. `
+                + 'أو استخدم Gemini المباشر الذي لا يحتاج وسيطاً إطلاقاً.');
+            e2.code = 'proxy_unreachable'; e2.origin = org;
+            throw e2;
         }
         clearTimeout(timer);
 
@@ -520,10 +549,13 @@
         };
     };
 
-    /** يوجّه النداء: Gemini مباشر إن وُجد مفتاحه، وإلا عبر الوسيط. */
+    /**
+     * يوجّه النداء إلى المسار المُختار — ولا يغيّره خلف ظهر المستخدم.
+     * Gemini ⇒ نداء مباشر دائماً.  Anthropic ⇒ الوسيط دائماً.
+     */
     AINV.callModel = function (fileB64, mediaType, onProgress, modelOverride) {
         const c = AINV.Config.get();
-        if ((c.provider || 'gemini') === 'gemini' && c.geminiKey && c.geminiKey.trim()) {
+        if ((c.provider || 'gemini') === 'gemini') {
             return AINV.callGeminiDirect(fileB64, mediaType, onProgress, modelOverride);
         }
         return AINV.callProxy(fileB64, mediaType, onProgress);
