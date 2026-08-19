@@ -22,7 +22,9 @@
     "test:ai:page": "node tests/aiinvoice-page.e2e.mjs",
     "test:char": "node tests/characterization/chartOfAccounts.test.mjs",
     "test:char:date": "node tests/characterization/date-behavior.test.mjs",
-    "test:domain": "npm run test:char && npm run test:char:date && npm run test:repo",
+    "test:char:vendaccount": "node tests/characterization/resolveVendorPayableAccount.test.mjs",
+    "test:char:pinvjournal": "node tests/characterization/buildPurchaseInvoiceJournal.test.mjs",
+    "test:domain": "npm run test:char && npm run test:char:date && npm run test:char:vendaccount && npm run test:char:pinvjournal && npm run test:repo",
     "test:repo": "node tests/repositories/chartOfAccounts.test.mjs",
     "test:gm": "node tests/golden-master/journal.test.mjs",
     "test:gm:posting": "node tests/golden-master/posting-integrity.test.mjs",
@@ -38,6 +40,13 @@
     "test:gm:mutation": "node tests/golden-master/mutation.test.mjs",
     "test:gm:balances": "npm run test:gm:tb && npm run test:gm:ledger && npm run test:gm:customer && npm run test:gm:supplier && npm run test:gm:tenant && npm run test:gm:dates && npm run test:gm:precision && npm run test:gm:idem && npm run test:gm:failure && npm run test:gm:mutation",
     "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances",
-    "gm:perf": "node tests/golden-master/perf-baseline.mjs"
+    "gm:perf": "node tests/golden-master/perf-baseline.mjs",
+    "test:svc:atomicity": "node tests/services/postPurchaseInvoice.atomicity.test.mjs",
+    "test:svc:idempotency": "node tests/services/postPurchaseInvoice.idempotency.test.mjs",
+    "test:svc:integrity": "node tests/services/journalIntegrity.test.mjs",
+    "test:svc:tenant": "node tests/services/postPurchaseInvoice.multiTenant.test.mjs",
+    "test:svc:failure": "node tests/services/postPurchaseInvoice.failureInjection.test.mjs",
+    "test:svc:all": "npm run test:svc:atomicity && npm run test:svc:idempotency && npm run test:svc:integrity && npm run test:svc:tenant && npm run test:svc:failure",
+    "svc:perf": "node tests/services/perf-baseline.mjs"
   }
 }

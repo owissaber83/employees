@@ -7,21 +7,19 @@
 > **Academy** ولا علاقة له بترحيل ERP. هذا الملف (`docs/HANDOFF.md`) هو المرجع.
 
 ## Date
-2026-08-19 (Phase 5 — Golden Master الأرصدة)
+2026-08-19 (Phase 6 — خدمات التطبيق: ترحيل ذرّي + Idempotency لفاتورة المشتريات)
 
 ## Current Branch
 `feat/ai-invoice-system-v2` — مدفوع ومتزامن مع `origin`.
 
 ## Current Commit
-هذا الإيداع نفسه — `test(gm): Phase 5 — Golden Master دفتر الأستاذ وميزان
-المراجعة وأرصدة الأطراف`. شغّل `git log -1 --oneline` للهاش الفعلي (لا
-يُكتب هنا حرفياً لتفادي مرجعية ذاتية — هذا الملف جزء من الإيداع الذي يصفه،
-تماماً كما كانت `9cd3e07` أدناه سابقاً بالنسبة لإيداع Phase 4).
-**سلف مباشر:** `295d758` — `docs: نقطة تسليم — تجهيز المشروع للمتابعة من جهاز آخر`
-(وهو نفسه إيداع تال لـ`9cd3e07` — Phase 4 الأصلية).
+هذا الإيداع نفسه — `feat: phase 6 application services atomic posting`.
+شغّل `git log -1 --oneline` للهاش الفعلي (نفس سبب عدم كتابته حرفياً في
+Phase 4 وPhase 5 — الملف جزء من الإيداع الذي يصفه).
+**سلف مباشر:** `69f3a03` — Phase 5 (Golden Master الأرصدة).
 
 ## Current Tag
-`migration/baseline` — خط الأساس قبل الترحيل (مدفوع). **لم يتغيّر في Phase 5.**
+`migration/baseline` — خط الأساس قبل الترحيل (مدفوع). **لم يتغيّر في Phase 6.**
 
 ## Project Status
 نظام ERP محاسبي عربي (RTL) يعمل في الإنتاج على Firebase Hosting + Realtime
@@ -41,8 +39,8 @@ Database، خطة Spark. **يعمل الآن تماماً كما كان قبل �
 | 2 · استخلاص النطاق المحاسبي | 🟡 جارية — شجرة الحسابات فقط |
 | 3 · طبقة Repository | 🟡 جارية — شجرة الحسابات فقط |
 | 4 · Golden Master — بناء القيود وسلامة الترحيل | ✅ مكتملة |
-| 5 · Golden Master — دفتر الأستاذ · ميزان المراجعة · أرصدة الأطراف | ✅ **مكتملة الآن** |
-| 6 · خدمات الأعمال | 🔴 لم تبدأ |
+| 5 · Golden Master — دفتر الأستاذ · ميزان المراجعة · أرصدة الأطراف | ✅ مكتملة |
+| 6 · خدمات التطبيق — ترحيل ذرّي + Idempotency (فاتورة المشتريات فقط) | ✅ **مكتملة الآن — غير موصولة بالإنتاج** |
 | 7 · أساس React | 🔴 لم تبدأ |
 | 8+ · ترحيل الوحدات | 🔴 لم تبدأ |
 
@@ -80,6 +78,19 @@ Database، خطة Spark. **يعمل الآن تماماً كما كان قبل �
 طفرة يُثبت أن الشبكة حسّاسة فعلاً (بصمة `sha256` لـ`accounting.js` قبل/بعد
 متطابقة — الملف الحقيقي لم يُمَسّ).
 
+**خدمات التطبيق (Phase 6):** طبقة كاملة — Domain (بناء قيد نقيّ + تحقّق) ←
+Repository (`JournalPostingRepository`) ← Service (`postPurchaseInvoice`) —
+لفاتورة المشتريات فقط (سبب القرار: `docs/services/posting.md`). 98 تأكيداً
+جديداً، منها اختباران توصيفيان (LEGACY BEHAVIOR TEST) يثبتان أن منطق البناء
+النقيّ الجديد **مطابق حرفياً** للقديم على 32 حالة، وخمس مجموعات NEW SAFETY
+INVARIANT TEST (66 تأكيداً) على محاكي RTDB واقعي جديد
+(`tests/services/fakePostingRtdb.mjs`) يطبّق `ref()`/`scopeUpdates()` من
+`app.js` حرفياً. **اكتشاف أثناء الاختبار لا افتراضاً:** أول تصميم لبوّابة
+Idempotency كان به سباق حقيقي (الخاسر يقرأ الفاتورة قبل أن ينهي الفائز
+كتابته) — اكتُشف بـ`Promise.all` فعلي، أُصلح بمحاولات محدودة موثَّقة كحدّ لا
+كحلّ مثالي (`docs/services/idempotency.md`). **غير موصولة بالإنتاج** (§15) —
+`postPInv`/`createJournalForPInv` القديمتان لم تُلمَسا حرفاً واحداً.
+
 ## Files Created
 
 ```
@@ -97,13 +108,26 @@ tests/golden-master/                     capture-balances · canonical-balances 
 tests/fixtures/accounting/               world.mjs (Phase 4) · balances-world.mjs (Phase 5، ملف منفصل)
 docs/BASELINE.md · docs/domain/*.md · docs/accounting/golden-master.md                                     ← Phase 4
 docs/accounting/{balances,ledger,trial-balance,customer-balances,supplier-balances,ensureStdAccount}.md    ← Phase 5
+src/domain/accounting/posting/           assertBalanced · validateJournal ·                                ← Phase 6
+                                          resolveVendorPayableAccount · buildPurchaseInvoiceJournal
+src/services/accounting/                 errors/{AccountingError,ValidationError,                          ← Phase 6
+                                          DuplicatePostingError,AtomicityError} ·
+                                          idempotency/idempotencyKey · posting/postPurchaseInvoice
+src/repositories/contracts/              JournalPostingRepository.js                                        ← Phase 6
+src/repositories/firebase/               FirebaseJournalPostingRepository.js                                ← Phase 6
+src/repositories/memory/                 InMemoryJournalPostingRepository.js                                ← Phase 6
+tests/characterization/                  resolveVendorPayableAccount.test · buildPurchaseInvoiceJournal.test ← Phase 6
+tests/services/                          testKit · fakePostingRtdb · perf-baseline ·                        ← Phase 6
+                                          postPurchaseInvoice.{atomicity,idempotency,multiTenant,
+                                          failureInjection}.test · journalIntegrity.test
+docs/services/{posting,atomicity,idempotency,integrity}.md                                                  ← Phase 6
 PROJECT_AUDIT.md · ARCHITECTURE_PROPOSAL.md · MIGRATION_PLAN.md · MIGRATION_STATUS.md
 ACCOUNTING_INTEGRITY_AUDIT.md · ACCOUNTING_INTEGRITY_FIX_PLAN.md
 BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
 ```
 
 ## Files Modified
-- `package.json` — سكربتات اختبار فقط (11 سكربت Phase 5 جديد)، لا اعتماديات.
+- `package.json` — سكربتات اختبار فقط (Phase 5: 11 + Phase 6: 12 سكربت جديد)، لا اعتماديات.
 - `tests/characterization/legacy-loader.mjs` — **[Phase 5]** إضافيّتان بحتتان،
   0 تغيير سلوكي على أي مطابقة كانت تنجح من قبل (مُتحقَّق منه: 228/228 من
   Phase 4 بقيت خضراء): (1) `extractFunction` تدعم الآن نمط `window.name =
@@ -112,11 +136,13 @@ BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
   الأول فقط من أي ثابت مصفوفي (`DEFAULT_ACCOUNTS`) دون رمي استثناء.
 - `MIGRATION_STATUS.md` · `ACCOUNTING_INTEGRITY_AUDIT.md` (§9 جديد) ·
   `ACCOUNTING_INTEGRITY_FIX_PLAN.md` (§9 جديد) · `BUGS_TO_FIX.md`
-  (BUG-005/006/007) · `docs/accounting/golden-master.md` (§17 محدَّثة + §19–26 جديدة).
+  (BUG-005/006/007 محدَّثة بملاحظات Phase 6) · `docs/accounting/golden-master.md` (§17 محدَّثة + §19–26 جديدة) ·
+  `src/repositories/index.js` — **[Phase 6]** تصدير `JournalPostingRepository`
+  والتنفيذين الجديدين (إضافة بحتة، لا تغيير على التصديرات القائمة).
 
 ## Production Files
 🔒 **لم تتغيّر إطلاقاً.** لا ملف واحد في `public/`. مُتحقَّق منه آلياً قبل كل
-إيداع من المراحل الأربع.
+إيداع من كل المراحل حتى الآن — بما فيها Phase 6.
 
 ## Database
 - **Firebase RTDB** هو مصدر الحقيقة الوحيد · خطة Spark
@@ -142,8 +168,10 @@ BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
 | إشعارات دائن/مدين · شهادة مقاول باطن · القيد اليدوي | 🔴 لم تُغطَّ بعد |
 | تدفّق كامل عبر الوحدات (فاتورة ← قيد ← دفتر ← ميزان، مستند واحد) | 🟡 مُغطّى جزئياً فقط (الأثر عبر شاشتين لا تتبّعاً كاملاً من الفاتورة) |
 | تكاليف المشاريع | 🔴 لم تُغطَّ |
+| **ترحيل ذرّي + Idempotent لفاتورة المشتريات** | ✅ **[Phase 6] مبنيّ ومُختبَر — غير موصول بالإنتاج** |
 
-**لم يُغيَّر أي سلوك محاسبي — Phase 4 وPhase 5 معاً.**
+**لم يُغيَّر أي سلوك محاسبي على المسار الحيّ — Phase 4 وPhase 5 وPhase 6 معاً.**
+Phase 6 أضافت شفرة **موازية جديدة** فقط؛ `accounting.js` كما هو حرفياً.
 
 ## Architecture
 
@@ -151,15 +179,19 @@ BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
 ```
 الواجهة القديمة (تعمل كما هي)  ──→  Firebase RTDB     ← المسار الحيّ اليوم
 
-src/domain/       نقيّ · مختبَر · غير موصول           ← مبنيّ
-src/repositories/ عقد + تنفيذان · غير موصول            ← مبنيّ
+src/domain/       نقيّ · مختبَر · غير موصول           ← مبنيّ (chartOfAccounts + posting)
+src/repositories/ عقد + تنفيذان · غير موصول            ← مبنيّ (ChartOfAccounts + JournalPosting)
+src/services/     postPurchaseInvoice · غير موصول      ← مبنيّ [Phase 6]
 ```
 
-**المستهدف (لم يُبنَ بعد):**
+**المستهدف — مبنيّ الآن لمسار واحد، غير موصول بعد:**
 ```
 Legacy UI / React → Application Services → Domain → Repository → RTDB
+                     └─ postPurchaseInvoice ─┘  فاتورة المشتريات فقط (Phase 6)
 ```
-الناقص: **طبقة Application Services** (Phase 5) و**الوصل بالإنتاج** (Phase 6).
+الناقص: **الوصل بالإنتاج** (بوّابة موافقة منفصلة — لا تلقائية بعد Phase 6،
+راجع §29 «Gate 3» في تعليمات المرحلة) و**توسيع النمط** لبقية المسارات
+السبعة (`docs/services/posting.md`).
 
 ## React
 **React migration NOT STARTED.** لا React ولا Vite ولا خطوة بناء ولا أي ملف
@@ -180,9 +212,9 @@ Cloud Functions موجودة في الشفرة وغير منشورة (Spark).
 | # | الخطر | الخطورة |
 |---|---|---|
 | 1 | **لا نسخ احتياطي خادمي** — `dailyBackup` غير منشورة (Spark) | 🔴 **P0** |
-| 2 | الترحيل أربع كتابات غير ذرّية ⇒ قيد يتيم عند الفشل | 🔴 |
-| 3 | لا Idempotency ⇒ نقر مزدوج يُنتج قيدين ⇒ احتمال سداد مرّتين | 🔴 |
-| 4 | حراسة توازن القيد على الترويسة فقط (RTDB عاجزة بنيوياً عن جمع السطور) | 🔴 |
+| 2 | الترحيل أربع كتابات غير ذرّية ⇒ قيد يتيم عند الفشل — **[Phase 6] الحل مبنيّ ومُختبَر لفاتورة المشتريات، غير موصول بالمسار الحيّ** | 🔴 على المسار الحيّ |
+| 3 | لا Idempotency ⇒ نقر مزدوج يُنتج قيدين — **[Phase 6] نفس الملاحظة: حلّ مُثبَت بتزامن حقيقي، غير موصول** | 🔴 على المسار الحيّ |
+| 4 | حراسة توازن القيد على الترويسة فقط (RTDB عاجزة بنيوياً عن جمع السطور) — **[Phase 6] `assertBalanced` تفحص السطور فعلياً في الخدمة الجديدة، غير موصولة** | 🔴 في `database.rules.json` كما هو |
 | 5 | دفتر الأستاذ وميزان المراجعة | ✅ **صار لهما شبكة أمان (Phase 5)** — الخطر بقي، الرصد تحسَّن |
 | 6 | النطاق والمستودعات غير موصولة ⇒ نسختان من المنطق | 🟠 مخفّف: الاختبار التوصيفي كاشف انحراف |
 | 7 | 5 اختبارات أمان حمراء (بوابة المشروع) — **فشل آمن لا ثغرة** | 🟠 |
@@ -191,6 +223,7 @@ Cloud Functions موجودة في الشفرة وغير منشورة (Spark).
 | 10 | **[Phase 5]** BUG-007: قيد مكرَّر يظهر في ميزان المراجعة بينما رصيد الطرف يبقى "صحيحاً" — تناقض صامت بين شاشتين، يرفع إلحاح إصلاح §3/§5 في `ACCOUNTING_INTEGRITY_FIX_PLAN.md` | 🔴 |
 | 11 | **[Phase 5]** BUG-006: `ensureStdAccount` غير Idempotent تحت تزامن — قد يُنشئ حسابين قياسيين بنفس الرمز | 🔴 |
 | 12 | **[Phase 5]** لا فحص اتّساق دوري بين دفتر الأستاذ والمستندات — يجعل 9/10/11 غير قابلة للاكتشاف تلقائياً في الإنتاج | 🔴 |
+| 13 | **[Phase 6]** نافذة سباق موثَّقة: طلب Idempotent خاسر قد يقرأ الفاتورة قبل اكتمال كتابة الفائز ⇒ يعود بـ`journalId:null` (مخفَّف بمحاولات محدودة 5×15ms، ليس ضماناً مطلقاً — لا Cloud Functions على Spark) | 🟡 لا تكرار كتابة، معلومة استجابة ناقصة فقط |
 
 ## Known Bugs
 `BUGS_TO_FIX.md`:
@@ -258,7 +291,18 @@ npm run test:gm:failure     #   4 · حقن الفشل — الأثر على ا�
 npm run test:gm:mutation    #   6 · إثبات حساسية الشبكة (Phase 5)
 npm run test:gm:balances    # الاثنا عشر أعلاه (Phase 5) معاً — 98
 npm run test:gm:all         # Phase 4 + Phase 5 معاً — 201
-npm run gm:perf              # خط أساس الأداء — تقرير أرقام لا اختبار نجاح/فشل
+npm run gm:perf              # خط أساس أداء الأرصدة (Phase 5) — تقرير أرقام لا اختبار نجاح/فشل
+
+# خدمات التطبيق — الترحيل الذرّي (Phase 6)
+npm run test:char:vendaccount  #  6 · توصيفي — حساب المورد المستحَق
+npm run test:char:pinvjournal  # 26 · توصيفي — بناء قيد فاتورة المشتريات (مدمَجان في test:domain)
+npm run test:svc:atomicity     # 14 · الذرّية
+npm run test:svc:idempotency   # 16 · Idempotency + تزامن حقيقي (Promise.all)
+npm run test:svc:integrity     # 15 · تكامل القيد (assertBalanced/validateJournal)
+npm run test:svc:tenant        # 13 · عزل المستأجرين — كتابة ذرّية
+npm run test:svc:failure       #  8 · حقن فشل شامل
+npm run test:svc:all           # الخمسة أعلاه معاً — 66
+npm run svc:perf                # خط أساس أداء الترحيل (Phase 6) — تقرير أرقام
 
 # اختبارات النظام القائم
 npm run test:calc          # 27
@@ -298,43 +342,46 @@ firebase serve             # تشغيل محلي (يخدم public/) — تحدي
 
 ## Next Recommended Step
 
-**Golden Master للأرصدة اكتمل (Phase 5).** الخطوتان المحتملتان التاليتان —
-بانتظار قرار المالك، لا تُبدأ أيّهما بلا أمر:
+**خدمة الترحيل الذرّي لفاتورة المشتريات اكتملت ومُختبَرة (Phase 6) — غير
+موصولة بالإنتاج.** ثلاثة مسارات محتملة تالية، بانتظار قرار المالك، لا يُبدأ
+أيّ منها بلا أمر صريح (كل واحد بوّابة موافقة منفصلة، §29 من تعليمات المرحلة):
 
-**أ) استكمال Golden Master** — التغطية المؤجَّلة (`docs/accounting/golden-master.md`
-§17): إشعار دائن/مدين · شهادة مقاول باطن · القيد اليدوي · تكاليف المشاريع ·
-تدفّق كامل من فاتورة واحدة عبر القيد ← الدفتر ← الميزان (لا الأثر عبر
-شاشتين فقط كما فعلت هذه الجولة).
+**أ) توسيع النمط أفقياً** — فاتورة المبيعات (تتقاطع مع BUG-006/`ensureStdAccount`
+— قرار مطلوب أولاً) ثم سندات القبض/الصرف ثم الإشعارات وPMC. راجع
+`docs/services/posting.md` «التوصية لـPhase 7» للتفصيل الكامل لكل مسار.
 
-**ب) البدء بخدمات الأعمال** (Phase 6 هنا / Phase 4 في `MIGRATION_PLAN.md`) —
-نقطة ترحيل مركزية + `assertBalanced` حقيقية + Idempotency، **الآن مدعومة
-بشبكة أمان أوسع بكثير** من التي كانت متوفّرة قبل هذه الجولة: أي إصلاح
-للذرّية يمكن التحقّق من أثره على ميزان المراجعة ودفتر الأستاذ وأرصدة
-الأطراف معاً، لا القيد المُنشَأ فقط.
+**ب) وصل مُتحكَّم بالإنتاج** — فاتورة المشتريات فقط، خلف عَلَم ميزة، مع خطة
+تراجع فورية (`git revert` وحده كافٍ — لا تغيير مخطّط). هذا **قرار مستقلّ
+تماماً** عن اكتمال الاختبارات — التعليمات صريحة (§15، §29): «الوصل خطوة
+مُتحكَّمة منفصلة»، لا تلقائية بعد نجاح Phase 6.
 
-**توصيتي:** (ب) — الفجوة الأخطر الآن ليست غياب التغطية بل **القابلية
-للاستغلال**: BUG-005/006/007 كلها تعتمد على غياب الذرّية/Idempotency
-الأصلي (Phase 4 §8). إصلاحه يُغلق ثلاثتها معاً، بينما (أ) توسيع تغطية أفقي
-لمجالات أصغر أثراً مالياً (شهادات المقاولين، الإشعارات).
+**ج) الانتقال إلى Phase 7 (أساس React)** — تأجيل توسيع الخدمات، بناء طبقة
+العرض فوق ما استقرّ (النطاق + المستودعات + خدمة المشتريات) كنموذج يُثبت
+الجزيرة الأولى قبل تكرار النمط عبر بقية المسارات.
+
+**لا توصية مفروضة هذه المرّة** — الثلاثة صحيحة هندسياً، والاختيار يعتمد
+على أولوية عمل (نضج المحاسبة أم واجهة حديثة أم قرار الوصل) لا على معيار
+تقني حاسم كما كان بين Phase 4 وPhase 5.
 
 ## Exact Resume Point
 
-**Resume from Phase 6 (خدمات الأعمال) — أو Phase 5 استكمال، حسب قرار المالك.**
+**Resume from: قرار المالك بين (أ)/(ب)/(ج) أعلاه.**
 
 أول ما يُفعل بغضّ النظر عن القرار:
-1. اقرأ `docs/accounting/golden-master.md` §17–§26 (الفجوات والاكتشافات) و`ACCOUNTING_INTEGRITY_FIX_PLAN.md §9`
-2. شغّل `npm run test:gm:all && npm run test:domain` — يجب أن تكون خضراء (326 = 201+125)
-3. اقرأ `BUGS_TO_FIX.md BUG-005/006/007` كاملة قبل أي عمل على الذرّية — أثرها الآن موثَّق على مستوى التقارير لا الكتابات فقط
+1. اقرأ `docs/services/{posting,atomicity,idempotency,integrity}.md` كاملة
+2. شغّل `npm run test:gm:all && npm run test:domain && npm run test:svc:all` — يجب أن تكون خضراء (201+157+66 = 424)
+3. اقرأ `docs/services/idempotency.md` قسم «حدّ حقيقي مُكتشَف بالاختبار» قبل أي توسيع لآلية Idempotency — نافذة سباق موثَّقة، ليست موهومة
 
-**إن اختير (ب):** ابدأ بـ`ACCOUNTING_INTEGRITY_FIX_PLAN.md §3` (الذرّية) —
-نقطة الترحيل المركزية أولاً، ثم `assertBalanced` (§2)، ثم Idempotency (§5).
-كل تغيير يُقاس بـ`npm run test:gm:all` قبل وبعد — أي فرق في نتيجة أي
-اختبار **موصوف بما فيه المعيب** (مثل [B] في `posting-integrity.test.mjs`
-أو [الأثر المالي المتباين] في `idempotency.test.mjs`) هو **الهدف المقصود**
-لا انحداراً — تلك الاختبارات صُمِّمت لتفشل بعد الإصلاح، لا لتبقى خضراء.
+**إن اختير (أ) لفاتورة المبيعات تحديداً:** اقرأ `BUGS_TO_FIX.md BUG-006` و
+`docs/accounting/ensureStdAccount.md` أولاً — القرار بشأن `ensureStdAccount`
+(يبقى بلا قفل، أم يُضاف قفل تفاؤلي أولاً) يسبق بناء `buildSalesInvoiceJournal`
+منطقياً لأن الأخيرة تستدعيها.
 
-**سؤالان مفتوحان بانتظار قرار المالك:**
-- (أ) أم (ب) أعلاه؟
+**إن اختير (ب):** لا يبدأ بلا موافقة صريحة منفصلة عن موافقة Phase 6 نفسها —
+راجع Gate 3 المفهومي في §29 من تعليمات هذه المرحلة.
+
+**سؤال مفتوح بانتظار قرار المالك:**
 - `ensureStdAccount` تُنشئ حسابات في الشجرة كأثر جانبي للترحيل بلا موافقة،
-  وقد ثبت في Phase 5 أنها قد تُنشئ **نسختين** بنفس الرمز تحت تزامن (BUG-006) —
+  وثبت في Phase 5 أنها قد تُنشئ **نسختين** بنفس الرمز تحت تزامن (BUG-006) —
   يبقى التصميم أم يتحوّل إلى اقتراح يتطلّب تأكيداً + قفل تفاؤلي يمنع BUG-006؟
+  (لا يزال مفتوحاً — Phase 6 لم يتطلّب حسمه لأن فاتورة المشتريات لا تستدعيها)

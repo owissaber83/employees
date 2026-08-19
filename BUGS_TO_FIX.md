@@ -98,7 +98,7 @@ await runTransaction(claimRef, current => current ? undefined : true);
 
 ## BUG-005 — `tbCalcBalances` تستبعد بصمت حركات سابقة للفترة غير مُعلَّمة افتتاحياً 🔴
 
-**الحالة:** موثّق (Phase 5) · غير مُصلَح · محروس بـ`tests/golden-master/trial-balance.test.mjs §[Y]`
+**الحالة:** موثّق (Phase 5) · **غير مُصلَح، ولم يُلمَس في Phase 6** — لا علاقة له بالترحيل الذرّي (منطق تقارير قراءة، لا كتابة). محروس بـ`tests/golden-master/trial-balance.test.mjs §[Y]`
 
 ### الوصف
 `tbCalcBalances` (accounting.js:11754) وقيد بتاريخ `< tbState.fromDate` **وغير**
@@ -136,8 +136,15 @@ const asOpening = fsIsOpeningEntry(e) || (!!fromDate && d < fromDate);   // ← 
 
 ## BUG-006 — `ensureStdAccount` غير Idempotent قبل تحديث `chartOfAccounts` 🔴
 
-**الحالة:** موثّق (Phase 5) · غير مُصلَح · محروس بـ`tests/golden-master/idempotency.test.mjs`
+**الحالة:** موثّق (Phase 5) · **غير مُصلَح — الدالة نفسها لم تُعدَّل حرفاً واحداً في Phase 6.**
+محروس بـ`tests/golden-master/idempotency.test.mjs`
 **التوثيق الكامل:** `docs/accounting/ensureStdAccount.md`
+
+**[Phase 6]** خدمة الترحيل الجديدة (`postPurchaseInvoice`) **لا تستدعي**
+`ensureStdAccount` إطلاقاً — لأن `createJournalForPInv` الأصلية نفسها لا
+تستدعيها (خلافاً لفاتورة المبيعات). هذا **سبب عدم تأثّر مسار المشتريات
+بـBUG-006**، لا إصلاحاً للدالة. أي خدمة مستقبلية لفاتورة المبيعات ستواجه
+BUG-006 كما هو تماماً — راجع `docs/services/posting.md` «التوصية لـPhase 7».
 
 ### الوصف
 `ensureStdAccount(code)` تفحص `window.chartOfAccounts` الحالية فقط، بلا
@@ -197,6 +204,19 @@ BUG سابق: إرسال مزدوج، أو قيد يتيم من فشل جزئي)
 الجذر هو BUG الترحيل غير الذرّي (`ACCOUNTING_INTEGRITY_FIX_PLAN.md §3/§5`)
 — هذا البند إضافة توثيقية لأثره على التقارير، لا عطلاً مستقلاً يُصلَح
 بمعزل عنه.
+
+### **[Phase 6] — غير مُصلَح على المسار الحيّ. جذره مُغلَق في شفرة موازية غير موصولة.**
+`postPInv`/`createJournalForPInv` القديمتان **لم تُعدَّلا حرفاً واحداً** —
+لا تزالان غير ذرّيتين وغير Idempotent تماماً كما وثَّقت Phase 4، وBUG-007
+**لا يزال قائماً بالكامل على مسار الإنتاج الفعلي.**
+
+ما تغيّر: بُنيت خدمة موازية (`src/services/accounting/posting/postPurchaseInvoice.js`
++ `FirebaseJournalPostingRepository`) تُثبت أن الجذر (اللاذرّية + غياب
+Idempotency) **قابل للحل معمارياً** بلا تغيير مخطّط ولا قواعد أمان —
+مُختبَرة تنفيذياً بتزامن حقيقي (`Promise.all`، `tests/services/postPurchaseInvoice.idempotency.test.mjs`):
+طلبان متزامنان حقيقيان على نفس الفاتورة ⇒ **قيد واحد فقط**، لا اثنان.
+هذه الخدمة **غير موصولة بواجهة الإنتاج** (§15) — إثبات جدوى، لا إصلاح حيّ.
+الوصل المُتحكَّم مرحلة منفصلة تتطلّب موافقة صريحة (Gate 3 المعادل).
 
 ### الإصلاح المقترح
 لا إصلاح مباشر — يُحلّ تلقائياً بحلّ الذرّية ومفتاح Idempotency في
