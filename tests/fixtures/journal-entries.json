@@ -1,0 +1,59 @@
+{
+  "_note": "بيانات مُصنَّعة للاختبار فقط",
+  "cases": [
+    {
+      "id": "balanced-simple",
+      "description": "قيد سليم: شراء مواد بضريبة 15%",
+      "expected": { "accepted": true, "totalDebit": 11500, "totalCredit": 11500 },
+      "entry": {
+        "date": "2026-03-10", "reference": "PINV-001", "status": "draft",
+        "totalDebit": 11500, "totalCredit": 11500,
+        "lines": [
+          { "accountCode": "5110", "debit": 10000, "credit": 0 },
+          { "accountCode": "1180", "debit": 1500,  "credit": 0 },
+          { "accountCode": "2110", "debit": 0,     "credit": 11500 }
+        ]
+      }
+    },
+    {
+      "id": "unbalanced-header",
+      "description": "الترويسة نفسها غير متوازنة — ترفضه قواعد RTDB اليوم",
+      "expected": { "accepted": false, "rejectedBy": "rtdb-rules" },
+      "entry": {
+        "date": "2026-03-10", "status": "draft",
+        "totalDebit": 11500, "totalCredit": 10000,
+        "lines": [
+          { "accountCode": "5110", "debit": 11500, "credit": 0 },
+          { "accountCode": "2110", "debit": 0,     "credit": 10000 }
+        ]
+      }
+    },
+    {
+      "id": "unbalanced-lines-balanced-header",
+      "description": "🔴 الثغرة: الترويسة متوازنة والسطور ليست كذلك — تقبله RTDB اليوم",
+      "expected": { "acceptedByRtdbToday": true, "mustBeRejectedByDomain": true },
+      "entry": {
+        "date": "2026-03-10", "status": "draft",
+        "totalDebit": 1000, "totalCredit": 1000,
+        "lines": [
+          { "accountCode": "5110", "debit": 5000, "credit": 0 },
+          { "accountCode": "2110", "debit": 0,    "credit": 5000 }
+        ]
+      }
+    },
+    {
+      "id": "rounding-tolerance",
+      "description": "فرق تقريب ضمن التسامح المقبول (0.01)",
+      "expected": { "accepted": true, "note": "يحدّد السلوك المرجعي للتقريب" },
+      "entry": {
+        "date": "2026-03-10", "status": "draft",
+        "totalDebit": 333.33, "totalCredit": 333.33,
+        "lines": [
+          { "accountCode": "5110", "debit": 111.11, "credit": 0 },
+          { "accountCode": "5120", "debit": 222.22, "credit": 0 },
+          { "accountCode": "2110", "debit": 0,      "credit": 333.33 }
+        ]
+      }
+    }
+  ]
+}

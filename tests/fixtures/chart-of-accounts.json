@@ -1,0 +1,16 @@
+{
+  "_note": "بيانات مُصنَّعة للاختبار فقط — لا علاقة لها بأي شركة حقيقية",
+  "accounts": [
+    { "code": "1110", "nameAr": "الصندوق",                    "type": "asset",     "nature": "debit" },
+    { "code": "1120", "nameAr": "البنك",                      "type": "asset",     "nature": "debit" },
+    { "code": "1130", "nameAr": "العملاء",                     "type": "asset",     "nature": "debit" },
+    { "code": "1180", "nameAr": "ضريبة القيمة المضافة — مدخلات", "type": "asset",   "nature": "debit" },
+    { "code": "1310", "nameAr": "المخزون",                    "type": "asset",     "nature": "debit" },
+    { "code": "2110", "nameAr": "الموردون",                    "type": "liability", "nature": "credit" },
+    { "code": "2180", "nameAr": "ضريبة القيمة المضافة — مخرجات","type": "liability", "nature": "credit" },
+    { "code": "3110", "nameAr": "رأس المال",                   "type": "equity",    "nature": "credit" },
+    { "code": "4110", "nameAr": "إيرادات المقاولات",            "type": "revenue",   "nature": "credit" },
+    { "code": "5110", "nameAr": "مشتريات مواد",                "type": "expense",   "nature": "debit" },
+    { "code": "5120", "nameAr": "مشتريات خدمات",               "type": "expense",   "nature": "debit" }
+  ]
+}

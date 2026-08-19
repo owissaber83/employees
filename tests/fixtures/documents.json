@@ -1,0 +1,55 @@
+{
+  "_note": "بيانات مُصنَّعة للاختبار فقط",
+  "purchaseInvoice": {
+    "id": "PINV-F1", "number": "PINV-2026-001", "vendorId": "V1", "vendorRef": "SUP-77",
+    "date": "2026-03-10", "dueDate": "2026-04-09",
+    "expenseType": "materials", "debitAccountCode": "5110", "projectId": "P1",
+    "lines": [
+      { "description": "حديد تسليح", "qty": 10, "unitPrice": 800, "vatRate": 15, "total": 8000 },
+      { "description": "أسمنت",      "qty": 20, "unitPrice": 100, "vatRate": 15, "total": 2000 }
+    ],
+    "subTotal": 10000, "discount": 0, "netBeforeTax": 10000, "vatTotal": 1500, "grandTotal": 11500,
+    "currency": "SAR", "exchangeRate": 1, "status": "draft",
+    "expectedJournal": {
+      "lines": [
+        { "accountCode": "5110", "debit": 10000, "credit": 0 },
+        { "accountCode": "1180", "debit": 1500,  "credit": 0 },
+        { "accountCode": "2110", "debit": 0,     "credit": 11500 }
+      ],
+      "totalDebit": 11500, "totalCredit": 11500
+    }
+  },
+  "salesInvoice": {
+    "id": "SINV-F1", "number": "SINV-2026-001", "customerId": "C1",
+    "date": "2026-03-12", "dueDate": "2026-04-11",
+    "lines": [{ "description": "أعمال مقاولات", "qty": 1, "unitPrice": 20000, "vatRate": 15, "total": 20000 }],
+    "subTotal": 20000, "discount": 0, "netBeforeTax": 20000, "vatTotal": 3000, "grandTotal": 23000,
+    "paidAmount": 0, "currency": "SAR", "status": "draft",
+    "expectedJournal": {
+      "lines": [
+        { "accountCode": "1130", "debit": 23000, "credit": 0 },
+        { "accountCode": "4110", "debit": 0,     "credit": 20000 },
+        { "accountCode": "2180", "debit": 0,     "credit": 3000 }
+      ],
+      "totalDebit": 23000, "totalCredit": 23000
+    }
+  },
+  "paymentVoucher": {
+    "_note": "🔴 يمثّل أخطر عملية متعدّدة الخطوات: قيد + سند + تحديث فاتورتين (ACCOUNTING_INTEGRITY_AUDIT §5.2)",
+    "id": "PV-F1", "number": "PV-2026-001", "type": "payment", "vendorId": "V1",
+    "date": "2026-03-20", "amount": 11500, "accountCode": "1120",
+    "allocations": [
+      { "invoiceId": "PINV-F1", "amount": 8000 },
+      { "invoiceId": "PINV-F2", "amount": 3500 }
+    ],
+    "status": "draft",
+    "expectedEffects": {
+      "journalLines": [
+        { "accountCode": "2110", "debit": 11500, "credit": 0 },
+        { "accountCode": "1120", "debit": 0,     "credit": 11500 }
+      ],
+      "invoicePaidAmounts": { "PINV-F1": 8000, "PINV-F2": 3500 },
+      "atomicityRequired": true
+    }
+  }
+}
