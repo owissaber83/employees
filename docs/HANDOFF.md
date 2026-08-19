@@ -7,16 +7,16 @@
 > **Academy** ولا علاقة له بترحيل ERP. هذا الملف (`docs/HANDOFF.md`) هو المرجع.
 
 ## Date
-2026-08-19 (Phase 6 — خدمات التطبيق: ترحيل ذرّي + Idempotency لفاتورة المشتريات)
+2026-08-19 (Phase 7 Step B — خدمة ترحيل سند القبض/الصرف: تخصيص متعدّد الفواتير + تعويض)
 
 ## Current Branch
 `feat/ai-invoice-system-v2` — مدفوع ومتزامن مع `origin`.
 
 ## Current Commit
-هذا الإيداع نفسه — `feat: phase 6 application services atomic posting`.
+هذا الإيداع نفسه — `feat: phase 7 step b voucher posting service`.
 شغّل `git log -1 --oneline` للهاش الفعلي (نفس سبب عدم كتابته حرفياً في
-Phase 4 وPhase 5 — الملف جزء من الإيداع الذي يصفه).
-**سلف مباشر:** `69f3a03` — Phase 5 (Golden Master الأرصدة).
+المراحل السابقة — الملف جزء من الإيداع الذي يصفه).
+**سلف مباشر:** `15f8054` — Phase 6 (خدمات التطبيق: ترحيل فاتورة المشتريات).
 
 ## Current Tag
 `migration/baseline` — خط الأساس قبل الترحيل (مدفوع). **لم يتغيّر في Phase 6.**
@@ -40,9 +40,11 @@ Database، خطة Spark. **يعمل الآن تماماً كما كان قبل �
 | 3 · طبقة Repository | 🟡 جارية — شجرة الحسابات فقط |
 | 4 · Golden Master — بناء القيود وسلامة الترحيل | ✅ مكتملة |
 | 5 · Golden Master — دفتر الأستاذ · ميزان المراجعة · أرصدة الأطراف | ✅ مكتملة |
-| 6 · خدمات التطبيق — ترحيل ذرّي + Idempotency (فاتورة المشتريات فقط) | ✅ **مكتملة الآن — غير موصولة بالإنتاج** |
-| 7 · أساس React | 🔴 لم تبدأ |
-| 8+ · ترحيل الوحدات | 🔴 لم تبدأ |
+| 6 · خدمات التطبيق — ترحيل ذرّي + Idempotency (فاتورة المشتريات فقط) | ✅ مكتملة — غير موصولة بالإنتاج |
+| 7-A · اكتشاف بحت — ترتيب أولويات مسارات الترحيل المتبقّية | ✅ مكتملة — تقرير فقط، بلا كود |
+| 7-B · خدمة ترحيل السند — تخصيص متعدّد الفواتير + تعويض (Saga) | ✅ **مكتملة الآن — غير موصولة بالإنتاج** |
+| 8 · أساس React | 🔴 لم تبدأ |
+| 9+ · ترحيل الوحدات | 🔴 لم تبدأ |
 
 > ⚠️ ترقيم `MIGRATION_PLAN.md` يختلف عن هذا الملف بعد Phase 4 (بدّل "خدمات
 > الأعمال" و"Golden Master" مكانيهما بموافقة المالك). لم يُوحَّد عمداً —
@@ -91,6 +93,29 @@ Idempotency كان به سباق حقيقي (الخاسر يقرأ الفاتو�
 كحلّ مثالي (`docs/services/idempotency.md`). **غير موصولة بالإنتاج** (§15) —
 `postPInv`/`createJournalForPInv` القديمتان لم تُلمَسا حرفاً واحداً.
 
+**اكتشاف بحت (Phase 7-A):** ترتيب أولويات المسارات السبعة المتبقّية —
+تقرير فقط، بلا كتابة كود. خلص إلى سند القبض/الصرف كالخطوة التالية (يعيد
+استخدام كل أدوات Phase 6 ويضيف مشكلة N فاتورة واحدة جديدة).
+
+**خدمة ترحيل السند (Phase 7 Step B):** نفس نمط Phase 6 معمارياً +
+`src/domain/accounting/allocation/computeAllocation.js` (منطق تخصيص نقيّ
+جديد) + `VoucherPostingRepository` (عقد جديد، Firebase/InMemory). **الاكتشاف
+الحرج قبل أي بناء:** `allocateToInvoices` القديمة **لا تفحص تجاوز رصيد
+الفاتورة إطلاقاً** — مُثبَت بتشغيل الدالة الحقيقية (تخصيص 6000 ثم 7000 على
+فاتورة 10000 ⇒ `paidAmount: 13000`، `error: null`) — مُسجَّل كـBUG-008 جديد.
+الخدمة الجديدة ترفض التجاوز صراحةً (`AllocationConflictError`) كتحسين أمان
+مقصود (تصنيف C)، مُختبَر تنفيذياً بسباق حقيقي (`Promise.all`، سندان مختلفان
+6000/7000 على نفس الفاتورة ⇒ واحد فقط ينجح — أبداً 13000). لأن N فاتورة
+متغيّرة العدد لا تدعمها RTDB بذرّية حرفية، النموذج **تعويضي (Saga)**: N
+معاملة تخصيص مستقلّة آمنة من التزامن كلٌّ بمفردها + كتابة ذرّية نهائية
+واحدة؛ فشل جزئي ⇒ تعويض عكسي صريح موثَّق كاتساق نهائي لا فوري
+(`docs/services/voucher-atomicity.md`). أدوات Idempotency المشتركة استُخرجت
+إلى `src/repositories/firebase/postingHelpers.js` وأُعيد استخدامها في
+`FirebaseJournalPostingRepository` (Phase 6) بلا أي تغيير سلوك — مُتحقَّق
+(`test:svc:all` 66/66 كما هي بعد الاستخراج). 153 تأكيداً جديداً. **غير
+موصولة بالإنتاج** — `postVoucher`/`createJournalForVoucher`/
+`allocateToInvoices` القديمة لم تُلمَس حرفاً واحداً.
+
 ## Files Created
 
 ```
@@ -121,6 +146,19 @@ tests/services/                          testKit · fakePostingRtdb · perf-base
                                           postPurchaseInvoice.{atomicity,idempotency,multiTenant,
                                           failureInjection}.test · journalIntegrity.test
 docs/services/{posting,atomicity,idempotency,integrity}.md                                                  ← Phase 6
+src/domain/accounting/posting/           resolveCustomerReceivableAccount · buildVoucherJournal              ← Phase 7-B
+src/domain/accounting/allocation/        computeAllocation.js (computeInvoiceAllocation·validateAllocationSet) ← Phase 7-B
+src/services/accounting/errors/          AllocationConflictError.js                                          ← Phase 7-B
+src/services/accounting/posting/         postVoucher.js                                                      ← Phase 7-B
+src/repositories/contracts/              VoucherPostingRepository.js                                         ← Phase 7-B
+src/repositories/firebase/               FirebaseVoucherPostingRepository.js · postingHelpers.js (مشترك)     ← Phase 7-B
+src/repositories/memory/                 InMemoryVoucherPostingRepository.js                                 ← Phase 7-B
+tests/characterization/                  resolveCustomerReceivableAccount.test · buildVoucherJournal.test ·  ← Phase 7-B
+                                          allocateToInvoices.test (يُثبت BUG-008)
+tests/services/                          voucherTestKit · postVoucher.{atomicity,idempotency,allocation,     ← Phase 7-B
+                                          multiTenant,failureInjection}.test · voucher-perf-baseline.mjs
+tests/golden-master/                     capture-voucher.mjs · voucher.test.mjs                              ← Phase 7-B
+docs/services/{voucher-posting,voucher-atomicity,voucher-allocation}.md                                      ← Phase 7-B
 PROJECT_AUDIT.md · ARCHITECTURE_PROPOSAL.md · MIGRATION_PLAN.md · MIGRATION_STATUS.md
 ACCOUNTING_INTEGRITY_AUDIT.md · ACCOUNTING_INTEGRITY_FIX_PLAN.md
 BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
@@ -139,6 +177,17 @@ BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
   (BUG-005/006/007 محدَّثة بملاحظات Phase 6) · `docs/accounting/golden-master.md` (§17 محدَّثة + §19–26 جديدة) ·
   `src/repositories/index.js` — **[Phase 6]** تصدير `JournalPostingRepository`
   والتنفيذين الجديدين (إضافة بحتة، لا تغيير على التصديرات القائمة).
+- **[Phase 7-B]** `src/repositories/firebase/FirebaseJournalPostingRepository.js`
+  — إعادة هيكلة داخلية بحتة: استبدال 3 دوال خاصة مكرَّرة
+  (`_reserveJournalNumber`/`_pollForPostedLink`/`_safeRollbackStatus`) بنداء
+  للأدوات المشتركة الجديدة في `postingHelpers.js`. **صفر تغيير سلوكي** —
+  مُتحقَّق: `test:svc:all` بقيت 66/66 خضراء بعد إعادة الهيكلة مباشرةً.
+  `src/repositories/index.js` — تصدير `VoucherPostingRepository` والتنفيذين
+  الجديدين (إضافة بحتة). `docs/accounting/supplier-balances.md` — تصحيح
+  واقعي من Phase 7-A (`fullyDebited` موجود ويُكتَب فعلاً، لكن
+  `calcVendorBalance` لا تقرؤه). `BUGS_TO_FIX.md` — BUG-008 جديد.
+  `docs/MIGRATION_CONTEXT.md` · `MIGRATION_STATUS.md` — محدَّثان بالكامل.
+  `package.json` — 15 سكربت اختبار جديد (بلا حذف أي سكربت قائم).
 
 ## Production Files
 🔒 **لم تتغيّر إطلاقاً.** لا ملف واحد في `public/`. مُتحقَّق منه آلياً قبل كل
@@ -169,9 +218,10 @@ BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
 | تدفّق كامل عبر الوحدات (فاتورة ← قيد ← دفتر ← ميزان، مستند واحد) | 🟡 مُغطّى جزئياً فقط (الأثر عبر شاشتين لا تتبّعاً كاملاً من الفاتورة) |
 | تكاليف المشاريع | 🔴 لم تُغطَّ |
 | **ترحيل ذرّي + Idempotent لفاتورة المشتريات** | ✅ **[Phase 6] مبنيّ ومُختبَر — غير موصول بالإنتاج** |
+| **ترحيل سند قبض/صرف + تخصيص N فاتورة (تعويضي)** | ✅ **[Phase 7-B] مبنيّ ومُختبَر — غير موصول بالإنتاج** |
 
-**لم يُغيَّر أي سلوك محاسبي على المسار الحيّ — Phase 4 وPhase 5 وPhase 6 معاً.**
-Phase 6 أضافت شفرة **موازية جديدة** فقط؛ `accounting.js` كما هو حرفياً.
+**لم يُغيَّر أي سلوك محاسبي على المسار الحيّ — كل المراحل حتى الآن.**
+Phase 6 وPhase 7-B أضافتا شفرة **موازية جديدة** فقط؛ `accounting.js` كما هو حرفياً.
 
 ## Architecture
 
@@ -179,19 +229,20 @@ Phase 6 أضافت شفرة **موازية جديدة** فقط؛ `accounting.js`
 ```
 الواجهة القديمة (تعمل كما هي)  ──→  Firebase RTDB     ← المسار الحيّ اليوم
 
-src/domain/       نقيّ · مختبَر · غير موصول           ← مبنيّ (chartOfAccounts + posting)
-src/repositories/ عقد + تنفيذان · غير موصول            ← مبنيّ (ChartOfAccounts + JournalPosting)
-src/services/     postPurchaseInvoice · غير موصول      ← مبنيّ [Phase 6]
+src/domain/       نقيّ · مختبَر · غير موصول           ← مبنيّ (chartOfAccounts + posting + allocation)
+src/repositories/ عقد + تنفيذان · غير موصول            ← مبنيّ (ChartOfAccounts + JournalPosting + VoucherPosting)
+src/services/     postPurchaseInvoice · postVoucher · غير موصولتين ← مبنيّتان [Phase 6 · Phase 7-B]
 ```
 
-**المستهدف — مبنيّ الآن لمسار واحد، غير موصول بعد:**
+**المستهدف — مبنيّ الآن لمسارين، غير موصول بعد:**
 ```
 Legacy UI / React → Application Services → Domain → Repository → RTDB
-                     └─ postPurchaseInvoice ─┘  فاتورة المشتريات فقط (Phase 6)
+                     ├─ postPurchaseInvoice ─┘  فاتورة المشتريات (Phase 6)
+                     └─ postVoucher ──────────┘  سند قبض/صرف + تخصيص N فاتورة (Phase 7-B)
 ```
-الناقص: **الوصل بالإنتاج** (بوّابة موافقة منفصلة — لا تلقائية بعد Phase 6،
-راجع §29 «Gate 3» في تعليمات المرحلة) و**توسيع النمط** لبقية المسارات
-السبعة (`docs/services/posting.md`).
+الناقص: **الوصل بالإنتاج** (بوّابة موافقة منفصلة — لا تلقائية بعد أي مرحلة)
+و**توسيع النمط** لبقية المسارات (فاتورة مبيعات، إشعارات دائن/مدين، PMC، قيد
+يدوي — `docs/services/voucher-posting.md`).
 
 ## React
 **React migration NOT STARTED.** لا React ولا Vite ولا خطوة بناء ولا أي ملف
@@ -224,6 +275,8 @@ Cloud Functions موجودة في الشفرة وغير منشورة (Spark).
 | 11 | **[Phase 5]** BUG-006: `ensureStdAccount` غير Idempotent تحت تزامن — قد يُنشئ حسابين قياسيين بنفس الرمز | 🔴 |
 | 12 | **[Phase 5]** لا فحص اتّساق دوري بين دفتر الأستاذ والمستندات — يجعل 9/10/11 غير قابلة للاكتشاف تلقائياً في الإنتاج | 🔴 |
 | 13 | **[Phase 6]** نافذة سباق موثَّقة: طلب Idempotent خاسر قد يقرأ الفاتورة قبل اكتمال كتابة الفائز ⇒ يعود بـ`journalId:null` (مخفَّف بمحاولات محدودة 5×15ms، ليس ضماناً مطلقاً — لا Cloud Functions على Spark) | 🟡 لا تكرار كتابة، معلومة استجابة ناقصة فقط |
+| 14 | **[Phase 7-B]** BUG-008 جديد: `allocateToInvoices` تقبل تجاوز رصيد الفاتورة بلا أي فحص، حتى تحت سباق حقيقي بين سندين — الحل مبنيّ ومُختبَر (`AllocationConflictError`)، غير موصول بالمسار الحيّ | 🔴 على المسار الحيّ |
+| 15 | **[Phase 7-B]** نموذج التعويض (Saga) لتخصيص السند اتساق نهائي لا فوري — نافذة قصيرة أثناء التعويض قد تكون فيها بعض الفواتير مُعوَّضة والبعض لا (موثَّق، `docs/services/voucher-atomicity.md`) | 🟡 موثَّق كحدّ تصميمي، لا يُخفى |
 
 ## Known Bugs
 `BUGS_TO_FIX.md`:
@@ -234,10 +287,11 @@ Cloud Functions موجودة في الشفرة وغير منشورة (Spark).
 - **BUG-005** [Phase 5] `tbCalcBalances`/`calcFSBalances` يختلفان على حركة سابقة للفترة غير مُعلَّمة افتتاحياً
 - **BUG-006** [Phase 5] `ensureStdAccount` غير Idempotent تحت تزامن حقيقي
 - **BUG-007** [Phase 5] قيد مكرَّر يظهر في ميزان المراجعة، لا في رصيد الطرف — تناقض صامت بين شاشتين
+- **BUG-008** [Phase 7-B] `allocateToInvoices` تقبل تجاوز رصيد الفاتورة بلا أي حدّ — حتى تحت سباق حقيقي
 
 `PRODUCTION_ISSUES.md`: بوابة المشروع **P1** · غياب النسخ الاحتياطي **P0**
 
-**لم يُصلَح أيٌّ منها عمداً — Phase 4 وPhase 5 معاً.**
+**لم يُصلَح أيٌّ منها عمداً — كل المراحل حتى الآن.**
 
 ## Important Decisions
 
@@ -304,6 +358,21 @@ npm run test:svc:failure       #  8 · حقن فشل شامل
 npm run test:svc:all           # الخمسة أعلاه معاً — 66
 npm run svc:perf                # خط أساس أداء الترحيل (Phase 6) — تقرير أرقام
 
+# خدمة السند — تخصيص متعدّد الفواتير (Phase 7 Step B)
+npm run test:char:custaccount     #  6 · توصيفي — حساب العميل المستحَق
+npm run test:char:voucherjournal  # 27 · توصيفي — بناء قيد السند
+npm run test:char:allocation      # 15 · توصيفي — allocateToInvoices (يُثبت BUG-008)
+npm run test:gm:voucher           #  7 · Golden Master — الجديد مقابل القديم + تصنيف الفرق
+npm run test:svc:voucher:atomicity   # 21 · الذرّية + التعويض
+npm run test:svc:voucher:idempotency # 19 · Idempotency + تزامن حقيقي
+npm run test:svc:allocation          # 26 · تخصيص N فاتورة + رفض التجاوز + سباق حقيقي
+npm run test:svc:voucher:tenant      # 16 · عزل المستأجرين
+npm run test:svc:voucher:failure     # 16 · حقن فشل شامل
+npm run test:svc:voucher:all         # الخمسة أعلاه معاً — 98
+npm run test:phase7                  # كل جديد Phase 7-B مجمَّعاً — 153
+npm run test:migration               # الكل مجمَّعاً (كل المراحل)
+npm run svc:voucher:perf             # خط أساس أداء ترحيل السند + N تخصيص — تقرير أرقام
+
 # اختبارات النظام القائم
 npm run test:calc          # 27
 npm run test:pdf           # 102
@@ -342,43 +411,44 @@ firebase serve             # تشغيل محلي (يخدم public/) — تحدي
 
 ## Next Recommended Step
 
-**خدمة الترحيل الذرّي لفاتورة المشتريات اكتملت ومُختبَرة (Phase 6) — غير
-موصولة بالإنتاج.** ثلاثة مسارات محتملة تالية، بانتظار قرار المالك، لا يُبدأ
-أيّ منها بلا أمر صريح (كل واحد بوّابة موافقة منفصلة، §29 من تعليمات المرحلة):
+**خدمة ترحيل السند اكتملت ومُختبَرة (Phase 7 Step B) — غير موصولة
+بالإنتاج.** نفس المسارات المحتملة التالية كما بعد Phase 6، بانتظار قرار
+المالك، لا يُبدأ أيّ منها بلا أمر صريح (كل واحد بوّابة موافقة منفصلة):
 
 **أ) توسيع النمط أفقياً** — فاتورة المبيعات (تتقاطع مع BUG-006/`ensureStdAccount`
-— قرار مطلوب أولاً) ثم سندات القبض/الصرف ثم الإشعارات وPMC. راجع
-`docs/services/posting.md` «التوصية لـPhase 7» للتفصيل الكامل لكل مسار.
+— قرار مطلوب أولاً)، ثم إشعارات دائن/مدين، ثم PMC، ثم القيد اليدوي (الأعقد
+— موافقة فرعية إضافية). راجع `docs/services/voucher-posting.md` للتفصيل.
 
-**ب) وصل مُتحكَّم بالإنتاج** — فاتورة المشتريات فقط، خلف عَلَم ميزة، مع خطة
-تراجع فورية (`git revert` وحده كافٍ — لا تغيير مخطّط). هذا **قرار مستقلّ
-تماماً** عن اكتمال الاختبارات — التعليمات صريحة (§15، §29): «الوصل خطوة
-مُتحكَّمة منفصلة»، لا تلقائية بعد نجاح Phase 6.
+**ب) وصل مُتحكَّم بالإنتاج** — فاتورة المشتريات و/أو السند، خلف عَلَم ميزة،
+مع خطة تراجع فورية (`git revert` وحده كافٍ — لا تغيير مخطّط). هذا **قرار
+مستقلّ تماماً** عن اكتمال الاختبارات — «الوصل خطوة مُتحكَّمة منفصلة»، لا
+تلقائية بعد نجاح أي مرحلة.
 
-**ج) الانتقال إلى Phase 7 (أساس React)** — تأجيل توسيع الخدمات، بناء طبقة
-العرض فوق ما استقرّ (النطاق + المستودعات + خدمة المشتريات) كنموذج يُثبت
-الجزيرة الأولى قبل تكرار النمط عبر بقية المسارات.
+**ج) الانتقال إلى Phase 8 (أساس React)** — تأجيل توسيع الخدمات، بناء طبقة
+العرض فوق ما استقرّ (النطاق + المستودعات + خدمتا المشتريات والسند) كنموذج
+يُثبت الجزيرة الأولى قبل تكرار النمط عبر بقية المسارات.
 
 **لا توصية مفروضة هذه المرّة** — الثلاثة صحيحة هندسياً، والاختيار يعتمد
 على أولوية عمل (نضج المحاسبة أم واجهة حديثة أم قرار الوصل) لا على معيار
-تقني حاسم كما كان بين Phase 4 وPhase 5.
+تقني حاسم.
 
 ## Exact Resume Point
 
 **Resume from: قرار المالك بين (أ)/(ب)/(ج) أعلاه.**
 
 أول ما يُفعل بغضّ النظر عن القرار:
-1. اقرأ `docs/services/{posting,atomicity,idempotency,integrity}.md` كاملة
-2. شغّل `npm run test:gm:all && npm run test:domain && npm run test:svc:all` — يجب أن تكون خضراء (201+157+66 = 424)
+1. اقرأ `docs/services/{posting,atomicity,idempotency,integrity}.md` (Phase 6)
+   و`docs/services/{voucher-posting,voucher-atomicity,voucher-allocation}.md` (Phase 7-B) كاملة
+2. شغّل `npm run test:migration` — يجب أن تكون خضراء بالكامل (0 فشل في كل مجموعة)
 3. اقرأ `docs/services/idempotency.md` قسم «حدّ حقيقي مُكتشَف بالاختبار» قبل أي توسيع لآلية Idempotency — نافذة سباق موثَّقة، ليست موهومة
+4. اقرأ `docs/services/voucher-atomicity.md` كاملاً قبل أي توسيع لأي مسار يتضمّن N كتابة متغيّرة العدد — نموذج التعويض (Saga) موثَّق كاتساق نهائي لا فوري، ويجب أن يُطبَّق نفس المنطق لا يُعاد اختراعه
 
 **إن اختير (أ) لفاتورة المبيعات تحديداً:** اقرأ `BUGS_TO_FIX.md BUG-006` و
 `docs/accounting/ensureStdAccount.md` أولاً — القرار بشأن `ensureStdAccount`
 (يبقى بلا قفل، أم يُضاف قفل تفاؤلي أولاً) يسبق بناء `buildSalesInvoiceJournal`
 منطقياً لأن الأخيرة تستدعيها.
 
-**إن اختير (ب):** لا يبدأ بلا موافقة صريحة منفصلة عن موافقة Phase 6 نفسها —
-راجع Gate 3 المفهومي في §29 من تعليمات هذه المرحلة.
+**إن اختير (ب):** لا يبدأ بلا موافقة صريحة منفصلة عن موافقة أي مرحلة سابقة.
 
 **سؤال مفتوح بانتظار قرار المالك:**
 - `ensureStdAccount` تُنشئ حسابات في الشجرة كأثر جانبي للترحيل بلا موافقة،

@@ -24,7 +24,10 @@
     "test:char:date": "node tests/characterization/date-behavior.test.mjs",
     "test:char:vendaccount": "node tests/characterization/resolveVendorPayableAccount.test.mjs",
     "test:char:pinvjournal": "node tests/characterization/buildPurchaseInvoiceJournal.test.mjs",
-    "test:domain": "npm run test:char && npm run test:char:date && npm run test:char:vendaccount && npm run test:char:pinvjournal && npm run test:repo",
+    "test:char:custaccount": "node tests/characterization/resolveCustomerReceivableAccount.test.mjs",
+    "test:char:voucherjournal": "node tests/characterization/buildVoucherJournal.test.mjs",
+    "test:char:allocation": "node tests/characterization/allocateToInvoices.test.mjs",
+    "test:domain": "npm run test:char && npm run test:char:date && npm run test:char:vendaccount && npm run test:char:pinvjournal && npm run test:char:custaccount && npm run test:char:voucherjournal && npm run test:char:allocation && npm run test:repo",
     "test:repo": "node tests/repositories/chartOfAccounts.test.mjs",
     "test:gm": "node tests/golden-master/journal.test.mjs",
     "test:gm:posting": "node tests/golden-master/posting-integrity.test.mjs",
@@ -39,7 +42,8 @@
     "test:gm:failure": "node tests/golden-master/failure-injection.test.mjs",
     "test:gm:mutation": "node tests/golden-master/mutation.test.mjs",
     "test:gm:balances": "npm run test:gm:tb && npm run test:gm:ledger && npm run test:gm:customer && npm run test:gm:supplier && npm run test:gm:tenant && npm run test:gm:dates && npm run test:gm:precision && npm run test:gm:idem && npm run test:gm:failure && npm run test:gm:mutation",
-    "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances",
+    "test:gm:voucher": "node tests/golden-master/voucher.test.mjs",
+    "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances && npm run test:gm:voucher",
     "gm:perf": "node tests/golden-master/perf-baseline.mjs",
     "test:svc:atomicity": "node tests/services/postPurchaseInvoice.atomicity.test.mjs",
     "test:svc:idempotency": "node tests/services/postPurchaseInvoice.idempotency.test.mjs",
@@ -47,6 +51,15 @@
     "test:svc:tenant": "node tests/services/postPurchaseInvoice.multiTenant.test.mjs",
     "test:svc:failure": "node tests/services/postPurchaseInvoice.failureInjection.test.mjs",
     "test:svc:all": "npm run test:svc:atomicity && npm run test:svc:idempotency && npm run test:svc:integrity && npm run test:svc:tenant && npm run test:svc:failure",
-    "svc:perf": "node tests/services/perf-baseline.mjs"
+    "svc:perf": "node tests/services/perf-baseline.mjs",
+    "test:svc:voucher:atomicity": "node tests/services/postVoucher.atomicity.test.mjs",
+    "test:svc:voucher:idempotency": "node tests/services/postVoucher.idempotency.test.mjs",
+    "test:svc:allocation": "node tests/services/postVoucher.allocation.test.mjs",
+    "test:svc:voucher:tenant": "node tests/services/postVoucher.multiTenant.test.mjs",
+    "test:svc:voucher:failure": "node tests/services/postVoucher.failureInjection.test.mjs",
+    "test:svc:voucher:all": "npm run test:svc:voucher:atomicity && npm run test:svc:voucher:idempotency && npm run test:svc:allocation && npm run test:svc:voucher:tenant && npm run test:svc:voucher:failure",
+    "svc:voucher:perf": "node tests/services/voucher-perf-baseline.mjs",
+    "test:phase7": "npm run test:char:custaccount && npm run test:char:voucherjournal && npm run test:char:allocation && npm run test:gm:voucher && npm run test:svc:voucher:all",
+    "test:migration": "npm run test:domain && npm run test:gm:all && npm run test:svc:all && npm run test:svc:voucher:all"
   }
 }

@@ -1,5 +1,5 @@
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  أخطاء طبقة خدمات المحاسبة                                          [Phase 6]  ║
+// ║  أخطاء طبقة خدمات المحاسبة                                    [Phase 6 + 7]  ║
 // ║  ────────────────────────────────────────────────────────────────────────────  ║
 // ║  محايدة عن التخزين وعن الواجهة — لا `toast`/`alert`/`innerHTML` هنا (§19).       ║
 // ║  المهايئ (Legacy أو React لاحقاً) هو من يترجمها إلى رسالة للمستخدم.             ║
@@ -12,7 +12,8 @@ export const ACCOUNTING_ERROR_CODES = Object.freeze({
     DUPLICATE_POSTING: 'DUPLICATE_POSTING',
     ATOMICITY_FAILURE: 'ATOMICITY_FAILURE',
     NOT_FOUND: 'NOT_FOUND',
-    INVALID_STATE: 'INVALID_STATE'
+    INVALID_STATE: 'INVALID_STATE',
+    ALLOCATION_CONFLICT: 'ALLOCATION_CONFLICT'   // [Phase 7] تجاوز رصيد فاتورة عند التخصيص
 });
 
 /** الأساس المشترك لكل أخطاء خدمات المحاسبة. `details` كائن بيانات إضافي — لا نص جاهز للعرض. */

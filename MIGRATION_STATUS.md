@@ -1,7 +1,7 @@
 # MIGRATION_STATUS.md — حالة الترحيل
 
-**آخر تحديث:** 2026-08-19 (Phase 6 — خدمات التطبيق: ترحيل ذرّي + Idempotency) · **المرجع:** [`docs/HANDOFF.md`](docs/HANDOFF.md)
-**آخر تحديث سابق:** 2026-08-19 (Phase 5 — Golden Master الأرصدة) · **الفرع:** `feat/ai-invoice-system-v2` (مدفوع) · **الوسم:** `migration/baseline`
+**آخر تحديث:** 2026-08-19 (Phase 7 Step B — خدمة ترحيل السند: تخصيص متعدّد الفواتير + تعويض) · **المرجع:** [`docs/HANDOFF.md`](docs/HANDOFF.md)
+**آخر تحديث سابق:** 2026-08-19 (Phase 6 — خدمات التطبيق: ترحيل ذرّي + Idempotency) · **الفرع:** `feat/ai-invoice-system-v2` (مدفوع) · **الوسم:** `migration/baseline`
 
 ## المراحل
 
@@ -13,9 +13,10 @@
 | 3 | طبقة Repository | 🟡 جارٍ — شجرة الحسابات + `JournalPostingRepository` (Phase 6) |
 | 4 | Golden Master — بناء القيود وسلامة الترحيل | ✅ مكتمل (103 تأكيداً) |
 | 5 | Golden Master — دفتر الأستاذ · ميزان المراجعة · أرصدة الأطراف | ✅ مكتمل (98 تأكيداً) |
-| 6 | خدمات التطبيق — ترحيل ذرّي + Idempotency (فاتورة المشتريات) | ✅ **مكتمل هذا التحديث** — 98 تأكيداً جديداً (انظر §خدمات التطبيق أدناه). **غير موصول بالإنتاج بعد** |
-| 7 | أساس React | 🔴 لم تبدأ |
-| 8+ | ترحيل الوحدات | 🔴 لم تبدأ |
+| 6 | خدمات التطبيق — ترحيل ذرّي + Idempotency (فاتورة المشتريات) | ✅ مكتمل — 98 تأكيداً (انظر §خدمات التطبيق أدناه). **غير موصول بالإنتاج بعد** |
+| 7-A | اكتشاف بحت — ترتيب أولويات مسارات الترحيل المتبقّية | ✅ مكتمل — تقرير فقط، بلا كود |
+| 7-B | خدمة ترحيل السند — تخصيص متعدّد الفواتير + تعويض (Saga) | ✅ **مكتمل هذا التحديث** — 153 تأكيداً جديداً (انظر §Phase 7 Step B أدناه). **غير موصول بالإنتاج بعد** |
+| 7-C+ | أساس React / بقيّة مسارات الترحيل (مبيعات، إشعارات، PMC، قيد يدوي) | 🔴 لم تبدأ — قرار المالك التالي |
 
 > ⚠️ **ملاحظة ترقيم:** `MIGRATION_PLAN.md` يُرقِّم "خدمات الأعمال" كـPhase 4
 > و"Golden Master" كـPhase 5 (بُدِّلا بموافقة المالك 2026-08-19)، بينما
@@ -129,3 +130,68 @@ Idempotent) — غير مُصلَح، الدالة لم تُعدَّل؛ مسا�
 يستدعيها أصلاً فلا يتأثّر بها. **BUG-007** (قيد مكرَّر) — **غير مُصلَح على
 المسار الحيّ** (`postPInv` القديمة كما هي تماماً)؛ جذره **مُثبَت قابلاً
 للحل** في خدمة موازية مُختبَرة، غير موصولة بعد. تفاصيل كاملة في `BUGS_TO_FIX.md`.
+
+## خدمة ترحيل السند — Phase 7 Step B
+
+خدمة موازية جديدة (`createPostVoucherService`) ترحّل سند قبض/صرف وتخصّص
+مبلغه على N فاتورة — **غير موصولة بالإنتاج**، `postVoucher`/
+`createJournalForVoucher`/`allocateToInvoices` في `accounting.js` لم تُلمَس.
+
+**البنية:** `src/services/accounting/posting/postVoucher.js` (الخدمة) →
+`src/domain/accounting/posting/buildVoucherJournal.js` +
+`src/domain/accounting/posting/resolveCustomerReceivableAccount.js` (بناء نقيّ) →
+`src/domain/accounting/allocation/computeAllocation.js` (منطق التخصيص النقيّ) →
+`src/repositories/contracts/VoucherPostingRepository.js` (عقد) →
+`FirebaseVoucherPostingRepository`/`InMemoryVoucherPostingRepository` (تنفيذان).
+`src/repositories/firebase/postingHelpers.js` جديد أيضاً — استُخرجت منه أدوات
+Idempotency المشتركة (`claimDraftToPosted`/`pollForPostedLink`/
+`safeRollbackStatus`/`reserveJournalNumber`)، وأُعيد استخدامها في
+`FirebaseJournalPostingRepository` (Phase 6) بلا أي تغيير سلوك (تحقّق
+بإعادة تشغيل `test:svc:all` — 66/66 كما هي).
+
+**الاكتشاف الحرج:** `allocateToInvoices` القديمة **لا تفحص تجاوز رصيد
+الفاتورة إطلاقاً** — مُثبَت تنفيذياً (`tests/characterization/allocateToInvoices.test.mjs`)،
+مُسجَّل كـ**BUG-008 جديد** في `BUGS_TO_FIX.md`. الخدمة الجديدة ترفض التجاوز
+صراحةً (`AllocationConflictError`) — فرق مقصود، مصنَّف (C) في
+`docs/services/voucher-allocation.md`.
+
+**نموذج الاتساق:** ليست ذرّية N+1 حرفية (RTDB لا تدعمها بنيوياً لعقد متغيّر
+الطول) — بل ثلاث طبقات: بوّابة Idempotency (`runTransaction` على `status`) ·
+N معاملة تخصيص مستقلّة آمنة من التزامن كلٌّ بمفردها (`runTransaction` لكل
+فاتورة، ترفض التجاوز حتى تحت سباق حقيقي) · كتابة ذرّية نهائية واحدة (قيد +
+ربط السند). فشل جزئي ⇒ **تعويض عكسي صريح** (Saga) لكل ما نجح، موثَّق بصراحة
+في `docs/services/voucher-atomicity.md` كنموذج اتساق نهائي لا فوري.
+
+**مُثبَت تنفيذياً بسباق حقيقي:** سندان مختلفان (6000 و7000 على فاتورة
+رصيدها 10000) عبر `Promise.all` حقيقي على نفس الفاتورة ⇒ **واحد فقط
+ينجح** — الرصيد النهائي 6000 أو 7000 بالضبط، أبداً 13000 (القديم كان يقبل
+كليهما). `tests/services/postVoucher.allocation.test.mjs` «السباق الحقيقي».
+
+**التوثيق:** [`docs/services/voucher-posting.md`](docs/services/voucher-posting.md) ·
+[`docs/services/voucher-atomicity.md`](docs/services/voucher-atomicity.md) ·
+[`docs/services/voucher-allocation.md`](docs/services/voucher-allocation.md)
+
+### الاختبارات — Phase 7 Step B
+
+| المجموعة | التأكيدات | الحالة |
+|---|---:|---|
+| `test:char:custaccount` (توصيفي — حساب العميل المستحَق) | 6 | ✅ **جديد** |
+| `test:char:voucherjournal` (توصيفي — بناء قيد السند) | 27 | ✅ **جديد** |
+| `test:char:allocation` (توصيفي — `allocateToInvoices`، يُثبت BUG-008) | 15 | ✅ **جديد** |
+| `test:gm:voucher` (Golden Master — الجديد مقابل القديم + تصنيف الفرق) | 7 | ✅ **جديد** |
+| `test:svc:voucher:atomicity` | 21 | ✅ **جديد** |
+| `test:svc:voucher:idempotency` | 19 | ✅ **جديد** |
+| `test:svc:allocation` (تخصيص N فاتورة + سباق حقيقي) | 26 | ✅ **جديد** |
+| `test:svc:voucher:tenant` | 16 | ✅ **جديد** |
+| `test:svc:voucher:failure` | 16 | ✅ **جديد** |
+| **الإجمالي (`test:phase7`)** | **153** | ✅ |
+
+مسار الترحيل الكامل الآن: 157 (`test:domain`، +48 توصيف Phase 7) + 208
+(`test:gm:all`، +7) + 164 (`test:svc:all`+`test:svc:voucher:all`، +98) —
+راجع `npm run test:migration` للتشغيل الكامل. لا فشل واحد في أي مجموعة.
+
+**عدّة الاختبار المشتركة:** `tests/services/voucherTestKit.mjs` (يعيد
+استخدام `fakePostingRtdb.mjs` من Phase 6 حرفياً) و
+`tests/golden-master/capture-voucher.mjs` (حصاد سلوك القديم الحقيقي عبر
+`legacy-loader.mjs`، بامتداد يدعم `get`/`update` حقيقيَّين على متجر ذاكرة —
+`allocateToInvoices` تقرأ قبل أن تكتب، خلافاً لما احتاجته Phase 4).

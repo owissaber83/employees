@@ -24,15 +24,30 @@ opening = vendor.openingBalance
 balance = opening + invoiced - paid
 ```
 
-## 🔎 عدم تماثل موثَّق مع `calcCustomerBalance` — لا `fullyCredited`
+## 🔴 [تصحيح Phase 7] عدم تماثل أخطر ممّا وُصف في Phase 5 — الحقل موجود ومكتوب، لكنه مُتجاهَل
 
-`calcCustomerBalance` تفحص `inv.fullyCredited` وتستبعد الفاتورة كلياً عند
-`true`. **`calcVendorBalance` لا تملك أي حقل مماثل** — لا `fullyDebited` ولا
-شبيهه. حقل `fullyCredited` على فاتورة مشتريات، لو وُجد، **بلا أي أثر على
-الحساب**. مُثبَت تنفيذياً في `tests/golden-master/supplier-balances.test.mjs`.
+**تصحيح دقيق:** الصياغة الأصلية هنا (Phase 5) قالت إن `calcVendorBalance`
+"لا تملك حقلاً مماثلاً لـ`fullyDebited`" — هذا غير دقيق. اكتشاف Phase 7
+(قراءة `submitDebitNote`، `accounting.js:16254`) يُثبت أن الحقل **موجود
+ويُكتب فعلياً** من مسار إنتاجي حقيقي:
 
-**ليس عطلاً مؤكَّداً** — قد يكون غياب مسار عملي لإشعار كامل من مورد أصلاً
-(القرار خارج نطاق Phase 5). يستحق سؤالاً لمالك المنتج قبل أي قرار.
+```js
+// accounting.js:16254 — submitDebitNote
+if (isFull) { upd.fullyDebited = true; upd.debitedAmount = ...; }
+await update(ref(db, 'ledger/purchaseInvoices/' + key), upd);
+```
+
+**المشكلة الحقيقية إذن ليست غياب الحقل، بل أن `calcVendorBalance` لا
+تقرؤه إطلاقاً** (`tests/golden-master/supplier-balances.test.mjs` يُثبت
+ذلك تنفيذياً) — بينما `calcCustomerBalance` المقابلة **تفحص** `fullyCredited`
+وتستبعد الفاتورة كلياً عند `true`. أي أن فاتورة مشتريات صدر عليها إشعار
+مدين كامل (`fullyDebited: true`) **تبقى تُحسَب في رصيد المورد** كأنها لم
+تُرتجَع — عكس ما يحدث تماماً على جانب العملاء لنفس السيناريو.
+
+**هذا يرفع تصنيف الخطورة** من "قد يكون غياب مسار عملي" إلى: **مسار عملي
+موجود فعلاً (`submitDebitNote` يعمل ويُستخدَم)، ونتيجته تُكتب، وشاشة رصيد
+المورد تتجاهلها بصمت.** لم يُصلَح — يخضع لنفس قاعدة §6 (توثيق → اختبار →
+موافقة) قبل أي تعديل على `calcVendorBalance`.
 
 ## نفس BUG-001
 
