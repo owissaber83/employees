@@ -1,0 +1,57 @@
+{
+  "rows": [
+    {
+      "code": "1110",
+      "type": "asset",
+      "opening": 1000,
+      "debit": 0,
+      "credit": 0,
+      "netBalance": 1000,
+      "finalDebit": 1000,
+      "finalCredit": 0,
+      "isAnomaly": false
+    },
+    {
+      "code": "1120",
+      "type": "asset",
+      "opening": 5000,
+      "debit": 0,
+      "credit": 300,
+      "netBalance": 4700,
+      "finalDebit": 4700,
+      "finalCredit": 0,
+      "isAnomaly": false
+    },
+    {
+      "code": "3110",
+      "type": "equity",
+      "opening": 6000,
+      "debit": 0,
+      "credit": 0,
+      "netBalance": 6000,
+      "finalDebit": 6000,
+      "finalCredit": 0,
+      "isAnomaly": true
+    },
+    {
+      "code": "5110",
+      "type": "expense",
+      "opening": 0,
+      "debit": 300,
+      "credit": 0,
+      "netBalance": 300,
+      "finalDebit": 300,
+      "finalCredit": 0,
+      "isAnomaly": false
+    }
+  ],
+  "totals": {
+    "opening": 12000,
+    "debit": 300,
+    "credit": 300,
+    "finalDebit": 12000,
+    "finalCredit": 0
+  },
+  "debitCreditBalance": true,
+  "finalBalance": false
+}

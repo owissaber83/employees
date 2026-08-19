@@ -1,0 +1,18 @@
+{
+  "code": "1120",
+  "opening": 5500,
+  "rows": [
+    {
+      "date": "2026-03-15",
+      "number": "JV-2026-01",
+      "description": "",
+      "debit": 0,
+      "credit": 300,
+      "status": "posted",
+      "runningBalance": 5200
+    }
+  ],
+  "periodDebit": 0,
+  "periodCredit": 300,
+  "closing": 5200
+}

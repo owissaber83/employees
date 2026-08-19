@@ -7,16 +7,21 @@
 > **Academy** ولا علاقة له بترحيل ERP. هذا الملف (`docs/HANDOFF.md`) هو المرجع.
 
 ## Date
-2026-08-19
+2026-08-19 (Phase 5 — Golden Master الأرصدة)
 
 ## Current Branch
 `feat/ai-invoice-system-v2` — مدفوع ومتزامن مع `origin`.
 
 ## Current Commit
-`9cd3e07` — `test(gm): Phase 4 — Golden Master وشبكة أمان المحاسبة`
+هذا الإيداع نفسه — `test(gm): Phase 5 — Golden Master دفتر الأستاذ وميزان
+المراجعة وأرصدة الأطراف`. شغّل `git log -1 --oneline` للهاش الفعلي (لا
+يُكتب هنا حرفياً لتفادي مرجعية ذاتية — هذا الملف جزء من الإيداع الذي يصفه،
+تماماً كما كانت `9cd3e07` أدناه سابقاً بالنسبة لإيداع Phase 4).
+**سلف مباشر:** `295d758` — `docs: نقطة تسليم — تجهيز المشروع للمتابعة من جهاز آخر`
+(وهو نفسه إيداع تال لـ`9cd3e07` — Phase 4 الأصلية).
 
 ## Current Tag
-`migration/baseline` — خط الأساس قبل الترحيل (مدفوع).
+`migration/baseline` — خط الأساس قبل الترحيل (مدفوع). **لم يتغيّر في Phase 5.**
 
 ## Project Status
 نظام ERP محاسبي عربي (RTL) يعمل في الإنتاج على Firebase Hosting + Realtime
@@ -35,10 +40,15 @@ Database، خطة Spark. **يعمل الآن تماماً كما كان قبل �
 | 1 · السلامة وخط الأساس | ✅ مكتملة |
 | 2 · استخلاص النطاق المحاسبي | 🟡 جارية — شجرة الحسابات فقط |
 | 3 · طبقة Repository | 🟡 جارية — شجرة الحسابات فقط |
-| 4 · Golden Master | 🟡 جارية — بناء القيود وسلامة الترحيل |
-| 5 · خدمات الأعمال | 🔴 لم تبدأ |
-| 6 · أساس React | 🔴 لم تبدأ |
-| 7+ · ترحيل الوحدات | 🔴 لم تبدأ |
+| 4 · Golden Master — بناء القيود وسلامة الترحيل | ✅ مكتملة |
+| 5 · Golden Master — دفتر الأستاذ · ميزان المراجعة · أرصدة الأطراف | ✅ **مكتملة الآن** |
+| 6 · خدمات الأعمال | 🔴 لم تبدأ |
+| 7 · أساس React | 🔴 لم تبدأ |
+| 8+ · ترحيل الوحدات | 🔴 لم تبدأ |
+
+> ⚠️ ترقيم `MIGRATION_PLAN.md` يختلف عن هذا الملف بعد Phase 4 (بدّل "خدمات
+> الأعمال" و"Golden Master" مكانيهما بموافقة المالك). لم يُوحَّد عمداً —
+> **الأسماء لا الأرقام هي المرجع**. راجع `MIGRATION_STATUS.md` للتفصيل.
 
 ## Completed Work
 
@@ -60,6 +70,16 @@ Database، خطة Spark. **يعمل الآن تماماً كما كان قبل �
 **Golden Master (Phase 4):** مِشجب يُشغّل دوال `accounting.js` بحقن الحالة
 واعتراض الكتابة. 103 تأكيداً + 5 لقطات ثابتة.
 
+**Golden Master — الأرصدة (Phase 5):** مِشجب موازٍ (`capture-balances.mjs`)
+يُشغّل `tbCalcBalances` · `calcFSBalances` · `coaAccountOps` ·
+`calcCustomerBalance` · `calcVendorBalance` · `ensureStdAccount` — 98
+تأكيداً + لقطتان. اكتشف 3 أعطال جديدة (BUG-005/006/007) وأصلح عطلين
+كامنين في أدوات المِشجب المشتركة نفسها (`legacy-loader.mjs`) بلا مسّ لأي
+مطابقة كانت تنجح من قبل — 228 تأكيداً من Phase 4 بقيت خضراء بعدهما. خط
+أساس أداء أول مرّة (100/1,000/10,000 قيد — خطّي، لا انفجار تربيعي) واختبار
+طفرة يُثبت أن الشبكة حسّاسة فعلاً (بصمة `sha256` لـ`accounting.js` قبل/بعد
+متطابقة — الملف الحقيقي لم يُمَسّ).
+
 ## Files Created
 
 ```
@@ -68,16 +88,31 @@ src/repositories/                        contracts · firebase · memory
 src/package.json                         { "type": "module" }
 tests/characterization/                  legacy-loader · chartOfAccounts · date-behavior
 tests/repositories/                      fakeRtdb · contract.suite · chartOfAccounts
-tests/golden-master/                     capture · canonical · journal · posting-integrity · snapshots/
-tests/fixtures/                          accounting/world.mjs · 3 ملفات JSON
-docs/BASELINE.md · docs/domain/*.md · docs/accounting/golden-master.md
+tests/golden-master/                     capture · canonical · journal · posting-integrity · snapshots/   ← Phase 4
+tests/golden-master/                     capture-balances · canonical-balances ·                          ← Phase 5
+                                          trial-balance.test · ledger.test · customer-balances.test ·
+                                          supplier-balances.test · multi-tenant.test · date-boundaries.test ·
+                                          precision.test · idempotency.test · failure-injection.test ·
+                                          mutation.test · perf-baseline.mjs · snapshots/ (2 جديدة)
+tests/fixtures/accounting/               world.mjs (Phase 4) · balances-world.mjs (Phase 5، ملف منفصل)
+docs/BASELINE.md · docs/domain/*.md · docs/accounting/golden-master.md                                     ← Phase 4
+docs/accounting/{balances,ledger,trial-balance,customer-balances,supplier-balances,ensureStdAccount}.md    ← Phase 5
 PROJECT_AUDIT.md · ARCHITECTURE_PROPOSAL.md · MIGRATION_PLAN.md · MIGRATION_STATUS.md
 ACCOUNTING_INTEGRITY_AUDIT.md · ACCOUNTING_INTEGRITY_FIX_PLAN.md
 BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
 ```
 
 ## Files Modified
-`package.json` — **سكربتات اختبار فقط**، لا اعتماديات. لا شيء غيره.
+- `package.json` — سكربتات اختبار فقط (11 سكربت Phase 5 جديد)، لا اعتماديات.
+- `tests/characterization/legacy-loader.mjs` — **[Phase 5]** إضافيّتان بحتتان،
+  0 تغيير سلوكي على أي مطابقة كانت تنجح من قبل (مُتحقَّق منه: 228/228 من
+  Phase 4 بقيت خضراء): (1) `extractFunction` تدعم الآن نمط `window.name =
+  function(...)` كاحتياطي بعد النمط الأصلي. (2) `extractConst` تدعم الآن
+  ثوابت مصفوفية (`[...]`) لا كائنية (`{...}`) فقط — كانت تلتقط بصمت العنصر
+  الأول فقط من أي ثابت مصفوفي (`DEFAULT_ACCOUNTS`) دون رمي استثناء.
+- `MIGRATION_STATUS.md` · `ACCOUNTING_INTEGRITY_AUDIT.md` (§9 جديد) ·
+  `ACCOUNTING_INTEGRITY_FIX_PLAN.md` (§9 جديد) · `BUGS_TO_FIX.md`
+  (BUG-005/006/007) · `docs/accounting/golden-master.md` (§17 محدَّثة + §19–26 جديدة).
 
 ## Production Files
 🔒 **لم تتغيّر إطلاقاً.** لا ملف واحد في `public/`. مُتحقَّق منه آلياً قبل كل
@@ -97,13 +132,18 @@ BUGS_TO_FIX.md · PRODUCTION_ISSUES.md · DEAD_CODE_CANDIDATES.md
 |---|---|
 | بناء القيود (مشتريات · مبيعات · صرف · قبض) | ✅ مغطّى بـGolden Master + لقطات |
 | توازن المدين/الدائن | ✅ ثوابت على 0 → 999,999.99 |
-| الترحيل والتكرار والفشل الجزئي | ✅ **مُحلَّل وموثّق** (لم يُصلَح) |
-| دفتر الأستاذ | 🔴 **لم يُغطَّ** |
-| ميزان المراجعة | 🔴 **لم يُغطَّ** |
-| أرصدة العملاء والموردين | 🔴 **لم تُغطَّ** |
-| إشعارات دائن/مدين · شهادة مقاول باطن · القيد اليدوي | 🔴 لم تُغطَّ |
+| الترحيل والتكرار والفشل الجزئي | ✅ مُحلَّل وموثّق + ✅ **الآن مُتتبَّع أثره حتى التقارير (Phase 5)** |
+| دفتر الأستاذ (`coaAccountOps`) | ✅ **مغطّى** — 19 تأكيداً |
+| ميزان المراجعة (`tbCalcBalances`/`calcFSBalances`) | ✅ **مغطّى** — 17 تأكيداً + BUG-005 مكتشَف |
+| أرصدة العملاء والموردين | ✅ **مغطّاة** — 25 تأكيداً + BUG-007 مكتشَف |
+| عزل المستأجرين لدوال الأرصدة (كاش مشترك) | ✅ مغطّى — 6 تأكيدات، مطمئن |
+| `ensureStdAccount` | ✅ موثَّقة بالكامل + BUG-006 مكتشَف |
+| خط أساس الأداء | ✅ أول قياس — خطّي حتى 10,000 قيد |
+| إشعارات دائن/مدين · شهادة مقاول باطن · القيد اليدوي | 🔴 لم تُغطَّ بعد |
+| تدفّق كامل عبر الوحدات (فاتورة ← قيد ← دفتر ← ميزان، مستند واحد) | 🟡 مُغطّى جزئياً فقط (الأثر عبر شاشتين لا تتبّعاً كاملاً من الفاتورة) |
+| تكاليف المشاريع | 🔴 لم تُغطَّ |
 
-**لم يُغيَّر أي سلوك محاسبي.**
+**لم يُغيَّر أي سلوك محاسبي — Phase 4 وPhase 5 معاً.**
 
 ## Architecture
 
@@ -143,21 +183,28 @@ Cloud Functions موجودة في الشفرة وغير منشورة (Spark).
 | 2 | الترحيل أربع كتابات غير ذرّية ⇒ قيد يتيم عند الفشل | 🔴 |
 | 3 | لا Idempotency ⇒ نقر مزدوج يُنتج قيدين ⇒ احتمال سداد مرّتين | 🔴 |
 | 4 | حراسة توازن القيد على الترويسة فقط (RTDB عاجزة بنيوياً عن جمع السطور) | 🔴 |
-| 5 | دفتر الأستاذ وميزان المراجعة بلا شبكة أمان | 🔴 |
+| 5 | دفتر الأستاذ وميزان المراجعة | ✅ **صار لهما شبكة أمان (Phase 5)** — الخطر بقي، الرصد تحسَّن |
 | 6 | النطاق والمستودعات غير موصولة ⇒ نسختان من المنطق | 🟠 مخفّف: الاختبار التوصيفي كاشف انحراف |
 | 7 | 5 اختبارات أمان حمراء (بوابة المشروع) — **فشل آمن لا ثغرة** | 🟠 |
 | 8 | تعارضات iCloud داخل المستودع | 🟠 |
+| 9 | **[Phase 5]** BUG-005: `tbCalcBalances`/`calcFSBalances` يختلفان على حركة سابقة للفترة غير مُعلَّمة — تقريران مختلفان لنفس البيانات | 🔴 |
+| 10 | **[Phase 5]** BUG-007: قيد مكرَّر يظهر في ميزان المراجعة بينما رصيد الطرف يبقى "صحيحاً" — تناقض صامت بين شاشتين، يرفع إلحاح إصلاح §3/§5 في `ACCOUNTING_INTEGRITY_FIX_PLAN.md` | 🔴 |
+| 11 | **[Phase 5]** BUG-006: `ensureStdAccount` غير Idempotent تحت تزامن — قد يُنشئ حسابين قياسيين بنفس الرمز | 🔴 |
+| 12 | **[Phase 5]** لا فحص اتّساق دوري بين دفتر الأستاذ والمستندات — يجعل 9/10/11 غير قابلة للاكتشاف تلقائياً في الإنتاج | 🔴 |
 
 ## Known Bugs
 `BUGS_TO_FIX.md`:
-- **BUG-001** إزاحة التاريخ (UTC بدل محلي) — 188 تكراراً في 182 سطراً
+- **BUG-001** إزاحة التاريخ (UTC بدل محلي) — 188 تكراراً في 182 سطراً (Phase 5: مصدران إضافيان مؤكَّدان في `calcCustomerBalance`/`calcVendorBalance`)
 - **BUG-002** حجز رمز الحساب لا يُحرَّر عند الحذف ⇒ الرمز يُحرق للأبد
 - **BUG-003** `saveInvItem` مُعرَّفة مرتين بسلوكين مختلفين؛ الأولى ميتة
 - **BUG-004** `createJournalForPMC` مكرّرة (متطابقة حرفياً)
+- **BUG-005** [Phase 5] `tbCalcBalances`/`calcFSBalances` يختلفان على حركة سابقة للفترة غير مُعلَّمة افتتاحياً
+- **BUG-006** [Phase 5] `ensureStdAccount` غير Idempotent تحت تزامن حقيقي
+- **BUG-007** [Phase 5] قيد مكرَّر يظهر في ميزان المراجعة، لا في رصيد الطرف — تناقض صامت بين شاشتين
 
 `PRODUCTION_ISSUES.md`: بوابة المشروع **P1** · غياب النسخ الاحتياطي **P0**
 
-**لم يُصلَح أيٌّ منها عمداً.**
+**لم يُصلَح أيٌّ منها عمداً — Phase 4 وPhase 5 معاً.**
 
 ## Important Decisions
 
@@ -197,9 +244,21 @@ npm run test:char          # 44 · توصيفي شجرة الحسابات
 npm run test:char:date     #  9 · توصيفي سلوك التاريخ
 npm run test:repo          # 72 · عقد المستودعات
 npm run test:domain        # الثلاثة معاً
-npm run test:gm            # 74 · Golden Master القيود
-npm run test:gm:posting    # 29 · سلامة الترحيل
-npm run test:gm:all        # الاثنان معاً
+npm run test:gm             # 74 · Golden Master القيود (Phase 4)
+npm run test:gm:posting     # 29 · سلامة الترحيل (Phase 4)
+npm run test:gm:tb          # 17 · ميزان المراجعة (Phase 5)
+npm run test:gm:ledger      # 19 · دفتر الأستاذ (Phase 5)
+npm run test:gm:customer    #  16 · رصيد العميل (Phase 5)
+npm run test:gm:supplier    #   9 · رصيد المورد (Phase 5)
+npm run test:gm:tenant      #   6 · عزل المستأجرين — كاش الأرصدة (Phase 5)
+npm run test:gm:dates       #   4 · حدود التاريخ (Phase 5)
+npm run test:gm:precision   #   8 · الدقّة المالية (Phase 5)
+npm run test:gm:idem        #   9 · التكرار — الأثر على التقارير (Phase 5)
+npm run test:gm:failure     #   4 · حقن الفشل — الأثر على التقارير (Phase 5)
+npm run test:gm:mutation    #   6 · إثبات حساسية الشبكة (Phase 5)
+npm run test:gm:balances    # الاثنا عشر أعلاه (Phase 5) معاً — 98
+npm run test:gm:all         # Phase 4 + Phase 5 معاً — 201
+npm run gm:perf              # خط أساس الأداء — تقرير أرقام لا اختبار نجاح/فشل
 
 # اختبارات النظام القائم
 npm run test:calc          # 27
@@ -238,25 +297,44 @@ firebase serve             # تشغيل محلي (يخدم public/) — تحدي
 **VS Code:** لا امتدادات إلزامية.
 
 ## Next Recommended Step
-**استكمال Phase 4** — جولة Golden Master ثانية تغطّي `calcFSBalances` ← دفتر
-الأستاذ ← ميزان المراجعة ← أرصدة العملاء والموردين.
 
-**السبب:** ميزان المراجعة هو **بوابة القبول** لأي إصلاح لاحق. إصلاح الذرّية
-(Phase 5) بلا شبكة أمان عليه يخالف المبدأ المتّفق عليه.
+**Golden Master للأرصدة اكتمل (Phase 5).** الخطوتان المحتملتان التاليتان —
+بانتظار قرار المالك، لا تُبدأ أيّهما بلا أمر:
 
-**لا تبدأها بلا أمر.**
+**أ) استكمال Golden Master** — التغطية المؤجَّلة (`docs/accounting/golden-master.md`
+§17): إشعار دائن/مدين · شهادة مقاول باطن · القيد اليدوي · تكاليف المشاريع ·
+تدفّق كامل من فاتورة واحدة عبر القيد ← الدفتر ← الميزان (لا الأثر عبر
+شاشتين فقط كما فعلت هذه الجولة).
+
+**ب) البدء بخدمات الأعمال** (Phase 6 هنا / Phase 4 في `MIGRATION_PLAN.md`) —
+نقطة ترحيل مركزية + `assertBalanced` حقيقية + Idempotency، **الآن مدعومة
+بشبكة أمان أوسع بكثير** من التي كانت متوفّرة قبل هذه الجولة: أي إصلاح
+للذرّية يمكن التحقّق من أثره على ميزان المراجعة ودفتر الأستاذ وأرصدة
+الأطراف معاً، لا القيد المُنشَأ فقط.
+
+**توصيتي:** (ب) — الفجوة الأخطر الآن ليست غياب التغطية بل **القابلية
+للاستغلال**: BUG-005/006/007 كلها تعتمد على غياب الذرّية/Idempotency
+الأصلي (Phase 4 §8). إصلاحه يُغلق ثلاثتها معاً، بينما (أ) توسيع تغطية أفقي
+لمجالات أصغر أثراً مالياً (شهادات المقاولين، الإشعارات).
 
 ## Exact Resume Point
 
-**Resume from Phase 4 (continuation).**
+**Resume from Phase 6 (خدمات الأعمال) — أو Phase 5 استكمال، حسب قرار المالك.**
 
-أول ما يُفعل:
-1. اقرأ `docs/accounting/golden-master.md` §17 (الفجوات) و`ACCOUNTING_INTEGRITY_FIX_PLAN.md`
-2. شغّل `npm run test:gm:all && npm run test:domain` — يجب أن تكون خضراء (228)
-3. التقط `calcFSBalances` بتوسيع `tests/golden-master/capture.mjs`
-4. ثم دفتر الأستاذ ← ميزان المراجعة ← أرصدة الأطراف
+أول ما يُفعل بغضّ النظر عن القرار:
+1. اقرأ `docs/accounting/golden-master.md` §17–§26 (الفجوات والاكتشافات) و`ACCOUNTING_INTEGRITY_FIX_PLAN.md §9`
+2. شغّل `npm run test:gm:all && npm run test:domain` — يجب أن تكون خضراء (326 = 201+125)
+3. اقرأ `BUGS_TO_FIX.md BUG-005/006/007` كاملة قبل أي عمل على الذرّية — أثرها الآن موثَّق على مستوى التقارير لا الكتابات فقط
+
+**إن اختير (ب):** ابدأ بـ`ACCOUNTING_INTEGRITY_FIX_PLAN.md §3` (الذرّية) —
+نقطة الترحيل المركزية أولاً، ثم `assertBalanced` (§2)، ثم Idempotency (§5).
+كل تغيير يُقاس بـ`npm run test:gm:all` قبل وبعد — أي فرق في نتيجة أي
+اختبار **موصوف بما فيه المعيب** (مثل [B] في `posting-integrity.test.mjs`
+أو [الأثر المالي المتباين] في `idempotency.test.mjs`) هو **الهدف المقصود**
+لا انحداراً — تلك الاختبارات صُمِّمت لتفشل بعد الإصلاح، لا لتبقى خضراء.
 
 **سؤالان مفتوحان بانتظار قرار المالك:**
-- هل يُستكمل Golden Master للميزان والأرصدة قبل Phase 5؟ (توصيتي: نعم)
-- `ensureStdAccount` تُنشئ حسابات في الشجرة كأثر جانبي للترحيل بلا موافقة —
-  يبقى أم يتحوّل إلى اقتراح يتطلّب تأكيداً؟
+- (أ) أم (ب) أعلاه؟
+- `ensureStdAccount` تُنشئ حسابات في الشجرة كأثر جانبي للترحيل بلا موافقة،
+  وقد ثبت في Phase 5 أنها قد تُنشئ **نسختين** بنفس الرمز تحت تزامن (BUG-006) —
+  يبقى التصميم أم يتحوّل إلى اقتراح يتطلّب تأكيداً + قفل تفاؤلي يمنع BUG-006؟

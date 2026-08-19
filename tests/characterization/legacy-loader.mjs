@@ -20,15 +20,30 @@ export function readLegacy(file = 'public/accounting.js') {
 
 /**
  * يستخرج نصّ دالة `function name(...) { … }` بموازنة الأقواس.
+ * يدعم أيضاً نمط `window.name = function (...) { … }` — [Phase 5] بعض دوال
+ * الأرصدة (`ccLineMatchesProject`) مُعلَنة هكذا لا بـ`function name(`. المحاولة
+ * الأولى (النمط الأصلي) لا تتغيّر؛ هذا احتياطي إضافي فقط — لا يمسّ أي مطابقة
+ * كانت تنجح من قبل.
  * @returns {string} نصّ الدالة كما هو حرفياً في الملف
  */
 export function extractFunction(name, file) {
     const src = readLegacy(file);
-    const re = new RegExp(`(^|\\n)\\s*(async\\s+)?function\\s+${name}\\s*\\(`);
-    const m = re.exec(src);
+    // النمط الأصلي أولاً — لا يتغيّر ترتيب المحاولة ولا نتيجته لأي دالة كانت تُطابَق من قبل.
+    const declPattern = new RegExp(`(^|\\n)\\s*(async\\s+)?function\\s+${name}\\s*\\(`);
+    // احتياطي [Phase 5]: بعض دوال الأرصدة (`ccLineMatchesProject`) مُعلَنة
+    // `window.name = function (...) {...}` لا `function name(...)`. الفارق أن
+    // الجسم المُستخرَج هنا تعبير دالة مجهولة، فيُغلَّف بـ`const name = …;` كي
+    // يبقى العقد كما هو: نصّ يُعرِّف رابطاً باسم `name` عند تشغيله.
+    const assignPattern = new RegExp(`(^|\\n)\\s*window\\.${name}\\s*=\\s*(async\\s+)?function\\s*\\(`);
+
+    let m = declPattern.exec(src);
+    let wrap = false;
+    if (!m) { m = assignPattern.exec(src); wrap = true; }
     if (!m) throw new Error(`لم تُعثر على الدالة القديمة: ${name}`);
 
-    const start = m.index + (m[1] ? m[1].length : 0);
+    const start = wrap
+        ? src.indexOf('function', m.index)   // نبدأ من `function` نفسها — لا من `window.name =`
+        : m.index + (m[1] ? m[1].length : 0);
     let i = src.indexOf('{', start), depth = 0, inStr = null, esc = false;
     for (; i < src.length; i++) {
         const c = src[i];
@@ -39,7 +54,8 @@ export function extractFunction(name, file) {
         if (c === '{') depth++;
         else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
     }
-    return src.slice(start, i).trim();
+    const raw = src.slice(start, i).trim();
+    return wrap ? `const ${name} = ${raw};` : raw;
 }
 
 /**
@@ -55,17 +71,34 @@ export function loadLegacyFunction(name, globals = {}, file) {
     return factory(...keys.map(k => globals[k]));
 }
 
-/** يقتطع نصّاً من الملف القديم بين علامتين — لتوثيق ثابت مثل COA_TYPES. */
+/**
+ * يقتطع نصّاً من الملف القديم بين علامتين — لتوثيق ثابت مثل COA_TYPES.
+ * [Phase 5] يدعم الآن الثوابت المصفوفية (`const X = [...]`) مثل DEFAULT_ACCOUNTS
+ * لا الكائنية فقط. **إصلاح عطل كامن في المِشجب لا في الشفرة القديمة**: النسخة
+ * السابقة كانت تبحث عن أول `{` بعد `=` بلا قيد — فتلتقط لثابتٍ مصفوفي أول عنصر
+ * فيه فقط (كائن) بدل المصفوفة كلها، بصمت وبلا استثناء. لم يظهر هذا في Phase 4
+ * لأن `ensureStdAccount` لم تختبر مساراً يحتاج DEFAULT_ACCOUNTS فعلياً هناك.
+ */
 export function extractConst(name, file) {
     const src = readLegacy(file);
     const re = new RegExp(`const\\s+${name}\\s*=\\s*`);
     const m = re.exec(src);
     if (!m) throw new Error(`لم يُعثر على الثابت: ${name}`);
-    let i = src.indexOf('{', m.index), depth = 0;
+    const afterEq = m.index + m[0].length;
+    // أول حرف غير فراغ بعد `=` يحدّد الشكل: `[` مصفوفة أو `{` كائن
+    let p = afterEq; while (p < src.length && /\s/.test(src[p])) p++;
+    const openCh = src[p], closeCh = openCh === '[' ? ']' : '}';
+    if (openCh !== '[' && openCh !== '{') throw new Error(`ثابت غير مدعوم (لا [ ولا {): ${name}`);
+    let i = p, depth = 0, inStr = null, esc = false;
     for (; i < src.length; i++) {
-        if (src[i] === '{') depth++;
-        else if (src[i] === '}') { depth--; if (depth === 0) { i++; break; } }
+        const c = src[i];
+        if (esc) { esc = false; continue; }
+        if (c === '\\') { esc = true; continue; }
+        if (inStr) { if (c === inStr) inStr = null; continue; }
+        if (c === '"' || c === "'" || c === '`') { inStr = c; continue; }
+        if (c === openCh) depth++;
+        else if (c === closeCh) { depth--; if (depth === 0) { i++; break; } }
     }
     // eslint-disable-next-line no-new-func
-    return new Function(`return ${src.slice(src.indexOf('{', m.index), i)};`)();
+    return new Function(`return ${src.slice(p, i)};`)();
 }
