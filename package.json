@@ -19,6 +19,9 @@
     "lint": "eslint . --quiet",
     "lint:all": "eslint .",
     "lint:globals": "node scripts/gen-eslint-globals.mjs",
-    "test:ai:page": "node tests/aiinvoice-page.e2e.mjs"
+    "test:ai:page": "node tests/aiinvoice-page.e2e.mjs",
+    "test:char": "node tests/characterization/chartOfAccounts.test.mjs",
+    "test:char:date": "node tests/characterization/date-behavior.test.mjs",
+    "test:domain": "npm run test:char && npm run test:char:date"
   }
 }

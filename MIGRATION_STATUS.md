@@ -8,7 +8,7 @@
 |---|---|---|
 | 0 | التدقيق (Audit) | ✅ مكتمل |
 | 1 | السلامة وخط الأساس | ✅ مكتمل |
-| 2 | استخلاص النطاق المحاسبي | 🔴 لم يبدأ — **بانتظار موافقتك** |
+| 2 | استخلاص النطاق المحاسبي | 🟡 **جارٍ** — شجرة الحسابات مكتملة نموذجاً |
 | 3 | طبقة Repository | 🔴 لم يبدأ |
 | 4 | خدمات الأعمال | 🔴 لم يبدأ |
 | 5 | Golden Master واختبارات المحاسبة | 🔴 لم يبدأ |
@@ -46,7 +46,14 @@
 
 | الطبقة | التغطية |
 |---|---|
-| `domain/` نقيّ | 🟡 جزئي — `calc.js` (65 سطراً) · `aiinvoice-engine.js` · `pdfeditor-engine.js` |
+| `domain/accounting/chartOfAccounts` | ✅ **مستخلَص ومُثبت** (types · hierarchy · validation) |
+| `domain/accounting/journalEntry` | 🔴 لم يبدأ |
+| `domain/accounting/posting` | 🔴 لم يبدأ |
+| `domain/accounting/ledger` | 🔴 لم يبدأ |
+| `domain/accounting/trialBalance` | 🔴 لم يبدأ |
+| `domain/accounting/balances` | 🔴 لم يبدأ |
+| `domain/accounting/validation` | 🔴 لم يبدأ |
+| `calc.js` · `aiinvoice-engine.js` · `pdfeditor-engine.js` | ✅ نقيّة سابقاً |
 | `application/` | 🔴 غير موجود |
 | `repositories/` | 🔴 غير موجود |
 | نظام التصميم | 🔴 غير موجود |
@@ -63,6 +70,8 @@
 | `test:ai:page` | 120 | ✅ |
 | `test:ai:e2e` | 34 | ✅ |
 | `test:proxy` | 36 | ✅ |
+| `test:char` (توصيفي — شجرة الحسابات) | 44 | ✅ **جديد** |
+| `test:char:date` (توصيفي — التاريخ) | 9 | ✅ **جديد** |
 | **Golden Master محاسبي** | **0** | 🔴 **الفجوة الأخطر** — Phase 5 |
 
 **الإجمالي المقيس في خط الأساس:** 846 ناجح · 5 فاشل · `lint` نظيف.
