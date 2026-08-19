@@ -1,0 +1,34 @@
+{
+  "lines": [
+    {
+      "accountCode": "1120",
+      "debit": 0,
+      "credit": 11500,
+      "accountName": "البنك",
+      "description": "سداد فواتير مورد الحديد",
+      "costCenter": ""
+    },
+    {
+      "accountCode": "2110",
+      "debit": 11500,
+      "credit": 0,
+      "accountName": "الموردون",
+      "description": "صرف لـ مورد الحديد - سند PV-2026-001",
+      "costCenter": ""
+    }
+  ],
+  "totalDebit": 11500,
+  "totalCredit": 11500,
+  "number": "JV-TEST-0001",
+  "date": "2026-03-20",
+  "reference": "PV-2026-001",
+  "description": "سند صرف PV-2026-001 - ",
+  "status": "posted",
+  "sourceType": "payment",
+  "sourceKey": "PV-K1",
+  "currency": "SAR",
+  "exchangeRate": 1,
+  "foreignTotal": 11500,
+  "createdBy": "u-test",
+  "postedBy": "u-test"
+}

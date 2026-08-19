@@ -1,0 +1,42 @@
+{
+  "lines": [
+    {
+      "accountCode": "1130",
+      "debit": 23000,
+      "credit": 0,
+      "accountName": "العملاء",
+      "description": "فاتورة SINV-2026-001 - عميل المشروع الأول",
+      "costCenter": "P1"
+    },
+    {
+      "accountCode": "2140",
+      "debit": 0,
+      "credit": 3000,
+      "accountName": "ضريبة القيمة المضافة المستحقة (مخرجات)",
+      "description": "ضريبة فاتورة SINV-2026-001",
+      "costCenter": "P1"
+    },
+    {
+      "accountCode": "4100",
+      "debit": 0,
+      "credit": 20000,
+      "accountName": "الإيرادات",
+      "description": "إيرادات فاتورة SINV-2026-001",
+      "costCenter": "P1"
+    }
+  ],
+  "totalDebit": 23000,
+  "totalCredit": 23000,
+  "number": "JV-TEST-0001",
+  "date": "2026-03-12",
+  "reference": "فاتورة SINV-2026-001",
+  "description": "إثبات فاتورة مبيعات SINV-2026-001 - عميل المشروع الأول",
+  "status": "posted",
+  "sourceType": "sales_invoice",
+  "sourceKey": "SINV-K1",
+  "currency": "SAR",
+  "exchangeRate": 1,
+  "foreignTotal": 23000,
+  "createdBy": "u-test",
+  "postedBy": "u-test"
+}

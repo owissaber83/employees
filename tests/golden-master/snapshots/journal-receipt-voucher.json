@@ -1,0 +1,34 @@
+{
+  "lines": [
+    {
+      "accountCode": "1120",
+      "debit": 23000,
+      "credit": 0,
+      "accountName": "البنك",
+      "description": "قبض من عميل المشروع الأول - سند RV-2026-001",
+      "costCenter": ""
+    },
+    {
+      "accountCode": "1130",
+      "debit": 0,
+      "credit": 23000,
+      "accountName": "العملاء",
+      "description": "سداد فواتير عميل المشروع الأول",
+      "costCenter": ""
+    }
+  ],
+  "totalDebit": 23000,
+  "totalCredit": 23000,
+  "number": "JV-TEST-0001",
+  "date": "2026-03-25",
+  "reference": "RV-2026-001",
+  "description": "سند قبض RV-2026-001 - ",
+  "status": "posted",
+  "sourceType": "receipt",
+  "sourceKey": "RV-K1",
+  "currency": "SAR",
+  "exchangeRate": 1,
+  "foreignTotal": 23000,
+  "createdBy": "u-test",
+  "postedBy": "u-test"
+}

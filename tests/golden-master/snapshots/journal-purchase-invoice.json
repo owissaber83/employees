@@ -1,0 +1,42 @@
+{
+  "lines": [
+    {
+      "accountCode": "1180",
+      "debit": 1500,
+      "credit": 0,
+      "accountName": "ضريبة القيمة المضافة المدفوعة (مدخلات)",
+      "description": "VAT مدخل - فاتورة PINV-2026-001",
+      "costCenter": "P1"
+    },
+    {
+      "accountCode": "2110",
+      "debit": 0,
+      "credit": 11500,
+      "accountName": "الموردون",
+      "description": "استحقاق فاتورة PINV-2026-001",
+      "costCenter": "P1"
+    },
+    {
+      "accountCode": "5110",
+      "debit": 10000,
+      "credit": 0,
+      "accountName": "مشتريات مواد",
+      "description": "فاتورة PINV-2026-001 (مورد: SUP-INV-77) - مورد الحديد",
+      "costCenter": "P1"
+    }
+  ],
+  "totalDebit": 11500,
+  "totalCredit": 11500,
+  "number": "JV-TEST-0001",
+  "date": "2026-03-10",
+  "reference": "فاتورة مشتريات PINV-2026-001 / مورد: SUP-INV-77",
+  "description": "إثبات فاتورة مشتريات PINV-2026-001 - مورد الحديد",
+  "status": "posted",
+  "sourceType": "purchase_invoice",
+  "sourceKey": "PINV-K1",
+  "currency": "SAR",
+  "exchangeRate": 1,
+  "foreignTotal": 11500,
+  "createdBy": "u-test",
+  "postedBy": "u-test"
+}
