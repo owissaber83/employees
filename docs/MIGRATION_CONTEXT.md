@@ -166,14 +166,17 @@ DO_NOT:                   push main · deploy · change schema/rules · start Re
 ## أوامر التحقّق السريع
 
 ```bash
-npm run test:domain          # 157 — النطاق والمستودعات (+32 Phase 6 · +48 Phase 7-B)
-npm run test:gm:all          # 208 — Golden Master (Phase 4: 103 + Phase 5: 98 + Phase 7-B voucher: 7)
-npm run test:svc:all         # 66  — خدمات التطبيق (Phase 6: الذرّية/Idempotency/التكامل/المستأجرين/الفشل)
-npm run test:svc:voucher:all # 98  — خدمة السند (Phase 7-B: الذرّية/Idempotency/التخصيص/المستأجرين/الفشل)
+npm run test:domain          # 254 — النطاق والمستودعات (+32 P6 · +48 P7-B · +49 P7-C تقييم المخزون)
+npm run test:gm:all          # 249 — Golden Master (P4: 103 + P5: 98 + P7-B: 7 + P7-C مبيعات: 41)
+npm run test:svc:all         # 66  — خدمة المشتريات (P6: الذرّية/Idempotency/التكامل/المستأجرين/الفشل)
+npm run test:svc:voucher:all # 98  — خدمة السند (P7-B: الذرّية/Idempotency/التخصيص/المستأجرين/الفشل)
+npm run test:svc:sales       # 217 — خدمة المبيعات (P7-C: الذرّية/Idempotency/المخزون/المستأجرين/الفشل)
 npm run test:phase7          # 153 — كل جديد Phase 7-B مجمَّعاً (توصيف + Golden Master + خدمة)
-npm run test:migration       # الكل مجمَّعاً — النطاق + Golden Master + الخدمتان
+npm run test:phase7c         # 307 — كل جديد Phase 7-C مجمَّعاً (توصيف + Golden Master + خدمة)
+npm run test:migration       # 884 — الكل مجمَّعاً: النطاق + Golden Master + الخدمات الثلاث
 npm run gm:perf              # خط أساس أداء الأرصدة (Phase 5) — تقرير أرقام
 npm run svc:perf             # خط أساس أداء ترحيل الفاتورة (Phase 6) — تقرير أرقام
 npm run svc:voucher:perf     # خط أساس أداء ترحيل السند + N تخصيص (Phase 7-B) — تقرير أرقام
+npm run svc:sales:perf       # خط أساس أداء ترحيل فاتورة المبيعات + N سطر (Phase 7-C) — تقرير أرقام
 npm run lint                 # نظيف
 ```

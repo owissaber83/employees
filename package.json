@@ -27,7 +27,7 @@
     "test:char:custaccount": "node tests/characterization/resolveCustomerReceivableAccount.test.mjs",
     "test:char:voucherjournal": "node tests/characterization/buildVoucherJournal.test.mjs",
     "test:char:allocation": "node tests/characterization/allocateToInvoices.test.mjs",
-    "test:domain": "npm run test:char && npm run test:char:date && npm run test:char:vendaccount && npm run test:char:pinvjournal && npm run test:char:custaccount && npm run test:char:voucherjournal && npm run test:char:allocation && npm run test:repo",
+    "test:domain": "npm run test:char && npm run test:char:date && npm run test:char:vendaccount && npm run test:char:pinvjournal && npm run test:char:custaccount && npm run test:char:voucherjournal && npm run test:char:allocation && npm run test:char:inventory && npm run test:repo",
     "test:repo": "node tests/repositories/chartOfAccounts.test.mjs",
     "test:gm": "node tests/golden-master/journal.test.mjs",
     "test:gm:posting": "node tests/golden-master/posting-integrity.test.mjs",
@@ -43,7 +43,7 @@
     "test:gm:mutation": "node tests/golden-master/mutation.test.mjs",
     "test:gm:balances": "npm run test:gm:tb && npm run test:gm:ledger && npm run test:gm:customer && npm run test:gm:supplier && npm run test:gm:tenant && npm run test:gm:dates && npm run test:gm:precision && npm run test:gm:idem && npm run test:gm:failure && npm run test:gm:mutation",
     "test:gm:voucher": "node tests/golden-master/voucher.test.mjs",
-    "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances && npm run test:gm:voucher",
+    "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances && npm run test:gm:voucher && npm run test:gm:sales",
     "gm:perf": "node tests/golden-master/perf-baseline.mjs",
     "test:svc:atomicity": "node tests/services/postPurchaseInvoice.atomicity.test.mjs",
     "test:svc:idempotency": "node tests/services/postPurchaseInvoice.idempotency.test.mjs",
@@ -60,6 +60,16 @@
     "test:svc:voucher:all": "npm run test:svc:voucher:atomicity && npm run test:svc:voucher:idempotency && npm run test:svc:allocation && npm run test:svc:voucher:tenant && npm run test:svc:voucher:failure",
     "svc:voucher:perf": "node tests/services/voucher-perf-baseline.mjs",
     "test:phase7": "npm run test:char:custaccount && npm run test:char:voucherjournal && npm run test:char:allocation && npm run test:gm:voucher && npm run test:svc:voucher:all",
-    "test:migration": "npm run test:domain && npm run test:gm:all && npm run test:svc:all && npm run test:svc:voucher:all"
+    "test:migration": "npm run test:domain && npm run test:gm:all && npm run test:svc:all && npm run test:svc:voucher:all && npm run test:svc:sales",
+    "test:char:inventory": "node tests/characterization/inventoryValuation.test.mjs",
+    "test:gm:sales": "node tests/golden-master/sales-invoice.test.mjs",
+    "test:svc:sales:atomicity": "node tests/services/postSalesInvoice.atomicity.test.mjs",
+    "test:svc:sales:idempotency": "node tests/services/postSalesInvoice.idempotency.test.mjs",
+    "test:svc:sales:inventory": "node tests/services/postSalesInvoice.inventory.test.mjs",
+    "test:svc:sales:tenant": "node tests/services/postSalesInvoice.multiTenant.test.mjs",
+    "test:svc:sales:failure": "node tests/services/postSalesInvoice.failureInjection.test.mjs",
+    "test:svc:sales": "npm run test:svc:sales:atomicity && npm run test:svc:sales:idempotency && npm run test:svc:sales:inventory && npm run test:svc:sales:tenant && npm run test:svc:sales:failure",
+    "svc:sales:perf": "node tests/services/salesInvoice-perf-baseline.mjs",
+    "test:phase7c": "npm run test:char:inventory && npm run test:gm:sales && npm run test:svc:sales"
   }
 }

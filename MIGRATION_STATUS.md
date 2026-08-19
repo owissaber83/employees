@@ -1,6 +1,7 @@
 # MIGRATION_STATUS.md — حالة الترحيل
 
-**آخر تحديث:** 2026-08-19 (Phase 7 Step B — خدمة ترحيل السند: تخصيص متعدّد الفواتير + تعويض) · **المرجع:** [`docs/HANDOFF.md`](docs/HANDOFF.md)
+**آخر تحديث:** 2026-08-19 (Phase 7 Step C — خدمة ترحيل فاتورة المبيعات: قيد + مخزون في كتابة ذرّية واحدة)
+**آخر تحديث سابق:** 2026-08-19 (Phase 7 Step B — خدمة ترحيل السند: تخصيص متعدّد الفواتير + تعويض) · **المرجع:** [`docs/HANDOFF.md`](docs/HANDOFF.md)
 **آخر تحديث سابق:** 2026-08-19 (Phase 6 — خدمات التطبيق: ترحيل ذرّي + Idempotency) · **الفرع:** `feat/ai-invoice-system-v2` (مدفوع) · **الوسم:** `migration/baseline`
 
 ## المراحل
@@ -15,8 +16,9 @@
 | 5 | Golden Master — دفتر الأستاذ · ميزان المراجعة · أرصدة الأطراف | ✅ مكتمل (98 تأكيداً) |
 | 6 | خدمات التطبيق — ترحيل ذرّي + Idempotency (فاتورة المشتريات) | ✅ مكتمل — 98 تأكيداً (انظر §خدمات التطبيق أدناه). **غير موصول بالإنتاج بعد** |
 | 7-A | اكتشاف بحت — ترتيب أولويات مسارات الترحيل المتبقّية | ✅ مكتمل — تقرير فقط، بلا كود |
-| 7-B | خدمة ترحيل السند — تخصيص متعدّد الفواتير + تعويض (Saga) | ✅ **مكتمل هذا التحديث** — 153 تأكيداً جديداً (انظر §Phase 7 Step B أدناه). **غير موصول بالإنتاج بعد** |
-| 7-C+ | أساس React / بقيّة مسارات الترحيل (مبيعات، إشعارات، PMC، قيد يدوي) | 🔴 لم تبدأ — قرار المالك التالي |
+| 7-B | خدمة ترحيل السند — تخصيص متعدّد الفواتير + تعويض (Saga) | ✅ مكتمل — 153 تأكيداً جديداً (انظر §Phase 7 Step B أدناه). **غير موصول بالإنتاج بعد** |
+| 7-C | خدمة ترحيل فاتورة المبيعات — قيد + حركات مخزون في كتابة ذرّية واحدة | ✅ **مكتمل هذا التحديث** — 307 تأكيداً جديداً (انظر §Phase 7 Step C أدناه). **غير موصول بالإنتاج بعد** |
+| 7-D+ | أساس React / بقيّة مسارات الترحيل (إشعارات دائنة/مدينة، PMC، قيد يدوي) | 🔴 لم تبدأ — قرار المالك التالي |
 
 > ⚠️ **ملاحظة ترقيم:** `MIGRATION_PLAN.md` يُرقِّم "خدمات الأعمال" كـPhase 4
 > و"Golden Master" كـPhase 5 (بُدِّلا بموافقة المالك 2026-08-19)، بينما
@@ -37,9 +39,9 @@
 | القوائم المالية | 🔴 قديم | Legacy |
 | العملاء · الذمم المدينة | 🔴 قديم | Legacy |
 | الموردون · الذمم الدائنة | 🔴 قديم | Legacy |
-| فواتير المبيعات · المشتريات | 🔴 قديم | Legacy |
+| فواتير المبيعات · المشتريات | 🔴 قديم (خدمتان موازيتان جاهزتان غير موصولتين) | Legacy |
 | سندات القبض · الصرف | 🔴 قديم | Legacy |
-| المخزون · المخازن | 🔴 قديم | Legacy |
+| المخزون · المخازن | 🔴 قديم · ✅ **التقييم مستخلَص ومُثبت** (`domain/inventory`) | Legacy |
 | الأصول الثابتة | 🔴 قديم | Legacy |
 | الضرائب (قيمة مضافة · زكاة · استقطاع) | 🔴 قديم | Legacy |
 | المشاريع · المستخلصات | 🔴 قديم | Legacy |
@@ -59,14 +61,15 @@
 | `domain/accounting/chartOfAccounts` | ✅ **مستخلَص ومُثبت** (types · hierarchy · validation) |
 | `repositories/contracts` + `firebase` + `memory` | ✅ **شجرة الحسابات** — عقد واحد، تنفيذان |
 | `domain/accounting/journalEntry` | 🔴 لم يبدأ (لكن السلوك مُوثَّق بالكامل عبر Golden Master §4) |
-| `domain/accounting/posting` | 🔴 لم يبدأ (السلوك مُوثَّق — `ACCOUNTING_INTEGRITY_FIX_PLAN.md §3–5،9`) |
+| `domain/accounting/posting` | 🟡 **مستخلَص جزئياً** — مشتريات (P6) · سند (P7-B) · **مبيعات (P7-C)** · تحقّق + توازن |
 | `domain/accounting/ledger` | 🔴 الاستخلاص لم يبدأ · ✅ **السلوك موصَّف بالكامل** (`coaAccountOps` — Golden Master، `docs/accounting/ledger.md`) |
 | `domain/accounting/trialBalance` | 🔴 الاستخلاص لم يبدأ · ✅ **السلوك موصَّف بالكامل** (`tbCalcBalances`/`calcFSBalances` — Golden Master، `docs/accounting/trial-balance.md`، BUG-005) |
 | `domain/accounting/balances` | 🔴 الاستخلاص لم يبدأ · ✅ **السلوك موصَّف بالكامل** (`calcCustomerBalance`/`calcVendorBalance` — Golden Master، BUG-007) |
+| `domain/inventory` | ✅ **مستخلَص ومُثبت** (P7-C) — المتوسط المرجّح المتحرّك · الرصيد · تخطيط حركات البيع |
 | `domain/accounting/validation` | 🔴 لم يبدأ |
 | `calc.js` · `aiinvoice-engine.js` · `pdfeditor-engine.js` | ✅ نقيّة سابقاً |
-| `application/` | 🔴 غير موجود |
-| `repositories/` | 🔴 غير موجود |
+| `application/` (`src/services/`) | 🟡 ثلاث خدمات ترحيل — مشتريات · سند · **مبيعات** |
+| `repositories/` | 🟡 أربعة عقود، تنفيذان لكلٍّ (Firebase + ذاكرة) |
 | نظام التصميم | 🔴 غير موجود |
 
 ## الاختبارات
@@ -195,3 +198,73 @@ N معاملة تخصيص مستقلّة آمنة من التزامن كلٌّ �
 `tests/golden-master/capture-voucher.mjs` (حصاد سلوك القديم الحقيقي عبر
 `legacy-loader.mjs`، بامتداد يدعم `get`/`update` حقيقيَّين على متجر ذاكرة —
 `allocateToInvoices` تقرأ قبل أن تكتب، خلافاً لما احتاجته Phase 4).
+
+## خدمة ترحيل فاتورة المبيعات — Phase 7 Step C
+
+خدمة موازية جديدة (`createPostSalesInvoiceService`) ترحّل فاتورة مبيعات:
+تبني القيد، تخطّط حركات المخزون، وتكتبها **كلها في تحديث ذرّي واحد** —
+**غير موصولة بالإنتاج**؛ `postSInv`/`createJournalForSInv`/
+`createInventoryMovementsForSInv` في `accounting.js` لم تُلمَس حرفاً واحداً.
+
+**البنية:** `src/services/accounting/posting/postSalesInvoice.js` (الخدمة) →
+`domain/accounting/posting/buildSalesInvoiceJournal.js` +
+`resolveSalesRevenueAccount.js` + `domain/inventory/planSalesInvoiceMovements.js`
++ `movingAverage.js` → `repositories/contracts/SalesInvoicePostingRepository.js`
+→ تنفيذا Firebase والذاكرة.
+
+**ما يُضمَن فعلياً:**
+- **كتابة ذرّية واحدة** تضمّ القيد + ربط الفاتورة + **كل** حركات المخزون.
+  القديم يفعلها في **3 + 2N** عملية مستقلّة (8 نقاط فشل لفاتورة بثلاثة أصناف).
+- **Idempotency آمنة من التزامن** عبر `runTransaction` على `status` — 2 و5 و10
+  طلبات متزامنة ⇒ ترحيل واحد بالضبط، قيد واحد، مجموعة حركات واحدة.
+- **صفر إنشاء حسابات** — يعزل مسار المبيعات عن BUG-006 كلّياً (القديم يستدعي
+  `ensureStdAccount` حتى ستّ مرّات في الترحيل الواحد).
+- **عزل مستأجرين مُثبَت** على متجر مشترك: نفس مفتاح الفاتورة في مستأجرَين،
+  ترحيل متزامن ⇒ صفر تسرّب في الفاتورة والقيد والمخزون والعدّادات.
+
+**القيد مطابق للقديم حرفياً** — 41 تأكيد Golden Master بتشغيل الدالة القديمة
+الحقيقية من الملف الحيّ: ضريبة عادية/صفر/حدود تقريب · عملة أجنبية · احتجاز ·
+دفعة مقدمة · مجموعات حسابات العملاء · عميل مفقود · مبالغ نصّية.
+
+**اكتشاف جوهري:** لا يوجد **أي** قيد مخزون أو تكلفة بضاعة مباعة في ترحيل
+البيع — النظام **جرد دوري** لا مستمر. سياسة قائمة، حُفظت كما هي وسُجّلت كقرار
+معلّق (D2).
+
+**التوثيق:** [`docs/services/sales-invoice-discovery.md`](docs/services/sales-invoice-discovery.md) ·
+[`sales-invoice-posting.md`](docs/services/sales-invoice-posting.md) ·
+[`sales-invoice-atomicity.md`](docs/services/sales-invoice-atomicity.md) ·
+[`sales-invoice-idempotency.md`](docs/services/sales-invoice-idempotency.md) ·
+[`sales-invoice-inventory.md`](docs/services/sales-invoice-inventory.md)
+
+### الاختبارات — Phase 7 Step C
+
+| المجموعة | التأكيدات | الحالة |
+|---|---:|---|
+| `test:char:inventory` (توصيفي — تقييم المخزون مقابل القديم) | 49 | ✅ **جديد** |
+| `test:gm:sales` (Golden Master — القيد والمخزون: الجديد مقابل القديم) | 41 | ✅ **جديد** |
+| `test:svc:sales:atomicity` (كتابة ذرّية واحدة + تعادل التنفيذين) | 34 | ✅ **جديد** |
+| `test:svc:sales:idempotency` (تزامن حقيقي 2/5/10 + حماية BUG-007) | 43 | ✅ **جديد** |
+| `test:svc:sales:inventory` (اتساق المخزون + لا ازدواج) | 34 | ✅ **جديد** |
+| `test:svc:sales:tenant` (عزل المستأجرين) | 38 | ✅ **جديد** |
+| `test:svc:sales:failure` (حقن فشل A–M) | 68 | ✅ **جديد** |
+| **الإجمالي (`test:phase7c`)** | **307** | ✅ |
+
+مسار الترحيل الكامل الآن (`npm run test:migration`):
+254 (`test:domain`) + 249 (`test:gm:all`) + 66 (`test:svc:all`) +
+98 (`test:svc:voucher:all`) + 217 (`test:svc:sales`) = **884 تأكيداً · صفر فشل**.
+
+**المجموعات القائمة بعد التغيير:** `test:calc` 27 ✅ · `test:pdf` 102 ✅ ·
+`test:ai` 165 ✅ · `test:proxy` 36 ✅ · `lint` نظيف ✅ — لم يتغيّر أي منها
+(لا شيء في `public/` مسّه هذا التحديث).
+
+## عيوب — الحالة بعد Phase 7 Step C
+
+**BUG-009 جديد ومُوثَّق:** `createInventoryMovementsForSInv` تبتلع فشل كل
+حركة على حدة (`try/catch` + `console.error` فقط) ⇒ فاتورة مرحّلة بقيد سليم
+وحركات مخزون ناقصة **بصمت**، ورصيد صنف أعلى من الواقع إلى الأبد.
+**غير مُصلَح** (تعديل `public/` ممنوع)؛ جذره مُغلَق في الخدمة الموازية.
+
+**BUG-006** — غير مُصلَح؛ لكن الخدمة الجديدة لا تُنشئ حسابات إطلاقاً فتعزل
+مسار المبيعات عنه. **BUG-007** — غير مُصلَح على المسار الحيّ (وهو على المبيعات
+أشدّ: يضاعف المخزون أيضاً)؛ مُثبَت قابلاً للحل في الخدمة الموازية.
+**BUG-005 · BUG-008** — لم تُلمَسا. التفاصيل في `BUGS_TO_FIX.md`.

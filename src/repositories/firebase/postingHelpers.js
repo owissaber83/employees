@@ -54,3 +54,22 @@ export async function safeRollbackStatus(port, recordPath, status = 'draft') {
     try { await port.update(port.ref(port.db, recordPath), { status }); }
     catch (e) { /* أفضل جهد فقط — يُوثَّق كحدّ معروف، لا يُخفي الخطأ الأصلي */ }
 }
+
+/**
+ * [Phase 7-C] حجز رقم حركة مخزون — نفس آلية generateInvMovNumberAtomic
+ * (accounting.js:20342) ومسار العدّاد نفسه `ledger/counters/invmov/{type}/{year}`.
+ * ⚠️ لا بذرة (`seed`) من الذاكرة هنا: القديم يبذر العدّاد من `window.inventoryMovements`
+ * عند أول استخدام، وهي لقطة متصفّح لا تملكها طبقة المستودع. الأثر الوحيد أن العدّاد
+ * يبدأ من 1 على قاعدة بلا عدّاد سابق — فرق مُصنَّف B (ترقيم لا مال)، موثَّق في
+ * docs/services/sales-invoice-inventory.md. نفس ما فعله reserveJournalNumber في Phase 6.
+ */
+export async function reserveInventoryMovementNumber(port, type = 'out') {
+    const year = new Date().getFullYear();
+    const prefix = type === 'in' ? 'IN-' : 'OUT-';
+    let result;
+    try {
+        result = await port.runTransaction(port.ref(port.db, `ledger/counters/invmov/${type}/${year}`),
+            current => (typeof current === 'number' ? current : 0) + 1);
+    } catch (e) { throw translateRtdbError(e); }
+    return `${prefix}${year}-${String(result.snapshot.val()).padStart(5, '0')}`;
+}

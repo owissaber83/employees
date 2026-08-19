@@ -8,4 +8,7 @@ export * from './firebase/FirebaseJournalPostingRepository.js';
 export * from './firebase/FirebaseVoucherPostingRepository.js';
 export * from './memory/InMemoryChartOfAccountsRepository.js';
 export * from './memory/InMemoryJournalPostingRepository.js';
+export * from './contracts/SalesInvoicePostingRepository.js';
+export * from './firebase/FirebaseSalesInvoicePostingRepository.js';
 export * from './memory/InMemoryVoucherPostingRepository.js';
+export * from './memory/InMemorySalesInvoicePostingRepository.js';
