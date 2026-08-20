@@ -18,3 +18,7 @@ export * from './firebase/FirebaseCreditNotePostingRepository.js';
 export * from './firebase/FirebaseDebitNotePostingRepository.js';
 export * from './memory/InMemoryCreditNotePostingRepository.js';
 export * from './memory/InMemoryDebitNotePostingRepository.js';
+export * from './contracts/ProjectCostPostingRepository.js';
+export * from './contracts/ManualJournalPostingRepository.js';
+export * from './firebase/FirebaseProjectCostPostingRepository.js';
+export * from './firebase/FirebaseManualJournalPostingRepository.js';

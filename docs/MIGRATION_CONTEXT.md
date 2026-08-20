@@ -173,10 +173,13 @@ npm run test:svc:voucher:all # 98  — خدمة السند (P7-B: الذرّية
 npm run test:svc:sales       # 217 — خدمة المبيعات (P7-C: الذرّية/Idempotency/المخزون/المستأجرين/الفشل)
 npm run test:svc:credit      # 142 — خدمة الإشعار الدائن (P7-D)
 npm run test:svc:debit       # 142 — خدمة الإشعار المدين (P7-D)
+npm run test:svc:pmc         # 54  — خدمة تكلفة المشروع الشهرية (P7-E)
+npm run test:svc:manualjrn   # 56  — خدمة القيد اليدوي (P7-E)
 npm run test:phase7          # 153 — كل جديد Phase 7-B مجمَّعاً (توصيف + Golden Master + خدمة)
 npm run test:phase7c         # 307 — كل جديد Phase 7-C مجمَّعاً (توصيف + Golden Master + خدمة)
 npm run test:phase7:notes    # 480 — كل جديد Phase 7-D مجمَّعاً (الإشعاران: توصيف + GM + خدمتان)
-npm run test:migration       # 1364 — الكل مجمَّعاً: النطاق + Golden Master + الخدمات الخمس
+npm run test:phase7:e        # 180 — كل جديد Phase 7-E مجمَّعاً (PMC + القيد اليدوي)
+npm run test:migration       # 1584 — الكل مجمَّعاً: النطاق + Golden Master + الخدمات السبع
 npm run gm:perf              # خط أساس أداء الأرصدة (Phase 5) — تقرير أرقام
 npm run svc:perf             # خط أساس أداء ترحيل الفاتورة (Phase 6) — تقرير أرقام
 npm run svc:voucher:perf     # خط أساس أداء ترحيل السند + N تخصيص (Phase 7-B) — تقرير أرقام
