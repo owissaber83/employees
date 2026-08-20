@@ -55,7 +55,12 @@ export function extractFunction(name, file) {
         else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
     }
     const raw = src.slice(start, i).trim();
-    return wrap ? `const ${name} = ${raw};` : raw;
+    // [Phase 7-D] `async` تُعاد صراحةً في نمط الإسناد. `start` يبدأ من كلمة `function`
+    // نفسها (لا من `window.name =`)، فكانت `async` تسقط بصمت ⇒ دالة غير متزامنة تحوي
+    // `await` ⇒ SyntaxError. لم يظهر قبل الآن لأن كل ما استُخرج بنمط الإسناد كان
+    // غير متزامن (`ccLineMatchesProject` في Phase 5). **إضافة بحتة**: `m[2]` هي مجموعة
+    // `(async\s+)?` نفسها في كلا النمطين، و`wrap` لا تصحّ إلا لنمط الإسناد.
+    return wrap ? `const ${name} = ${m[2] ? 'async ' : ''}${raw};` : raw;
 }
 
 /**

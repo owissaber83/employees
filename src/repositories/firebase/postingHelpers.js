@@ -73,3 +73,53 @@ export async function reserveInventoryMovementNumber(port, type = 'out') {
     } catch (e) { throw translateRtdbError(e); }
     return `${prefix}${year}-${String(result.snapshot.val()).padStart(5, '0')}`;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [Phase 7-D] إشعارات الإرجاع (دائن/مدين)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * حجز رقم إشعار بمعاملة خادمية — **قرار المالك رقم 2 (مُوافَق عليه)**.
+ * يستبدل `max(cache)+1` غير الآمن في `generateCNNumber`/`generateDNNumber` (BUG-011).
+ * المسار داخل مجموعة `counters` القائمة: `ledger/counters/{cn|dn}/{year}` —
+ * لا مجموعة جديدة ولا تغيير مخطّط. فجوات الترقيم مقبولة صراحةً؛ التكرار ليس كذلك.
+ * @param {'cn'|'dn'} kind
+ */
+export async function reserveNoteNumber(port, kind) {
+    const year = new Date().getFullYear();
+    const prefix = kind === 'cn' ? 'CN-' : 'DN-';
+    let result;
+    try {
+        result = await port.runTransaction(port.ref(port.db, `ledger/counters/${kind}/${year}`),
+            current => (typeof current === 'number' ? current : 0) + 1);
+    } catch (e) { throw translateRtdbError(e); }
+    return `${prefix}${year}-${String(result.snapshot.val()).padStart(5, '0')}`;
+}
+
+/**
+ * بوّابة Idempotency للإشعارات — **قرار المالك رقم 1 (مُوافَق عليه)**.
+ * الإشعار لا يملك حالة `draft` سابقة (القديم يُنشئه بـ`push` مباشرةً بحالة `posted`)،
+ * فالمطالبة هنا **بالإنشاء** لا بالانتقال: معاملة خادمية على حقل `status` الموجود.
+ *
+ *   غائب   → 'draft'   (نملك المطالبة؛ الكتابة الذرّية النهائية تُحوّلها إلى 'posted')
+ *   'draft'  → إجهاض    (طرف آخر يعمل الآن، أو محاولة سابقة فشلت ولم يُحرَّر قيدها)
+ *   'posted' → إجهاض    (مُرحَّل بالفعل)
+ *
+ * ⚠️ ليست `read → if not posted → write` — الإجهاض يقع داخل المعاملة الخادمية نفسها.
+ */
+export async function claimNoteCreation(port, statusRefPath) {
+    try {
+        return await port.runTransaction(port.ref(port.db, statusRefPath),
+            current => (current == null ? 'draft' : undefined));
+    } catch (e) { throw translateRtdbError(e); }
+}
+
+/**
+ * تحرير مطالبة لم تكتمل — أفضل جهد. يُزيل عقدة الإشعار كاملةً (لا تحمل وقتها إلا
+ * `status: 'draft'`) كي تصلح إعادة المحاولة بنفس `noteKey`.
+ * لا نرمي إن فشل التحرير؛ الخطأ الأصلي هو ما يُبلَّغ (نفس سياسة safeRollbackStatus).
+ */
+export async function releaseNoteClaim(port, noteRefPath) {
+    try { await port.remove(port.ref(port.db, noteRefPath)); }
+    catch (e) { /* أفضل جهد — يُوثَّق كحدّ معروف */ }
+}
