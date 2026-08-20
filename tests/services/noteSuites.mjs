@@ -425,6 +425,71 @@ export async function runFailureSuite(kind) {
         ok('J · لكن الفاتورة تبقى مُخصَّصة — حدّ موثَّق صراحةً (تعويض أفضل جهد)', inv[K.fields.notedAmount] === 2300, JSON.stringify(inv[K.fields.notedAmount]));
     }
 
+    console.log('\n[J2] فشل التحقّق البنيوي من القيد (validateJournal)');
+    {
+        // حساب مُحلَّل لكنه بلا رمز ⇒ سطر بلا accountCode ⇒ validateJournal ترفض.
+        // يُثبت أن بوّابة التحقّق تعمل **قبل** أي كتابة مالية (جوهر منع BUG-010).
+        const env = buildNoteEnv(kind);
+        const realGet = env.coa.getByCode.bind(env.coa);
+        env.coa.getByCode = async code => {
+            const a = await realGet(code);
+            return a ? { ...a, code: '' } : a;      // يُفرِغ الرمز مع إبقاء الكائن حقيقياً
+        };
+        const { err } = await grab(() => env.service({ noteKey: env.newNoteKey(), invoiceKey: env.invoiceKey, returnQuantities: FULL }));
+        ok('J2 · ValidationError من validateJournal', err && err.name === 'ValidationError', err && `${err.name}: ${err.message}`);
+        ok('J2 · وقبل أي كتابة مالية إطلاقاً', clean(env));
+        const inv = tenantPath(env.store, 'T1', `${K.invoiceCollection}/INV-1`);
+        ok('J2 · والفاتورة لم تُمَسّ', !inv[K.fields.notedAmount] && !inv[K.fields.fully]);
+    }
+
+    console.log('\n[K2] فشل فحص التوازن (assertBalanced)');
+    {
+        // ⚠️ على مستوى الخدمة هذا المسار **غير قابل للوصول بمدخلات صالحة**: البنّاء
+        // يُسوّي فرق التقريب على سطر واحد فيجعل مجموع السطور = الترويسة دائماً
+        // (مُثبَت في §[6] من Golden Master). لذلك يُختبَر الحارس نفسه على قيد مُزوَّر —
+        // نفس منهج Phase 6 «القيد المزوَّر» — لإثبات أنه يكشف الاختلال لا يمرّره.
+        const { assertBalanced } = await import('../../src/domain/accounting/posting/assertBalanced.js');
+        const forged = {
+            lines: [
+                { accountCode: '4100', debit: 2000, credit: 0 },
+                { accountCode: '1130', debit: 0, credit: 2300 }
+            ],
+            totalDebit: 2300, totalCredit: 2300        // ترويسة متوازنة مع نفسها، تخالف السطور
+        };
+        let threw = null;
+        try { assertBalanced(forged); } catch (e) { threw = e; }
+        ok('K2 · قيد مُزوَّر (ترويسة تخالف السطور) ⇒ UnbalancedJournalError',
+            threw && threw.name === 'UnbalancedJournalError', threw && threw.name);
+        // وأن الخدمة تستدعيه فعلاً ضمن السلسلة قبل الكتابة
+        const env = buildNoteEnv(kind);
+        const r = await env.service({ noteKey: env.newNoteKey(), invoiceKey: env.invoiceKey, returnQuantities: FULL });
+        const j = Object.values(tenantPath(env.store, 'T1', 'ledger/journalEntries'))[0];
+        const sum = j.lines.reduce((a, l) => a + (l.debit || 0), 0);
+        ok('K2 · وكل قيد تُصدره الخدمة يجتاز الفحص فعلياً', Math.abs(sum - j.totalDebit) < 0.01 && r.success,
+            `Σمدين=${sum} ترويسة=${j.totalDebit}`);
+    }
+
+    console.log('\n[M2] فشل خام في معاملة الفاتورة المصدر');
+    {
+        const env = buildNoteEnv(kind);
+        const realTx = env.port.runTransaction;
+        env.port.runTransaction = async (r, fn) => {
+            if (String(r.path).includes(K.invoiceCollection)) throw new Error('network unavailable');
+            return realTx(r, fn);
+        };
+        const { err } = await grab(() => env.service({ noteKey: env.newNoteKey(), invoiceKey: env.invoiceKey, returnQuantities: FULL }));
+        ok('M2 · خطأ مستودع محايد لا خطأ Firebase خام', err && err.name === 'RepositoryError' && err.code === 'UNAVAILABLE',
+            err && `${err.name}/${err.code}`);
+        ok('M2 · صفر كتابة مالية', clean(env));
+        const inv = tenantPath(env.store, 'T1', `${K.invoiceCollection}/INV-1`);
+        ok('M2 · والفاتورة لم تُمَسّ', !inv[K.fields.notedAmount]);
+        // المطالبة حُرِّرت ⇒ إعادة المحاولة بنفس المفتاح تنجح
+        env.port.runTransaction = realTx;
+        const k2 = env.newNoteKey();
+        const r2 = await env.service({ noteKey: k2, invoiceKey: env.invoiceKey, returnQuantities: FULL });
+        ok('M2 · وإعادة المحاولة بعد الشفاء تنجح', r2.success && !r2.alreadyPosted);
+    }
+
     console.log('\n[K·L] التكرار والتزامن');
     {
         const env = buildNoteEnv(kind);

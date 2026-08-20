@@ -43,7 +43,7 @@
     "test:gm:mutation": "node tests/golden-master/mutation.test.mjs",
     "test:gm:balances": "npm run test:gm:tb && npm run test:gm:ledger && npm run test:gm:customer && npm run test:gm:supplier && npm run test:gm:tenant && npm run test:gm:dates && npm run test:gm:precision && npm run test:gm:idem && npm run test:gm:failure && npm run test:gm:mutation",
     "test:gm:voucher": "node tests/golden-master/voucher.test.mjs",
-    "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances && npm run test:gm:voucher && npm run test:gm:sales && npm run test:gm:credit && npm run test:gm:debit",
+    "test:gm:all": "npm run test:gm && npm run test:gm:posting && npm run test:gm:balances && npm run test:gm:voucher && npm run test:gm:sales && npm run test:gm:credit && npm run test:gm:debit && npm run test:gm:bug014",
     "gm:perf": "node tests/golden-master/perf-baseline.mjs",
     "test:svc:atomicity": "node tests/services/postPurchaseInvoice.atomicity.test.mjs",
     "test:svc:idempotency": "node tests/services/postPurchaseInvoice.idempotency.test.mjs",
@@ -88,6 +88,7 @@
     "test:svc:debit:failure": "node tests/services/postDebitNote.failure.test.mjs",
     "test:svc:debit": "npm run test:svc:debit:idempotency && npm run test:svc:debit:allocation && npm run test:svc:debit:atomicity && npm run test:svc:debit:tenant && npm run test:svc:debit:failure",
     "svc:notes:perf": "node tests/services/note-perf-baseline.mjs",
-    "test:phase7:notes": "npm run test:char:credit && npm run test:char:debit && npm run test:gm:credit && npm run test:gm:debit && npm run test:svc:credit && npm run test:svc:debit"
+    "test:phase7:notes": "npm run test:char:credit && npm run test:char:debit && npm run test:gm:credit && npm run test:gm:debit && npm run test:svc:credit && npm run test:svc:debit && npm run test:gm:bug014",
+    "test:gm:bug014": "node tests/golden-master/bug014-note-balance-asymmetry.test.mjs"
   }
 }
